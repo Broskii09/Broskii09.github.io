@@ -1,0 +1,58 @@
+:root {
+  --Primary: rgba(255, 175, 204, 1);
+  --Secondary: rgba(162, 210, 255, 1);
+  --Alt01: rgba(163, 117, 189, 1);
+  --Alt02: rgba(134, 80, 165, 1);
+  --Alt03: rgba(189, 224, 254, 1);
+  --cfnt-color: rgba(96, 73, 90, 1);
+  --WEVVGray: #dfdede;
+  --MAINText: -webkit-linear-gradient(-20deg, var(--Alt01) 0%, var(--Alt01) 100%);
+}
+body {
+  background: linear-gradient(-45deg, var(--Secondary) 0%, var(--Primary) 100%);
+	background-size: 200% 200%;
+  animation: gradient 15s ease infinite;
+}
+
+@keyframes gradient {
+	0% {
+		background-position: 0% 50%;
+	}
+	50% {
+		background-position: 100% 50%;
+	}
+	100% {
+		background-position: 0% 50%;
+	}
+}
+.table-striped > tbody:nth-of-type(odd) > * {
+  background-image: var(--MAINText);
+}
+tbody td {
+	color: #fff !important;
+}
+.group-div h2 {
+    color: var(--Alt01);
+	text-shadow: 2px 2px 4px var(--Alt03) ;
+}
+
+#WeatherWidget {
+	background-color: var(--Alt02);
+}
+
+#idd5f977f8a9710 .wlr__wrapper {
+	color: var(--Secondary)!important;
+}
+
+#idd5f977f8a9710.wlr .wlr__fcTempDay {
+	color: var(--Primary)!important;
+}
+
+#idd5f977f8a9710.wlr .wlr__fcTempNight {
+	color: var(--Secondary)!important;
+}
+
+.group-grid-item img {
+	border: 2px solid #fff;
+	background-clip: padding-box;
+}

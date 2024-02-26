@@ -1,0 +1,8 @@
+:root {
+	--WEVVBlue01: #164a86;
+	--WEVVBlue02: #298cf3;
+	--WEVVBlue03: #02091e;
+	--WEVVGold01: #f6d100;
+	--WEVVGold02: #efaa00;
+	--WEVVGold03: #fefa00;
+}
