@@ -1,0 +1,28 @@
+// Replace YOUR_API_KEY with your actual API key
+const API_KEY = 'AIzaSyADL3jiMs5aKGe6nIOWNF3uiq0uOPZcmoc';
+
+// Replace SPREADSHEET_ID with the ID of your Google Sheets file
+const SPREADSHEET_ID = 'SPREADSHEET_ID';
+
+// Replace RANGE with the range of values that you want to retrieve
+const RANGE = 'A1:D1';
+
+// Set up the request URL
+const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${API_KEY}`;
+
+// Make the request
+fetch(url)
+  .then(response => response.json())
+  .then(data => {
+    // The data object contains an array of rows, with each row being an array of cell values
+    const rows = data.values;
+    if (rows.length > 0) {
+      // Get the first row (since we specified a range of A1:D1)
+      const row = rows[0];
+      // Loop through the cells in the row and assign them to the table cells
+      const tableCells = document.querySelectorAll('#myTable td');
+      row.forEach((cell, index) => {
+        tableCells[index].innerHTML = cell;
+      });
+    }
+  });

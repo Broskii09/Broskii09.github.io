@@ -1,0 +1,241 @@
+<<<<<<< HEAD
+:root {
+  --Primary: rgba(0, 0, 255, 1); /* Blue color for New Year's */
+  --Secondary: rgba(255, 223, 0, 1); /* Gold color for New Year's */
+  --Alt01: rgba(2, 9, 30, 1);
+  --Alt02: rgba(246, 209, 0, 1);
+  --Alt03: rgba(239, 170, 0, 1);
+  --Alt04: rgba(254, 250, 0, 1);
+  --WEVVGray: rgba(223, 222, 222, 1);
+  --MAINText: -webkit-linear-gradient(-20deg, var(--Alt02) 0%, var(--Alt03) 100%);
+}
+
+body {
+  background: linear-gradient(-45deg, #000000ff 0%, #0c0c0cff 100%); /* Black and dark gray background */
+  background-size: 200% 200%;
+  animation: gradient 15s ease infinite;
+  margin: 0; /* Remove default margin */
+  padding: 0; /* Remove default padding */
+  position: relative;
+}
+
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+tr:nth-of-type(odd) {
+  background-color: var(--Alt02);
+}
+tr:nth-of-type(even) {
+  background-color: var(--Alt03);
+}
+tr:nth-child(1) {
+  background-color: var(--Alt04);
+}
+
+tr:nth-child(2) {
+  background-color: #cf261f;
+  color: #fff!important;
+}
+
+tr:nth-child(2) .eventDate-text {
+  color: var(--Primary);
+}
+
+tbody {
+  color: var(--Primary) !important;
+}
+
+.group-div h2 {
+  color: var(--Alt02);
+  text-shadow: 2px 2px 4px var(--Alt01);
+}
+
+#WeatherWidget {
+  background-color: var(--Primary);
+}
+
+#idd5f977f8a9710 .wlr__wrapper {
+  color: var(--Alt02)!important;
+}
+
+#idd5f977f8a9710.wlr .wlr__fcTempDay {
+  color: var(--Alt03)!important;
+}
+
+#idd5f977f8a9710.wlr .wlr__fcTempNight {
+  color: var(--Alt04)!important;
+}
+
+.group-grid-item img {
+  border: 2px solid #fff;
+  background-clip: padding-box;
+}
+
+#TimeDate {
+  background-color: var(--Primary);
+}
+
+#BulletinHeader {
+  color: var(--WEVVGray);
+  background-image: var(--MAINText);
+  background-clip: text;
+  -webkit-background-clip: text;
+  text-fill-color: transparent;
+}
+
+.employeeName-text,
+.position-text {
+    /* ... (other styles) */
+    z-index: 2; /* Set a higher z-index value */
+}
+
+#countdown-clock {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.8); /* Background color for the countdown clock */
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  font-size: 65px;
+}
+
+.countdown-item {
+  margin: 0 10px;
+}
+
+.countdown-number {
+  font-weight: bold;
+}
+
+=======
+:root {
+  --Primary: rgba(0, 0, 255, 1); /* Blue color for New Year's */
+  --Secondary: rgba(255, 223, 0, 1); /* Gold color for New Year's */
+  --Alt01: rgba(2, 9, 30, 1);
+  --Alt02: rgba(246, 209, 0, 1);
+  --Alt03: rgba(239, 170, 0, 1);
+  --Alt04: rgba(254, 250, 0, 1);
+  --WEVVGray: rgba(223, 222, 222, 1);
+  --MAINText: -webkit-linear-gradient(-20deg, var(--Alt02) 0%, var(--Alt03) 100%);
+}
+
+body {
+  background: linear-gradient(-45deg, #000000ff 0%, #0c0c0cff 100%); /* Black and dark gray background */
+  background-size: 200% 200%;
+  animation: gradient 15s ease infinite;
+  margin: 0; /* Remove default margin */
+  padding: 0; /* Remove default padding */
+  position: relative;
+}
+
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+tr:nth-of-type(odd) {
+  background-color: var(--Alt02);
+}
+tr:nth-of-type(even) {
+  background-color: var(--Alt03);
+}
+tr:nth-child(1) {
+  background-color: var(--Alt04);
+}
+
+tr:nth-child(2) {
+  background-color: #cf261f;
+  color: #fff!important;
+}
+
+tr:nth-child(2) .eventDate-text {
+  color: var(--Primary);
+}
+
+tbody {
+  color: var(--Primary) !important;
+}
+
+.group-div h2 {
+  color: var(--Alt02);
+  text-shadow: 2px 2px 4px var(--Alt01);
+}
+
+#WeatherWidget {
+  background-color: var(--Primary);
+}
+
+#idd5f977f8a9710 .wlr__wrapper {
+  color: var(--Alt02)!important;
+}
+
+#idd5f977f8a9710.wlr .wlr__fcTempDay {
+  color: var(--Alt03)!important;
+}
+
+#idd5f977f8a9710.wlr .wlr__fcTempNight {
+  color: var(--Alt04)!important;
+}
+
+.group-grid-item img {
+  border: 2px solid #fff;
+  background-clip: padding-box;
+}
+
+#TimeDate {
+  background-color: var(--Primary);
+}
+
+#BulletinHeader {
+  color: var(--WEVVGray);
+  background-image: var(--MAINText);
+  background-clip: text;
+  -webkit-background-clip: text;
+  text-fill-color: transparent;
+}
+
+.employeeName-text,
+.position-text {
+    /* ... (other styles) */
+    z-index: 2; /* Set a higher z-index value */
+}
+
+#countdown-clock {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.8); /* Background color for the countdown clock */
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  font-size: 65px;
+}
+
+.countdown-item {
+  margin: 0 10px;
+}
+
+.countdown-number {
+  font-weight: bold;
+}
+
+>>>>>>> e1245f311ea92b7ef76e1ec31273bc73c4e20511

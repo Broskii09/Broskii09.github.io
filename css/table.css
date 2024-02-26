@@ -1,0 +1,17 @@
+      /* Add your styles here */
+      .group-container {
+        display: flex;
+        flex-wrap: wrap;
+      }
+      .group-grid-container {
+        display: flex;
+        flex-wrap: wrap;
+      }
+      .group-grid-item {
+        /* Add your styles for the grid items here */
+      }
+img {
+  width: 100px;
+  height: auto;
+  object-fit: contain;
+}

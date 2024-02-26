@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="css/rotate-clock.css">
+  <title>Clock</title>
+</head>
+<body>
+<div>
+  <ul id="hourTens">
+    <li id="hourTens0"><span></span></li>
+    <li id="hourTens1"><span></span></li>
+    <li id="hourTens2"><span></span></li>
+  </ul>
+  <ul id="hourOnes">
+    <li id="hourOnes0"><span></span></li>
+    <li id="hourOnes1"><span></span></li>
+    <li id="hourOnes2"><span></span></li>
+    <li id="hourOnes3"><span></span></li>
+    <li id="hourOnes4"><span></span></li>
+    <li id="hourOnes5"><span></span></li>
+    <li id="hourOnes6"><span></span></li>
+    <li id="hourOnes7"><span></span></li>
+    <li id="hourOnes8"><span></span></li>
+    <li id="hourOnes9"><span></span></li>
+  </ul>
+  <ul id="minuteTens">
+    <li id="minuteTens0"><span></span></li>
+    <li id="minuteTens1"><span></span></li>
+    <li id="minuteTens2"><span></span></li>
+    <li id="minuteTens3"><span></span></li>
+    <li id="minuteTens4"><span></span></li>
+    <li id="minuteTens5"><span></span></li>
+  </ul>
+  <ul id="minuteOnes">
+    <li id="minuteOnes0"><span></span></li>
+    <li id="minuteOnes1"><span></span></li>
+    <li id="minuteOnes2"><span></span></li>
+    <li id="minuteOnes3"><span></span></li>
+    <li id="minuteOnes4"><span></span></li>
+    <li id="minuteOnes5"><span></span></li>
+    <li id="minuteOnes6"><span></span></li>
+    <li id="minuteOnes7"><span></span></li>
+    <li id="minuteOnes8"><span></span></li>
+    <li id="minuteOnes9"><span></span></li>
+  </ul>
+  <ul id="secondTens">
+    <li id="secondTens0"><span></span></li>
+    <li id="secondTens1"><span></span></li>
+    <li id="secondTens2"><span></span></li>
+    <li id="secondTens3"><span></span></li>
+    <li id="secondTens4"><span></span></li>
+    <li id="secondTens5"><span></span></li>
+  </ul>
+  <ul id="secondOnes">
+    <li id="secondOnes0"><span></span></li>
+    <li id="secondOnes1"><span></span></li>
+    <li id="secondOnes2"><span></span></li>
+    <li id="secondOnes3"><span></span></li>
+    <li id="secondOnes4"><span></span></li>
+    <li id="secondOnes5"><span></span></li>
+    <li id="secondOnes6"><span></span></li>
+    <li id="secondOnes7"><span></span></li>
+    <li id="secondOnes8"><span></span></li>
+    <li id="secondOnes9"><span></span></li>
+  </ul>
+</div>
+	
+	<script>
+	function updateTime() {
+  var now = new Date();
+  var hour = now.getHours();
+  var minute = now.getMinutes();
+  var second = now.getSeconds();
+
+  document.getElementById('hourTens' + Math.floor(hour / 10)).classList.add('active');
+  document.getElementById('hourOnes' + (hour % 10)).classList.add('active');
+  document.getElementById('minuteTens' + Math.floor(minute / 10)).classList.add('active');
+  document.getElementById('minuteOnes' + (minute % 10)).classList.add('active');
+  document.getElementById('secondTens' + Math.floor(second / 10)).classList.add('active');
+  document.getElementById('secondOnes' + (second % 10)).classList.add('active');
+}
+
+setInterval(updateTime, 1000);
+
+	</script>
+	</body>
+</html>

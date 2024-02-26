@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="css/employees.css">
+<link rel="stylesheet" href="css/date-time.css">
+<link rel="stylesheet" href="css/events.css">
+<link href="css/flip.min.css" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;600;800;900&display=swap" rel="stylesheet">
+
+<!------------------------------------- For Date-Time Javascript -------------------------------------> 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> 
+<script src="js/date-time.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, initial-scale=1">
+<title>WEVV Bulletin Board</title>
+</head>
+
+<body onload="getDataFromEmployees('container'), getDataFromEvents('events')">
+<div class="container-fluid">
+  <div class="row">
+    <div id="container" class="col-8 text-center"> <img src="img/44News-Family.png" alt="44News Family" style="width: 75%; height: auto;position:relative;top:15px;"> </div>
+    <div class="col-4"> 
+      <!-- Time and Date and Temp Info -->
+      <div id="TimeDate" class="row justify-content-center g-0">
+        <div class="row align-content-center text-center" id="BulletinHeader">
+          <div class="col-6 align-self-center">
+            <div id="time"></div>
+          </div>
+          <div class="col-6">
+            <div id="day"></div>
+            <div id="month"></div>
+          </div>
+        </div>
+        <div id="WeatherWidget" class="col-12 text-center align-self-center fw-2">
+          <div style="text-transform: uppercase; font-weight: 900;" id="ww_7dce70c1da929" v='1.3' loc='id' a='{"t":"ticker","lang":"en","sl_lpl":1,"ids":["wl3427"],"font":"Arial","sl_ics":"one_a","sl_sot":"fahrenheit","cl_bkg":"#FFFFFF00","cl_font":"rgba(255,222,23,1)","cl_cloud":"#d4d4d4","cl_persp":"#2196F3","cl_sun":"#FFC107","cl_moon":"#FFC107","cl_thund":"#FF5722"}'>Weather Data Source: <a href="https://sharpweather.com/weather_evansville/30_days/" id="ww_7dce70c1da929_u" target="_blank">30 days Evansville weather</a></div>
+          <script async src="https://app1.weatherwidget.org/js/?id=ww_7dce70c1da929"></script> </div>
+      </div>
+      <div class="row">
+        <div class="table-responsive col-12" id="events"></div>
+        <div class="col-12">
+          <video class="ratio-16x9 img-fluid" style="display: none;" src="" controls autoplay loop muted></video>
+        </div>
+      </div>
+    </div>
+    <!--	<div class="col-8" style="position: absolute; bottom: 10px; left: 0px;"><img class="img-fluid" src="img/Banner-44News_Generic.png" alt="44News Banner"  ></div>--> 
+  </div>
+</div>
+
+<!------------------------------------- Scripts -------------------------------------> 
+<!-- jQuery --> 
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script> 
+<!-- Bootstrap JavaScript --> 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script> 
+<!-- Employee Data & Event Javascript: https://docs.google.com/spreadsheets/d/1iRPL4Nf9nRbe-fzxKaZZsxdCYIxParU2_J-9IjnYQBo/edit?usp=sharing --> 
+<script src="https://apis.google.com/js/api.js"></script> 
+<script src="js/employees.js"></script> 
+<script src="js/events.js"></script> 
+<!-- Confetti FX--> 
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0">
+	</script> 
+
+<!------------------------------------- 7-Day Weather -------------------------------------> 
+<script>
+!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src='https://weatherwidget.io/js/widget.min.js';fjs.parentNode.insertBefore(js,fjs);}}(document,'script','weatherwidget-io-js');
+</script> 
+<!------------------------------------- Date-Time Javascript -------------------------------------> 
+<script src="js/date-time.js"></script>
+</body>
+</html>

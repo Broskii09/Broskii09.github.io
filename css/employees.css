@@ -1,0 +1,386 @@
+<<<<<<< HEAD
+:root {
+  --width: 155px;
+} /* Employee photo width, adjust if needed */
+/* element that contains the group grid containers. */
+
+
+.group-container {
+  display: flex;
+  flex-wrap: wrap;
+  column-count: 2; /* set the number of columns to a smaller value */
+  width: auto;
+  height: auto;
+}
+/* the elements that contain the grid items for each group. */
+.group-grid-container {
+  display: inline-flex;
+  flex-wrap: wrap;
+  text-align: center;
+  width: 100%;
+  height: auto;
+  justify-content: center;
+}
+.group-grid-container h2 {
+  font-size: 20px;
+  font-weight: bold;
+  margin: 10px 0;
+}
+.group-div {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  /*width: 80%; 
+  height: auto;
+  background-color: #eee;*/
+  /*  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);*/
+  margin: 0px;
+  padding-bottom: 25px;
+}
+.group-div h2 {
+  font-weight: 900;
+}
+/* the elements that represent each grid item in the grid. */
+.group-grid-item {
+  width: var(--width);
+  height: auto;
+  position: relative; /* add this to position the employee name text */
+}
+/* applied to the <img> elements that represent the photos in the grid. */
+
+.fade-in {
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+}
+.employeeName-container {
+  position: absolute;
+  bottom: 10px; /* Position the text at the bottom of the grid item */
+  left: 50%; /* Position the text horizontally at the center of the grid item */
+  transform: translateX(-50%) scale(1.2); /* Align the text to the center of the grid item */
+  margin: 0;
+  width: 100%;
+}
+
+.employeeName-text {
+  font-size: .6em;
+  font-weight: 900;
+  color: white;
+  background-color: rgba(0, 0, 0, 0.0);
+  text-shadow:     
+	 -.5px -.5px 0 #000,
+     0   -.5px 0 #000,
+     .5px -.5px 0 #000,
+     .5px  0   0 #000,
+     .5px  .5px 0 #000,
+     0    .5px 0 #000,
+    -.5px  .5px 0 #000,
+    -.5px  0   0 #000;
+
+/*  -webkit-text-stroke: .1px black;*/
+}
+.position-container {
+  position: absolute;
+  bottom: 0; /* Position the text at the bottom of the grid item */
+  left: 50%; /* Position the text horizontally at the center of the grid item */
+  transform: translateX(-50%) scale(1.2); /* Align the text to the center of the grid item */
+  margin: 0;
+  width: 100%;
+}
+
+.position-text {
+	  font-size: .45em;
+  font-weight: 500;
+  color: white;
+  background-color: rgba(0, 0, 0, 0.0);
+  text-shadow:     
+	 -.25px -.25px 0 #000,
+     0   -.25px 0 #000,
+     .25px -.25px 0 #000,
+     .25px  0   0 #000,
+     .25px .25px 0 #000,
+     0    .25px 0 #000,
+    -.25px  .25px 0 #000,
+    -.25px  0   0 #000;
+/*  -webkit-text-stroke: .1px black;*/
+}
+
+.banner {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: auto;
+  width: 2560px;
+}
+
+img[id='1']::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-image: url("../img/employees/frames/TEST.png")
+}
+
+img[id='1'] {
+    z-index: 1;
+	position: relative!important;
+}
+.img-fluid {
+	z-index: 0!important;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes hue-rotate {
+  from {
+    filter: hue-rotate(0deg);
+  }
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+.birthdayFX {
+  animation: pulse 5s infinite, hue-rotate 1s infinite alternate;
+  filter: hue-rotate(90deg);
+  z-index: 1;
+}
+
+.birthday-badge {
+  position: absolute;
+  top: -44px;
+  right: -6px;
+  width: 100%;
+  height: auto;
+	border: none !important;
+}
+
+.guests {
+	transform: scale(1.5);
+  position: absolute;
+/*	right: 1123px;
+	bottom: 330px;*/
+	top: 92rem;
+	left: 90rem;
+}
+
+.guests .employeeName-text,
+.guests .position-text {
+    color: #F6D100 !important; 
+	font-weight: 900;
+	font-size: .75rem;
+}
+
+.guests .position-container {
+	position: relative;
+	bottom: -10px;
+}
+
+.guests .employeeName-text {
+	position: relative;
+	bottom: -6px;
+=======
+:root {
+  --width: 155px;
+} /* Employee photo width, adjust if needed */
+/* element that contains the group grid containers. */
+
+
+.group-container {
+  display: flex;
+  flex-wrap: wrap;
+  column-count: 2; /* set the number of columns to a smaller value */
+  width: auto;
+  height: auto;
+}
+/* the elements that contain the grid items for each group. */
+.group-grid-container {
+  display: inline-flex;
+  flex-wrap: wrap;
+  text-align: center;
+  width: 100%;
+  height: auto;
+  justify-content: center;
+}
+.group-grid-container h2 {
+  font-size: 20px;
+  font-weight: bold;
+  margin: 10px 0;
+}
+.group-div {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  /*width: 80%; 
+  height: auto;
+  background-color: #eee;*/
+  /*  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);*/
+  margin: 0px;
+  padding-bottom: 25px;
+}
+.group-div h2 {
+  font-weight: 900;
+}
+/* the elements that represent each grid item in the grid. */
+.group-grid-item {
+  width: var(--width);
+  height: auto;
+  position: relative; /* add this to position the employee name text */
+}
+/* applied to the <img> elements that represent the photos in the grid. */
+
+.fade-in {
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+}
+.employeeName-container {
+  position: absolute;
+  bottom: 10px; /* Position the text at the bottom of the grid item */
+  left: 50%; /* Position the text horizontally at the center of the grid item */
+  transform: translateX(-50%) scale(1.2); /* Align the text to the center of the grid item */
+  margin: 0;
+  width: 100%;
+}
+
+.employeeName-text {
+  font-size: .6em;
+  font-weight: 900;
+  color: white;
+  background-color: rgba(0, 0, 0, 0.0);
+  text-shadow:     
+	 -.5px -.5px 0 #000,
+     0   -.5px 0 #000,
+     .5px -.5px 0 #000,
+     .5px  0   0 #000,
+     .5px  .5px 0 #000,
+     0    .5px 0 #000,
+    -.5px  .5px 0 #000,
+    -.5px  0   0 #000;
+
+/*  -webkit-text-stroke: .1px black;*/
+}
+.position-container {
+  position: absolute;
+  bottom: 0; /* Position the text at the bottom of the grid item */
+  left: 50%; /* Position the text horizontally at the center of the grid item */
+  transform: translateX(-50%) scale(1.2); /* Align the text to the center of the grid item */
+  margin: 0;
+  width: 100%;
+}
+
+.position-text {
+	  font-size: .45em;
+  font-weight: 500;
+  color: white;
+  background-color: rgba(0, 0, 0, 0.0);
+  text-shadow:     
+	 -.25px -.25px 0 #000,
+     0   -.25px 0 #000,
+     .25px -.25px 0 #000,
+     .25px  0   0 #000,
+     .25px .25px 0 #000,
+     0    .25px 0 #000,
+    -.25px  .25px 0 #000,
+    -.25px  0   0 #000;
+/*  -webkit-text-stroke: .1px black;*/
+}
+
+.banner {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: auto;
+  width: 2560px;
+}
+
+img[id='1']::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-image: url("../img/employees/frames/TEST.png")
+}
+
+img[id='1'] {
+    z-index: 1;
+	position: relative!important;
+}
+.img-fluid {
+	z-index: 0!important;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes hue-rotate {
+  from {
+    filter: hue-rotate(0deg);
+  }
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+.birthdayFX {
+  animation: pulse 5s infinite, hue-rotate 1s infinite alternate;
+  filter: hue-rotate(90deg);
+  z-index: 1;
+}
+
+.birthday-badge {
+  position: absolute;
+  top: -44px;
+  right: -6px;
+  width: 100%;
+  height: auto;
+	border: none !important;
+}
+
+.guests {
+	transform: scale(1.5);
+  position: absolute;
+/*	right: 1123px;
+	bottom: 330px;*/
+	top: 92rem;
+	left: 90rem;
+}
+
+.guests .employeeName-text,
+.guests .position-text {
+    color: #F6D100 !important; 
+	font-weight: 900;
+	font-size: .75rem;
+}
+
+.guests .position-container {
+	position: relative;
+	bottom: -10px;
+}
+
+.guests .employeeName-text {
+	position: relative;
+	bottom: -6px;
+>>>>>>> e1245f311ea92b7ef76e1ec31273bc73c4e20511
+}

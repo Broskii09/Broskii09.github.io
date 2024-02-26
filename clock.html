@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!--==================== BOXICONS ====================-->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/boxicons@latest/css/boxicons.min.css">
+
+  <!--==================== CSS ==========-->
+  <link rel="stylesheet" href="assets/css/styles.css">
+
+  <!--==================== Bootstrap CSS ==========-->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.1.1/css/bootstrap.min.css" integrity="sha512-7m2FjT3ZP67twucwGZhEN1VQ2bf0q3OahOgKItXlJYZZcaR1tCZitSYKwKyFDJzF99fGXG+Hewymny5e5X9YgA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <title>Clock Ui</title>
+</head>
+<body>
+  <section class="clock container">
+    <div class="clock__container row justify-content-center">
+      <div class="col-12 col-md-10 col-lg-8 col-xl-6">
+        <div class="clock__content">
+          <div class="clock__circle">
+            <span class="clock__twelve"></span>
+            <span class="clock__three"></span>
+            <span class="clock__six"></span>
+            <span class="clock__nine"></span>
+
+            <div class="clock__rounder"></div>
+            <div class="clock__hour" id="clock-hour"></div>
+            <div class="clock__minutes" id="clock-minutes"></div>
+            <div class="clock__seconds" id="clock-seconds"></div>
+
+            <!-- Dark/light button -->
+            <div class="clock__theme">
+              <i class='bx bxs-moon' id="theme-button"></i>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <div class="clock__text d-flex justify-content-center">
+              <div class="me-1" id="text-hour"></div>
+              <div class="me-1" id="text-minutes"></div>
+              <div id="text-ampm"></div>
+            </div>
+
+            <div class="clock__date text-center mt-3">
+              <span id="date-day-week"></span>
+              <span class="mx-2">|</span>
+              <span id="date-day"></span>
+              <span class="mx-2">-</span>
+              <span id="date-month"></span>
+              <span class="mx-2">-</span>
+              <span id="date-year"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!--==================== Bootstrap JS ==========-->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.1.1/js/bootstrap.min.js" integrity="sha512-8dKs2QhioV7D0N9FFCq7/CDiLygyZGG7L+HbT+kRdJU6rFXm6r1U9XmU6FZa6JCKhz6fgDlOQwTDk8/nJr6aAw==" crossorigin="anonymous" referrerp

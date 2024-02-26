@@ -1,0 +1,153 @@
+<<<<<<< HEAD
+thead {
+  display: none;
+}
+
+#events {
+	  border-bottom-right-radius: 10px;
+}
+
+/*
+.table {
+	animation: scroll 30s linear infinite;
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-100%);
+  }
+}
+*/
+
+
+.events {
+	font-weight: 900;eventDate
+} 
+.eventMonth-text {
+  font-size: smaller;
+  display: block;
+	text-transform: uppercase;
+	background-color: var(--Secondary);
+	width: 5rem;
+	color: var(--Alt01);
+	  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.eventDate-text {
+  font-size: xxx-large;
+	font-weight: 900;
+  display: block;
+	text-transform: uppercase;
+	background-color: var(--WEVVGray);
+	width: 5rem;
+	  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+tr:last-child td:first-child {
+  border-bottom-left-radius: 15px;
+}
+
+tr:last-child td:last-child {
+  border-bottom-right-radius: 15px;
+}
+
+@keyframes moveLeftRight {
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-10px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.special-request {
+  animation: moveLeftRight 2s infinite;
+}
+=======
+thead {
+  display: none;
+}
+
+#events {
+	  border-bottom-right-radius: 10px;
+}
+
+/*
+.table {
+	animation: scroll 30s linear infinite;
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-100%);
+  }
+}
+*/
+
+
+.events {
+	font-weight: 900;eventDate
+} 
+.eventMonth-text {
+  font-size: smaller;
+  display: block;
+	text-transform: uppercase;
+	background-color: var(--Secondary);
+	width: 5rem;
+	color: var(--Alt01);
+	  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.eventDate-text {
+  font-size: xxx-large;
+	font-weight: 900;
+  display: block;
+	text-transform: uppercase;
+	background-color: var(--WEVVGray);
+	width: 5rem;
+	  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+tr:last-child td:first-child {
+  border-bottom-left-radius: 15px;
+}
+
+tr:last-child td:last-child {
+  border-bottom-right-radius: 15px;
+}
+
+@keyframes moveLeftRight {
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-10px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.special-request {
+  animation: moveLeftRight 2s infinite;
+}
+>>>>>>> e1245f311ea92b7ef76e1ec31273bc73c4e20511

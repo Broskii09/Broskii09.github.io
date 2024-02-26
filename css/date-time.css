@@ -1,0 +1,46 @@
+<<<<<<< HEAD
+.time-display::before,
+.time-display::after {
+  content: ':';
+  visibility: visible;
+}
+
+.hidden {
+  visibility: hidden;
+}
+#BulletinHeader {
+
+	font-weight: 900;
+	font-size: 4.1rem;
+
+}
+
+#time {
+	font-size: 6.5rem;
+}
+#day {
+	font-size: 5.5rem;
+=======
+.time-display::before,
+.time-display::after {
+  content: ':';
+  visibility: visible;
+}
+
+.hidden {
+  visibility: hidden;
+}
+#BulletinHeader {
+
+	font-weight: 900;
+	font-size: 4.1rem;
+
+}
+
+#time {
+	font-size: 6.5rem;
+}
+#day {
+	font-size: 5.5rem;
+>>>>>>> e1245f311ea92b7ef76e1ec31273bc73c4e20511
+}
