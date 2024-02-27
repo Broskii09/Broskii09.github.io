@@ -21,9 +21,10 @@ body {
 }
 
 .table td img, video  {
-	width: 1000px!important;
+	width: 80px!important;
 	height: auto;
 }
+
 
 @keyframes gradient {
 	0% {
