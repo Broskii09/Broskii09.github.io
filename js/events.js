@@ -160,13 +160,13 @@ function getDataFromEvents(eventID, rowLimit) {
           imageCell.classList.add('text-center', 'align-middle', 'fs-5', 'events');
           if (row[7] === 'webm') {
             imageCell.innerHTML = `
-        <video width="150px" autoplay loop muted>
+        <video autoplay loop muted>
             <source src="img/events/${row[6]}.${row[7]}" type="video/webm">
             Your browser does not support the video tag.
         </video>
     `;
           } else {
-            imageCell.innerHTML = `<img src="img/events/${row[6]}.${row[7]}" width="150px" height="auto">`;
+            imageCell.innerHTML = `<img src="img/events/${row[6]}.${row[7]}">`;
           }
 
           tableRow.appendChild(imageCell);
