@@ -176,11 +176,6 @@ const audioFiles = [
           // Then fire confetti every 30 seconds
           setInterval(confettiEffect, 10 * 1000);
 			// Select a random audio file from the array
-  const audioFilePath = audioFiles[Math.floor(Math.random() * audioFiles.length)];
-
-  // Play the selected audio file
-  const audio = new Audio(audioFilePath);
-  audio.play();
         }
 // END OF BIRTHDAY CODE ---------------------------------------------------------------------
 		  
