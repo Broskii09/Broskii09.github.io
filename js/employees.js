@@ -1,5 +1,5 @@
 // Replace YOUR_API_KEY with your API key
-const API_KEY = 'AIzaSyBtAPbNaE5kGaunZrOwaM2I8KJSevD93aA';
+const API_KEY = 'WEVV_API_KEY';
 // Replace YOUR_SPREADSHEET_ID with the ID of your Google Sheets document
 const SPREADSHEET_ID = '1iRPL4Nf9nRbe-fzxKaZZsxdCYIxParU2_J-9IjnYQBo';
 // Replace YOUR_SHEET_NAME with the name of the sheet in the document that contains the data
