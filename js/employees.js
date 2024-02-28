@@ -1,5 +1,5 @@
 // Replace YOUR_API_KEY with your API key
-const apiKey = "AIzaSyBtAPbNaE5kGaunZrOwaM2I8KJSevD93aA"; // Placeholder
+const API_KEY = 'AIzaSyBtAPbNaE5kGaunZrOwaM2I8KJSevD93aA';
 // Replace YOUR_SPREADSHEET_ID with the ID of your Google Sheets document
 const SPREADSHEET_ID = '1iRPL4Nf9nRbe-fzxKaZZsxdCYIxParU2_J-9IjnYQBo';
 // Replace YOUR_SHEET_NAME with the name of the sheet in the document that contains the data
@@ -75,10 +75,10 @@ function getDataFromEmployees(containerId) {
           currentGroup = group;
           groupDiv = document.createElement('div');
           groupDiv.classList.add('group-div', 'row', 'col-3', 'g-0');
-          // If the group is 'Guests', add a special class
-          if (group === 'Guests') {
-            groupDiv.classList.add('guests');
-          }
+			// If the group is 'Guests', add a special class
+    if (group === 'Guests') {
+      groupDiv.classList.add('guests');
+    }
           // Create the group header
           const groupHeader = document.createElement('h2');
           groupHeader.textContent = `${group}`;
@@ -137,12 +137,11 @@ function getDataFromEmployees(containerId) {
         const today = new Date();
 
         //BIRTHDAY CODE --------------------------------------------------------------------
-        // Array of audio file paths
-        const audioFiles = [
-          /*'music/birthday-Beatles.mp3'*/
-          ,
-          // Add more paths as needed...
-        ];
+		  // Array of audio file paths
+const audioFiles = [
+  /*'music/birthday-Beatles.mp3'*/,
+  // Add more paths as needed...
+];
 
         if (
           birthday.getDate() === today.getDate()
@@ -176,10 +175,15 @@ function getDataFromEmployees(containerId) {
           confettiEffect();
           // Then fire confetti every 30 seconds
           setInterval(confettiEffect, 10 * 1000);
-          // Select a random audio file from the array
-        }
-        // END OF BIRTHDAY CODE ---------------------------------------------------------------------
+			// Select a random audio file from the array
+  const audioFilePath = audioFiles[Math.floor(Math.random() * audioFiles.length)];
 
+  // Play the selected audio file
+  const audio = new Audio(audioFilePath);
+  audio.play();
+        }
+// END OF BIRTHDAY CODE ---------------------------------------------------------------------
+		  
       });
     });
 }
@@ -188,6 +192,7 @@ function getDataFromEmployees(containerId) {
 // Refresh data every hour
 // setInterval(fetchData, 60 * 60 * 1000);
 
-//setInterval(function () {
-//  location.reload();
-//}, 60 * 60 * 1000); 
+setInterval(function () {
+  location.reload();
+}, 60 * 60 * 1000); 
+
