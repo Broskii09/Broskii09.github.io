@@ -1,5 +1,5 @@
 // Replace YOUR_API_KEY with your API key
-const apiKey = "YOUR_API_KEY_HERE"; // Placeholder
+const apiKey = "AIzaSyBtAPbNaE5kGaunZrOwaM2I8KJSevD93aA"; // Placeholder
 // Replace YOUR_SPREADSHEET_ID with the ID of your Google Sheets document
 const SPREADSHEET_ID = '1iRPL4Nf9nRbe-fzxKaZZsxdCYIxParU2_J-9IjnYQBo';
 // Replace YOUR_SHEET_NAME with the name of the sheet in the document that contains the data
