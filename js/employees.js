@@ -75,10 +75,10 @@ function getDataFromEmployees(containerId) {
           currentGroup = group;
           groupDiv = document.createElement('div');
           groupDiv.classList.add('group-div', 'row', 'col-3', 'g-0');
-			// If the group is 'Guests', add a special class
-    if (group === 'Guests') {
-      groupDiv.classList.add('guests');
-    }
+          // If the group is 'Guests', add a special class
+          if (group === 'Guests') {
+            groupDiv.classList.add('guests');
+          }
           // Create the group header
           const groupHeader = document.createElement('h2');
           groupHeader.textContent = `${group}`;
@@ -137,11 +137,12 @@ function getDataFromEmployees(containerId) {
         const today = new Date();
 
         //BIRTHDAY CODE --------------------------------------------------------------------
-		  // Array of audio file paths
-const audioFiles = [
-  /*'music/birthday-Beatles.mp3'*/,
-  // Add more paths as needed...
-];
+        // Array of audio file paths
+        const audioFiles = [
+          /*'music/birthday-Beatles.mp3'*/
+          ,
+          // Add more paths as needed...
+        ];
 
         if (
           birthday.getDate() === today.getDate()
@@ -175,10 +176,10 @@ const audioFiles = [
           confettiEffect();
           // Then fire confetti every 30 seconds
           setInterval(confettiEffect, 10 * 1000);
-			// Select a random audio file from the array
+          // Select a random audio file from the array
         }
-// END OF BIRTHDAY CODE ---------------------------------------------------------------------
-		  
+        // END OF BIRTHDAY CODE ---------------------------------------------------------------------
+
       });
     });
 }
@@ -190,4 +191,3 @@ const audioFiles = [
 //setInterval(function () {
 //  location.reload();
 //}, 60 * 60 * 1000); 
-
