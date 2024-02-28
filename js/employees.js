@@ -191,8 +191,3 @@ const audioFiles = [
 
 // Refresh data every hour
 // setInterval(fetchData, 60 * 60 * 1000);
-
-setInterval(function () {
-  location.reload();
-}, 60 * 60 * 1000); 
-
