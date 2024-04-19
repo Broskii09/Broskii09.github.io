@@ -1,33 +1,32 @@
 /* styles.css */
 /* Base styles */
 html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    box-sizing: border-box;
+    height: 100%; /* Ensures that the html and body tags take full viewport height */
+    margin: 0; /* Removes default margin */
+    padding: 0; /* Removes default padding */
+    overflow-x: hidden; /* Prevents horizontal scrolling */
 }
 
 /* Styles for the bingo cells in the pattern */
 .bingo-cell {
-    width: 8vw; /* Width based on viewport width to keep aspect ratio */
-    height: 8vw; /* Height the same as width to maintain circle shape */
-    max-width: 60px; /* Maximum width to keep cells from getting too big */
-    max-height: 60px; /* Maximum height to match the maximum width */
-    margin: 0.5vw; /* Margin based on viewport width */
-    border-radius: 50%; /* Round the corners to make it a circle */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: background-color 0.3s ease; /* Smooth transition for background color changes */
-    cursor: pointer; /* Indicates that cells are interactive */
+    flex: 1 0 18%; /* Flex grow, flex shrink, and basis - adjusts to 5 cells per row */
+    max-width: 80px; /* Maximum width of the cell */
+    height: auto; /* Height auto for responsive adjustment */
+    aspect-ratio: 1; /* Keeps width and height the same */
+    margin: 0.5%; /* Margin between cells */
+    border-radius: 50%; /* Makes the cell circular */
+    display: flex; /* Using flex to center the content inside the cell */
+    align-items: center; /* Center content vertically */
+    justify-content: center; /* Center content horizontally */
+    border: 2px solid #000; /* Adds a border for better visibility */
+    background-color: #f8f9fa; /* Background color */
 }
 
 /* Styles for header cells (B, I, N, G, O) */
 .header-cell {
-    background-color: black !important; /* Ensure background is black */
-    color: white !important; /* Ensure text color is white */
-    font-weight: bold !important; /* Make text bold */
+    font-weight: bold;
+    background-color: #007bff;
+    color: white;
 }
 
 /* Additional styles for cells that are part of the pattern */
@@ -36,38 +35,40 @@ html, body {
 }
 
 .selected {
-    background-color: black; /* Background color for selected cell */
-    color: red; /* Text color for readability */
+    background-color: #28a745;
+    color: white;
 }
 
 /* Adjusting the bingo board to span full width */
 #bingo-board {
-    display: flex;
-    flex-wrap: wrap; /* Allow cells to wrap onto the next line */
-    justify-content: center; /* Center cells in the board */
+    width: 100%; /* Ensures the container is full width */
+    text-align: center; /* Centers the content */
+    padding: 20px 0; /* Adds padding for some space around the content */
+}
+
+.row {
+    flex: 0 1 auto; /* Allows row to grow and shrink but not beyond its content size */
+    min-height: 0; /* Fixes an issue where flex items don't shrink past content size */
 }
 
 .bingo-row {
-    width: 100%; /* Ensure each row of the bingo board spans the full width */
-    display: flex; /* Use flexbox to align cells in a row */
-    justify-content: center; /* Center the cells within the row */
+    display: flex; /* Flexbox to layout cells in a row */
+    justify-content: center; /* Center cells horizontally in the row */
 }
 
 /* Styles for the container */
-.container {
-    width: 100%; /* Ensure container spans the full width */
-    max-width: none; /* Override any max-width that might be set */
-    padding: 0 2vw; /* Padding on the sides based on viewport width */
+.container, .container-fluid {
+    height: 100%; /* Container takes full height of the viewport */
+    display: flex; /* Enables flexbox */
+    flex-direction: column; /* Stacks children elements vertically */
 }
 
 #last-calls, #pattern-selection {
-    text-align: center; /* Center the text in these sections */
-    padding: 1vw 0; /* Padding on the top and bottom based on viewport width */
+    flex: 1; /* Flex-grow, equally divides the space between calls and pattern */
 }
 
 .number-cell {
-    font-weight: 700; /* This makes the font bolder. You can use 600, 700, 800, or 900 depending on the desired thickness and what your font supports. */
-    font-size: 1.25vw; /* You can adjust the font size for better visibility if needed */
+    cursor: pointer;
 }
 
 /* For smaller screens, you might want to adjust the font size separately */

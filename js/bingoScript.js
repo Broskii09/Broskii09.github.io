@@ -6,20 +6,20 @@ let callHistory = [];
 // Creates a single bingo cell. This function is versatile for both header and number cells.
 function createBingoCell(letter, number, isHeader = false) {
     const cell = document.createElement('div');
-    cell.classList.add('bingo-cell', 'p-2', 'border', 'bg-light', 'd-inline-block');
-    if (isHeader) { // If it's a header (B, I, N, G, O), style it as bold.
-        cell.classList.add('header-cell'); // Add the 'header-cell' class for B, I, N, G, O
-    } else { // If it's not a header, add click functionality to toggle selection.
-        cell.classList.add('number-cell'); // Add the 'number-cell' class for 1-75
+    cell.classList.add('bingo-cell');
+    if (isHeader) {
+        cell.classList.add('header-cell');
+        cell.textContent = letter;
+    } else {
+        cell.classList.add('number-cell');
         cell.addEventListener('click', function() {
-            this.classList.toggle('selected'); // Toggle the 'selected' class to visually mark the cell.
-            let cellValue = letter + number; // Create a value that represents this cell.
-            updateCallHistory(cellValue); // Update the call history with this value.
+            this.classList.toggle('selected');
         });
+        cell.textContent = number;
     }
-    cell.textContent = isHeader ? letter : number; // Set the text content of the cell.
-    return cell; // Return the complete HTML element.
+    return cell;
 }
+
 
 
 // Updates the display of the last three numbers called.
@@ -149,16 +149,26 @@ function generatePatternBoard(patternGrid) {
     });
 }
 
+function adjustElementHeights() {
+    let headerHeight = document.querySelector('h1').offsetHeight;
+    let controlsHeight = document.querySelector('.row').offsetHeight;
+    let availableHeight = window.innerHeight - headerHeight - controlsHeight;
+    document.getElementById('bingo-board').style.height = `${availableHeight}px`;
+}
 
-// Listen for changes on the pattern selector dropdown
-document.getElementById('pattern-select').addEventListener('change', function () {
-  const selectedPattern = this.value;
-  generatePatternBoard(patterns[selectedPattern]);
+// Adjust heights on load and when resizing the window
+window.addEventListener('DOMContentLoaded', adjustElementHeights);
+window.addEventListener('resize', adjustElementHeights);
+
+document.addEventListener('DOMContentLoaded', function() {
+    generateBingoBoard(); // Generates the full bingo board
+    const initialPattern = document.getElementById('pattern-select').value;
+    generatePatternBoard(patterns[initialPattern]); // Generate the initial pattern board
+
+    // Listen for changes on the pattern selector dropdown
+    document.getElementById('pattern-select').addEventListener('change', function() {
+        const selectedPattern = this.value;
+        generatePatternBoard(patterns[selectedPattern]);
+    });
 });
 
-// Initialize the pattern board with the first pattern
-window.addEventListener('DOMContentLoaded', () => {
-  generateBingoBoard();
-  const initialPattern = document.getElementById('pattern-select').value;
-  generatePatternBoard(patterns[initialPattern]);
-});
