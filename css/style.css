@@ -1,0 +1,87 @@
+/* styles.css */
+/* Base styles */
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+/* Styles for the bingo cells in the pattern */
+.bingo-cell {
+    width: 8vw; /* Width based on viewport width to keep aspect ratio */
+    height: 8vw; /* Height the same as width to maintain circle shape */
+    max-width: 60px; /* Maximum width to keep cells from getting too big */
+    max-height: 60px; /* Maximum height to match the maximum width */
+    margin: 0.5vw; /* Margin based on viewport width */
+    border-radius: 50%; /* Round the corners to make it a circle */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.3s ease; /* Smooth transition for background color changes */
+    cursor: pointer; /* Indicates that cells are interactive */
+}
+
+/* Styles for header cells (B, I, N, G, O) */
+.header-cell {
+    background-color: black !important; /* Ensure background is black */
+    color: white !important; /* Ensure text color is white */
+    font-weight: bold !important; /* Make text bold */
+}
+
+/* Additional styles for cells that are part of the pattern */
+.pattern-cell {
+    background-color: #4CAF50 !important; /* Example color: A nice green */
+}
+
+.selected {
+    background-color: black; /* Background color for selected cell */
+    color: red; /* Text color for readability */
+}
+
+/* Adjusting the bingo board to span full width */
+#bingo-board {
+    display: flex;
+    flex-wrap: wrap; /* Allow cells to wrap onto the next line */
+    justify-content: center; /* Center cells in the board */
+}
+
+.bingo-row {
+    width: 100%; /* Ensure each row of the bingo board spans the full width */
+    display: flex; /* Use flexbox to align cells in a row */
+    justify-content: center; /* Center the cells within the row */
+}
+
+/* Styles for the container */
+.container {
+    width: 100%; /* Ensure container spans the full width */
+    max-width: none; /* Override any max-width that might be set */
+    padding: 0 2vw; /* Padding on the sides based on viewport width */
+}
+
+#last-calls, #pattern-selection {
+    text-align: center; /* Center the text in these sections */
+    padding: 1vw 0; /* Padding on the top and bottom based on viewport width */
+}
+
+.number-cell {
+    font-weight: 700; /* This makes the font bolder. You can use 600, 700, 800, or 900 depending on the desired thickness and what your font supports. */
+    font-size: 1.25vw; /* You can adjust the font size for better visibility if needed */
+}
+
+/* For smaller screens, you might want to adjust the font size separately */
+@media (max-width: 768px) {
+    .number-cell {
+        font-size: 3vw; /* Larger font size for smaller screens for legibility */
+    }
+}
+
+
+@media (max-width: 768px) {
+    .bingo-cell {
+        width: 15vw; /* Increase width for better visibility on small screens */
+        height: 15vw; /* Increase height to maintain aspect ratio */
+        margin: 1vw; /* Increase margin for spacing on small screens */
+    }
+}

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bingo Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container py-5">
+        <h1 class="text-center mb-4">Bingo Tracker</h1>
+
+        <!-- Bingo board section -->
+        <section id="bingo-board" class="text-center mb-4"></section>
+
+        <!-- Info section for last calls and pattern -->
+        <div class="d-flex justify-content-between">
+            <!-- Last 3 Calls section -->
+            <section id="last-calls" class="text-center">
+                <strong>Last 3 Calls:</strong> <span id="call-history"></span>
+            </section>
+
+            <!-- Pattern selection and display -->
+            <section id="pattern-selection" class="ms-3">
+                <div class="pattern-selector mb-3">
+                    <label for="pattern-select">Choose a pattern:</label>
+<select id="pattern-select" name="patterns" class="form-select">
+  <option value="xPattern">X Pattern</option>
+  <option value="blockParty">Block Party</option>
+  <option value="centSign">Cent Sign</option>
+  <option value="cloverLeaf">Clover Leaf</option>
+  <option value="coverAll">Cover All</option>
+  <option value="crazyKite">Crazy Kite</option>
+  <option value="crazyPyramid">Crazy Pyramid</option>
+  <option value="TforTiki">T For Tiki</option>
+</select>
+
+                </div>
+                <div id="pattern-display">
+                    <strong>Pattern:</strong>
+                    <div id="pattern-board" class="text-center"></div> <!-- Pattern board will be generated here -->
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/bingoScript.js"></script>
+</body>
+</html>
