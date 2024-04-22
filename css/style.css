@@ -1,10 +1,39 @@
-/* styles.css */
-/* Base styles */
+/* Default light theme */
+:root {
+    --background-color: #f8f9fa; /* light gray */
+    --text-color: #212529; /* almost black */
+    --header-bg-color: #007bff; /* blue */
+    --border-color: #dee2e6; /* light border */
+    --number-text-color: #000000; /* Black for light theme */
+    --number-font-weight: bold; /* Bold font weight */
+}
+
+/* Dark theme */
+.dark-theme {
+    --background-color: #343a40; /* dark gray */
+    --text-color: #f8f9fa; /* almost white */
+    --header-bg-color: #0069d9; /* dark blue */
+    --border-color: #ced4da; /* gray border */
+    --number-text-color: #ffffff; /* White for dark theme */
+    --number-font-weight: bold; /* Bold font weight stays the same */	
+}
+body {
+    color: var(--text-color);
+}
+
+header, .header-cell {
+    background-color: var(--header-bg-color);
+}
+
 html, body {
     height: 100%; /* Ensures that the html and body tags take full viewport height */
     margin: 0; /* Removes default margin */
     padding: 0; /* Removes default padding */
     overflow-x: hidden; /* Prevents horizontal scrolling */
+}
+
+.bingo-cell, .pattern-cell {
+    border-color: var(--border-color);
 }
 
 /* Styles for the bingo cells in the pattern */
@@ -69,7 +98,8 @@ html, body {
 
 .number-cell {
     cursor: pointer;
-}
+    color: var(--number-text-color);
+    font-weight: var(--number-font-weight);
 
 /* For smaller screens, you might want to adjust the font size separately */
 @media (max-width: 768px) {

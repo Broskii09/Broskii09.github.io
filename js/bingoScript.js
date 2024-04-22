@@ -128,7 +128,6 @@ const patterns = {
 
 
 // Generate the pattern board based on the selected pattern
-// Generate the pattern board based on the selected pattern
 function generatePatternBoard(patternGrid) {
     const patternBoard = document.getElementById('pattern-board');
     patternBoard.innerHTML = ''; // Clear the board
@@ -149,6 +148,7 @@ function generatePatternBoard(patternGrid) {
     });
 }
 
+// Adjust heights on load and when resizing the window
 function adjustElementHeights() {
     let headerHeight = document.querySelector('h1').offsetHeight;
     let controlsHeight = document.querySelector('.row').offsetHeight;
@@ -156,19 +156,44 @@ function adjustElementHeights() {
     document.getElementById('bingo-board').style.height = `${availableHeight}px`;
 }
 
-// Adjust heights on load and when resizing the window
-window.addEventListener('DOMContentLoaded', adjustElementHeights);
-window.addEventListener('resize', adjustElementHeights);
+// Event listener for the theme toggle button
+function toggleTheme() {
+    document.body.classList.toggle('dark-theme');
+    // Save the current theme to localStorage
+    localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+}
+
+// Check localStorage for a saved theme and apply it on page load
+function applySavedTheme() {
+    if (localStorage.getItem('theme') === 'dark') {
+        document.body.classList.add('dark-theme');
+    }
+}
 
 document.addEventListener('DOMContentLoaded', function() {
-    generateBingoBoard(); // Generates the full bingo board
+    // Generate the bingo board and the initial pattern board
+    generateBingoBoard();
     const initialPattern = document.getElementById('pattern-select').value;
-    generatePatternBoard(patterns[initialPattern]); // Generate the initial pattern board
+    generatePatternBoard(patterns[initialPattern]);
 
-    // Listen for changes on the pattern selector dropdown
+    // Attach change event listener to pattern selector dropdown
     document.getElementById('pattern-select').addEventListener('change', function() {
         const selectedPattern = this.value;
         generatePatternBoard(patterns[selectedPattern]);
     });
+
+    // Initialize theme toggle button
+    const themeToggleButton = document.getElementById('theme-toggle');
+    if (themeToggleButton) {
+        themeToggleButton.addEventListener('click', toggleTheme);
+    }
+
+    // Apply saved theme
+    applySavedTheme();
+
+    // Adjust element heights
+    adjustElementHeights();
 });
 
+// Adjust heights when resizing the window
+window.addEventListener('resize', adjustElementHeights);
