@@ -14,11 +14,33 @@
     --text-color: #f8f9fa; /* almost white */
     --header-bg-color: #0069d9; /* dark blue */
     --border-color: #ced4da; /* gray border */
-    --number-text-color: #ffffff; /* White for dark theme */
-    --number-font-weight: bold; /* Bold font weight stays the same */	
+    --number-text-color: #000000; /* Black for dark theme */
+    --number-font-weight: bold; /* Bold font weight stays the same */  
 }
 body {
-    color: var(--text-color);
+    background-color: #fff; /* Light background for light theme */
+    color: #333; /* Dark text for light theme */
+}
+
+body.dark-theme {
+    background-color: #333; /* Dark background for dark theme */
+    color: #000; /* Light text for dark theme */
+}
+
+
+button {
+    background-color: #007bff; /* Bootstrap primary color */
+    color: #ffffff; /* White text */
+}
+
+body.dark-theme button {
+    background-color: #6c757d; /* Bootstrap secondary color */
+    color: #ffffff; /* White text */
+}
+
+.dark-theme h1 {
+    color: #f8f9fa; /* Almost white for better visibility in dark mode */
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); /* Text shadow for better readability */
 }
 
 header, .header-cell {
@@ -48,6 +70,7 @@ html, body {
     align-items: center; /* Center content vertically */
     justify-content: center; /* Center content horizontally */
     border: 2px solid #000; /* Adds a border for better visibility */
+	border-color: #ccc; /* Light borders for light theme */
     background-color: #f8f9fa; /* Background color */
 }
 
