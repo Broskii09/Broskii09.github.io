@@ -43,6 +43,11 @@ body.dark-theme button {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); /* Text shadow for better readability */
 }
 
+.dark-theme label {
+    color: white; /* Sets the text color to white when dark theme is active */
+}
+
+
 header, .header-cell {
     background-color: var(--header-bg-color);
 }
@@ -115,6 +120,25 @@ html, body {
     flex-direction: column; /* Stacks children elements vertically */
 }
 
+#last-calls {
+    background: #f8f9fa; /* Light background, optional */
+    border: 1px solid #ccc; /* Light border, optional */
+    padding: 15px; /* Padding around the content */
+    margin-top: 20px; /* Space above the section, if needed */
+}
+
+#last-calls h3 {
+    margin-bottom: 10px; /* Space below the title */
+    color: #007bff; /* Theme color for the title */
+}
+
+.call-history {
+    font-size: 1.2em; /* Larger text for visibility */
+    color: #333; /* Darker text for contrast */
+    font-weight: bold; /* Bold text for the call history numbers */
+}
+
+
 #last-calls, #pattern-selection {
     flex: 1; /* Flex-grow, equally divides the space between calls and pattern */
 }
@@ -129,13 +153,18 @@ html, body {
     .number-cell {
         font-size: 3vw; /* Larger font size for smaller screens for legibility */
     }
-}
-
-
-@media (max-width: 768px) {
+	
     .bingo-cell {
         width: 15vw; /* Increase width for better visibility on small screens */
         height: 15vw; /* Increase height to maintain aspect ratio */
         margin: 1vw; /* Increase margin for spacing on small screens */
+    }
+	
+	#last-calls h3 {
+        font-size: 1em; /* Smaller font size for smaller screens */
+    }
+
+    .call-history {
+        font-size: 1em; /* Smaller font size for call history on smaller screens */
     }
 }
