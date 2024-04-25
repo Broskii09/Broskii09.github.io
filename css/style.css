@@ -18,9 +18,10 @@
     --number-font-weight: bold; /* Bold font weight stays the same */  
 }
 body {
-    background-color: #fff; /* Light background for light theme */
-    color: #333; /* Dark text for light theme */
+    background-color: var(--background-color);
+    color: var(--text-color);
 }
+
 
 body.dark-theme {
     background-color: #333; /* Dark background for dark theme */
@@ -65,7 +66,7 @@ html, body {
 
 /* Styles for the bingo cells in the pattern */
 .bingo-cell {
-    flex: 1 0 18%; /* Flex grow, flex shrink, and basis - adjusts to 5 cells per row */
+    flex: 1 0 20%; /* Allows each cell to grow but not shrink beyond 20% of the row width */
     max-width: 80px; /* Maximum width of the cell */
     height: auto; /* Height auto for responsive adjustment */
     aspect-ratio: 1; /* Keeps width and height the same */
@@ -77,6 +78,8 @@ html, body {
     border: 2px solid #000; /* Adds a border for better visibility */
 	border-color: #ccc; /* Light borders for light theme */
     background-color: #f8f9fa; /* Background color */
+	text-align: center;
+	padding: 10px; /* Adjust padding as needed */
 }
 
 /* Styles for header cells (B, I, N, G, O) */
@@ -109,8 +112,9 @@ html, body {
 }
 
 .bingo-row {
-    display: flex; /* Flexbox to layout cells in a row */
-    justify-content: center; /* Center cells horizontally in the row */
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 /* Styles for the container */
@@ -166,5 +170,17 @@ html, body {
 
     .call-history {
         font-size: 1em; /* Smaller font size for call history on smaller screens */
+    }
+}
+
+	@media only screen and (orientation: landscape) {
+    .bingo-row {
+        /* Adjust width, padding, or margins to fit the screen */
+        padding: 0 10px;
+    }
+    .bingo-cell {
+        /* Adjust cell size or padding to make more room */
+        padding: 5px;
+        font-size: smaller; /* Reduce font size to ensure text fits */
     }
 }
