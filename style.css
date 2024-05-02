@@ -103,6 +103,13 @@ body.dark-theme button {
     height: 100%;
 }
 
+/* Custom CSS to override Bootstrap */
+.container {
+    max-width: 2266px; /* Adjust according to your design needs */
+    padding: 2rem; /* Custom padding */
+}
+
+
 .row {
     flex: 0 1 auto;
     min-height: 0;
@@ -140,6 +147,13 @@ body.dark-theme button {
 }
 
 /* Responsive Styles */
+/* Specific breakpoints can also be adjusted */
+@media (min-width: 992px) {
+    .container {
+        max-width: 2266px;
+    }
+}
+
 @media (max-width: 768px) {
     .bingo-cell, .number-cell {
         height: 15vw;
@@ -165,6 +179,41 @@ body.dark-theme button {
         font-size: smaller;
         padding: 5px;
     }
+}
+
+/* General styles for high-resolution tablets like iPad Mini */
+@media only screen and (min-width: 1488px) and (max-width: 2266px) {
+    .container {
+        max-width: 90%; /* Adjust the max-width to better fit the device */
+        padding: 1rem; /* Smaller padding for a sleek look */
+    }
+
+    .bingo-cell, .number-cell {
+        max-width: 100px; /* Larger cells for better touch interaction */
+        padding: 15px; /* Larger padding for visual balance */
+        font-size: 1.5em; /* Larger font size for readability */
+    }
+
+.call-history {
+    overflow: hidden; /* Ensures content outside this box is not visible */
+    height: 100px; /* Increased height to accommodate more calls */
+}
+
+
+    .call-item {
+        font-size: 1.5em; /* Increase font size for better readability */
+    }
+
+    /* Adjust other elements as necessary */
+}
+
+/* Adjustments specifically for portrait orientation */
+@media only screen and (orientation: portrait) and (min-width: 1488px) {
+    .container {
+        max-width: 95%; /* Potentially even wider in portrait */
+    }
+
+    /* Further adjustments can be added here for portrait-specific styles */
 }
 
 /* CSS ANIMATIONS */

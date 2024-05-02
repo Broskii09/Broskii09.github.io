@@ -63,7 +63,15 @@ const patterns = {
     [true, false, false, false, true],
     [true, false, false, false, true]
   ],
-  diagonalCross: [
+  fourCorners: [
+    [true, false, false, false, true],
+    [false, false, false, false, false],
+    [false, false, false, false, false],
+    [false, false, false, false, false],
+    [true, false, false, false, true]
+  ],
+	
+	diagonalCross: [
     [true, false, false, false, true],
     [false, true, false, true, false],
     [false, false, true, false, false],
@@ -87,102 +95,68 @@ const patterns = {
 
   // Add additional patterns here...
 };
+(function() {
+// Wait for the document to fully load before initializing
+// Define patterns and other setup details here...
 
-// Accessing HTML elements that will hold the bingo board and display call history
-const bingoBoard = document.getElementById('bingo-board');
-const callHistoryDisplay = document.getElementById('call-history');
-const titleElement = document.querySelector('h1');
-
-let callHistory = [];
-
-function updateCallHistory(call) {
-    const callHistoryContainer = document.getElementById('call-history');
-    const newCallElement = document.createElement('div');
-    newCallElement.classList.add('call-item');
-    newCallElement.textContent = call;
-
-    // Check if we need to remove the oldest call
-    if (callHistory.length === 3) {
-        // Remove the oldest element visually and from the array
-        const oldCallElement = callHistoryContainer.firstChild;
-        oldCallElement.style.transform = 'translateX(-100%)'; // Slide out left
-        oldCallElement.addEventListener('transitionend', () => {
-            callHistoryContainer.removeChild(oldCallElement);
-        });
-        callHistory.shift(); // Remove the oldest call from the array
-    }
-
-    // Add new call to the history and DOM
-    callHistory.push(newCallElement);
-    callHistoryContainer.appendChild(newCallElement);
-
-    // Trigger the animation by changing transform
-    setTimeout(() => {
-        newCallElement.style.transform = 'translateX(0)'; // Slide in from the right
-    }, 100); // Timeout ensures the initial transform is applied after element is visible in the DOM
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-  generateBingoBoard();
-  initializeThemeToggle();
-  applySavedTheme();
-  attachEventListeners();
-  setupRandomPatternSelector();
+document.addEventListener('DOMContentLoaded', function() {
+    initializeThemeToggle();
+    applySavedTheme();
+    generateBingoBoard();
+    setupRandomPatternSelector();
+    initializeCallHistory();
 });
 
-function setupRandomPatternSelector() {
-  document.getElementById('random-pattern').addEventListener('click', function () {
-    const selectElement = document.getElementById('pattern-select');
-    const options = selectElement.querySelectorAll('option:not(:disabled)');
-    const randomIndex = Math.floor(Math.random() * options.length);
-    selectElement.selectedIndex = randomIndex + 1; // +1 because first option is disabled
-    selectElement.dispatchEvent(new Event('change')); // Trigger the change event
-  });
+function createCallElement(call) {
+    const callElement = document.createElement('div');
+    callElement.classList.add('call-item');
+    callElement.textContent = call;
+    return callElement;
 }
 
-function createBingoCell(letter, number, isHeader = false) {
-  const cell = document.createElement('div');
-  cell.classList.add('bingo-cell');
-  if (isHeader) {
-    cell.classList.add('header-cell');
-    cell.textContent = letter;
-  } else {
-    cell.classList.add('number-cell');
-    cell.textContent = number;
-    cell.addEventListener('click', function () {
-      let fullCall = `${letter}-${this.textContent}`;
-      this.classList.toggle('selected');
-      updateCallHistory(fullCall);
+function addCallToHistory(call) {
+    const callHistoryContainer = document.getElementById('call-history');
+    let newCallElement = createCallElement(call);
+    callHistoryContainer.appendChild(newCallElement);
+    requestAnimationFrame(() => {
+        Array.from(callHistoryContainer.children).forEach((child, index) => {
+            child.style.transform = `translateX(-${100 * index}%)`;
+        });
     });
-  }
-  return cell;
+    if (callHistoryContainer.children.length > 10) {
+        removeOldestCall(callHistoryContainer);
+    }
 }
 
-function updateCallHistory(fullCall) {
-  const index = callHistory.indexOf(fullCall);
-  if (index !== -1) {
-    callHistory.splice(index, 1);
-  } else {
-    callHistory.unshift(fullCall);
-    callHistory = callHistory.slice(0, 3);
-  }
-  callHistoryDisplay.textContent = callHistory.join(', ');
+function removeOldestCall(container) {
+    const oldestCall = container.firstChild;
+    oldestCall.addEventListener('transitionend', function handler() {
+        oldestCall.removeEventListener('transitionend', handler);
+        container.removeChild(oldestCall);
+    });
+    oldestCall.style.transform = 'translateX(-200%)';
 }
+
+function initializeCallHistory() {
+    // This could initialize or reset the call history
+}
+
+// Other functions related to theme toggle, pattern selection, etc...
+
+
+
+
+
 
 function generateBingoBoard() {
+  const bingoBoard = document.getElementById('bingo-board');
   const letters = ['B', 'I', 'N', 'G', 'O'];
-  const numberRanges = {
-    'B': [1, 15],
-    'I': [16, 30],
-    'N': [31, 45],
-    'G': [46, 60],
-    'O': [61, 75]
-  };
+  const numberRanges = { 'B': [1, 15], 'I': [16, 30], 'N': [31, 45], 'G': [46, 60], 'O': [61, 75] };
 
   letters.forEach(letter => {
     const row = document.createElement('div');
     row.classList.add('bingo-row');
-    row.appendChild(createBingoCell(letter, '', true));
+    row.appendChild(createBingoCell(letter, '', true)); // Header cell
     for (let i = numberRanges[letter][0]; i <= numberRanges[letter][1]; i++) {
       row.appendChild(createBingoCell(letter, i));
     }
@@ -190,32 +164,58 @@ function generateBingoBoard() {
   });
 }
 
+function createBingoCell(letter, number, isHeader = false) {
+  const cell = document.createElement('div');
+  cell.classList.add('bingo-cell', isHeader ? 'header-cell' : 'number-cell');
+  cell.textContent = number || letter;
+  if (!isHeader) {
+    cell.addEventListener('click', function () {
+      let fullCall = `${letter}-${this.textContent}`;
+      this.classList.toggle('selected');
+      addCallToHistory(fullCall);
+    });
+  }
+  return cell;
+}
+
 function initializeThemeToggle() {
   const themeToggleButton = document.getElementById('theme-toggle');
-  if (themeToggleButton) {
-    themeToggleButton.addEventListener('click', toggleTheme);
-  }
+  themeToggleButton.addEventListener('click', toggleTheme);
 }
 
 function toggleTheme() {
-  document.body.classList.toggle('dark-theme');
-  localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+    const body = document.body;
+    const isDark = body.classList.toggle('dark-theme');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    document.getElementById('theme-toggle').setAttribute('aria-pressed', isDark);
 }
+
 
 function applySavedTheme() {
-  if (localStorage.getItem('theme') === 'dark') {
-    document.body.classList.add('dark-theme');
-  }
+    try {
+        const theme = localStorage.getItem('theme');
+        if (theme === 'dark') {
+            document.body.classList.add('dark-theme');
+        }
+    } catch (error) {
+        console.error("Could not retrieve theme from localStorage:", error);
+    }
 }
 
-function attachEventListeners() {
+
+function setupRandomPatternSelector() {
   const patternSelect = document.getElementById('pattern-select');
-  if (patternSelect) {
-    patternSelect.addEventListener('change', function () {
-      const selectedPattern = this.value;
-      generatePatternBoard(patterns[selectedPattern]);
-    });
-  }
+  patternSelect.addEventListener('change', function () {
+    const selectedPattern = patterns[this.value];
+    generatePatternBoard(selectedPattern);
+  });
+
+  document.getElementById('random-pattern').addEventListener('click', function () {
+    const options = patternSelect.querySelectorAll('option:not(:disabled)');
+    const randomIndex = Math.floor(Math.random() * options.length);
+    patternSelect.selectedIndex = randomIndex + 1; // +1 to skip the disabled option
+    patternSelect.dispatchEvent(new Event('change'));
+  });
 }
 
 function generatePatternBoard(patternGrid) {
@@ -235,13 +235,4 @@ function generatePatternBoard(patternGrid) {
     patternBoard.appendChild(patternRow);
   });
 }
-
-// Responsive height adjustments
-window.addEventListener('resize', adjustElementHeights);
-
-function adjustElementHeights() {
-  let headerHeight = document.querySelector('h1').offsetHeight;
-  let controlsHeight = document.querySelector('.row').offsetHeight;
-  let availableHeight = window.innerHeight - headerHeight - controlsHeight;
-  document.getElementById('bingo-board').style.height = `${availableHeight}px`;
-}
+	})();
