@@ -1,34 +1,43 @@
-/* Default light theme */
+/* Root Definitions for Light Theme */
 :root {
     --background-color: #f8f9fa; /* light gray */
-    --text-color: #212529; /* almost black */
-    --header-bg-color: #007bff; /* blue */
     --border-color: #dee2e6; /* light border */
-    --number-text-color: #000000; /* Black for light theme */
+    --header-bg-color: #007bff; /* blue */
     --number-font-weight: bold; /* Bold font weight */
+    --number-text-color: #000000; /* Black for light theme */
+    --text-color: #212529; /* almost black */
 }
 
-/* Dark theme */
+/* Dark Theme Overrides */
 .dark-theme {
     --background-color: #343a40; /* dark gray */
-    --text-color: #f8f9fa; /* almost white */
-    --header-bg-color: #0069d9; /* dark blue */
     --border-color: #ced4da; /* gray border */
+    --header-bg-color: #0069d9; /* dark blue */
+    --text-color: #f8f9fa; /* almost white */
     --number-text-color: #000000; /* Black for dark theme */
-    --number-font-weight: bold; /* Bold font weight stays the same */  
 }
+
+/* General Body Styles */
 body {
     background-color: var(--background-color);
     color: var(--text-color);
+    height: 100%; /* Ensures full viewport height */
+    margin: 0; /* Removes default margin */
+    overflow-x: hidden; /* Prevents horizontal scrolling */
+    padding: 0; /* Removes default padding */
 }
-
 
 body.dark-theme {
-    background-color: #333; /* Dark background for dark theme */
-    color: #000; /* Light text for dark theme */
+    background-color: #333;
+    color: #000;
 }
 
+/* Header Elements */
+header, .header-cell {
+    background-color: var(--header-bg-color);
+}
 
+/* Button Styles */
 button {
     background-color: #007bff; /* Bootstrap primary color */
     color: #ffffff; /* White text */
@@ -36,62 +45,50 @@ button {
 
 body.dark-theme button {
     background-color: #6c757d; /* Bootstrap secondary color */
-    color: #ffffff; /* White text */
 }
 
+/* Dark Theme Specific Styles */
 .dark-theme h1 {
-    color: #f8f9fa; /* Almost white for better visibility in dark mode */
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); /* Text shadow for better readability */
+    color: #f8f9fa;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .dark-theme label {
-    color: white; /* Sets the text color to white when dark theme is active */
-}
-
-
-header, .header-cell {
-    background-color: var(--header-bg-color);
-}
-
-html, body {
-    height: 100%; /* Ensures that the html and body tags take full viewport height */
-    margin: 0; /* Removes default margin */
-    padding: 0; /* Removes default padding */
-    overflow-x: hidden; /* Prevents horizontal scrolling */
-}
-
-.bingo-cell, .pattern-cell {
-    border-color: var(--border-color);
-}
-
-/* Styles for the bingo cells in the pattern */
-.bingo-cell {
-    flex: 1 0 20%; /* Allows each cell to grow but not shrink beyond 20% of the row width */
-    max-width: 80px; /* Maximum width of the cell */
-    height: auto; /* Height auto for responsive adjustment */
-    aspect-ratio: 1; /* Keeps width and height the same */
-    margin: 0.5%; /* Margin between cells */
-    border-radius: 50%; /* Makes the cell circular */
-    display: flex; /* Using flex to center the content inside the cell */
-    align-items: center; /* Center content vertically */
-    justify-content: center; /* Center content horizontally */
-    border: 2px solid #000; /* Adds a border for better visibility */
-	border-color: #ccc; /* Light borders for light theme */
-    background-color: #f8f9fa; /* Background color */
-	text-align: center;
-	padding: 10px; /* Adjust padding as needed */
-}
-
-/* Styles for header cells (B, I, N, G, O) */
-.header-cell {
-    font-weight: bold;
-    background-color: #007bff;
     color: white;
 }
 
-/* Additional styles for cells that are part of the pattern */
+/* Bingo Board and Cells */
+#bingo-board {
+    padding: 20px 0;
+    text-align: center;
+    width: 100%;
+}
+
+.bingo-cell, .pattern-cell {
+    align-items: center;
+    aspect-ratio: 1;
+    background-color: #f8f9fa;
+    border: 2px solid #000;
+    border-color: var(--border-color);
+    border-radius: 50%;
+    display: flex;
+    flex: 1 0 6%;
+    height: auto;
+    justify-content: center;
+    margin: 0.5%;
+    max-width: 80px;
+    padding: 10px;
+    text-align: center;
+}
+
+.header-cell {
+    background-color: #007bff;
+    color: white;
+    font-weight: bold;
+}
+
 .pattern-cell {
-    background-color: #4CAF50 !important; /* Example color: A nice green */
+    background-color: #4CAF50 !important;
 }
 
 .selected {
@@ -99,88 +96,138 @@ html, body {
     color: white;
 }
 
-/* Adjusting the bingo board to span full width */
-#bingo-board {
-    width: 100%; /* Ensures the container is full width */
-    text-align: center; /* Centers the content */
-    padding: 20px 0; /* Adds padding for some space around the content */
+/* Container and Row Flexbox Settings */
+.container, .container-fluid {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
+/* Custom CSS to override Bootstrap */
+.container {
+    max-width: 2266px; /* Adjust according to your design needs */
+    padding: 2rem; /* Custom padding */
+}
+
+
 .row {
-    flex: 0 1 auto; /* Allows row to grow and shrink but not beyond its content size */
-    min-height: 0; /* Fixes an issue where flex items don't shrink past content size */
+    flex: 0 1 auto;
+    min-height: 0;
 }
 
 .bingo-row {
+    align-items: center;
     display: flex;
     justify-content: center;
-    align-items: center;
 }
 
-/* Styles for the container */
-.container, .container-fluid {
-    height: 100%; /* Container takes full height of the viewport */
-    display: flex; /* Enables flexbox */
-    flex-direction: column; /* Stacks children elements vertically */
+/* Last Calls and Pattern Selection Styles */
+#last-calls, #pattern-selection {
+    flex: 1;
 }
 
 #last-calls {
-    background: #f8f9fa; /* Light background, optional */
-    border: 1px solid #ccc; /* Light border, optional */
-    padding: 15px; /* Padding around the content */
-    margin-top: 20px; /* Space above the section, if needed */
+    background: #f8f9fa;
+    border: 1px solid #ccc;
+    margin-top: 20px;
+    padding: 15px;
 }
 
-#last-calls h3 {
-    margin-bottom: 10px; /* Space below the title */
-    color: #007bff; /* Theme color for the title */
-}
-
-.call-history {
-    font-size: 1.2em; /* Larger text for visibility */
-    color: #333; /* Darker text for contrast */
-    font-weight: bold; /* Bold text for the call history numbers */
-}
-
-
-#last-calls, #pattern-selection {
-    flex: 1; /* Flex-grow, equally divides the space between calls and pattern */
+#last-calls h3, .call-history {
+    color: #007bff;
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-bottom: 10px;
 }
 
 .number-cell {
-    cursor: pointer;
     color: var(--number-text-color);
+    cursor: pointer;
     font-weight: var(--number-font-weight);
+}
 
-/* For smaller screens, you might want to adjust the font size separately */
-@media (max-width: 768px) {
-    .number-cell {
-        font-size: 3vw; /* Larger font size for smaller screens for legibility */
-    }
-	
-    .bingo-cell {
-        width: 15vw; /* Increase width for better visibility on small screens */
-        height: 15vw; /* Increase height to maintain aspect ratio */
-        margin: 1vw; /* Increase margin for spacing on small screens */
-    }
-	
-	#last-calls h3 {
-        font-size: 1em; /* Smaller font size for smaller screens */
-    }
-
-    .call-history {
-        font-size: 1em; /* Smaller font size for call history on smaller screens */
+/* Responsive Styles */
+/* Specific breakpoints can also be adjusted */
+@media (min-width: 992px) {
+    .container {
+        max-width: 2266px;
     }
 }
 
-	@media only screen and (orientation: landscape) {
+@media (max-width: 768px) {
+    .bingo-cell, .number-cell {
+        height: 15vw;
+        margin: 1vw;
+        width: 15vw;
+    }
+
+    .number-cell {
+        font-size: 3vw;
+    }
+
+    #last-calls h3, .call-history {
+        font-size: 1em;
+    }
+}
+
+@media only screen and (orientation: landscape) {
     .bingo-row {
-        /* Adjust width, padding, or margins to fit the screen */
         padding: 0 10px;
     }
+
     .bingo-cell {
-        /* Adjust cell size or padding to make more room */
+        font-size: smaller;
         padding: 5px;
-        font-size: smaller; /* Reduce font size to ensure text fits */
     }
 }
+
+/* General styles for high-resolution tablets like iPad Mini */
+@media only screen and (min-width: 1488px) and (max-width: 2266px) {
+    .container {
+        max-width: 90%; /* Adjust the max-width to better fit the device */
+        padding: 1rem; /* Smaller padding for a sleek look */
+    }
+
+    .bingo-cell, .number-cell {
+        max-width: 100px; /* Larger cells for better touch interaction */
+        padding: 15px; /* Larger padding for visual balance */
+        font-size: 1.5em; /* Larger font size for readability */
+    }
+
+.call-history {
+    overflow: hidden; /* Ensures content outside this box is not visible */
+    height: 100px; /* Increased height to accommodate more calls */
+}
+
+
+    .call-item {
+        font-size: 1.5em; /* Increase font size for better readability */
+    }
+
+    /* Adjust other elements as necessary */
+}
+
+/* Adjustments specifically for portrait orientation */
+@media only screen and (orientation: portrait) and (min-width: 1488px) {
+    .container {
+        max-width: 95%; /* Potentially even wider in portrait */
+    }
+
+    /* Further adjustments can be added here for portrait-specific styles */
+}
+
+/* CSS ANIMATIONS */
+
+.call-history {
+    overflow: hidden; /* Ensures content outside this box is not visible */
+    height: 50px; /* Adjust based on your design */
+}
+
+.call-item {
+    transition: transform 0.5s ease-in-out; /* Smooth transition for the sliding effect */
+    height: 100%; /* Full height of the container */
+    white-space: nowrap; /* Keeps the text in a single line */
+    padding: 10px; /* Adds some space around the text */
+    transform: translateX(100%); /* Starts the call off-screen (right) */
+}
+
