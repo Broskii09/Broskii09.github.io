@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" href="/stats/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skin Creator</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+body {
+    font-family: 'Orbitron', sans-serif;
+    background: linear-gradient(45deg, #1f1c2c, #928dab, #1f4037);
+    background-size: 200% 200%;
+    animation: gradientShift 10s ease infinite;
+    color: #ffffff;
+    text-align: center;
+    padding: 20px;
+}
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+h1, h2 {
+    color: #66fcf1;
+    text-shadow: 0 0 10px rgba(102, 252, 241, 0.6);
+}
+.link-highlight {
+    color: #66fcf1;
+    text-decoration: underline;
+    font-weight: bold;
+    transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+.link-highlight:hover {
+    color: #F19B66;
+    text-shadow: 0 0 8px rgba(69, 162, 158, 0.8);
+    text-decoration: none;
+}
+.form-control-color {
+    width: 50px;
+    height: 50px;
+    border: 2px solid #66fcf1;
+    border-radius: 8px;
+}
+.btn-primary, .btn-secondary, .btn-danger, .btn-warning, .btn-info {
+    background-color: #66fcf1;
+    border-color: #66fcf1;
+    color: #0b0c10;
+}
+.btn-primary:hover, .btn-secondary:hover, .btn-danger:hover, .btn-warning:hover, .btn-info:hover {
+    background-color: #45a29e;
+    border-color: #45a29e;
+}
+.label-input-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: space-between;
+}
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    .form-control-color {
+        width: 40px;
+        height: 40px;
+    }
+    .row.justify-content-between {
+        flex-direction: column;
+    }
+    h1, h2 {
+        font-size: 1.5rem;
+    }
+    .btn {
+        font-size: 0.9rem;
+        padding: 10px 15px;
+    }
+}
+@media (max-width: 480px) {
+    .form-control {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    .link-highlight {
+        font-size: 0.85rem;
+    }
+    h1 {
+        font-size: 1.2rem;
+    }
+}
+</style>
+</head>
+<body>
+    <div class="text-center mb-4">
+        <h1>Skin Creator</h1>
+        <h2>
+            <a href="https://patreon.com/ZoomingIslander" target="_blank" class="link-highlight">
+                Patreon's Only
+            </a> |
+            <a href="https://guide.zoomingislander.com/custom-skins" target="_blank" class="link-highlight">
+                Skin Guide
+            </a>
+        </h2>
+    </div>
+
+    <!-- Color Inputs Section -->
+    <div class="row g-3 mb-4 justify-content-center">
+    <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
+        <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
+            <label for="md-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Male Color:</label>
+            <input type="color" id="md-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
+        <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
+            <label for="f-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">High Color:</label>
+            <input type="color" id="f-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
+        <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
+            <label for="m-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Mid Color:</label>
+            <input type="color" id="m-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
+        <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
+            <label for="d1-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Mid 2 Color:</label>
+            <input type="color" id="d1-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
+        <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
+            <label for="b-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Low Color:</label>
+            <input type="color" id="b-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
+        <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
+            <label for="u-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Bottom Color:</label>
+            <input type="color" id="u-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
+        </div>
+    </div>
+</div>
+
+
+    <!-- Marks, Patterns Section -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-2 offset-lg-4 label-input-group">
+            <label for="sv" class="form-label">Marks (sv):</label>
+            <input type="number" id="sv" class="form-control centered-input" value="0" min="0" max="1">
+        </div>
+        <div class="col-sm-6 col-lg-2 label-input-group">
+            <label for="pi" class="form-label">Pattern (pi):</label>
+            <input type="number" id="pi" class="form-control centered-input" value="0" min="0" max="2">
+        </div>
+    </div>
+
+    <!-- Buttons Row -->
+    <div class="row g-2 justify-content-center mb-4">
+        <div class="col-auto">
+            <button class="btn btn-primary" onclick="generateOutput()" data-bs-toggle="modal" data-bs-target="#outputModal">Generate JSON</button>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#loadModal">Load JSON</button>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-danger" onclick="resetColors()">Reset</button>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-info" onclick="randomizeColors()">Randomize Colors</button>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Output Modal -->
+    <div class="modal fade" id="outputModal" tabindex="-1" aria-labelledby="outputModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="outputModalLabel">Generated JSON</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <pre id="output"></pre>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-info" onclick="copyToClipboard()">Copy to Clipboard</button>
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load JSON Modal -->
+    <div class="modal fade" id="loadModal" tabindex="-1" aria-labelledby="loadModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="loadModalLabel">Load JSON</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <textarea id="paste-json" class="form-control json-box" placeholder="Paste your JSON here"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="loadFromJson()">Load</button>
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const colors = ["md-color", "f-color", "m-color", "d1-color", "b-color", "u-color"];
+
+        function generateOutput() {
+            const sv = document.getElementById("sv").value;
+            const pi = document.getElementById("pi").value;
+
+            const json = colors.reduce((result, id) => {
+                const value = document.getElementById(id).value;
+                result[id] = value;
+                return result;
+            }, { sv, pi });
+
+            document.getElementById("output").textContent = JSON.stringify(json, null, 2);
+        }
+
+        function loadFromJson() {
+            try {
+                const input = document.getElementById("paste-json").value;
+                const data = JSON.parse(input);
+                colors.forEach((id) => {
+                    document.getElementById(id).value = data[id] || "#000000";
+                });
+                document.getElementById("sv").value = data.sv || 0;
+                document.getElementById("pi").value = data.pi || 0;
+            } catch (error) {
+                alert("Invalid JSON!");
+            }
+        }
+
+        function resetColors() {
+            colors.forEach((id) => (document.getElementById(id).value = "#000000"));
+            document.getElementById("sv").value = 0;
+            document.getElementById("pi").value = 0;
+            document.getElementById("paste-json").value = "";
+            document.getElementById("output").textContent = "";
+        }
+
+        function randomizeColors() {
+    colors.forEach((id) => {
+        document.getElementById(id).value = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0")}`;
+    });
+}
+
+
+        function copyToClipboard() {
+            const text = document.getElementById("output").textContent;
+            navigator.clipboard.writeText(text).then(() => alert("Copied to clipboard!"));
+        }
+    </script>
+</body>
+</html>
