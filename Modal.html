@@ -221,54 +221,120 @@ h1, h2 {
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        const colors = ["md-color", "f-color", "m-color", "d1-color", "b-color", "u-color"];
+    // Converts a hex color to linear RGB values
+    function hexToLinearRgb(hex) {
+        const bigint = parseInt(hex.slice(1), 16); // Remove the "#" and parse the hex value
+        const r = ((bigint >> 16) & 255) / 255; // Extract red and normalize to [0, 1]
+        const g = ((bigint >> 8) & 255) / 255; // Extract green and normalize to [0, 1]
+        const b = (bigint & 255) / 255; // Extract blue and normalize to [0, 1]
 
-        function generateOutput() {
-            const sv = document.getElementById("sv").value;
-            const pi = document.getElementById("pi").value;
+        // Convert to linear RGB
+        return {
+            X: Math.pow(r, 2.2),
+            Y: Math.pow(g, 2.2),
+            Z: Math.pow(b, 2.2),
+        };
+    }
 
-            const json = colors.reduce((result, id) => {
-                const value = document.getElementById(id).value;
-                result[id] = value;
-                return result;
-            }, { sv, pi });
+    // Generates the output JSON in the required format
+    function generateOutput() {
+        const sv = document.getElementById("sv").value; // Get 'sv' input value
+        const pi = document.getElementById("pi").value; // Get 'pi' input value
 
-            document.getElementById("output").textContent = JSON.stringify(json, null, 2);
+        // Define color inputs and their keys
+        const colors = [
+            { id: "md-color", key: "md" },
+            { id: "m-color", key: "m" },
+            { id: "b-color", key: "b" },
+            { id: "f-color", key: "f" },
+            { id: "u-color", key: "u" },
+            { id: "d1-color", key: "d1" },
+        ];
+
+        // Process each color input to convert and format as required
+        const formattedColors = colors.reduce((acc, color) => {
+            const { X, Y, Z } = hexToLinearRgb(document.getElementById(color.id).value);
+            acc[color.key] = `X=${X.toFixed(3)},Y=${Y.toFixed(3)},Z=${Z.toFixed(3)}`; // Format each color
+            return acc;
+        }, {});
+
+        // Combine the inputs and formatted colors into a JSON object
+        const outputJson = {
+            sv: Number(sv),
+            pi: Number(pi),
+            ...formattedColors,
+        };
+
+        // Display the output JSON and format it for copying
+        document.getElementById("output").textContent = JSON.stringify(outputJson, null, 2).replace(/"/g, "'");
+    }
+
+    // Loads JSON into the fields
+    function loadFromJson() {
+        try {
+            const input = document.getElementById("paste-json").value; // Get JSON input from textarea
+            const json = JSON.parse(input.replace(/'/g, '"')); // Replace single quotes with double quotes
+
+            // Update 'sv' and 'pi'
+            document.getElementById("sv").value = json.sv || 0;
+            document.getElementById("pi").value = json.pi || 0;
+
+            // Update color pickers
+            const colors = [
+                { id: "md-color", key: "md" },
+                { id: "m-color", key: "m" },
+                { id: "b-color", key: "b" },
+                { id: "f-color", key: "f" },
+                { id: "u-color", key: "u" },
+                { id: "d1-color", key: "d1" },
+            ];
+
+            colors.forEach((color) => {
+                if (json[color.key]) {
+                    const matches = json[color.key].match(/X=([\d.]+),Y=([\d.]+),Z=([\d.]+)/);
+                    if (matches) {
+                        const [_, X, Y, Z] = matches;
+                        const r = Math.round(255 * Math.pow(parseFloat(X), 1 / 2.2));
+                        const g = Math.round(255 * Math.pow(parseFloat(Y), 1 / 2.2));
+                        const b = Math.round(255 * Math.pow(parseFloat(Z), 1 / 2.2));
+                        document.getElementById(color.id).value = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+                    }
+                }
+            });
+        } catch {
+            alert("Invalid JSON format!");
         }
+    }
 
-        function loadFromJson() {
-            try {
-                const input = document.getElementById("paste-json").value;
-                const data = JSON.parse(input);
-                colors.forEach((id) => {
-                    document.getElementById(id).value = data[id] || "#000000";
-                });
-                document.getElementById("sv").value = data.sv || 0;
-                document.getElementById("pi").value = data.pi || 0;
-            } catch (error) {
-                alert("Invalid JSON!");
-            }
+    // Resets all fields to default values
+    function resetColors() {
+        const colors = ["md-color", "m-color", "b-color", "f-color", "u-color", "d1-color"];
+        colors.forEach((id) => (document.getElementById(id).value = "#000000")); // Reset color pickers to black
+        document.getElementById("sv").value = 0; // Reset 'sv' to 0
+        document.getElementById("pi").value = 0; // Reset 'pi' to 0
+        document.getElementById("paste-json").value = ""; // Clear JSON input area
+        document.getElementById("output").textContent = ""; // Clear generated JSON
+    }
+
+    // Copies the output JSON to the clipboard
+    function copyToClipboard() {
+        const output = document.getElementById("output").textContent; // Get the output JSON
+        if (output) {
+            navigator.clipboard.writeText(output).then(() => alert("Copied to clipboard!"));
+        } else {
+            alert("No JSON to copy!");
         }
+    }
 
-        function resetColors() {
-            colors.forEach((id) => (document.getElementById(id).value = "#000000"));
-            document.getElementById("sv").value = 0;
-            document.getElementById("pi").value = 0;
-            document.getElementById("paste-json").value = "";
-            document.getElementById("output").textContent = "";
-        }
-
-        function randomizeColors() {
-    colors.forEach((id) => {
-        document.getElementById(id).value = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0")}`;
-    });
-}
+    // Randomizes all color pickers
+    function randomizeColors() {
+        const colors = ["md-color", "m-color", "b-color", "f-color", "u-color", "d1-color"];
+        colors.forEach((id) => {
+            document.getElementById(id).value = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0")}`;
+        });
+    }
+</script>
 
 
-        function copyToClipboard() {
-            const text = document.getElementById("output").textContent;
-            navigator.clipboard.writeText(text).then(() => alert("Copied to clipboard!"));
-        }
-    </script>
 </body>
 </html>
