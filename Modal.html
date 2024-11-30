@@ -18,15 +18,15 @@ body {
     padding: 20px;
 }
 @keyframes gradientShift {
-    0% {
-        background-position: 0% 50%;
-    }
-    50% {
-        background-position: 100% 50%;
-    }
-    100% {
-        background-position: 0% 50%;
-    }
+0% {
+background-position: 0% 50%;
+}
+50% {
+background-position: 100% 50%;
+}
+100% {
+background-position: 0% 50%;
+}
 }
 h1, h2 {
     color: #66fcf1;
@@ -64,163 +64,167 @@ h1, h2 {
     gap: 10px;
     justify-content: space-between;
 }
+
 @media (max-width: 768px) {
-    body {
-        padding: 10px;
-    }
-    .form-control-color {
-        width: 40px;
-        height: 40px;
-    }
-    .row.justify-content-between {
-        flex-direction: column;
-    }
-    h1, h2 {
-        font-size: 1.5rem;
-    }
-    .btn {
-        font-size: 0.9rem;
-        padding: 10px 15px;
-    }
+body {
+    padding: 10px;
 }
+.form-control-color {
+    width: 40px;
+    height: 40px;
+}
+.row.justify-content-between {
+    flex-direction: column;
+}
+h1, h2 {
+    font-size: 1.5rem;
+}
+.btn {
+    font-size: 0.9rem;
+    padding: 10px 15px;
+}
+}
+
 @media (max-width: 480px) {
-    .form-control {
-        width: 100%;
-        margin-bottom: 10px;
-    }
-    .link-highlight {
-        font-size: 0.85rem;
-    }
-    h1 {
-        font-size: 1.2rem;
-    }
+.form-control {
+    width: 100%;
+    margin-bottom: 10px;
+}
+.link-highlight {
+    font-size: 0.85rem;
+}
+h1 {
+    font-size: 1.2rem;
+}
 }
 </style>
 </head>
 <body>
-    <div class="text-center mb-4">
-        <h1>Skin Creator</h1>
-        <h2>
-            <a href="https://patreon.com/ZoomingIslander" target="_blank" class="link-highlight">
-                Patreon's Only
-            </a> |
-            <a href="https://guide.zoomingislander.com/custom-skins" target="_blank" class="link-highlight">
-                Skin Guide
-            </a>
-        </h2>
-    </div>
-
-    <!-- Color Inputs Section -->
-    <div class="row g-3 mb-4 justify-content-center">
-    <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
-        <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
-            <label for="md-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Male Color:</label>
-            <input type="color" id="md-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
-        </div>
-    </div>
-    <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
-        <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
-            <label for="f-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">High Color:</label>
-            <input type="color" id="f-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
-        </div>
-    </div>
-    <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
-        <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
-            <label for="m-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Mid Color:</label>
-            <input type="color" id="m-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
-        </div>
-    </div>
-    <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
-        <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
-            <label for="d1-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Mid 2 Color:</label>
-            <input type="color" id="d1-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
-        </div>
-    </div>
-    <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
-        <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
-            <label for="b-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Low Color:</label>
-            <input type="color" id="b-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
-        </div>
-    </div>
-    <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
-        <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
-            <label for="u-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Bottom Color:</label>
-            <input type="color" id="u-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
-        </div>
-    </div>
+<div class="text-center mb-4">
+  <h1>Skin Creator</h1>
+  <h2> <a href="https://patreon.com/ZoomingIslander" target="_blank" class="link-highlight"> Patreon's Only </a> | <a href="https://guide.zoomingislander.com/custom-skins" target="_blank" class="link-highlight"> Skin Guide </a> </h2>
 </div>
 
-
-    <!-- Marks, Patterns Section -->
-    <div class="row g-3 mb-4">
-        <div class="col-sm-6 col-lg-2 offset-lg-4 label-input-group">
-            <label for="sv" class="form-label">Marks (sv):</label>
-            <input type="number" id="sv" class="form-control centered-input" value="0" min="0" max="1">
-        </div>
-        <div class="col-sm-6 col-lg-2 label-input-group">
-            <label for="pi" class="form-label">Pattern (pi):</label>
-            <input type="number" id="pi" class="form-control centered-input" value="0" min="0" max="2">
-        </div>
+<!-- Color Inputs Section -->
+<div class="row g-3 mb-4 justify-content-center">
+  <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
+    <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
+      <label for="md-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Male Color:</label>
+      <input type="color" id="md-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
     </div>
-
-    <!-- Buttons Row -->
-    <div class="row g-2 justify-content-center mb-4">
-        <div class="col-auto">
-            <button class="btn btn-primary" onclick="generateOutput()" data-bs-toggle="modal" data-bs-target="#outputModal">Generate JSON</button>
-        </div>
-        <div class="col-auto">
-            <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#loadModal">Load JSON</button>
-        </div>
-        <div class="col-auto">
-            <button class="btn btn-danger" onclick="resetColors()">Reset</button>
-        </div>
-        <div class="col-auto">
-            <button class="btn btn-info" onclick="randomizeColors()">Randomize Colors</button>
-        </div>
+  </div>
+  <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
+    <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
+      <label for="f-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">High Color:</label>
+      <input type="color" id="f-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
     </div>
-
-    <!-- Modals -->
-    <!-- Output Modal -->
-    <div class="modal fade" id="outputModal" tabindex="-1" aria-labelledby="outputModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content bg-dark text-white">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="outputModalLabel">Generated JSON</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <pre id="output"></pre>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-info" onclick="copyToClipboard()">Copy to Clipboard</button>
-                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
+  </div>
+  <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
+    <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
+      <label for="m-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Mid Color:</label>
+      <input type="color" id="m-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
     </div>
-
-    <!-- Load JSON Modal -->
-    <div class="modal fade" id="loadModal" tabindex="-1" aria-labelledby="loadModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content bg-dark text-white">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="loadModalLabel">Load JSON</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <textarea id="paste-json" class="form-control json-box" placeholder="Paste your JSON here"></textarea>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-primary" onclick="loadFromJson()">Load</button>
-                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
+  </div>
+  <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
+    <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
+      <label for="d1-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Mid 2 Color:</label>
+      <input type="color" id="d1-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
     </div>
+  </div>
+  <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
+    <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
+      <label for="b-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Low Color:</label>
+      <input type="color" id="b-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
+    <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
+      <label for="u-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Bottom Color:</label>
+      <input type="color" id="u-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
+    </div>
+  </div>
+  <!-- Eye Color -->
+  <div class="col-sm-6 col-lg-4 d-flex justify-content-center">
+    <div class="d-flex align-items-center justify-content-center" style="width: 100%;">
+      <label for="e-color" class="form-label text-nowrap" style="width: 150px; text-align: right;">Eye Color:</label>
+      <input type="color" id="e-color" class="form-control form-control-color ms-3" style="width: 50px; height: 50px;">
+    </div>
+  </div>
+</div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
+<!-- Marks, Patterns, and Eye Color Section -->
+<div class="row g-3 mb-4 justify-content-center align-items-center"> 
+  <!-- Marks (sv) -->
+  <div class="col-sm-6 col-lg-4 d-flex flex-column align-items-center">
+    <label for="sv" class="form-label">Marks (sv):</label>
+    <input type="number" id="sv" class="form-control centered-input" value="0" min="0" max="1">
+  </div>
+  <!-- Pattern (pi) -->
+  <div class="col-sm-6 col-lg-4 d-flex flex-column align-items-center">
+    <label for="pi" class="form-label">Pattern (pi):</label>
+    <input type="number" id="pi" class="form-control centered-input" value="0" min="0" max="2">
+  </div>
+</div>
+
+<!-- Buttons Row -->
+<div class="row g-2 justify-content-center mb-4">
+  <div class="col-auto">
+    <button class="btn btn-primary" onclick="generateOutput()" data-bs-toggle="modal" data-bs-target="#outputModal">Generate JSON</button>
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#loadModal">Load JSON</button>
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-danger" onclick="resetColors()">Reset</button>
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-info" onclick="randomizeColors()">Randomize Colors</button>
+  </div>
+</div>
+
+<!-- Modals --> 
+<!-- Output Modal -->
+<div class="modal fade" id="outputModal" tabindex="-1" aria-labelledby="outputModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-white">
+      <div class="modal-header">
+        <h5 class="modal-title" id="outputModalLabel">Generated JSON</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <pre id="output"></pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-info" onclick="copyToClipboard()">Copy to Clipboard</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Load JSON Modal -->
+<div class="modal fade" id="loadModal" tabindex="-1" aria-labelledby="loadModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-white">
+      <div class="modal-header">
+        <h5 class="modal-title" id="loadModalLabel">Load JSON</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <textarea id="paste-json" class="form-control json-box" placeholder="Paste your JSON here"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="loadFromJson()">Load</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts --> 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> 
+<script>
     // Converts a hex color to linear RGB values
     function hexToLinearRgb(hex) {
         const bigint = parseInt(hex.slice(1), 16); // Remove the "#" and parse the hex value
@@ -238,10 +242,9 @@ h1, h2 {
 
     // Generates the output JSON in the required format
     function generateOutput() {
-        const sv = document.getElementById("sv").value; // Get 'sv' input value
-        const pi = document.getElementById("pi").value; // Get 'pi' input value
+        const sv = Math.max(0, Math.min(Number(document.getElementById("sv").value) || 0, 1)); // Validate sv
+        const pi = Math.max(0, Math.min(Number(document.getElementById("pi").value) || 0, 2)); // Validate pi
 
-        // Define color inputs and their keys
         const colors = [
             { id: "md-color", key: "md" },
             { id: "m-color", key: "m" },
@@ -249,92 +252,90 @@ h1, h2 {
             { id: "f-color", key: "f" },
             { id: "u-color", key: "u" },
             { id: "d1-color", key: "d1" },
+            { id: "e-color", key: "e" }, // Added eye color
         ];
 
-        // Process each color input to convert and format as required
         const formattedColors = colors.reduce((acc, color) => {
             const { X, Y, Z } = hexToLinearRgb(document.getElementById(color.id).value);
-            acc[color.key] = `X=${X.toFixed(3)},Y=${Y.toFixed(3)},Z=${Z.toFixed(3)}`; // Format each color
+            acc[color.key] = `X=${X.toFixed(3)},Y=${Y.toFixed(3)},Z=${Z.toFixed(3)}`;
             return acc;
         }, {});
 
-        // Combine the inputs and formatted colors into a JSON object
         const outputJson = {
-            sv: Number(sv),
-            pi: Number(pi),
+            sv,
+            pi,
             ...formattedColors,
         };
 
-        // Display the output JSON and format it for copying
         document.getElementById("output").textContent = JSON.stringify(outputJson, null, 2).replace(/"/g, "'");
     }
 
-    // Loads JSON into the fields
-    function loadFromJson() {
-        try {
-            const input = document.getElementById("paste-json").value; // Get JSON input from textarea
-            const json = JSON.parse(input.replace(/'/g, '"')); // Replace single quotes with double quotes
+function loadFromJson() {
+    try {
+        // Get the JSON input from the textarea
+        let input = document.getElementById("paste-json").value;
 
-            // Update 'sv' and 'pi'
-            document.getElementById("sv").value = json.sv || 0;
-            document.getElementById("pi").value = json.pi || 0;
+        // Replace single quotes with double quotes for valid parsing
+        let sanitizedInput = input.replace(/'/g, '"');
 
-            // Update color pickers
-            const colors = [
-                { id: "md-color", key: "md" },
-                { id: "m-color", key: "m" },
-                { id: "b-color", key: "b" },
-                { id: "f-color", key: "f" },
-                { id: "u-color", key: "u" },
-                { id: "d1-color", key: "d1" },
-            ];
+        // Parse the sanitized JSON
+        const json = JSON.parse(sanitizedInput);
 
-            colors.forEach((color) => {
-                if (json[color.key]) {
-                    const matches = json[color.key].match(/X=([\d.]+),Y=([\d.]+),Z=([\d.]+)/);
-                    if (matches) {
-                        const [_, X, Y, Z] = matches;
-                        const r = Math.round(255 * Math.pow(parseFloat(X), 1 / 2.2));
-                        const g = Math.round(255 * Math.pow(parseFloat(Y), 1 / 2.2));
-                        const b = Math.round(255 * Math.pow(parseFloat(Z), 1 / 2.2));
-                        document.getElementById(color.id).value = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-                    }
+        // Update 'sv' and 'pi' fields
+        document.getElementById("sv").value = json.sv || 0;
+        document.getElementById("pi").value = json.pi || 0;
+
+        // Update color fields
+        const colors = ["md", "m", "b", "f", "u", "d1", "e"];
+        colors.forEach((key) => {
+            if (json[key]) {
+                const matches = json[key].match(/X=([\d.]+),Y=([\d.]+),Z=([\d.]+)/);
+                if (matches) {
+                    const [_, X, Y, Z] = matches;
+                    const r = Math.round(255 * Math.pow(parseFloat(X), 1 / 2.2));
+                    const g = Math.round(255 * Math.pow(parseFloat(Y), 1 / 2.2));
+                    const b = Math.round(255 * Math.pow(parseFloat(Z), 1 / 2.2));
+                    const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+                    document.getElementById(`${key}-color`).value = hex;
                 }
-            });
-        } catch {
-            alert("Invalid JSON format!");
-        }
+            }
+        });
+    } catch (error) {
+        alert("Invalid JSON format! Ensure single quotes and proper structure.");
+        console.error(error);
     }
+}
 
-    // Resets all fields to default values
+
     function resetColors() {
-        const colors = ["md-color", "m-color", "b-color", "f-color", "u-color", "d1-color"];
-        colors.forEach((id) => (document.getElementById(id).value = "#000000")); // Reset color pickers to black
-        document.getElementById("sv").value = 0; // Reset 'sv' to 0
-        document.getElementById("pi").value = 0; // Reset 'pi' to 0
-        document.getElementById("paste-json").value = ""; // Clear JSON input area
-        document.getElementById("output").textContent = ""; // Clear generated JSON
+        const colors = ["md-color", "m-color", "b-color", "f-color", "u-color", "d1-color", "e-color"]; // Added eye color
+        colors.forEach((id) => (document.getElementById(id).value = "#000000"));
+        document.getElementById("sv").value = 0;
+        document.getElementById("pi").value = 0;
+        document.getElementById("paste-json").value = "";
+        document.getElementById("output").textContent = "";
     }
 
-    // Copies the output JSON to the clipboard
     function copyToClipboard() {
-        const output = document.getElementById("output").textContent; // Get the output JSON
+        const output = document.getElementById("output").textContent;
         if (output) {
-            navigator.clipboard.writeText(output).then(() => alert("Copied to clipboard!"));
+            navigator.clipboard.writeText(output)
+                .then(() => alert("Copied to clipboard!"))
+                .catch((error) => {
+                    alert("Failed to copy to clipboard. Please try again.");
+                    console.error(error);
+                });
         } else {
             alert("No JSON to copy!");
         }
     }
 
-    // Randomizes all color pickers
     function randomizeColors() {
-        const colors = ["md-color", "m-color", "b-color", "f-color", "u-color", "d1-color"];
+        const colors = ["md-color", "m-color", "b-color", "f-color", "u-color", "d1-color", "e-color"]; // Added eye color
         colors.forEach((id) => {
             document.getElementById(id).value = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0")}`;
         });
     }
 </script>
-
-
 </body>
 </html>
