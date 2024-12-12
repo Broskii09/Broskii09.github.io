@@ -133,8 +133,6 @@ h1, h2 {
     <div class="modal-content bg-dark text-white">
       <div class="modal-header">
         <h5 class="modal-title" id="outputModalLabel">Generated JSON</h5>
-        <button class="btn btn-primary" aria-label="Generate JSON" onclick="generateOutput()" data-bs-toggle="modal" data-bs-target="#outputModal">Generate JSON</button>
-
       </div>
       <div class="modal-body">
         <pre id="output"></pre>
@@ -178,31 +176,33 @@ h1, h2 {
         };
 
         Object.keys(pickers).forEach(id => {
-            pickers[id] = Pickr.create({
-                el: `#${id}`,
-                theme: 'classic',
-                default: '#000000',
-                components: {
-                    preview: true,
-                    opacity: true,
-                    hue: true,
-                    interaction: {
-                        hex: true,
-                        rgba: true,
-                        input: true,
-                        save: true
-                    }
-                }
-            });
+    pickers[id] = Pickr.create({
+        el: `#${id}`,
+        theme: 'classic', // Use the Classic theme
+        default: '#000000',
+        components: {
+            preview: true,
+            opacity: true,
+            hue: true,
+            interaction: {
+                hex: true,
+                rgba: false,
+                input: true,
+                save: true,
+                eyedropper: true
+            }
+        }
+    });
 
-            pickers[id].on('save', (color, instance) => {
-                const hexColor = color.toHEXA().toString();
-                if (instance.getColor().toHEXA().toString() !== hexColor) {
-                    instance.setColor(hexColor);
-                }
-                instance.hide();
-            });
-        });
+    pickers[id].on('save', (color, instance) => {
+        const hexColor = color.toHEXA().toString();
+        if (instance.getColor().toHEXA().toString() !== hexColor) {
+            instance.setColor(hexColor);
+        }
+        instance.hide();
+    });
+});
+
 
         function resetColors() {
     Object.values(pickers).forEach(pickr => pickr.setColor('#000000'));
