@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" href="/stats/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skin Creator</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css">
+<!-- Pickr Classic Theme -->
+<style>
+body {
+    font-family: 'Orbitron', sans-serif;
+    background: linear-gradient(45deg, #1f1c2c, #928dab, #1f4037);
+    background-size: 200% 200%;
+    animation: gradientShift 10s ease infinite;
+    color: #ffffff;
+    text-align: center;
+    padding: 20px;
+}
+@keyframes gradientShift {
+0% {
+background-position: 0% 50%;
+}
+50% {
+background-position: 100% 50%;
+}
+100% {
+background-position: 0% 50%;
+}
+}
+h1, h2 {
+    color: #66fcf1;
+    text-shadow: 0 0 10px rgba(102, 252, 241, 0.6);
+}
+.link-highlight {
+    color: #66fcf1;
+    text-decoration: underline;
+    font-weight: bold;
+    transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+.link-highlight:hover {
+    color: #F19B66;
+    text-shadow: 0 0 8px rgba(69, 162, 158, 0.8);
+    text-decoration: none;
+}
+.pickr-container {
+    margin: 20px 0;
+    text-align: center;
+}
+.modal-content {
+    background-color: #1f1c2c;
+    color: white;
+}
+.btn {
+    background-color: #66fcf1;
+    border-color: #66fcf1;
+    color: #0b0c10;
+}
+.btn:hover {
+    background-color: #45a29e;
+    border-color: #45a29e;
+}
+</style>
+</head>
+<body>
+<div class="text-center mb-4">
+  <h1>Skin Creator</h1>
+  <h2><a href="https://patreon.com/ZoomingIslander" target="_blank" class="link-highlight">Patreon's Only</a> | <a href="https://guide.zoomingislander.com/custom-skins" target="_blank" class="link-highlight">Skin Guide</a></h2>
+</div>
+<div class="row g-3 mb-4 justify-content-center">
+  <div class="col-sm-6 col-lg-4 pickr-container">
+    <label for="md-color" class="form-label">Male Color:</label>
+    <div id="md-color-picker"></div>
+  </div>
+  <div class="col-sm-6 col-lg-4 pickr-container">
+    <label for="f-color" class="form-label">High Color:</label>
+    <div id="f-color-picker"></div>
+  </div>
+  <div class="col-sm-6 col-lg-4 pickr-container">
+    <label for="m-color" class="form-label">Mid Color:</label>
+    <div id="m-color-picker"></div>
+  </div>
+  <div class="col-sm-6 col-lg-4 pickr-container">
+    <label for="d1-color" class="form-label">Mid 2 Color:</label>
+    <div id="d1-color-picker"></div>
+  </div>
+  <div class="col-sm-6 col-lg-4 pickr-container">
+    <label for="b-color" class="form-label">Low Color:</label>
+    <div id="b-color-picker"></div>
+  </div>
+  <div class="col-sm-6 col-lg-4 pickr-container">
+    <label for="u-color" class="form-label">Bottom Color:</label>
+    <div id="u-color-picker"></div>
+  </div>
+  <div class="col-sm-6 col-lg-4 pickr-container">
+    <label for="e-color" class="form-label">Eye Color:</label>
+    <div id="e-color-picker"></div>
+  </div>
+</div>
+<!-- Marks and Pattern Section -->
+<div class="row g-3 mb-4 justify-content-center align-items-center"> 
+  <!-- Marks (sv) -->
+  <div class="col-sm-6 col-lg-4 d-flex flex-column align-items-center">
+    <label for="sv" class="form-label">Marks (sv):</label>
+    <input type="number" id="sv" class="form-control centered-input" value="0" min="0" max="1">
+  </div>
+  
+  <!-- Pattern (pi) -->
+  <div class="col-sm-6 col-lg-4 d-flex flex-column align-items-center">
+    <label for="pi" class="form-label">Pattern (pi):</label>
+    <input type="number" id="pi" class="form-control centered-input" value="0" min="0" max="2">
+  </div>
+</div>
+<div class="row g-2 justify-content-center mb-4">
+  <div class="col-auto">
+    <button class="btn btn-primary" onclick="generateOutput()" data-bs-toggle="modal" data-bs-target="#outputModal">Generate JSON</button>
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#loadModal">Load JSON</button>
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-danger" onclick="resetColors()">Reset</button>
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-info" onclick="randomizeColors()">Randomize Colors</button>
+  </div>
+</div>
+<!-- Output Modal -->
+<div class="modal fade" id="outputModal" tabindex="-1" aria-labelledby="outputModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-white">
+      <div class="modal-header">
+        <h5 class="modal-title" id="outputModalLabel">Generated JSON</h5>
+        <button class="btn btn-primary" aria-label="Generate JSON" onclick="generateOutput()" data-bs-toggle="modal" data-bs-target="#outputModal">Generate JSON</button>
+
+      </div>
+      <div class="modal-body">
+        <pre id="output"></pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-info" onclick="copyToClipboard()">Copy to Clipboard</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Load JSON Modal -->
+<div class="modal fade" id="loadModal" tabindex="-1" aria-labelledby="loadModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-white">
+      <div class="modal-header">
+        <h5 class="modal-title" id="loadModalLabel">Load JSON</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <textarea id="paste-json" class="form-control json-box" rows="8" placeholder="Paste your JSON here"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="loadFromJson()">Load</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/pickr.min.js"></script> 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> 
+<script>
+        const pickers = {
+            "md-color-picker": null,
+            "f-color-picker": null,
+            "m-color-picker": null,
+            "d1-color-picker": null,
+            "b-color-picker": null,
+            "u-color-picker": null,
+            "e-color-picker": null
+        };
+
+        Object.keys(pickers).forEach(id => {
+            pickers[id] = Pickr.create({
+                el: `#${id}`,
+                theme: 'classic',
+                default: '#000000',
+                components: {
+                    preview: true,
+                    opacity: true,
+                    hue: true,
+                    interaction: {
+                        hex: true,
+                        rgba: true,
+                        input: true,
+                        save: true
+                    }
+                }
+            });
+
+            pickers[id].on('save', (color, instance) => {
+                const hexColor = color.toHEXA().toString();
+                if (instance.getColor().toHEXA().toString() !== hexColor) {
+                    instance.setColor(hexColor);
+                }
+                instance.hide();
+            });
+        });
+
+        function resetColors() {
+    Object.values(pickers).forEach(pickr => pickr.setColor('#000000'));
+    document.getElementById("sv").value = 0;
+    document.getElementById("pi").value = 0;
+    document.getElementById("output").textContent = "";
+}
+
+
+function generateOutput() {
+    const colors = {
+        sv: document.getElementById("sv").value, 
+        pi: document.getElementById("pi").value
+    };
+
+    Object.entries(pickers).forEach(([id, pickr]) => {
+        const key = id.replace('-color-picker', '');
+        const hex = pickr.getColor().toHEXA().toString();
+
+        // Convert HEX to normalized RGB
+        const r = parseInt(hex.substring(1, 3), 16) / 255;
+        const g = parseInt(hex.substring(3, 5), 16) / 255;
+        const b = parseInt(hex.substring(5, 7), 16) / 255;
+
+        // Format as required
+        colors[key] = `X=${r.toFixed(3)},Y=${g.toFixed(3)},Z=${b.toFixed(3)}`;
+    });
+
+    const output = `{
+'sv': '${colors.sv}', 
+'pi': '${colors.pi}', 
+'md': '${colors.md}', 
+'m': '${colors.m}', 
+'b': '${colors.b}', 
+'f': '${colors.f}', 
+'u': '${colors.u}', 
+'d1': '${colors.d1}', 
+'e': '${colors.e}'
+}`;
+
+    document.getElementById("output").textContent = output;
+}
+
+
+function copyToClipboard() {
+    const output = document.getElementById("output").textContent;
+    navigator.clipboard.writeText(output).then(() => {
+        alert("JSON copied to clipboard!");
+    });
+}
+
+
+const loadModal = new bootstrap.Modal(document.getElementById('loadModal'));
+
+function loadFromJson() {
+    try {
+        let jsonString = document.getElementById("paste-json").value.trim();
+        jsonString = jsonString.replace(/'/g, '"');
+        const json = JSON.parse(jsonString);
+
+        document.getElementById("sv").value = json.sv;
+        document.getElementById("pi").value = json.pi;
+
+        Object.entries(json).forEach(([key, value]) => {
+            const pickerId = `${key}-color-picker`;
+            if (pickers[pickerId]) {
+                const matches = value.match(/X=([\d.]+),Y=([\d.]+),Z=([\d.]+)/);
+                if (matches) {
+                    const [_, r, g, b] = matches;
+                    const hexColor = rgbToHex(parseFloat(r), parseFloat(g), parseFloat(b));
+                    pickers[pickerId].setColor(hexColor);
+                }
+            }
+        });
+
+        alert("JSON loaded successfully!");
+        loadModal.hide();  // Auto-close
+    } catch (error) {
+        alert("Invalid JSON format.");
+        console.error("Error loading JSON:", error);
+    }
+}
+
+
+
+function rgbToHex(r, g, b) {
+    const to255 = (value) => Math.min(Math.max(0, Math.round(value * 255)), 255);
+    return `#${((1 << 24) + (to255(r) << 16) + (to255(g) << 8) + to255(b)).toString(16).slice(1).toUpperCase()}`;
+}
+
+function randomizeColors() {
+    Object.values(pickers).forEach(pickr => {
+        const randomColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
+        pickr.setColor(randomColor);
+    });
+}
+
+    </script>
+</body>
+</html>
