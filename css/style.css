@@ -1,233 +1,201 @@
-/* Root Definitions for Light Theme */
-:root {
-    --background-color: #f8f9fa; /* light gray */
-    --border-color: #dee2e6; /* light border */
-    --header-bg-color: #007bff; /* blue */
-    --number-font-weight: bold; /* Bold font weight */
-    --number-text-color: #000000; /* Black for light theme */
-    --text-color: #212529; /* almost black */
-}
-
-/* Dark Theme Overrides */
-.dark-theme {
-    --background-color: #343a40; /* dark gray */
-    --border-color: #ced4da; /* gray border */
-    --header-bg-color: #0069d9; /* dark blue */
-    --text-color: #f8f9fa; /* almost white */
-    --number-text-color: #000000; /* Black for dark theme */
-}
-
-/* General Body Styles */
+/* ==========================
+   Global & Body Styling
+========================== */
 body {
-    background-color: var(--background-color);
-    color: var(--text-color);
-    height: 100%; /* Ensures full viewport height */
-    margin: 0; /* Removes default margin */
-    overflow-x: hidden; /* Prevents horizontal scrolling */
-    padding: 0; /* Removes default padding */
-}
-
-body.dark-theme {
-    background-color: #333;
-    color: #000;
-}
-
-/* Header Elements */
-header, .header-cell {
-    background-color: var(--header-bg-color);
-}
-
-/* Button Styles */
-button {
-    background-color: #007bff; /* Bootstrap primary color */
-    color: #ffffff; /* White text */
-}
-
-body.dark-theme button {
-    background-color: #6c757d; /* Bootstrap secondary color */
-}
-
-/* Dark Theme Specific Styles */
-.dark-theme h1 {
-    color: #f8f9fa;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-}
-
-.dark-theme label {
-    color: white;
-}
-
-/* Bingo Board and Cells */
-#bingo-board {
-    padding: 20px 0;
+    font-family: 'Orbitron', sans-serif;
+    background: linear-gradient(45deg, #1f1c2c, #928dab, #1f4037);
+    background-size: 200% 200%;
+    animation: gradientShift 10s ease infinite;
+    color: #ffffff;
     text-align: center;
-    width: 100%;
+    padding: 20px;
 }
 
-.bingo-cell, .pattern-cell {
-    align-items: center;
-    aspect-ratio: 1;
-    background-color: #f8f9fa;
-    border: 2px solid #000;
-    border-color: var(--border-color);
-    border-radius: 50%;
-    display: flex;
-    flex: 1 0 6%;
-    height: auto;
-    justify-content: center;
-    margin: 0.5%;
-    max-width: 80px;
-    padding: 10px;
-    text-align: center;
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
 
-.header-cell {
-    background-color: #007bff;
-    color: white;
+h1, h2 {
+    color: #66fcf1;
+    text-shadow: 0 0 10px rgba(102, 252, 241, 0.6);
+}
+
+/* ==========================
+   Links & Buttons
+========================== */
+.link-highlight {
+    color: #66fcf1;
+    text-decoration: underline;
+    font-weight: bold;
+    transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
+.link-highlight:hover {
+    color: #F19B66;
+    text-shadow: 0 0 8px rgba(69, 162, 158, 0.8);
+    text-decoration: none;
+}
+
+.btn {
+    background-color: #66fcf1;
+    border-color: #66fcf1;
+    color: #0b0c10;
+}
+
+.btn:hover {
+    background-color: #45a29e;
+    border-color: #45a29e;
+}
+
+/* ==========================
+   Navbar Styling
+========================== */
+.navbar-neon {
+    background: #1f1c2c;  /* Dark Purple */
+    box-shadow: 0px 4px 20px rgba(102, 252, 241, 0.7); /* Stronger Neon Glow */
+}
+
+.navbar-brand {
+    color: #ffffff !important;
+    text-shadow: 0 0 10px rgba(102, 252, 241, 0.8);
     font-weight: bold;
 }
 
-.pattern-cell {
-    background-color: #4CAF50 !important;
+.navbar-brand:hover {
+    color: #66fcf1 !important;
+    text-shadow: 0 0 15px rgba(102, 252, 241, 1);
 }
 
-.selected {
-    background-color: #28a745;
+.navbar-neon .nav-link {
+    color: #ffffff !important;
+    text-shadow: 0 0 8px #66fcf1;
+    font-weight: bold;
+}
+
+.navbar-neon .nav-link:hover {
+    color: #66fcf1 !important;
+    text-shadow: 0 0 12px #66fcf1, 0 0 24px #66fcf1;
+}
+
+.navbar-toggler {
+    border: none;
+}
+
+.navbar-toggler-icon {
+    background-image: url("data:image/svg+xml;charset=UTF8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cpath stroke='rgba(255,255,255,0.7)' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
+}
+
+/* ==========================
+   Dropdown Styling
+========================== */
+.dropdown-menu {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dropdown-menu li a {
+    display: inline-block;
+    transform: translateX(-10px);
+    transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.dropdown-menu li a:hover {
+    transform: translateX(0);  /* Slide effect */
+    color: #66fcf1 !important;
+}
+
+.dropdown-item.text-warning:hover {
+    background-color: #ffc107; /* Yellow background on hover */
+    color: #212529 !important; /* Dark text for contrast */
+}
+
+.dropdown-item.text-light:hover {
+    background: rgba(102, 252, 241, 0.2); /* Soft glow effect */
+    color: #66fcf1 !important;
+}
+
+.nav-link, .dropdown-item {
+    transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
+/* ==========================
+   Miscellaneous & Components
+========================== */
+.pickr-container {
+    margin: 20px 0;
+    text-align: center;
+}
+
+.modal-content {
+    background-color: #1f1c2c;
     color: white;
 }
 
-/* Container and Row Flexbox Settings */
-.container, .container-fluid {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-}
-
-/* Custom CSS to override Bootstrap */
-.container {
-    max-width: 2266px; /* Adjust according to your design needs */
-    padding: 2rem; /* Custom padding */
-}
-
-
-.row {
-    flex: 0 1 auto;
-    min-height: 0;
-}
-
-.bingo-row {
-    align-items: center;
-    display: flex;
-    justify-content: center;
-}
-
-/* Last Calls and Pattern Selection Styles */
-#last-calls, #pattern-selection {
-    flex: 1;
-}
-
-#last-calls {
-    background: #f8f9fa;
-    border: 1px solid #ccc;
-    margin-top: 20px;
-    padding: 15px;
-}
-
-#last-calls h3, .call-history {
-    color: #007bff;
-    font-size: 1.2em;
-    font-weight: bold;
-    margin-bottom: 10px;
-}
-
-.number-cell {
-    color: var(--number-text-color);
-    cursor: pointer;
-    font-weight: var(--number-font-weight);
-}
-
-/* Responsive Styles */
-/* Specific breakpoints can also be adjusted */
-@media (min-width: 992px) {
-    .container {
-        max-width: 2266px;
+/* ==========================
+   Responsive Design
+========================== */
+@media (max-width: 576px) {
+    .dropdown-menu {
+        text-align: center;
+        padding: 0.5rem;
     }
 }
 
-@media (max-width: 768px) {
-    .bingo-cell, .number-cell {
-        height: 15vw;
-        margin: 1vw;
-        width: 15vw;
+@media (max-width: 767px) {
+    .navbar-nav {
+        text-align: center;
+        padding: 1rem;
     }
-
-    .number-cell {
-        font-size: 3vw;
+    h1, h2 {
+        font-size: 1.8rem;
     }
-
-    #last-calls h3, .call-history {
-        font-size: 1em;
+    .btn {
+        font-size: 0.9rem;
+        padding: 8px 12px;
     }
 }
 
-@media only screen and (orientation: landscape) {
-    .bingo-row {
-        padding: 0 10px;
+@media (max-width: 991px) {
+    .navbar-nav {
+        margin: 0 auto;
+        text-align: center;
     }
-
-    .bingo-cell {
-        font-size: smaller;
-        padding: 5px;
+    .dropdown-menu {
+        width: 100%;
+        text-align: left;
     }
 }
 
-/* General styles for high-resolution tablets like iPad Mini */
-@media only screen and (min-width: 1488px) and (max-width: 2266px) {
-    .container {
-        max-width: 90%; /* Adjust the max-width to better fit the device */
-        padding: 1rem; /* Smaller padding for a sleek look */
+@media (min-width: 992px) and (max-width: 1199px) {
+    .navbar-nav .nav-item {
+        margin: 0 1rem;
     }
-
-    .bingo-cell, .number-cell {
-        max-width: 100px; /* Larger cells for better touch interaction */
-        padding: 15px; /* Larger padding for visual balance */
-        font-size: 1.5em; /* Larger font size for readability */
+    h1, h2 {
+        font-size: 2.2rem;
     }
-
-.call-history {
-    overflow: hidden; /* Ensures content outside this box is not visible */
-    height: 100px; /* Increased height to accommodate more calls */
 }
 
-
-    .call-item {
-        font-size: 1.5em; /* Increase font size for better readability */
+@media (min-width: 1200px) {
+    .navbar-nav .nav-item {
+        padding: 0 1.5rem;
     }
-
-    /* Adjust other elements as necessary */
-}
-
-/* Adjustments specifically for portrait orientation */
-@media only screen and (orientation: portrait) and (min-width: 1488px) {
-    .container {
-        max-width: 95%; /* Potentially even wider in portrait */
+    .navbar-brand {
+        font-size: 2.5rem;
     }
-
-    /* Further adjustments can be added here for portrait-specific styles */
+    .modal-content {
+        max-width: 800px;
+        margin: auto;
+    }
 }
-
-/* CSS ANIMATIONS */
-
-.call-history {
-    overflow: hidden; /* Ensures content outside this box is not visible */
-    height: 50px; /* Adjust based on your design */
-}
-
-.call-item {
-    transition: transform 0.5s ease-in-out; /* Smooth transition for the sliding effect */
-    height: 100%; /* Full height of the container */
-    white-space: nowrap; /* Keeps the text in a single line */
-    padding: 10px; /* Adds some space around the text */
-    transform: translateX(100%); /* Starts the call off-screen (right) */
-}
-
