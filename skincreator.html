@@ -8,46 +8,44 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css">
-<link rel="stylesheet" href="css/style.css">	
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <!-- Navigation Menu -->
-<!-- Navigation Bar -->
 <nav class="navbar fixed-top navbar-expand-lg navbar-neon">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="#"><strong>Zooming Islander</strong></a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu" aria-controls="navbarMenu" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-
-        <div class="collapse navbar-collapse" id="navbarMenu">
-            <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-                <li class="nav-item"><a class="nav-link" href="https://guide.zoomingislander.com/" target="new">Zooming Islander Player Guide</a></li>
-				<li class="nav-item"><a class="nav-link" href="#">Leader Board</a></li>
-                <li class="nav-item"><a class="nav-link" href="#">Server Data</a></li>
-                <li class="nav-item"><a class="nav-link" href="#">Patreons</a></li>
-                <li class="nav-item"><a class="nav-link" href="#">Staff</a></li>
-
-                <!-- Skins Dropdown with Exclusive Section -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="skinsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">Skins</a>
-                    <ul class="dropdown-menu dropdown-menu-end bg-dark" aria-labelledby="skinsDropdown">
-                        <li><a class="dropdown-item text-light" href="/skins/custom">Custom Skins</a></li>
-                        <li><a class="dropdown-item text-light" href="/skins/presets">Presets</a></li>
-                        <li><a class="dropdown-item text-light" href="/skins/guide">Guide</a></li>
-
-                        <li><hr class="dropdown-divider bg-secondary"></li>
-                        <li><h6 class="dropdown-header text-warning">Exclusive Content | Patreon Members Only!</h6></li>
-                        <li><a class="dropdown-item text-warning fw-bold" href="/skins/custom" target="_blank">Skins Creator</a></li>
-                    </ul>
-                </li>
-            </ul>
-        </div>
+  <div class="container-fluid"> <a class="navbar-brand" href="#"><strong>Zooming Islander</strong></a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu" aria-controls="navbarMenu" aria-expanded="false" aria-label="Toggle navigation"> <span class="navbar-toggler-icon"></span> </button>
+    <div class="collapse navbar-collapse" id="navbarMenu">
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link" href="https://guide.zoomingislander.com/" target="new">Zooming Islander Player Guide</a></li>
+        <li class="nav-item"><a class="nav-link" href="#">Leader Board</a></li>
+        <li class="nav-item"><a class="nav-link" href="#">Server Data</a></li>
+        <li class="nav-item"><a class="nav-link" href="#">Patreons</a></li>
+        <li class="nav-item"><a class="nav-link" href="#">Staff</a></li>
+        
+        <!-- Discord Nav Item with Icon -->
+        <li class="nav-item"> <a class="nav-link" href="https://discord.com/invite/yourserver" target="_blank"> <i class="fab fa-discord me-2"></i> </a> </li>
+        
+        <!-- Skins Dropdown with Exclusive Section -->
+        <li class="nav-item dropdown"> <a class="nav-link dropdown-toggle" href="#" id="skinsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">Skins</a>
+          <ul class="dropdown-menu dropdown-menu-end bg-dark" aria-labelledby="skinsDropdown">
+            <li><a class="dropdown-item text-light" href="/skins/custom">Custom Skins</a></li>
+            <li><a class="dropdown-item text-light" href="/skins/presets">Presets</a></li>
+            <li><a class="dropdown-item text-light" href="/skins/guide">Guide</a></li>
+            <li>
+              <hr class="dropdown-divider bg-secondary">
+            </li>
+            <li>
+              <h6 class="dropdown-header text-warning">Exclusive Content | Patreon Members Only!</h6>
+            </li>
+            <li><a class="dropdown-item text-warning fw-bold" href="/skins/custom" target="_blank">Skins Creator</a></li>
+          </ul>
+        </li>
+      </ul>
     </div>
+  </div>
 </nav>
-
-
-
 
 <!-- Main Content -->
 <div class="text-center mb-4">
@@ -303,13 +301,6 @@ function loadFromJson() {
         console.error("Error loading JSON:", error);
     }
 }
-
-
-
-
-
-
-
 
 function rgbToHex(r, g, b) {
     const to255 = (value) => Math.min(Math.max(0, Math.round(value * 255)), 255);
