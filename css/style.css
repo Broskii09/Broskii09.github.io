@@ -68,10 +68,17 @@ h1, h2 {
     text-shadow: 0 0 15px rgba(102, 252, 241, 1);
 }
 
+.nav-link {
+    display: inline-block; /* Constrain width to content */
+    transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
 .navbar-neon .nav-link {
     color: #ffffff !important;
     text-shadow: 0 0 8px #66fcf1;
-    font-weight: bold;
+    font-weight: 500;
+    font-size: 1rem;
+    text-transform: uppercase;
 }
 
 .navbar-neon .nav-link:hover {
@@ -85,6 +92,22 @@ h1, h2 {
 
 .navbar-toggler-icon {
     background-image: url("data:image/svg+xml;charset=UTF8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cpath stroke='rgba(255,255,255,0.7)' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
+}
+
+.nav-link i {
+    margin-right: 5px;
+    font-size: 1.2rem;
+    vertical-align: middle;
+}
+
+.nav-link:hover {
+    color: #66fcf1; 
+    text-shadow: 0 0 10px #66fcf1;
+}
+
+.navbar-nav .nav-item {
+    display: flex;
+    align-items: center;
 }
 
 /* ==========================
@@ -118,11 +141,11 @@ h1, h2 {
 
 .dropdown-item.text-warning:hover {
     background-color: #ffc107; /* Yellow background on hover */
-    color: #212529 !important; /* Dark text for contrast */
+    color: #212529 !important;
 }
 
 .dropdown-item.text-light:hover {
-    background: rgba(102, 252, 241, 0.2); /* Soft glow effect */
+    background: rgba(102, 252, 241, 0.2);
     color: #66fcf1 !important;
 }
 
@@ -171,10 +194,13 @@ h1, h2 {
     .navbar-nav {
         margin: 0 auto;
         text-align: center;
+        justify-content: center;
     }
-    .dropdown-menu {
-        width: 100%;
-        text-align: left;
+    .navbar-nav .nav-item {
+        display: block;
+    }
+    .nav-link {
+        padding: 0.5rem 0; /* Adds spacing between items */
     }
 }
 
@@ -189,7 +215,7 @@ h1, h2 {
 
 @media (min-width: 1200px) {
     .navbar-nav .nav-item {
-        padding: 0 1.5rem;
+        padding: 0 .5rem;
     }
     .navbar-brand {
         font-size: 2.5rem;
