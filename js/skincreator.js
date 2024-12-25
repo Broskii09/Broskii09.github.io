@@ -171,46 +171,49 @@
 
 
   function randomizeColors(theme = "default") {
-  // Query all JSColor inputs
-  document.querySelectorAll("input.jscolor").forEach((colorInput) => {
-    // We'll figure out the base ID (e.g. "m-color", "f-color", etc.)
-    const baseId = colorInput.id; // e.g. "m-color"
-    const glitchSwitch = document.getElementById(baseId + "-glitch-switch");
-
-    // 1) Pick the normal color based on the theme (same as before).
-    let red, green, blue;
-
-    if (theme === "warm") {
-      red   = Math.floor(Math.random() * 256);
-      green = Math.floor(Math.random() * 200);
-      blue  = Math.floor(Math.random() * 100);
-    } else if (theme === "cool") {
-      red   = Math.floor(Math.random() * 100);
-      green = Math.floor(Math.random() * 200);
-      blue  = Math.floor(Math.random() * 256);
-    } else if (theme === "pastel") {
-      red   = Math.floor(Math.random() * 128) + 127;
-      green = Math.floor(Math.random() * 128) + 127;
-      blue  = Math.floor(Math.random() * 128) + 127;
-    } else if (theme === "neon") {
-      // Neon uses your hsvToHex logic:
-      const neonColor = randomNeonColor(); 
-      colorInput.jscolor.fromString(neonColor);
-      
-      // If glitch is on, randomize multipliers (see step 2 below).
-      if (glitchSwitch && glitchSwitch.checked) {
-        randomizeGlitchMultipliers(baseId);
+    // Query all JSColor inputs
+    document.querySelectorAll("input.jscolor").forEach((colorInput) => {
+      // We'll figure out the base ID (e.g. "m-color", "f-color", etc.)
+      const baseId = colorInput.id; // e.g. "m-color"
+      if (locks[baseId]) {
+        return;
       }
-      return; // go to next color input
-    } else {
-      // default: full range
-      red   = Math.floor(Math.random() * 256);
-      green = Math.floor(Math.random() * 256);
-      blue  = Math.floor(Math.random() * 256);
-    }
+      const glitchSwitch = document.getElementById(baseId + "-glitch-switch");
 
-    // 2) Convert red/green/blue to #RRGGBB and set the color
-    const randomColor = `#${(
+      // 1) Pick the normal color based on the theme (same as before).
+      let red, green, blue;
+
+      if (theme === "warm") {
+        red = Math.floor(Math.random() * 256);
+        green = Math.floor(Math.random() * 200);
+        blue = Math.floor(Math.random() * 100);
+      } else if (theme === "cool") {
+        red = Math.floor(Math.random() * 100);
+        green = Math.floor(Math.random() * 200);
+        blue = Math.floor(Math.random() * 256);
+      } else if (theme === "pastel") {
+        red = Math.floor(Math.random() * 128) + 127;
+        green = Math.floor(Math.random() * 128) + 127;
+        blue = Math.floor(Math.random() * 128) + 127;
+      } else if (theme === "neon") {
+        // Neon uses your hsvToHex logic:
+        const neonColor = randomNeonColor();
+        colorInput.jscolor.fromString(neonColor);
+
+        // If glitch is on, randomize multipliers (see step 2 below).
+        if (glitchSwitch && glitchSwitch.checked) {
+          randomizeGlitchMultipliers(baseId);
+        }
+        return; // go to next color input
+      } else {
+        // default: full range
+        red = Math.floor(Math.random() * 256);
+        green = Math.floor(Math.random() * 256);
+        blue = Math.floor(Math.random() * 256);
+      }
+
+      // 2) Convert red/green/blue to #RRGGBB and set the color
+      const randomColor = `#${(
       (1 << 24) +
       (red << 16) +
       (green << 8) +
@@ -218,28 +221,28 @@
     )
       .toString(16)
       .slice(1)}`;
-    colorInput.jscolor.fromString(randomColor);
+      colorInput.jscolor.fromString(randomColor);
 
-    // 3) If glitch is on, randomize multipliers for that color
-    if (glitchSwitch && glitchSwitch.checked) {
-      randomizeGlitchMultipliers(baseId);
-    }
-  });
-}
+      // 3) If glitch is on, randomize multipliers for that color
+      if (glitchSwitch && glitchSwitch.checked) {
+        randomizeGlitchMultipliers(baseId);
+      }
+    });
+  }
 
-// A helper function to pick random multiplier values 
-// and assign them to the appropriate fields
-function randomizeGlitchMultipliers(baseId) {
-  const xMultField = document.getElementById(baseId + "-multiplier-x");
-  const yMultField = document.getElementById(baseId + "-multiplier-y");
-  const zMultField = document.getElementById(baseId + "-multiplier-z");
+  // A helper function to pick random multiplier values 
+  // and assign them to the appropriate fields
+  function randomizeGlitchMultipliers(baseId) {
+    const xMultField = document.getElementById(baseId + "-multiplier-x");
+    const yMultField = document.getElementById(baseId + "-multiplier-y");
+    const zMultField = document.getElementById(baseId + "-multiplier-z");
 
-  // For example, pick random floats between 0.5..3.0 
-  // (or any range you prefer for glitch)
-  xMultField.value = (Math.random() * 20 - 10).toFixed(0);
-  yMultField.value = (Math.random() * 20 - 10).toFixed(0);
-  zMultField.value = (Math.random() * 20 - 10).toFixed(0);
-}
+    // For example, pick random floats between 0.5..3.0 
+    // (or any range you prefer for glitch)
+    xMultField.value = (Math.random() * 20 - 10).toFixed(0);
+    yMultField.value = (Math.random() * 20 - 10).toFixed(0);
+    zMultField.value = (Math.random() * 20 - 10).toFixed(0);
+  }
 
 
   function applyTheme() {
@@ -256,34 +259,34 @@ function randomizeGlitchMultipliers(baseId) {
    *************************************************************/
 
   function resetColors() {
-  // 1) Reset all color inputs to black (#000000)
-  document.querySelectorAll("input.jscolor").forEach((colorInput) => {
-    colorInput.jscolor.fromString("000000");
-  });
+    // 1) Reset all color inputs to black (#000000)
+    document.querySelectorAll("input.jscolor").forEach((colorInput) => {
+      colorInput.jscolor.fromString("000000");
+    });
 
-  // 2) Reset Marks & Pattern
-  document.getElementById("sv").value = 0;
-  document.getElementById("pi").value = 0;
-  
-  // 3) Clear the JSON output area
-  document.getElementById("output").textContent = "";
+    // 2) Reset Marks & Pattern
+    document.getElementById("sv").value = 0;
+    document.getElementById("pi").value = 0;
 
-  // 4) Turn OFF all glitch toggles and hide the multiplier fields
-  document.querySelectorAll(".glitch-switch").forEach((switchEl) => {
-    switchEl.checked = false; // uncheck the toggle
+    // 3) Clear the JSON output area
+    document.getElementById("output").textContent = "";
 
-    // e.g. "md-color" if switch is "md-color-glitch-switch"
-    const baseId = switchEl.id.replace("-glitch-switch", "");
-    const multiplierEl = document.getElementById(baseId + "-multiplier-fields");
-    multiplierEl.classList.add("d-none"); // hide fields
+    // 4) Turn OFF all glitch toggles and hide the multiplier fields
+    document.querySelectorAll(".glitch-switch").forEach((switchEl) => {
+      switchEl.checked = false; // uncheck the toggle
 
-    // Optionally reset the multiplier values to 1
-    document.getElementById(baseId + "-multiplier-x").value = 1;
-    document.getElementById(baseId + "-multiplier-y").value = 1;
-    document.getElementById(baseId + "-multiplier-z").value = 1;
-  });
-}
-	
+      // e.g. "md-color" if switch is "md-color-glitch-switch"
+      const baseId = switchEl.id.replace("-glitch-switch", "");
+      const multiplierEl = document.getElementById(baseId + "-multiplier-fields");
+      multiplierEl.classList.add("d-none"); // hide fields
+
+      // Optionally reset the multiplier values to 1
+      document.getElementById(baseId + "-multiplier-x").value = 1;
+      document.getElementById(baseId + "-multiplier-y").value = 1;
+      document.getElementById(baseId + "-multiplier-z").value = 1;
+    });
+  }
+
 
   function generateOutput() {
     console.log("generateOutput() called!");
@@ -405,6 +408,25 @@ function randomizeGlitchMultipliers(baseId) {
     }
   }
 
+const locks = {};
+
+    function toggleLock(colorId) {
+      locks[colorId] = !locks[colorId];
+      const btn = document.getElementById(colorId + "-lock");
+      const input = document.getElementById(colorId);
+
+      if (locks[colorId]) {
+    btn.innerHTML = '<i class="fas fa-lock"></i>';
+    input.classList.add("locked-input");
+	btn.classList.remove("btn-outline-light");
+    btn.classList.add("btn-danger");
+  } else {
+    btn.innerHTML = '<i class="fas fa-lock-open"></i>';
+    input.classList.remove("locked-input");
+	  btn.classList.remove("btn-danger");
+    btn.classList.add("btn-outline-light");
+  }
+    }
   /*************************************************************
    * 5) DOMContentLoaded
    *************************************************************/
@@ -457,4 +479,9 @@ function randomizeGlitchMultipliers(baseId) {
         }
       });
     });
+
+
+    // A simple object to store lock states: e.g. locks["md-color"] = true/false
+    // Global object to track which color inputs are locked
+    
   });
