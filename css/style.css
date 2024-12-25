@@ -8,7 +8,7 @@ body {
     animation: gradientShift 10s ease infinite;
     color: #ffffff;
     text-align: center;
-    padding: 80px 20px 20px; /* Adjust padding for fixed navbar */
+    padding: 50px 20px 20px; /* Adjust padding for fixed navbar */
 }
 
 @keyframes gradientShift {
@@ -166,6 +166,16 @@ h1, h2 {
     color: white;
 }
 
+.locked-input {
+  border: 2px solid #ffb600;
+  opacity: 0.7;             
+}
+
+.btn-danger {
+  background-color: #dc3545 !important; /* Bootstrap red */
+  border-color: #dc3545 !important;
+  color: #fff !important;
+}
 /* ==========================
    SPRITE ANIMATION
 ========================== */
@@ -217,14 +227,42 @@ h1, h2 {
         background-position: 0 0;
     }
     to {
-        background-position: -16512px 0; /* Exact width of 10 frames */
+        background-position: -16512px 0; /* Exact width of 43 frames */
     }
 }
+
 @media (max-width: 768px) {
   .sprite {
     display: none;
   }
 }
+
+/* ==========================
+      Theme Selector
+========================== */
+
+.theme-selector {
+    padding: 20px;
+    background-color: #1f1c2c;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    color: #ffffff;
+}
+
+.form-check-label {
+    font-size: 1rem;
+}
+
+.btn-primary {
+    background-color: #66fcf1;
+    border-color: #45a29e;
+}
+
+.btn-primary:hover {
+    background-color: #45a29e;
+    border-color: #66fcf1;
+}
+
 
 /* ==========================
    Responsive Design
