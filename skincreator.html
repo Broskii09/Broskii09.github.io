@@ -59,11 +59,12 @@
 <div class="container">
   <div class="row g-3 mb-4 justify-content-center">
     <div class="col-12 col-md-6 col-lg-4">
-      <label for="md-color" class="form-label">Male Color:</label>
+      <label for="md-color" class="form-label">md - Male Color:</label>
       
       <!-- Normal JSColor Picker -->
       <div class="input-group">
         <input class="form-control jscolor" data-jscolor="{pickerClosable:true, pickerPosition:'right'}" id="md-color" value="000000"/>
+		  
         <button class="btn btn-info" data-bs-toggle="tooltip" data-bs-placement="top" title="Male display, only affects male genders"> <i class="fas fa-info-circle"></i> </button>
         <button class="btn btn-secondary" onclick="useEyeDropper('md-color')"><i class="fas fa-eye-dropper"></i></button>
         <button class="btn btn-success" onclick="copyColor('md-color')"><i class="fas fa-copy"></i></button>
@@ -126,7 +127,7 @@
       </div>
     </div>
     <div class="col-12 col-md-6 col-lg-4">
-      <label for="m-color" class="form-label">Mid Color:</label>
+      <label for="m-color" class="form-label">m - Mid Color:</label>
       <div class="input-group">
         <input class="form-control jscolor" data-jscolor="{pickerClosable:true, pickerPosition:'right'}" id="m-color" value="000000"/>
         <button class="btn btn-info" data-bs-toggle="tooltip" data-bs-placement="top" title="Starting color of Flank gradient."> <i class="fas fa-info-circle"></i> </button>
@@ -190,125 +191,7 @@
       </div>
     </div>
     <div class="col-12 col-md-6 col-lg-4">
-      <label for="f-color" class="form-label">High Color:</label>
-      <div class="input-group">
-        <input class="form-control jscolor" data-jscolor="{pickerClosable:true, pickerPosition:'right'}" id="f-color" value="000000"/>
-        <button class="btn btn-info" data-bs-toggle="tooltip" data-bs-placement="top" title="Color of Markings and patterns"> <i class="fas fa-info-circle"></i> </button>
-        <button class="btn btn-secondary" onclick="useEyeDropper('f-color')"><i class="fas fa-eye-dropper"></i></button>
-        <button class="btn btn-success" onclick="copyColor('f-color')"><i class="fas fa-copy"></i></button>
-        <button class="btn btn-warning" onclick="pasteColor('f-color')"><i class="fas fa-paste"></i></button>
-		  <button 
-    class="btn btn-outline-light"
-    id="f-color-lock" 
-    onclick="toggleLock('f-color')"
-    data-bs-toggle="tooltip"
-    data-bs-placement="top"
-    title="Lock/Unlock color so it won't change on randomize"
-  >
-    <i class="fas fa-lock-open"></i>
-  </button>
-      </div>
-      <div class="d-flex align-items-center mt-2">
-        <div class="form-check form-switch me-2">
-          <input
-        class="form-check-input glitch-switch"
-        type="checkbox"
-        id="f-color-glitch-switch"
-      >
-          <label class="form-check-label mb-0" for="f-color-glitch-switch">Glitch Mode</label>
-        </div>
-        <div class="d-flex align-items-center gap-1 d-none" id="f-color-multiplier-fields">
-          <label for="f-color-multiplier-x" class="mb-0">X:</label>
-          <input
-        type="number"
-        class="form-control form-control-sm fs-7"
-        style="width: 60px"
-        id="f-color-multiplier-x"
-        value="1"
-        step="1"
-      >
-          <label for="f-color-multiplier-y" class="mb-0">Y:</label>
-          <input
-        type="number"
-        class="form-control form-control-sm fs-7"
-        style="width: 60px"
-        id="f-color-multiplier-y"
-        value="1"
-        step="1"
-      >
-          <label for="f-color-multiplier-z" class="mb-0">Z:</label>
-          <input
-        type="number"
-        class="form-control form-control-sm fs-7"
-        style="width: 60px"
-        id="f-color-multiplier-z"
-        value="1"
-        step="1"
-      >
-        </div>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-lg-4">
-      <label for="d1-color" class="form-label">Mid 2 Color:</label>
-      <div class="input-group">
-        <input class="form-control jscolor" data-jscolor="{pickerClosable:true, pickerPosition:'right'}" id="d1-color" value="000000"/>
-        <button class="btn btn-info" data-bs-toggle="tooltip" data-bs-placement="top" title="Secondary color for Flank gradient"> <i class="fas fa-info-circle"></i> </button>
-        <button class="btn btn-secondary" onclick="useEyeDropper('d1-color')"><i class="fas fa-eye-dropper"></i></button>
-        <button class="btn btn-success" onclick="copyColor('d1-color')"><i class="fas fa-copy"></i></button>
-        <button class="btn btn-warning" onclick="pasteColor('d1-color')"><i class="fas fa-paste"></i></button>
-		  <button 
-    class="btn btn-outline-light"
-    id="d1-color-lock" 
-    onclick="toggleLock('d1-color')"
-    data-bs-toggle="tooltip"
-    data-bs-placement="top"
-    title="Lock/Unlock color so it won't change on randomize"
-  >
-    <i class="fas fa-lock-open"></i>
-  </button>
-      </div>
-      <div class="d-flex align-items-center mt-2">
-        <div class="form-check form-switch me-2">
-          <input
-        class="form-check-input glitch-switch"
-        type="checkbox"
-        id="d1-color-glitch-switch"
-      >
-          <label class="form-check-label mb-0" for="d1-color-glitch-switch">Glitch Mode</label>
-        </div>
-        <div class="d-flex align-items-center gap-1 d-none" id="d1-color-multiplier-fields">
-          <label for="d1-color-multiplier-x" class="mb-0">X:</label>
-          <input
-        type="number"
-        class="form-control form-control-sm fs-7"
-        style="width: 60px"
-        id="d1-color-multiplier-x"
-        value="1"
-        step="1"
-      >
-          <label for="d1-color-multiplier-y" class="mb-0">Y:</label>
-          <input
-        type="number"
-        class="form-control form-control-sm fs-7"
-        style="width: 60px"
-        id="d1-color-multiplier-y"
-        value="1"
-        step="1"
-      >
-          <label for="d1-color-multiplier-z" class="mb-0">Z:</label>
-          <input
-        type="number"
-        class="form-control form-control-sm fs-7"
-        style="width: 60px"
-        id="d1-color-multiplier-z"
-        value="1"
-        step="1"
-      >
-        </div>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-lg-4">
-      <label for="b-color" class="form-label">Low Color:</label>
+      <label for="b-color" class="form-label">b - Low Color:</label>
       <div class="input-group">
         <input class="form-control jscolor" data-jscolor="{pickerClosable:true, pickerPosition:'right'}" id="b-color" value="000000"/>
         <button class="btn btn-info" data-bs-toggle="tooltip" data-bs-placement="top" title="Underbelly/Body starting gradient color"> <i class="fas fa-info-circle"></i> </button>
@@ -366,8 +249,67 @@
         </div>
       </div>
     </div>
+	<div class="col-12 col-md-6 col-lg-4">
+      <label for="f-color" class="form-label">f - High Color:</label>
+      <div class="input-group">
+        <input class="form-control jscolor" data-jscolor="{pickerClosable:true, pickerPosition:'right'}" id="f-color" value="000000"/>
+        <button class="btn btn-info" data-bs-toggle="tooltip" data-bs-placement="top" title="Color of Markings and patterns"> <i class="fas fa-info-circle"></i> </button>
+        <button class="btn btn-secondary" onclick="useEyeDropper('f-color')"><i class="fas fa-eye-dropper"></i></button>
+        <button class="btn btn-success" onclick="copyColor('f-color')"><i class="fas fa-copy"></i></button>
+        <button class="btn btn-warning" onclick="pasteColor('f-color')"><i class="fas fa-paste"></i></button>
+		  <button 
+    class="btn btn-outline-light"
+    id="f-color-lock" 
+    onclick="toggleLock('f-color')"
+    data-bs-toggle="tooltip"
+    data-bs-placement="top"
+    title="Lock/Unlock color so it won't change on randomize"
+  >
+    <i class="fas fa-lock-open"></i>
+  </button>
+      </div>
+      <div class="d-flex align-items-center mt-2">
+        <div class="form-check form-switch me-2">
+          <input
+        class="form-check-input glitch-switch"
+        type="checkbox"
+        id="f-color-glitch-switch"
+      >
+          <label class="form-check-label mb-0" for="f-color-glitch-switch">Glitch Mode</label>
+        </div>
+        <div class="d-flex align-items-center gap-1 d-none" id="f-color-multiplier-fields">
+          <label for="f-color-multiplier-x" class="mb-0">X:</label>
+          <input
+        type="number"
+        class="form-control form-control-sm fs-7"
+        style="width: 60px"
+        id="f-color-multiplier-x"
+        value="1"
+        step="1"
+      >
+          <label for="f-color-multiplier-y" class="mb-0">Y:</label>
+          <input
+        type="number"
+        class="form-control form-control-sm fs-7"
+        style="width: 60px"
+        id="f-color-multiplier-y"
+        value="1"
+        step="1"
+      >
+          <label for="f-color-multiplier-z" class="mb-0">Z:</label>
+          <input
+        type="number"
+        class="form-control form-control-sm fs-7"
+        style="width: 60px"
+        id="f-color-multiplier-z"
+        value="1"
+        step="1"
+      >
+        </div>
+      </div>
+    </div>  
     <div class="col-12 col-md-6 col-lg-4">
-      <label for="u-color" class="form-label">Bottom Color:</label>
+      <label for="u-color" class="form-label">u - Bottom Color:</label>
       <div class="input-group">
         <input class="form-control jscolor" data-jscolor="{pickerClosable:true, pickerPosition:'right'}" id="u-color" value="000000"/>
         <button class="btn btn-info" data-bs-toggle="tooltip" data-bs-placement="top" title="Underbelly/Body ending gradient color"> <i class="fas fa-info-circle"></i> </button>
@@ -425,8 +367,67 @@
         </div>
       </div>
     </div>
+	<div class="col-12 col-md-6 col-lg-4">
+      <label for="d1-color" class="form-label">d1 - Mid 2 Color:</label>
+      <div class="input-group">
+        <input class="form-control jscolor" data-jscolor="{pickerClosable:true, pickerPosition:'right'}" id="d1-color" value="000000"/>
+        <button class="btn btn-info" data-bs-toggle="tooltip" data-bs-placement="top" title="Secondary color for Flank gradient"> <i class="fas fa-info-circle"></i> </button>
+        <button class="btn btn-secondary" onclick="useEyeDropper('d1-color')"><i class="fas fa-eye-dropper"></i></button>
+        <button class="btn btn-success" onclick="copyColor('d1-color')"><i class="fas fa-copy"></i></button>
+        <button class="btn btn-warning" onclick="pasteColor('d1-color')"><i class="fas fa-paste"></i></button>
+		  <button 
+    class="btn btn-outline-light"
+    id="d1-color-lock" 
+    onclick="toggleLock('d1-color')"
+    data-bs-toggle="tooltip"
+    data-bs-placement="top"
+    title="Lock/Unlock color so it won't change on randomize"
+  >
+    <i class="fas fa-lock-open"></i>
+  </button>
+      </div>
+      <div class="d-flex align-items-center mt-2">
+        <div class="form-check form-switch me-2">
+          <input
+        class="form-check-input glitch-switch"
+        type="checkbox"
+        id="d1-color-glitch-switch"
+      >
+          <label class="form-check-label mb-0" for="d1-color-glitch-switch">Glitch Mode</label>
+        </div>
+        <div class="d-flex align-items-center gap-1 d-none" id="d1-color-multiplier-fields">
+          <label for="d1-color-multiplier-x" class="mb-0">X:</label>
+          <input
+        type="number"
+        class="form-control form-control-sm fs-7"
+        style="width: 60px"
+        id="d1-color-multiplier-x"
+        value="1"
+        step="1"
+      >
+          <label for="d1-color-multiplier-y" class="mb-0">Y:</label>
+          <input
+        type="number"
+        class="form-control form-control-sm fs-7"
+        style="width: 60px"
+        id="d1-color-multiplier-y"
+        value="1"
+        step="1"
+      >
+          <label for="d1-color-multiplier-z" class="mb-0">Z:</label>
+          <input
+        type="number"
+        class="form-control form-control-sm fs-7"
+        style="width: 60px"
+        id="d1-color-multiplier-z"
+        value="1"
+        step="1"
+      >
+        </div>
+      </div>
+    </div>  
     <div class="col-12 col-md-6 col-lg-4">
-      <label for="e-color" class="form-label">Eye Color:</label>
+      <label for="e-color" class="form-label">e - Eye Color:</label>
       <div class="input-group">
         <input class="form-control jscolor" data-jscolor="{pickerClosable:true, pickerPosition:'right'}" id="e-color" value="000000"/>
         <button class="btn btn-info" data-bs-toggle="tooltip" data-bs-placement="top" title="Eye color, higher number = more glow (Max 100)"> <i class="fas fa-info-circle"></i> </button>
