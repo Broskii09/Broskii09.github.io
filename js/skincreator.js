@@ -8,49 +8,37 @@
    * Convert #RRGGBB into gamma-corrected floats, i.e. (0..1) ^ 2.2
    */
   function hexToGammaFloats(hex) {
-    // parse #RRGGBB
-    const r8 = parseInt(hex.slice(1, 3), 16);
-    const g8 = parseInt(hex.slice(3, 5), 16);
-    const b8 = parseInt(hex.slice(5, 7), 16);
-
-    // convert to linear space (gamma)
-    const rLin = Math.pow(r8 / 255, 2.2);
-    const gLin = Math.pow(g8 / 255, 2.2);
-    const bLin = Math.pow(b8 / 255, 2.2);
+    const r8 = parseInt(hex.slice(1, 3), 16) / 255;
+    const g8 = parseInt(hex.slice(3, 5), 16) / 255;
+    const b8 = parseInt(hex.slice(5, 7), 16) / 255;
 
     return {
-      r: rLin,
-      g: gLin,
-      b: bLin
+        r: Math.pow(r8, 2.2),
+        g: Math.pow(g8, 2.2),
+        b: Math.pow(b8, 2.2),
     };
-  }
+}
 
   /**
    * Convert gamma floats (rLin,gLin,bLin) back to #RRGGBB
    */
-  function gammaFloatsToHex(rLin, gLin, bLin) {
-    // inverse gamma => (channel^(1/2.2))*255
-    const r8 = Math.round(Math.pow(rLin, 1 / 2.2) * 255);
-    const g8 = Math.round(Math.pow(gLin, 1 / 2.2) * 255);
-    const b8 = Math.round(Math.pow(bLin, 1 / 2.2) * 255);
+  function gammaFloatsToHex(r, g, b) {
+    const clamp = (value) => Math.min(Math.max(value, 0), 1); // Ensure values are within [0,1]
+    const r8 = Math.round(Math.pow(clamp(r), 1 / 2.2) * 255);
+    const g8 = Math.round(Math.pow(clamp(g), 1 / 2.2) * 255);
+    const b8 = Math.round(Math.pow(clamp(b), 1 / 2.2) * 255);
 
-    const hex =
-      "#"
-      + ((1 << 24) + (r8 << 16) + (g8 << 8) + b8)
-      .toString(16)
-      .slice(1)
-      .toUpperCase();
-
-    return hex;
-  }
+    return `#${((1 << 24) | (r8 << 16) | (g8 << 8) | b8).toString(16).slice(1).toUpperCase()}`;
+}
 
   /**
-   * Convert a linear string "X=0.123,Y=0.456,Z=0.789" to #RRGGBB
-   */
-  function linearStringToHex(linearStr) {
-    const matches = linearStr.match(/X=([\d.]+),Y=([\d.]+),Z=([\d.]+)/);
+ * Convert a linear string "X=0.123,Y=0.456,Z=0.789" to #RRGGBB
+ */
+function linearStringToHex(linearStr) {
+    const matches = linearStr.match(/X=([\d.-]+),Y=([\d.-]+),Z=([\d.-]+)/);
     if (!matches) {
-      return "#000000"; // fallback if no match
+        console.warn("Invalid linear string format:", linearStr);
+        return "#000000";
     }
 
     const rLin = parseFloat(matches[1]);
@@ -58,7 +46,23 @@
     const bLin = parseFloat(matches[3]);
 
     return gammaFloatsToHex(rLin, gLin, bLin);
-  }
+}
+
+/**
+ * Render a color preview based on linear RGB values.
+ * This creates a small colored box for visualization.
+ */
+function renderColorPreview(linearStr, previewElementId) {
+    const hexColor = linearStringToHex(linearStr);
+    const previewElement = document.getElementById(previewElementId);
+
+    if (previewElement) {
+        previewElement.style.backgroundColor = hexColor;
+    } else {
+        console.error("Preview element not found:", previewElementId);
+    }
+}
+
 
   /*************************************************************
    * 2) COLOR / EYE DROPPER / COPY / PASTE FUNCTIONS
@@ -106,12 +110,6 @@
    * 3) RANDOMIZATION + THEME
    *************************************************************/
 
-  /**
-   * Randomize colors in all color inputs based on the chosen theme.
-   * 
-   * If you want the randomization to keep using the currently 
-   * selected theme, call: randomizeColors(selectedTheme).
-   */
   function randomNeonColor() {
     // random hue 0..360
     const h = Math.random() * 360;
@@ -173,62 +171,69 @@
   function randomizeColors(theme = "default") {
     // Query all JSColor inputs
     document.querySelectorAll("input.jscolor").forEach((colorInput) => {
-      // We'll figure out the base ID (e.g. "m-color", "f-color", etc.)
-      const baseId = colorInput.id; // e.g. "m-color"
-      if (locks[baseId]) {
-        return;
-      }
-      const glitchSwitch = document.getElementById(baseId + "-glitch-switch");
+        const baseId = colorInput.id; // e.g., "m-color"
+        if (locks[baseId]) return; // Skip locked colors
 
-      // 1) Pick the normal color based on the theme (same as before).
-      let red, green, blue;
+        const glitchSwitch = document.getElementById(baseId + "-glitch-switch");
+        let randomColor;
 
-      if (theme === "warm") {
-        red = Math.floor(Math.random() * 256);
-        green = Math.floor(Math.random() * 200);
-        blue = Math.floor(Math.random() * 100);
-      } else if (theme === "cool") {
-        red = Math.floor(Math.random() * 100);
-        green = Math.floor(Math.random() * 200);
-        blue = Math.floor(Math.random() * 256);
-      } else if (theme === "pastel") {
-        red = Math.floor(Math.random() * 128) + 127;
-        green = Math.floor(Math.random() * 128) + 127;
-        blue = Math.floor(Math.random() * 128) + 127;
-      } else if (theme === "neon") {
-        // Neon uses your hsvToHex logic:
-        const neonColor = randomNeonColor();
-        colorInput.jscolor.fromString(neonColor);
-
-        // If glitch is on, randomize multipliers (see step 2 below).
-        if (glitchSwitch && glitchSwitch.checked) {
-          randomizeGlitchMultipliers(baseId);
+        // Handle different themes
+        if (theme === "warm") {
+            randomColor = generateRandomRGB(256, 200, 100); // Warm tones
+        } else if (theme === "cool") {
+            randomColor = generateRandomRGB(100, 200, 256); // Cool tones
+        } else if (theme === "pastel") {
+            randomColor = generatePastelRGB(); // Pastel tones
+        } else if (theme === "neon") {
+            randomColor = randomNeonColor(); // Neon tones
+        } else {
+            // Default: full random range
+            randomColor = generateRandomRGB(256, 256, 256);
         }
-        return; // go to next color input
-      } else {
-        // default: full range
-        red = Math.floor(Math.random() * 256);
-        green = Math.floor(Math.random() * 256);
-        blue = Math.floor(Math.random() * 256);
-      }
 
-      // 2) Convert red/green/blue to #RRGGBB and set the color
-      const randomColor = `#${(
-      (1 << 24) +
-      (red << 16) +
-      (green << 8) +
-      blue
-    )
-      .toString(16)
-      .slice(1)}`;
-      colorInput.jscolor.fromString(randomColor);
+        // Apply the random color
+        colorInput.jscolor.fromString(randomColor.replace("#", ""));
 
-      // 3) If glitch is on, randomize multipliers for that color
-      if (glitchSwitch && glitchSwitch.checked) {
-        randomizeGlitchMultipliers(baseId);
-      }
+        // If glitch mode is ON, randomize multipliers
+        if (glitchSwitch && glitchSwitch.checked) {
+            randomizeGlitchMultipliers(baseId);
+        }
+
+        // Update color preview (optional)
+        renderColorPreview(`X=${Math.random()},Y=${Math.random()},Z=${Math.random()}`, baseId + "-preview");
     });
-  }
+}
+
+/**
+ * Helper: Generate a random RGB color within specified ranges.
+ */
+function generateRandomRGB(maxR, maxG, maxB) {
+    const red = Math.floor(Math.random() * maxR);
+    const green = Math.floor(Math.random() * maxG);
+    const blue = Math.floor(Math.random() * maxB);
+
+    return `#${((1 << 24) + (red << 16) + (green << 8) + blue)
+        .toString(16)
+        .slice(1)
+        .toUpperCase()}`;
+}
+
+/**
+ * Helper: Generate pastel colors.
+ */
+function generatePastelRGB() {
+    const gammaCorrect = (value) => Math.pow(value, 2.2);
+
+    // Generate lighter pastel shades, but take gamma into account
+    const red = gammaCorrect((Math.random() * 0.5 + 0.5));  // Random between 0.5 and 1.0
+    const green = gammaCorrect((Math.random() * 0.5 + 0.5));
+    const blue = gammaCorrect((Math.random() * 0.5 + 0.5));
+
+    // Convert to 8-bit sRGB space
+    return gammaFloatsToHex(red, green, blue);
+}
+
+
 
   // A helper function to pick random multiplier values 
   // and assign them to the appropriate fields
@@ -366,67 +371,57 @@
 
   function loadFromJson() {
     try {
-      let jsonString = document.getElementById("paste-json").value.trim();
-      // convert single quotes to double
-      jsonString = jsonString.replace(/'/g, '"');
+        const jsonString = document.getElementById("paste-json").value.trim();
+        const json = JSON.parse(jsonString.replace(/'/g, '"')); // Handle single quotes
+        const colorIds = {
+            md: "md-color",
+            m: "m-color",
+            b: "b-color",
+            f: "f-color",
+            u: "u-color",
+            d1: "d1-color",
+            e: "e-color",
+        };
 
-      const json = JSON.parse(jsonString);
-      const requiredKeys = ["sv", "pi", "md", "m", "b", "f", "u", "d1", "e"];
-      for (const key of requiredKeys) {
-        if (!(key in json)) {
-          alert(`Missing key: ${key}`);
-          throw new Error(`Missing key: ${key}`);
+        for (const [key, id] of Object.entries(colorIds)) {
+            if (!(key in json)) {
+                console.error(`Key ${key} missing in JSON. Skipping...`);
+                continue;
+            }
+            const linearStr = json[key];
+            const hexColor = linearStringToHex(linearStr);
+
+            const inputElement = document.getElementById(id);
+            inputElement.jscolor.fromString(hexColor.replace("#", ""));
+            renderColorPreview(linearStr, id + "-preview");
         }
-      }
-
-      // set Marks & Pattern
-      document.getElementById("sv").value = json.sv;
-      document.getElementById("pi").value = json.pi;
-
-      // load each color
-      const colorIds = {
-        md: "md-color",
-        m: "m-color",
-        b: "b-color",
-        f: "f-color",
-        u: "u-color",
-        d1: "d1-color",
-        e: "e-color",
-      };
-
-      for (const [key, id] of Object.entries(colorIds)) {
-        const linearStr = json[key]; // e.g. 'X=0.123,Y=0.456,Z=0.789'
-        const hexColor = linearStringToHex(linearStr); // => #RRGGBB
-        // set in jscolor
-        document.getElementById(id).jscolor.fromString(hexColor.replace("#", ""));
-      }
-
-      loadModal.hide();
     } catch (error) {
-      console.error("Error loading JSON:", error);
-      alert("Invalid JSON format. Please check your input.");
+        console.error("Error parsing JSON:", error);
+        alert("Invalid JSON format. Please check your input.");
+    }
+}
+
+
+
+  const locks = {};
+
+  function toggleLock(colorId) {
+    locks[colorId] = !locks[colorId];
+    const btn = document.getElementById(colorId + "-lock");
+    const input = document.getElementById(colorId);
+
+    if (locks[colorId]) {
+      btn.innerHTML = '<i class="fas fa-lock"></i>';
+      input.classList.add("locked-input");
+      btn.classList.remove("btn-outline-light");
+      btn.classList.add("btn-danger");
+    } else {
+      btn.innerHTML = '<i class="fas fa-lock-open"></i>';
+      input.classList.remove("locked-input");
+      btn.classList.remove("btn-danger");
+      btn.classList.add("btn-outline-light");
     }
   }
-
-const locks = {};
-
-    function toggleLock(colorId) {
-      locks[colorId] = !locks[colorId];
-      const btn = document.getElementById(colorId + "-lock");
-      const input = document.getElementById(colorId);
-
-      if (locks[colorId]) {
-    btn.innerHTML = '<i class="fas fa-lock"></i>';
-    input.classList.add("locked-input");
-	btn.classList.remove("btn-outline-light");
-    btn.classList.add("btn-danger");
-  } else {
-    btn.innerHTML = '<i class="fas fa-lock-open"></i>';
-    input.classList.remove("locked-input");
-	  btn.classList.remove("btn-danger");
-    btn.classList.add("btn-outline-light");
-  }
-    }
   /*************************************************************
    * 5) DOMContentLoaded
    *************************************************************/
@@ -483,5 +478,5 @@ const locks = {};
 
     // A simple object to store lock states: e.g. locks["md-color"] = true/false
     // Global object to track which color inputs are locked
-    
+
   });
