@@ -296,28 +296,33 @@ function generatePastelRGB() {
   function generateOutput() {
     console.log("generateOutput() called!");
     const colors = {
-      sv: document.getElementById("sv").value,
-      pi: document.getElementById("pi").value,
+        sv: parseInt(document.getElementById("sv").value, 10), // Ensure sv is treated as a number
+        pi: parseInt(document.getElementById("pi").value, 10), // Ensure pi is treated as a number
     };
 
     const colorIds = {
-      md: "md-color",
-      m: "m-color",
-      b: "b-color",
-      f: "f-color",
-      u: "u-color",
-      d1: "d1-color",
-      e: "e-color",
+        md: "md-color",
+        m: "m-color",
+        b: "b-color",
+        f: "f-color",
+        u: "u-color",
+        d1: "d1-color",
+        e: "e-color",
     };
 
     for (const [key, id] of Object.entries(colorIds)) {
-      colors[key] = getColorValue(key, id);
+        colors[key] = getColorValue(key, id);
     }
 
-    const output = JSON.stringify(colors, null, 2).replace(/\"/g, "'");
+    // Custom JSON stringification for your specific needs
+    const output = JSON.stringify(colors, null, 2)
+        .replace(/\"(\w+)\":/g, "'$1':") // Replace double-quoted keys with single-quoted keys
+        .replace(/\"X=([\d.-]+),Y=([\d.-]+),Z=([\d.-]+)\"/g, "'X=$1,Y=$2,Z=$3'"); // Handle color values
+
     document.getElementById("output").textContent = output;
     console.log("Output is:", output);
-  }
+}
+
 
   /**
    * Convert the color from #RRGGBB => gamma floats => optional glitch => final "X=...,Y=...,Z=..."
