@@ -53,8 +53,8 @@ h1, h2 {
    Navbar Styling
 ========================== */
 .navbar-neon {
-    background: #1f1c2c;  /* Dark Purple */
-    box-shadow: 0px 4px 20px rgba(102, 252, 241, 0.7); /* Stronger Neon Glow */
+    background: #1f1c2c; /* Dark Purple */
+    box-shadow: 0px 4px 20px rgba(102, 252, 241, 0.7); /* Strong Neon Glow */
 }
 
 .navbar-brand {
@@ -69,7 +69,7 @@ h1, h2 {
 }
 
 .nav-link {
-    display: inline-block; /* Constrain width to content */
+    display: inline-block;
     transition: color 0.3s ease, text-shadow 0.3s ease;
 }
 
@@ -77,7 +77,7 @@ h1, h2 {
     color: #ffffff !important;
     text-shadow: 0 0 8px #66fcf1;
     font-weight: 500;
-    font-size: .9rem;
+    font-size: 0.9rem;
     text-transform: uppercase;
 }
 
@@ -100,11 +100,6 @@ h1, h2 {
     vertical-align: middle;
 }
 
-.nav-link:hover {
-    color: #66fcf1; 
-    text-shadow: 0 0 10px #66fcf1;
-}
-
 .navbar-nav .nav-item {
     display: flex;
     align-items: center;
@@ -113,7 +108,7 @@ h1, h2 {
 /* ==========================
    Dropdown Styling
 ========================== */
-.dropdown-menu {
+/*.dropdown-menu {
     animation: fadeIn 0.5s ease-in-out;
 }
 
@@ -135,12 +130,31 @@ h1, h2 {
 }
 
 .dropdown-menu li a:hover {
-    transform: translateX(0);  /* Slide effect */
+    transform: translateX(0);
+    color: #66fcf1 !important;
+}*/
+
+/* Remove or comment out your fadeIn animation and X-translation */
+.dropdown-menu {
+    animation: none !important;
+    transform: none !important;
+    transition: none !important; 
+    /* This ensures no fade, no movement */
+}
+
+.dropdown-menu li a {
+    display: inline-block;
+    transform: none !important;
+    transition: none !important;
+}
+
+.dropdown-menu li a:hover {
+    transform: none !important;
     color: #66fcf1 !important;
 }
 
 .dropdown-item.text-warning:hover {
-    background-color: #ffc107; /* Yellow background on hover */
+    background-color: #ffc107;
     color: #212529 !important;
 }
 
@@ -167,17 +181,92 @@ h1, h2 {
 }
 
 .locked-input {
-  border: 2px solid #ffb600;
-  opacity: 0.7;             
+    border: 2px solid #ffb600;
+    opacity: 0.7;
 }
 
 .btn-danger {
-  background-color: #dc3545 !important; /* Bootstrap red */
-  border-color: #dc3545 !important;
-  color: #fff !important;
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
+    color: #fff !important;
 }
+
+/* If you had offcanvas-specific styles, you can comment them out or remove them:
+.offcanvas {
+    ...
+}
+*/
+
 /* ==========================
-   SPRITE ANIMATION
+   Leaderboards (example)
+========================== */
+.tab-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    color: #000;
+}
+
+.tab-content th, .tab-content td {
+    padding: 10px;
+    border: 1px solid #ccc;
+    text-align: center;
+}
+
+.tab-content th {
+    background-color: #333;
+    color: #fff;
+    text-transform: uppercase;
+}
+
+.tab-content tr:nth-child(odd) td {
+    background-color: #f9f9f9;
+}
+
+.tab-content tr:nth-child(even) td {
+    background-color: #eaeaea;
+}
+
+.tab-content tr:hover td {
+    background-color: #ddd;
+}
+
+.tablink.active {
+    background-color: #00b4d8;
+    color: #fff;
+    transform: scale(1.05);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.tab-menu {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.tablink {
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1rem;
+    border-radius: 5px;
+    text-transform: uppercase;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.tablink:hover {
+    background-color: #0056b3;
+    transform: scale(1.03);
+    cursor: pointer;
+}
+
+/* ==========================
+   Sprite Animation
 ========================== */
 .sprite-container {
     display: flex;
@@ -187,10 +276,10 @@ h1, h2 {
     margin: 20px 0;
 }
 
-/* Title Styling */
 .title-wrapper {
     text-align: center;
 }
+
 .site-title {
     font-size: 3rem;
     color: #66fcf1;
@@ -198,7 +287,6 @@ h1, h2 {
     margin: 0;
 }
 
-/* Sprite Styling */
 .sprite-wrapper {
     display: flex;
     justify-content: center;
@@ -210,24 +298,24 @@ h1, h2 {
     height: 128px; /* Frame height */
     background-image: url("../img/dino-sprite-01.png");
     background-repeat: no-repeat;
-    background-size: cover; /* No background stretching */
+    background-size: cover;
     animation: spriteAnimation 2s steps(43) infinite;
 }
 
-.sprite-left {;
+.sprite-left {
+  /* If you need something special for the left sprite, add it here. */
 }
 
 .sprite-right {
     transform: scaleX(-1); /* Flip horizontally */
 }
 
-/* Keyframe Animation */
 @keyframes spriteAnimation {
     from {
         background-position: 0 0;
     }
     to {
-        background-position: -16512px 0; /* Exact width of 43 frames */
+        background-position: -16512px 0; /* 43 frames * 384px each = 16512 */
     }
 }
 
@@ -238,9 +326,9 @@ h1, h2 {
 }
 
 /* ==========================
-      Theme Selector
+   Theme Selector (Optional)
 ========================== */
-
+/*
 .theme-selector {
     padding: 20px;
     background-color: #1f1c2c;
@@ -248,21 +336,18 @@ h1, h2 {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     color: #ffffff;
 }
-
 .form-check-label {
     font-size: 1rem;
 }
-
 .btn-primary {
     background-color: #66fcf1;
     border-color: #45a29e;
 }
-
 .btn-primary:hover {
     background-color: #45a29e;
     border-color: #66fcf1;
 }
-
+*/
 
 /* ==========================
    Responsive Design
@@ -298,7 +383,7 @@ h1, h2 {
         display: block;
     }
     .nav-link {
-        padding: 0.5rem 0; /* Adds spacing between items */
+        padding: 0.5rem 0;
     }
 }
 
