@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" href="/stats/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leaderboards - Zooming Islander</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://jscolor.com/releases/2.4.5/jscolor.js"></script> 
+<script src="js/script.js"></script>
+</head>
+<!-- Navigation Menu -->
+<div id="navbar-placeholder"></div>
+
+<!-- Main Content -->
+<div class="container mt-5">
+  <h1 class="site-title text-center mb-4">Zooming Islander Data</h1>
+  <ul class="nav nav-tabs tab-menu mb-4" id="tabMenu" role="tablist">
+  </ul>
+  <div class="tab-content" id="tabContents"></div>
+</div>
+
+<!-- Footer -->
+<footer class="text-center mt-5"> <a href="https://discord.gg/zoomingislander" target="_blank">Join our Discord</a> </footer>
+
+<!-- Scripts --> 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> 
+<script>
+    const serverData = [
+      { title: 'Live Map', type: 'map', file: 'stats/servermap.txt' },
+      { title: 'Live Dino Count', type: 'graph', file: 'stats/livecount.txt' },
+      { title: 'Save Count', type: 'graph', file: 'stats/savecount.txt' },
+      { title: 'Server Info', type: 'text', file: 'stats/serverdata.txt' },
+    ];
+
+    function createTabsAndContent() {
+      const tabMenu = document.getElementById('tabMenu');
+      const tabContents = document.getElementById('tabContents');
+
+      serverData.forEach((data, index) => {
+        const tabId = `tab${index}`;
+        const isActive = index === 0 ? 'active' : '';
+
+        // Create Tab Menu
+        const tab = document.createElement('li');
+        tab.className = 'nav-item';
+        tab.innerHTML = `
+          <a class="nav-link ${isActive}" id="${tabId}-tab" data-bs-toggle="tab" href="#${tabId}" role="tab">
+            ${data.title}
+          </a>`;
+        tabMenu.appendChild(tab);
+
+        // Create Tab Content
+        const content = document.createElement('div');
+        content.className = `tab-pane fade ${isActive ? 'show active' : ''}`;
+        content.id = tabId;
+        content.role = 'tabpanel';
+        tabContents.appendChild(content);
+
+        // Load Data into Tabs
+        if (data.type === 'map') {
+          loadMap(data.file, tabId);
+        } else if (data.type === 'graph') {
+          loadGraph(data.file, tabId);
+        } else if (data.type === 'text') {
+          loadText(data.file, tabId);
+        }
+      });
+    }
+
+    function loadText(file, containerId) {
+      fetch(file)
+        .then(response => response.text())
+        .then(data => {
+          document.getElementById(containerId).innerHTML = `<pre>${data}</pre>`;
+        })
+        .catch(err => console.error('Error loading text data:', err));
+    }
+
+    function loadMap(file, containerId) {
+      const mapContainer = document.getElementById(containerId);
+      const mapDiv = document.createElement('div');
+      mapDiv.id = `${containerId}-map`; // Unique ID for the map div
+      mapDiv.style.width = '100%';
+      mapDiv.style.height = '80vh';
+      mapContainer.appendChild(mapDiv);
+
+      const mapWidth = 2048;
+      const mapHeight = 2048;
+      const bounds = [[0, 0], [mapHeight, mapWidth]];
+
+      const map = L.map(mapDiv.id, {
+        minZoom: -1,
+        maxZoom: 2,
+        center: [mapHeight / 2, mapWidth / 2],
+        zoom: 1,
+        crs: L.CRS.Simple,
+        attributionControl: false,
+      });
+
+      L.imageOverlay('img/TheIsle-Envrima-map-2048.webp', bounds).addTo(map);
+      map.fitBounds(bounds);
+
+      // Add markers from the file
+      fetch(file)
+        .then(response => response.text())
+        .then(data => {
+          const lines = data.trim().split('\n');
+          lines.forEach(line => {
+            const [x, y, label] = line.split(',');
+            const adjustedY = mapHeight - parseFloat(y);
+
+            const marker = L.marker([adjustedY, parseFloat(x)]);
+            marker.bindPopup(`<strong>${label}</strong>`).addTo(map);
+          });
+        })
+        .catch(err => console.error('Error loading map data:', err));
+    }
+
+    function loadGraph(file, containerId) {
+      // Add graph loading logic here
+    }
+
+    document.addEventListener('DOMContentLoaded', createTabsAndContent);
+  </script>
+</body>
+</html>

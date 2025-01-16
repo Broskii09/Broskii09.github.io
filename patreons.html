@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" href="/stats/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patreons - Zooming Islander</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://jscolor.com/releases/2.4.5/jscolor.js"></script> 
+<script src="js/script.js"></script>
+</head>
+<body>
+  <!-- Navbar -->
+  <div id="navbar-placeholder"></div>
+
+  <!-- Main Content -->
+  <div class="container mt-5">
+    <h1 class="site-title text-center mb-4">Patreons</h1>
+
+    <!-- Patreon Widget -->
+    <div class="text-center mb-4">
+      <a href="https://www.patreon.com/zoomingislander" class="btn btn-primary" target="_blank">
+        Support us on Patreon!
+      </a>
+    </div>
+
+    <!-- Supporters List -->
+    <div class="supporter-list" id="supporters-list"></div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="text-center mt-5">
+    <a href="https://discord.gg/zoomingislander" target="_blank">Join our Discord</a>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Load Navbar
+    document.addEventListener("DOMContentLoaded", function () {
+      fetch("/path/to/navbar.html")
+        .then(response => {
+          if (!response.ok) throw new Error("Failed to load navbar");
+          return response.text();
+        })
+        .then(data => {
+          document.getElementById("navbar-placeholder").innerHTML = data;
+        })
+        .catch(error => console.error("Error loading navbar:", error));
+    });
+
+    // Load Supporters List
+    const supportersFile = '../stats/patreon.txt';
+    fetch(supportersFile)
+      .then(response => response.text())
+      .then(data => {
+        const rows = data.trim().split('\n');
+        const supportersList = document.getElementById('supporters-list');
+
+        const sortedRows = rows.sort((a, b) => {
+          const levelA = parseInt(a.split(',')[1].trim().replace('Tier ', ''));
+          const levelB = parseInt(b.split(',')[1].trim().replace('Tier ', ''));
+          return levelB - levelA;
+        });
+
+        sortedRows.forEach(row => {
+          const [username, level, id] = row.split(',');
+
+          const supporterItem = document.createElement('div');
+          supporterItem.className = 'supporter-item';
+
+          const img = document.createElement('img');
+          img.src = `../pfp/${id.trim()}.png`;
+          img.alt = `${username}'s profile picture`;
+          supporterItem.appendChild(img);
+
+          const supporterInfo = document.createElement('div');
+          supporterInfo.className = 'supporter-info';
+
+          const supporterName = document.createElement('div');
+          supporterName.className = 'supporter-name';
+          supporterName.textContent = username;
+          supporterInfo.appendChild(supporterName);
+
+          const supporterLevel = document.createElement('div');
+          supporterLevel.className = 'supporter-level';
+          supporterLevel.textContent = level;
+          supporterInfo.appendChild(supporterLevel);
+
+          supporterItem.appendChild(supporterInfo);
+          supportersList.appendChild(supporterItem);
+        });
+      })
+      .catch(error => console.error('Error fetching supporters:', error));
+  </script>
+</body>
+</html>
