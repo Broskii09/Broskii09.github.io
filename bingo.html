@@ -1,50 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Bingo Caller Board</title>
-
   <!-- Bootstrap 5 CSS -->
   <link
     rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css"
   />
-
   <style>
-    /* Make it full screen on an iPad or any device */
     html, body {
       height: 100%;
       margin: 0;
       padding: 0;
+      background-color: #f8f9fa; /* Light grey background */
     }
-    body {
-      display: flex;
-      flex-direction: column;
+    .table tbody tr td {
+      vertical-align: middle; 
+      /* Ensures numbers are centered vertically */
     }
-    /* Main container takes up full height minus any margin from Bootstrap container/padding */
-    #boardContainer {
-      flex: 1 1 auto;
-    }
-
-    /* Called (selected) styling */
-    .called {
-      background-color: #28a745 !important; /* or any color you like */
-      color: #fff !important;
-    }
-
-    /* Larger text for easy reading on iPad */
-    .bingo-number {
+    .bingo-letter-cell {
+      font-weight: bold;
       font-size: 1.5rem;
+      width: 80px;
+      /* First column for letter */
+    }
+    .bingo-number-btn {
       width: 100%;
-      height: 80px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      min-width: 60px;
+      height: 60px;
+      font-size: 1rem;
+      /* Adjust for comfortable tapping on tablet */
+    }
+    .called {
+      background-color: #007bff !important;  /* Called = Blue background */
+      color: #fff !important;                /* White text */
+    }
+    .offcanvas-body .form-label {
+      font-weight: 600;
     }
   </style>
 </head>
-<body class="bg-light">
+<body>
 
   <!-- Top Bar -->
   <div class="container-fluid bg-primary text-white p-3">
@@ -60,14 +58,18 @@
         Open Settings
       </button>
 
-      <!-- Last Called Number(s) Display -->
-      <div class="fw-bold fs-4" id="lastCalledDisplay">Last Called: None</div>
+      <!-- Last Called Display -->
+      <div id="lastCalledDisplay" class="fs-4 fw-bold mb-0">
+        Last Called: None
+      </div>
     </div>
   </div>
 
-  <!-- Main Board -->
-  <div id="boardContainer" class="container-fluid py-3">
-    <div class="row row-cols-5 gx-2 gy-2" id="bingoBoard"></div>
+  <!-- Main Content: Bingo Board Table -->
+  <div class="container-fluid py-3" style="overflow-x:auto;">
+    <table class="table table-bordered text-center align-middle">
+      <tbody id="bingoTableBody"></tbody>
+    </table>
   </div>
 
   <!-- Offcanvas (Hidden Menu) -->
@@ -87,24 +89,33 @@
       ></button>
     </div>
     <div class="offcanvas-body">
-      <!-- Add any custom settings or controls you need here -->
+      <!-- Example settings -->
       <div class="mb-3">
         <label for="roundNumber" class="form-label">Round Number</label>
-        <input type="number" class="form-control" id="roundNumber" placeholder="1" />
+        <input
+          type="number"
+          class="form-control"
+          id="roundNumber"
+          placeholder="1"
+        />
       </div>
       <div class="mb-3">
         <label for="prizePot" class="form-label">Prize Pot ($)</label>
-        <input type="number" class="form-control" id="prizePot" placeholder="500" />
+        <input
+          type="number"
+          class="form-control"
+          id="prizePot"
+          placeholder="500"
+        />
       </div>
-      <hr>
+      <hr/>
       <h6>Additional Options</h6>
       <div class="form-check">
         <input class="form-check-input" type="checkbox" id="autoAdvance" />
         <label class="form-check-label" for="autoAdvance">
-          Auto-advance next call (Demo purpose)
+          Auto-advance next call (for demonstration)
         </label>
       </div>
-      <!-- End settings area -->
     </div>
   </div>
 
@@ -114,55 +125,68 @@
   ></script>
 
   <script>
-    // Generate 75 standard bingo numbers by columns:
-    // B: 1-15, I: 16-30, N: 31-45, G: 46-60, O: 61-75
-    const letterRanges = {
-      B: [1, 15],
-      I: [16, 30],
-      N: [31, 45],
-      G: [46, 60],
-      O: [61, 75]
-    };
+    // Bingo columns with their respective number ranges
+    const columns = [
+      { letter: 'B', start: 1, end: 15 },
+      { letter: 'I', start: 16, end: 30 },
+      { letter: 'N', start: 31, end: 45 },
+      { letter: 'G', start: 46, end: 60 },
+      { letter: 'O', start: 61, end: 75 }
+    ];
 
-    const boardEl = document.getElementById('bingoBoard');
+    const bingoTableBody = document.getElementById('bingoTableBody');
     const lastCalledDisplay = document.getElementById('lastCalledDisplay');
+
+    // Keep track of last called numbers (up to 3)
     let lastCalledNumbers = [];
 
-    // Create columns in order: B, I, N, G, O
-    Object.keys(letterRanges).forEach(letter => {
-      const [start, end] = letterRanges[letter];
-      for (let num = start; num <= end; num++) {
-        // Each number is a button
+    // Build rows: each row = letter + 15 numbers
+    columns.forEach(col => {
+      // Create a row
+      const row = document.createElement('tr');
+
+      // First cell: The Bingo letter
+      const letterCell = document.createElement('td');
+      letterCell.className = 'bingo-letter-cell';
+      letterCell.innerText = col.letter;
+      row.appendChild(letterCell);
+
+      // Next 15 cells: The numbers
+      for (let num = col.start; num <= col.end; num++) {
+        const td = document.createElement('td');
         const btn = document.createElement('button');
-        btn.className = 'btn btn-outline-primary bingo-number';
-        btn.textContent = `${letter}${num}`;
-        btn.onclick = () => toggleCalledNumber(btn, `${letter}${num}`);
-        boardEl.appendChild(btn);
+        btn.className = 'btn btn-outline-primary bingo-number-btn';
+        btn.textContent = num;
+        // Toggle called state
+        btn.onclick = () => toggleCalled(btn, col.letter + num);
+        td.appendChild(btn);
+        row.appendChild(td);
       }
+
+      bingoTableBody.appendChild(row);
     });
 
-    // Toggle 'called' styling and update last called
-    function toggleCalledNumber(button, label) {
+    // Function to toggle the "called" state
+    function toggleCalled(button, label) {
       button.classList.toggle('called');
 
-      // If we just called it, add to array. If we "uncalled" it, remove from array.
       if (button.classList.contains('called')) {
-        // Called
+        // If newly called, add to array
         lastCalledNumbers.push(label);
+        // Keep only last 3
         if (lastCalledNumbers.length > 3) {
-          // Keep only the last three called
           lastCalledNumbers.shift();
         }
       } else {
-        // Uncalled -> remove from array
-        lastCalledNumbers = lastCalledNumbers.filter(l => l !== label);
+        // If uncalled, remove from array
+        lastCalledNumbers = lastCalledNumbers.filter(item => item !== label);
       }
 
-      // Update the display
-      if (lastCalledNumbers.length > 0) {
-        lastCalledDisplay.textContent = 'Last Called: ' + lastCalledNumbers.join(', ');
-      } else {
+      // Update display
+      if (lastCalledNumbers.length === 0) {
         lastCalledDisplay.textContent = 'Last Called: None';
+      } else {
+        lastCalledDisplay.textContent = 'Last Called: ' + lastCalledNumbers.join(', ');
       }
     }
   </script>
