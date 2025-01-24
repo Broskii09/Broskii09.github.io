@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0,
-                 user-scalable=no, 
+                 user-scalable=no,
                  maximum-scale=1.0" />
   <title>Bingo Caller Board</title>
 
@@ -15,20 +15,18 @@
   />
 
   <style>
-    /* Full screen on mobile/tablet/desktop */
     html, body {
       height: 100%;
       margin: 0;
       padding: 0;
-      background-color: #f8f9fa;  /* Light gray */
+      background-color: #f8f9fa; /* Light gray by default */
     }
-
     .table td, .table th {
       text-align: center;
       vertical-align: middle;
     }
 
-    /* Buttons styling */
+    /* Bingo number buttons */
     .bingo-btn {
       width: 60px;
       min-width: 50px;
@@ -37,13 +35,13 @@
       margin: 2px 0;
     }
 
-    /* When called (tapped once) = Blue background, White text */
+    /* Called (blue background, white text) */
     .called {
       background-color: #007bff !important;
       color: #fff !important;
     }
 
-    /* Larger, bold letter cells */
+    /* Large, bold letter cells */
     .letter-cell {
       font-weight: bold;
       font-size: 1.2rem;
@@ -51,18 +49,18 @@
     }
 
     /*
-      Two containers for two layouts:
-      1) #landscapeContainer for horizontal (landscape)
-      2) #portraitContainer for vertical (portrait)
+      Two containers for the two orientations:
+      1) #landscapeContainer (rows = B,I,N,G,O)
+      2) #portraitContainer  (top row = B,I,N,G,O)
       We'll toggle them with CSS media queries.
     */
     #landscapeContainer, #portraitContainer {
       width: 100%;
-      height: calc(100% - 70px); /* minus top bar height */
+      height: calc(100% - 100px); /* minus top bar + pattern area */
       overflow: auto;
-      display: none; /* Hidden by default */
+      display: none;
+      padding: 8px;
     }
-
     @media (orientation: landscape) {
       #landscapeContainer { display: block; }
       #portraitContainer { display: none; }
@@ -71,47 +69,64 @@
       #landscapeContainer { display: none; }
       #portraitContainer { display: block; }
     }
+
+    /* Pattern preview area */
+    #patternPreview img {
+      max-width: 100%;
+      height: auto;
+    }
   </style>
 </head>
 <body>
 
-  <!-- TOP BAR (includes Settings button, Round & Pot, Last Called) -->
-  <div class="container-fluid bg-primary text-white p-3">
+  <!-- TOP BAR -->
+  <div class="container-fluid bg-primary text-white p-2">
     <div class="d-flex justify-content-between align-items-center">
 
-      <!-- Button: Open offcanvas (settings) -->
+      <!-- Logo acting as Settings button -->
       <button
-        class="btn btn-outline-light"
+        class="btn btn-link text-white"
         type="button"
         data-bs-toggle="offcanvas"
         data-bs-target="#offcanvasSettings"
         aria-controls="offcanvasSettings"
+        style="text-decoration: none;"
       >
-        Open Settings
+        <!-- Replace 'logo.png' with your actual logo path or remove the img for text only -->
+        <img src="logo.png" alt="Logo" style="height: 50px;" />
       </button>
 
-      <!-- Round & Pot Display -->
-      <div class="mx-3 fw-bold">
-        Round: <span id="roundDisplay">1</span> | 
-        Prize: $<span id="prizeDisplay">500</span>
+      <!-- Round, Pot, and Total Calls -->
+      <div class="text-center flex-grow-1">
+        <div class="fw-bold" style="font-size: 0.9rem;">
+          Round: <span id="roundDisplay">1</span> | 
+          Prize: $<span id="prizeDisplay">500</span> | 
+          Total Calls: <span id="callsDisplay">0</span>
+        </div>
       </div>
 
       <!-- Last Called Display -->
-      <div id="lastCalledDisplay" class="fs-6 fw-bold mb-0">
+      <div id="lastCalledDisplay" class="fs-6 fw-bold mb-0 me-2">
         Last Called: None
       </div>
     </div>
   </div>
 
+  <!-- PATTERN PREVIEW (below top bar, above board) -->
+  <div id="patternPreview" class="container-fluid bg-white py-2 text-center">
+    <!-- Example placeholder pattern image; replace with your own or make dynamic -->
+    <img src="https://via.placeholder.com/300x80?text=Pattern+Preview" alt="Bingo Pattern" />
+  </div>
+
   <!-- LANDSCAPE Layout -->
-  <div id="landscapeContainer" class="p-2">
+  <div id="landscapeContainer">
     <table class="table table-bordered">
       <tbody id="landscapeTbody"></tbody>
     </table>
   </div>
 
   <!-- PORTRAIT Layout -->
-  <div id="portraitContainer" class="p-2">
+  <div id="portraitContainer">
     <table class="table table-bordered">
       <thead>
         <tr id="portraitLettersRow"></tr>
@@ -137,7 +152,6 @@
       ></button>
     </div>
     <div class="offcanvas-body">
-
       <!-- Round Number -->
       <div class="mb-3">
         <label for="roundNumber" class="form-label">Round Number</label>
@@ -146,7 +160,6 @@
           class="form-control"
           id="roundNumber"
           placeholder="1"
-          value="1"
         />
       </div>
 
@@ -158,12 +171,47 @@
           class="form-control"
           id="prizePot"
           placeholder="500"
-          value="500"
         />
       </div>
 
-      <hr/>
-      <p>Additional Options Coming Soon...</p>
+      <!-- Color Theme -->
+      <div class="mb-3">
+        <label for="colorTheme" class="form-label">Board Color Theme</label>
+        <select class="form-select" id="colorTheme">
+          <option value="#007bff" selected>Default Blue</option>
+          <option value="#28a745">Green</option>
+          <option value="#dc3545">Red</option>
+          <option value="#ffc107">Yellow</option>
+          <option value="#6f42c1">Purple</option>
+        </select>
+      </div>
+
+      <!-- Pattern Selection (optional) -->
+      <div class="mb-3">
+        <label for="patternSelect" class="form-label">Current Pattern</label>
+        <select id="patternSelect" class="form-select">
+          <option value="FourCorners">Four Corners</option>
+          <option value="Line" selected>Line</option>
+          <option value="Blackout">Blackout</option>
+        </select>
+      </div>
+
+      <!-- Random Mode Toggle -->
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" role="switch" id="randomModeToggle">
+        <label class="form-check-label" for="randomModeToggle">Randomizer Mode</label>
+      </div>
+
+      <!-- Button: Call Next (random) -->
+      <button id="callNextBtn" class="btn btn-secondary w-100 mb-3" disabled>
+        Call Next Random
+      </button>
+
+      <!-- Reset Board Button -->
+      <button id="resetBoardBtn" class="btn btn-danger w-100">
+        Reset Board & Clear Cache
+      </button>
+
     </div>
   </div>
 
@@ -182,47 +230,74 @@
       { letter: 'O', start: 61, end: 75 }
     ];
 
-    let lastCalledNumbers = [];         // Track up to the last 3 calls
-    const calledStates = {};            // Map: "B1" => true/false for called
+    // Data we want to persist to localStorage
+    const state = {
+      calledStates: {},         // e.g. { "B1": true, "B2": false, ... }
+      lastCalledNumbers: [],    // up to 3 strings like "B1", "N44", ...
+      roundNumber: 1,
+      prizePot: 500,
+      totalCalls: 0,
+      randomMode: false,        // on/off for random calls
+      colorTheme: "#007bff",    // default
+      pattern: "Line"
+    };
+
+    // References
     const lastCalledDisplay = document.getElementById('lastCalledDisplay');
-
-    // LANDSCAPE references
-    const landscapeTbody = document.getElementById('landscapeTbody');
-
-    // PORTRAIT references
-    const portraitLettersRow = document.getElementById('portraitLettersRow');
+    const landscapeTbody    = document.getElementById('landscapeTbody');
+    const portraitLettersRow= document.getElementById('portraitLettersRow');
     const portraitNumbersBody = document.getElementById('portraitNumbersBody');
 
-    // Build LANDSCAPE table (rows = B,I,N,G,O)
+    // Top bar displays
+    const roundDisplay = document.getElementById('roundDisplay');
+    const prizeDisplay = document.getElementById('prizeDisplay');
+    const callsDisplay = document.getElementById('callsDisplay');
+
+    // Offcanvas inputs
+    const roundInput  = document.getElementById('roundNumber');
+    const potInput    = document.getElementById('prizePot');
+    const colorSelect = document.getElementById('colorTheme');
+    const patternSelect = document.getElementById('patternSelect');
+    const randomToggle = document.getElementById('randomModeToggle');
+    const callNextBtn = document.getElementById('callNextBtn');
+    const resetBoardBtn = document.getElementById('resetBoardBtn');
+
+    // Array of all 75 labels
+    const allLabels = [];
+    columns.forEach(({letter, start, end}) => {
+      for (let num = start; num <= end; num++) {
+        allLabels.push(letter + num);
+      }
+    });
+
+    //--------------------------
+    //  BUILD THE GRIDS
+    //--------------------------
+    // LANDSCAPE table
     columns.forEach(({letter, start, end}) => {
       const row = document.createElement('tr');
-
-      // First cell: the letter
       const letterCell = document.createElement('td');
       letterCell.className = 'letter-cell';
       letterCell.textContent = letter;
       row.appendChild(letterCell);
 
-      // Next: 15 numbers for that letter
       for (let num = start; num <= end; num++) {
         const td = document.createElement('td');
         const btn = document.createElement('button');
         const label = letter + num;
 
-        btn.className = 'btn btn-outline-primary bingo-btn';
+        btn.className = 'btn bingo-btn';
         btn.textContent = num;
         btn.setAttribute('data-label', label);
-
         btn.onclick = () => toggleCalled(label);
 
         td.appendChild(btn);
         row.appendChild(td);
       }
-
       landscapeTbody.appendChild(row);
     });
 
-    // Build PORTRAIT table (columns = B,I,N,G,O across the top)
+    // PORTRAIT table (top row = letters)
     columns.forEach(({letter}) => {
       const th = document.createElement('th');
       th.className = 'letter-cell';
@@ -230,19 +305,18 @@
       portraitLettersRow.appendChild(th);
     });
 
-    // Next 15 rows for the numbers below each letter
+    // Next 15 rows for numbers
     for (let i = 0; i < 15; i++) {
       const row = document.createElement('tr');
       columns.forEach(({letter, start}) => {
         const td = document.createElement('td');
         const btn = document.createElement('button');
-        const num = start + i;  // e.g. for B: start=1 => row0=1, row14=15
+        const num = start + i;
         const label = letter + num;
 
-        btn.className = 'btn btn-outline-primary bingo-btn';
+        btn.className = 'btn bingo-btn';
         btn.textContent = num;
         btn.setAttribute('data-label', label);
-
         btn.onclick = () => toggleCalled(label);
 
         td.appendChild(btn);
@@ -251,55 +325,185 @@
       portraitNumbersBody.appendChild(row);
     }
 
-    // Function: Toggle called on/off
-    function toggleCalled(label) {
-      // Flip the state
-      calledStates[label] = !calledStates[label];
+    //--------------------------
+    //  EVENT LISTENERS
+    //--------------------------
 
-      // Update all buttons that share this label (landscape & portrait)
-      const allBtns = document.querySelectorAll(`[data-label="${label}"]`);
-      allBtns.forEach(btn => {
-        if (calledStates[label]) {
+    // Round & Pot: update state + top bar
+    roundInput.addEventListener('input', () => {
+      state.roundNumber = parseInt(roundInput.value, 10) || 1;
+      roundDisplay.textContent = state.roundNumber;
+      saveState();
+    });
+    potInput.addEventListener('input', () => {
+      state.prizePot = parseInt(potInput.value, 10) || 500;
+      prizeDisplay.textContent = state.prizePot;
+      saveState();
+    });
+
+    // Color theme
+    colorSelect.addEventListener('change', () => {
+      state.colorTheme = colorSelect.value;
+      updateCalledColor();
+      saveState();
+    });
+
+    // Pattern select
+    patternSelect.addEventListener('change', () => {
+      state.pattern = patternSelect.value;
+      // Optionally update pattern preview image or text if you want
+      saveState();
+    });
+
+    // Random mode switch
+    randomToggle.addEventListener('change', () => {
+      state.randomMode = randomToggle.checked;
+      callNextBtn.disabled = !state.randomMode;
+      saveState();
+    });
+
+    // Call Next button (random)
+    callNextBtn.addEventListener('click', callRandomNumber);
+
+    // Reset Board
+    resetBoardBtn.addEventListener('click', () => {
+      if (!confirm("Are you sure you want to reset the board and clear all data?")) {
+        return;
+      }
+      // Clear calls
+      state.calledStates = {};
+      state.lastCalledNumbers = [];
+      state.totalCalls = 0;
+      updateDisplayFromState();
+
+      // Save
+      saveState();
+    });
+
+    //--------------------------
+    //  TOGGLE CALLED
+    //--------------------------
+    function toggleCalled(label) {
+      // Flip the called state
+      const wasCalled = !!state.calledStates[label];
+      state.calledStates[label] = !wasCalled;
+
+      // If newly called
+      if (!wasCalled) {
+        // Add to lastCalledNumbers
+        state.lastCalledNumbers.push(label);
+        if (state.lastCalledNumbers.length > 3) {
+          state.lastCalledNumbers.shift();
+        }
+        // Increase total calls
+        state.totalCalls++;
+      } else {
+        // If un-called, remove from lastCalledNumbers
+        state.lastCalledNumbers = state.lastCalledNumbers.filter(x => x !== label);
+        // Decrease total calls
+        state.totalCalls = Math.max(0, state.totalCalls - 1);
+      }
+
+      updateDisplayFromState();
+      saveState();
+    }
+
+    //--------------------------
+    //  CALL RANDOM
+    //--------------------------
+    function callRandomNumber() {
+      // Create an array of uncalled labels
+      const uncalled = allLabels.filter(lbl => !state.calledStates[lbl]);
+      if (uncalled.length === 0) {
+        alert("All numbers have been called!");
+        return;
+      }
+
+      // Pick one at random
+      const randomIndex = Math.floor(Math.random() * uncalled.length);
+      const chosen = uncalled[randomIndex];
+
+      // Toggle it to called
+      toggleCalled(chosen);
+    }
+
+    //--------------------------
+    //  UPDATE DISPLAY
+    //--------------------------
+    function updateDisplayFromState() {
+      // Round/Pot/Calls
+      roundDisplay.textContent = state.roundNumber;
+      prizeDisplay.textContent = state.prizePot;
+      callsDisplay.textContent = state.totalCalls;
+
+      // Last Called
+      if (state.lastCalledNumbers.length === 0) {
+        lastCalledDisplay.textContent = "Last Called: None";
+      } else {
+        lastCalledDisplay.textContent = "Last Called: " + state.lastCalledNumbers.join(", ");
+      }
+
+      // Mark all buttons
+      document.querySelectorAll("[data-label]").forEach(btn => {
+        const label = btn.getAttribute('data-label');
+        if (state.calledStates[label]) {
           btn.classList.add('called');
         } else {
           btn.classList.remove('called');
         }
       });
 
-      // Update lastCalledNumbers
-      if (calledStates[label]) {
-        // newly called
-        lastCalledNumbers.push(label);
-        if (lastCalledNumbers.length > 3) {
-          lastCalledNumbers.shift(); // keep only 3
-        }
-      } else {
-        // un-called
-        lastCalledNumbers = lastCalledNumbers.filter(x => x !== label);
-      }
+      // Random Mode
+      randomToggle.checked = state.randomMode;
+      callNextBtn.disabled = !state.randomMode;
 
-      // Update display text
-      if (lastCalledNumbers.length === 0) {
-        lastCalledDisplay.textContent = 'Last Called: None';
-      } else {
-        lastCalledDisplay.textContent =
-          'Last Called: ' + lastCalledNumbers.join(', ');
+      // Offcanvas inputs
+      roundInput.value  = state.roundNumber;
+      potInput.value    = state.prizePot;
+      colorSelect.value = state.colorTheme;
+      patternSelect.value = state.pattern;
+
+      // Update color theme
+      updateCalledColor();
+    }
+
+    function updateCalledColor() {
+      // Override .called background color
+      const styleEl = document.getElementById('dynamicTheme');
+      if (styleEl) {
+        styleEl.remove();
+      }
+      const newStyle = document.createElement('style');
+      newStyle.id = 'dynamicTheme';
+      newStyle.innerHTML = `
+        .called {
+          background-color: ${state.colorTheme} !important;
+          color: #fff !important;
+        }
+      `;
+      document.head.appendChild(newStyle);
+    }
+
+    //--------------------------
+    //  LOCAL STORAGE
+    //--------------------------
+    function loadState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('bingoState') || '{}');
+        Object.assign(state, saved);
+      } catch (e) {
+        console.warn("No valid saved state found or parse error.");
       }
     }
 
-    // Handle Round & Pot display from Offcanvas inputs
-    const roundNumberInput = document.getElementById('roundNumber');
-    const prizePotInput = document.getElementById('prizePot');
-    const roundDisplay = document.getElementById('roundDisplay');
-    const prizeDisplay = document.getElementById('prizeDisplay');
+    function saveState() {
+      localStorage.setItem('bingoState', JSON.stringify(state));
+    }
 
-    // Update top bar whenever user types new values
-    roundNumberInput.addEventListener('input', () => {
-      roundDisplay.textContent = roundNumberInput.value || '1';
-    });
-    prizePotInput.addEventListener('input', () => {
-      prizeDisplay.textContent = prizePotInput.value || '500';
-    });
+    // Load from localStorage on page load
+    loadState();
+    // Update the UI from that state
+    updateDisplayFromState();
   </script>
 </body>
 </html>
