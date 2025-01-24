@@ -1,44 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0,
+                 user-scalable=no, 
+                 maximum-scale=1.0" />
   <title>Bingo Caller Board</title>
+
   <!-- Bootstrap 5 CSS -->
-  <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css"
+  <link 
+    rel="stylesheet" 
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" 
   />
+
   <style>
+    /* Make full screen on mobile/tablet/desktop */
     html, body {
       height: 100%;
       margin: 0;
       padding: 0;
-      background-color: #f8f9fa; /* Light grey background */
+      background-color: #f8f9fa;
     }
-    .table tbody tr td {
-      vertical-align: middle; 
-      /* Ensures numbers are centered vertically */
+    .table td, .table th {
+      text-align: center;
+      vertical-align: middle;
     }
-    .bingo-letter-cell {
-      font-weight: bold;
-      font-size: 1.5rem;
-      width: 80px;
-      /* First column for letter */
-    }
-    .bingo-number-btn {
-      width: 100%;
-      min-width: 60px;
-      height: 60px;
+    /* Buttons styling */
+    .bingo-btn {
+      width: 60px;
+      min-width: 50px;
+      height: 50px;
       font-size: 1rem;
-      /* Adjust for comfortable tapping on tablet */
+      margin: 2px 0;
     }
     .called {
-      background-color: #007bff !important;  /* Called = Blue background */
-      color: #fff !important;                /* White text */
+      background-color: #007bff !important; /* Called = Blue */
+      color: #fff !important;
     }
-    .offcanvas-body .form-label {
-      font-weight: 600;
+    /* Letter cells to stand out more */
+    .letter-cell {
+      font-weight: bold;
+      font-size: 1.2rem;
+      width: 50px;
+    }
+
+    /* 
+      Two containers: 
+      1) #landscapeContainer for horizontal layout (rows = B, I, N, G, O)
+      2) #portraitContainer for vertical layout (top row = letters, subsequent rows = numbers)
+      We toggle them via CSS media queries 
+    */
+    #landscapeContainer, #portraitContainer {
+      width: 100%;
+      height: calc(100% - 65px); /* minus top bar */
+      overflow: auto;
+      display: none; /* Hidden by default, shown by orientation */
+    }
+
+    /* Landscape: show #landscapeContainer, hide #portraitContainer */
+    @media (orientation: landscape) {
+      #landscapeContainer { display: block; }
+      #portraitContainer { display: none; }
+    }
+    /* Portrait: show #portraitContainer, hide #landscapeContainer */
+    @media (orientation: portrait) {
+      #landscapeContainer { display: none; }
+      #portraitContainer { display: block; }
     }
   </style>
 </head>
@@ -57,18 +85,27 @@
       >
         Open Settings
       </button>
-
       <!-- Last Called Display -->
-      <div id="lastCalledDisplay" class="fs-4 fw-bold mb-0">
+      <div id="lastCalledDisplay" class="fs-5 fw-bold mb-0">
         Last Called: None
       </div>
     </div>
   </div>
 
-  <!-- Main Content: Bingo Board Table -->
-  <div class="container-fluid py-3" style="overflow-x:auto;">
-    <table class="table table-bordered text-center align-middle">
-      <tbody id="bingoTableBody"></tbody>
+  <!-- LANDSCAPE Layout -->
+  <div id="landscapeContainer" class="p-2">
+    <table class="table table-bordered">
+      <tbody id="landscapeTbody"></tbody>
+    </table>
+  </div>
+
+  <!-- PORTRAIT Layout -->
+  <div id="portraitContainer" class="p-2">
+    <table class="table table-bordered">
+      <thead>
+        <tr id="portraitLettersRow"></tr>
+      </thead>
+      <tbody id="portraitNumbersBody"></tbody>
     </table>
   </div>
 
@@ -89,7 +126,7 @@
       ></button>
     </div>
     <div class="offcanvas-body">
-      <!-- Example settings -->
+      <!-- Add any custom settings here -->
       <div class="mb-3">
         <label for="roundNumber" class="form-label">Round Number</label>
         <input
@@ -109,13 +146,7 @@
         />
       </div>
       <hr/>
-      <h6>Additional Options</h6>
-      <div class="form-check">
-        <input class="form-check-input" type="checkbox" id="autoAdvance" />
-        <label class="form-check-label" for="autoAdvance">
-          Auto-advance next call (for demonstration)
-        </label>
-      </div>
+      <p>Additional Options Coming Soon...</p>
     </div>
   </div>
 
@@ -127,62 +158,114 @@
   <script>
     // Bingo columns with their respective number ranges
     const columns = [
-      { letter: 'B', start: 1, end: 15 },
+      { letter: 'B', start: 1,  end: 15 },
       { letter: 'I', start: 16, end: 30 },
       { letter: 'N', start: 31, end: 45 },
       { letter: 'G', start: 46, end: 60 },
       { letter: 'O', start: 61, end: 75 }
     ];
 
-    const bingoTableBody = document.getElementById('bingoTableBody');
-    const lastCalledDisplay = document.getElementById('lastCalledDisplay');
-
-    // Keep track of last called numbers (up to 3)
+    // For tracking last 3 calls
     let lastCalledNumbers = [];
 
-    // Build rows: each row = letter + 15 numbers
-    columns.forEach(col => {
-      // Create a row
+    // For storing which labels (e.g., "B1", "I25") are currently called
+    const calledStates = {};
+
+    // References
+    const lastCalledDisplay = document.getElementById('lastCalledDisplay');
+
+    // Build the LANDSCAPE table
+    const landscapeTbody = document.getElementById('landscapeTbody');
+    columns.forEach(({letter, start, end}) => {
       const row = document.createElement('tr');
 
-      // First cell: The Bingo letter
+      // First cell: the letter
       const letterCell = document.createElement('td');
-      letterCell.className = 'bingo-letter-cell';
-      letterCell.innerText = col.letter;
+      letterCell.className = 'letter-cell';
+      letterCell.textContent = letter;
       row.appendChild(letterCell);
 
-      // Next 15 cells: The numbers
-      for (let num = col.start; num <= col.end; num++) {
+      // Next: 15 numbers for that letter
+      for (let num = start; num <= end; num++) {
         const td = document.createElement('td');
         const btn = document.createElement('button');
-        btn.className = 'btn btn-outline-primary bingo-number-btn';
+        const label = letter + num;
+        btn.className = 'btn btn-outline-primary bingo-btn';
         btn.textContent = num;
-        // Toggle called state
-        btn.onclick = () => toggleCalled(btn, col.letter + num);
+        btn.setAttribute('data-label', label);
+
+        // On click toggle
+        btn.onclick = () => handleClick(label);
+
         td.appendChild(btn);
         row.appendChild(td);
       }
 
-      bingoTableBody.appendChild(row);
+      landscapeTbody.appendChild(row);
     });
 
-    // Function to toggle the "called" state
-    function toggleCalled(button, label) {
-      button.classList.toggle('called');
+    // Build the PORTRAIT table
+    const portraitLettersRow = document.getElementById('portraitLettersRow');
+    const portraitNumbersBody = document.getElementById('portraitNumbersBody');
 
-      if (button.classList.contains('called')) {
-        // If newly called, add to array
+    // Top row: B, I, N, G, O
+    columns.forEach(({letter}) => {
+      const th = document.createElement('th');
+      th.className = 'letter-cell';
+      th.textContent = letter;
+      portraitLettersRow.appendChild(th);
+    });
+
+    // Next 15 rows for the numbers
+    // For row 0..14 (which correspond to 15 numbers)
+    for (let i = 0; i < 15; i++) {
+      const row = document.createElement('tr');
+      columns.forEach(({letter, start}) => {
+        const td = document.createElement('td');
+        const btn = document.createElement('button');
+        const num = start + i; // i=0 => start; i=14 => start+14
+        const label = letter + num;
+
+        btn.className = 'btn btn-outline-primary bingo-btn';
+        btn.textContent = num;
+        btn.setAttribute('data-label', label);
+
+        btn.onclick = () => handleClick(label);
+
+        td.appendChild(btn);
+        row.appendChild(td);
+      });
+      portraitNumbersBody.appendChild(row);
+    }
+
+    // Clicking a number toggles "called" on/off
+    function handleClick(label) {
+      // Invert the called state
+      calledStates[label] = !calledStates[label];
+
+      // Update all buttons that share this label (landscape & portrait)
+      const allBtns = document.querySelectorAll(`[data-label="${label}"]`);
+      allBtns.forEach(btn => {
+        if (calledStates[label]) {
+          btn.classList.add('called');
+        } else {
+          btn.classList.remove('called');
+        }
+      });
+
+      // Update lastCalledNumbers (only track newly called, or remove if un-called)
+      if (calledStates[label]) {
+        // If newly called, push to array
         lastCalledNumbers.push(label);
-        // Keep only last 3
         if (lastCalledNumbers.length > 3) {
-          lastCalledNumbers.shift();
+          lastCalledNumbers.shift(); // keep only last 3
         }
       } else {
-        // If uncalled, remove from array
+        // If un-called, remove from array
         lastCalledNumbers = lastCalledNumbers.filter(item => item !== label);
       }
 
-      // Update display
+      // Update display text
       if (lastCalledNumbers.length === 0) {
         lastCalledDisplay.textContent = 'Last Called: None';
       } else {
