@@ -105,6 +105,21 @@
       display: none; /* Shown only if no logo */
       color: #fff;   /* White text on primary bg */
     }
+
+    /* "Last Call Ball" styling */
+    #lastCallBall {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background-color: #fff;    /* default white */
+      border: 3px solid #000;    /* black outline */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+      font-size: 1.4rem;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -141,9 +156,21 @@
     </div>
   </div>
 
-  <!-- PATTERN PREVIEW (dynamic 5x5 grid) -->
-  <div id="patternPreview" class="container-fluid bg-white py-2 text-center">
-    <div id="patternPreviewGrid"></div>
+  <!-- PATTERN PREVIEW & LAST CALL BALL side by side -->
+  <div class="container-fluid bg-white py-2">
+    <div class="row">
+      <!-- Pattern Preview -->
+      <div class="col-md-8 text-center" id="patternPreview">
+        <div id="patternPreviewGrid"></div>
+      </div>
+      <!-- Last Call Ball -->
+      <div class="col-md-4 text-center d-flex justify-content-center align-items-center">
+        <div>
+          <h5>Last Ball</h5>
+          <div id="lastCallBall">No Call</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- LANDSCAPE Layout -->
@@ -302,17 +329,16 @@
       pattern: "Line"
     };
 
-    // Pattern coordinate definitions for the preview
-    // 5x5 grid => row, col from 0..4
+    // Pattern coordinate definitions for the preview (5x5 => row, col from 0..4)
     const patternCoordinates = {
       FourCorners: [ [0,0],[0,4],[4,0],[4,4] ],
       // Example "Line": top row [0,0]..[0,4]
       Line: [ [0,0],[0,1],[0,2],[0,3],[0,4] ],
-      // Blackout = all squares 5x5 => 25 squares
+      // Blackout = all squares => 25 squares
       Blackout: Array.from({length: 25}, (_, i) => [Math.floor(i/5), i%5]),
     };
 
-    // Keep an array of all possible labels
+    // Keep an array of all possible labels (B1..B15, I16..I30, etc.)
     const allLabels = [];
     columns.forEach(({letter, start, end}) => {
       for (let num = start; num <= end; num++) {
@@ -321,12 +347,12 @@
     });
 
     // References
-    const logoBtn           = document.getElementById('logoBtn');
-    const logoImg           = document.getElementById('logoImg');
-    const titleText         = document.getElementById('titleText');
-    const lastCalledDisplay = document.getElementById('lastCalledDisplay');
-    const landscapeTbody    = document.getElementById('landscapeTbody');
-    const portraitLettersRow= document.getElementById('portraitLettersRow');
+    const logoBtn            = document.getElementById('logoBtn');
+    const logoImg            = document.getElementById('logoImg');
+    const titleText          = document.getElementById('titleText');
+    const lastCalledDisplay  = document.getElementById('lastCalledDisplay');
+    const landscapeTbody     = document.getElementById('landscapeTbody');
+    const portraitLettersRow = document.getElementById('portraitLettersRow');
     const portraitNumbersBody= document.getElementById('portraitNumbersBody');
 
     // Offcanvas inputs
@@ -348,6 +374,7 @@
 
     // Dynamic pattern grid container
     const patternPreviewGrid = document.getElementById('patternPreviewGrid');
+    const lastCallBall       = document.getElementById('lastCallBall');
 
     //--------------------------
     //  BUILD THE CALLER GRIDS
@@ -383,7 +410,6 @@
       th.textContent = letter;
       portraitLettersRow.appendChild(th);
     });
-
     // Next 15 rows for numbers
     for (let i = 0; i < 15; i++) {
       const row = document.createElement('tr');
@@ -416,7 +442,6 @@
         for (let c = 0; c < 5; c++) {
           const cell = document.createElement('td');
           cell.classList.add('pattern-cell');
-          // We can store row/col to highlight later if we wanted
           cell.setAttribute('data-row', r);
           cell.setAttribute('data-col', c);
           row.appendChild(cell);
@@ -510,11 +535,6 @@
       state.lastCalledNumbers = [];
       state.totalCalls = 0;
       updateDisplayFromState();
-
-      // If you wanted to reset logo/title as well, you could do:
-      // state.gameTitle = "";
-      // state.logoData = "";
-      // updateLogoOrTitle();
 
       saveState();
     });
@@ -616,7 +636,7 @@
         lastCalledDisplay.textContent = "Last Called: " + state.lastCalledNumbers.join(", ");
       }
 
-      // Mark all buttons
+      // Mark all buttons as called/uncalled
       document.querySelectorAll("[data-label]").forEach(btn => {
         const label = btn.getAttribute('data-label');
         if (state.calledStates[label]) {
@@ -645,6 +665,32 @@
 
       // Update pattern preview
       showPattern(state.pattern);
+
+      // Update last call ball
+      updateLastCallBall();
+    }
+
+    // Create a circle that displays the last letter-number call
+    function updateLastCallBall() {
+      // If no calls, show "No Call"
+      if (state.lastCalledNumbers.length === 0) {
+        lastCallBall.textContent = "No Call";
+        // White background is fine here
+        return;
+      }
+
+      const latest = state.lastCalledNumbers[state.lastCalledNumbers.length - 1];
+      // For example, "B12": letter = B12[0] => 'B', number = B12.slice(1) => '12'
+      const letter = latest[0];
+      const number = latest.slice(1);
+
+      // Display e.g. "B12" or "B - 12"
+      lastCallBall.textContent = letter + number;
+
+      // If you want the ball to share the color theme, uncomment:
+      // lastCallBall.style.backgroundColor = state.colorTheme;
+      // lastCallBall.style.color = '#fff';
+      // or keep it white w/ black text for contrast, up to you
     }
 
     function updateCalledColor() {
