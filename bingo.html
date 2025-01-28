@@ -71,9 +71,18 @@
     }
 
     /* Pattern preview area */
-    #patternPreview img {
-      max-width: 100%;
-      height: auto;
+    #patternPreviewGrid table {
+      margin: 0 auto; /* center the grid */
+      border-collapse: collapse;
+    }
+    #patternPreviewGrid td {
+      width: 32px; 
+      height: 32px; 
+      border: 1px solid #ccc;
+    }
+    /* Highlight squares in the pattern */
+    .pattern-highlight {
+      background-color: #ffc107; /* Gold-ish highlight */
     }
 
     /* Logo or Title in top bar */
@@ -132,10 +141,9 @@
     </div>
   </div>
 
-  <!-- PATTERN PREVIEW (below top bar, above board) -->
+  <!-- PATTERN PREVIEW (dynamic 5x5 grid) -->
   <div id="patternPreview" class="container-fluid bg-white py-2 text-center">
-    <!-- Example placeholder pattern image; replace with your own or make dynamic -->
-    <img src="https://via.placeholder.com/300x80?text=Pattern+Preview" alt="Bingo Pattern" />
+    <div id="patternPreviewGrid"></div>
   </div>
 
   <!-- LANDSCAPE Layout -->
@@ -236,7 +244,7 @@
         </select>
       </div>
 
-      <!-- Pattern Selection (optional) -->
+      <!-- Pattern Selection (dynamic highlight) -->
       <div class="mb-3">
         <label for="patternSelect" class="form-label">Current Pattern</label>
         <select id="patternSelect" class="form-select">
@@ -282,8 +290,8 @@
 
     // Data we want to persist to localStorage
     const state = {
-      gameTitle: "",            // text title
-      logoData: "",            // base64 data URL for the logo
+      gameTitle: "",
+      logoData: "",
       calledStates: {},         // e.g. { "B1": true, "B2": false, ... }
       lastCalledNumbers: [],    // up to 3 strings like "B1", "N44", ...
       roundNumber: 1,
@@ -292,6 +300,16 @@
       randomMode: false,        // on/off for random calls
       colorTheme: "#007bff",    // default
       pattern: "Line"
+    };
+
+    // Pattern coordinate definitions for the preview
+    // 5x5 grid => row, col from 0..4
+    const patternCoordinates = {
+      FourCorners: [ [0,0],[0,4],[4,0],[4,4] ],
+      // Example "Line": top row [0,0]..[0,4]
+      Line: [ [0,0],[0,1],[0,2],[0,3],[0,4] ],
+      // Blackout = all squares 5x5 => 25 squares
+      Blackout: Array.from({length: 25}, (_, i) => [Math.floor(i/5), i%5]),
     };
 
     // Keep an array of all possible labels
@@ -303,12 +321,12 @@
     });
 
     // References
-    const logoBtn          = document.getElementById('logoBtn');
-    const logoImg          = document.getElementById('logoImg');
-    const titleText        = document.getElementById('titleText');
-    const lastCalledDisplay= document.getElementById('lastCalledDisplay');
-    const landscapeTbody   = document.getElementById('landscapeTbody');
-    const portraitLettersRow = document.getElementById('portraitLettersRow');
+    const logoBtn           = document.getElementById('logoBtn');
+    const logoImg           = document.getElementById('logoImg');
+    const titleText         = document.getElementById('titleText');
+    const lastCalledDisplay = document.getElementById('lastCalledDisplay');
+    const landscapeTbody    = document.getElementById('landscapeTbody');
+    const portraitLettersRow= document.getElementById('portraitLettersRow');
     const portraitNumbersBody= document.getElementById('portraitNumbersBody');
 
     // Offcanvas inputs
@@ -328,8 +346,11 @@
     const prizeDisplay     = document.getElementById('prizeDisplay');
     const callsDisplay     = document.getElementById('callsDisplay');
 
+    // Dynamic pattern grid container
+    const patternPreviewGrid = document.getElementById('patternPreviewGrid');
+
     //--------------------------
-    //  BUILD THE GRIDS
+    //  BUILD THE CALLER GRIDS
     //--------------------------
     // LANDSCAPE table
     columns.forEach(({letter, start, end}) => {
@@ -384,6 +405,45 @@
     }
 
     //--------------------------
+    //  BUILD THE PATTERN GRID
+    //--------------------------
+    function buildPatternGrid() {
+      patternPreviewGrid.innerHTML = ""; // clear old
+
+      const tbl = document.createElement('table');
+      for (let r = 0; r < 5; r++) {
+        const row = document.createElement('tr');
+        for (let c = 0; c < 5; c++) {
+          const cell = document.createElement('td');
+          cell.classList.add('pattern-cell');
+          // We can store row/col to highlight later if we wanted
+          cell.setAttribute('data-row', r);
+          cell.setAttribute('data-col', c);
+          row.appendChild(cell);
+        }
+        tbl.appendChild(row);
+      }
+      patternPreviewGrid.appendChild(tbl);
+    }
+
+    // Highlight squares for the selected pattern
+    function showPattern(patternName) {
+      // Clear old highlights
+      document.querySelectorAll('.pattern-cell').forEach(cell => {
+        cell.classList.remove('pattern-highlight');
+      });
+
+      const coords = patternCoordinates[patternName] || [];
+      coords.forEach(([r, c]) => {
+        const selector = `.pattern-cell[data-row="${r}"][data-col="${c}"]`;
+        const cell = document.querySelector(selector);
+        if (cell) {
+          cell.classList.add('pattern-highlight');
+        }
+      });
+    }
+
+    //--------------------------
     //  EVENT LISTENERS
     //--------------------------
     // Game Title
@@ -404,7 +464,7 @@
       }
     });
 
-    // Round & Pot: update state + top bar
+    // Round & Pot
     roundInput.addEventListener('input', () => {
       state.roundNumber = parseInt(roundInput.value, 10) || 1;
       roundDisplay.textContent = state.roundNumber;
@@ -426,7 +486,7 @@
     // Pattern select
     patternSelect.addEventListener('change', () => {
       state.pattern = patternSelect.value;
-      // Optionally update pattern preview image or text if you want
+      showPattern(state.pattern);
       saveState();
     });
 
@@ -451,13 +511,11 @@
       state.totalCalls = 0;
       updateDisplayFromState();
 
-      // Clear logo & title if you want a full reset. But presumably we only reset calls.
-      // If you want a complete reset including title/logo, you can uncomment:
+      // If you wanted to reset logo/title as well, you could do:
       // state.gameTitle = "";
       // state.logoData = "";
       // updateLogoOrTitle();
 
-      // Save
       saveState();
     });
 
@@ -477,7 +535,7 @@
         }
         state.totalCalls++;
       } else {
-        // If un-called, remove from lastCalledNumbers
+        // Un-called
         state.lastCalledNumbers = state.lastCalledNumbers.filter(x => x !== label);
         state.totalCalls = Math.max(0, state.totalCalls - 1);
       }
@@ -490,16 +548,15 @@
     //  CALL RANDOM
     //--------------------------
     function callRandomNumber() {
-      // Create an array of uncalled labels
+      // Array of uncalled labels
       const uncalled = allLabels.filter(lbl => !state.calledStates[lbl]);
       if (uncalled.length === 0) {
         alert("All numbers have been called!");
         return;
       }
-      // Pick one at random
+      // Pick random
       const randomIndex = Math.floor(Math.random() * uncalled.length);
       const chosen = uncalled[randomIndex];
-      // Toggle it to called
       toggleCalled(chosen);
     }
 
@@ -509,7 +566,6 @@
     function handleLogoUpload() {
       const file = logoFileInput.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = e => {
         state.logoData = e.target.result; // base64 dataURL
@@ -575,17 +631,20 @@
       callNextBtn.disabled = !state.randomMode;
 
       // Offcanvas inputs
-      roundInput.value   = state.roundNumber;
-      potInput.value     = state.prizePot;
-      colorSelect.value  = state.colorTheme;
-      patternSelect.value= state.pattern;
-      gameTitleInput.value = state.gameTitle || "";
+      roundInput.value    = state.roundNumber;
+      potInput.value      = state.prizePot;
+      colorSelect.value   = state.colorTheme;
+      patternSelect.value = state.pattern;
+      gameTitleInput.value= state.gameTitle || "";
 
       // Logo or Title
       updateLogoOrTitle();
 
       // Update color theme
       updateCalledColor();
+
+      // Update pattern preview
+      showPattern(state.pattern);
     }
 
     function updateCalledColor() {
@@ -616,14 +675,15 @@
         console.warn("No valid saved state found or parse error.");
       }
     }
-
     function saveState() {
       localStorage.setItem('bingoState', JSON.stringify(state));
     }
 
-    // Load from localStorage on page load
+    // On page load:
     loadState();
-    // Then update the UI from that state
+    // Build the pattern preview grid once
+    buildPatternGrid();
+    // Then update everything from saved state
     updateDisplayFromState();
   </script>
 </body>
