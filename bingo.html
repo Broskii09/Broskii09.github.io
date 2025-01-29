@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0,
                  user-scalable=no,
@@ -10,23 +10,57 @@
 
   <!-- Bootstrap 5 CSS -->
   <link 
-    rel="stylesheet" 
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" 
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css"
   />
 
+  <!-- jscolor for color picking (load once) -->
+  <script src="https://cdn.jsdelivr.net/npm/jscolor@2.4.6/jscolor.min.js"></script>
+
   <style>
+    /* Overall Light/Dark modes */
     html, body {
       height: 100%;
       margin: 0;
       padding: 0;
-      background-color: #f8f9fa; /* Light gray by default */
     }
-    .table td, .table th {
-      text-align: center;
-      vertical-align: middle;
+    body.light-mode {
+      background-color: #f8f9fa;
+      color: #212529;
+    }
+    body.dark-mode {
+      background-color: #212529;
+      color: #f8f9fa;
     }
 
-    /* Bingo number buttons */
+    /* In dark mode, style the table & inputs, etc. */
+    body.dark-mode .table,
+    body.dark-mode .table-bordered {
+      color: #f8f9fa;
+      background-color: #343a40;
+      border-color: #454d55;
+    }
+    body.dark-mode .bingo-btn.btn-outline-primary {
+      background-color: #343a40;
+      color: #fff;
+      border-color: #6c757d;
+    }
+    body.dark-mode .bingo-btn {
+      color: #fff;
+    }
+    body.dark-mode .offcanvas {
+      background-color: #2b2b2b;
+      color: #fff;
+    }
+    body.dark-mode input,
+    body.dark-mode select,
+    body.dark-mode textarea {
+      background-color: #444;
+      color: #fff;
+      border-color: #666;
+    }
+
+    /* Bingo buttons */
     .bingo-btn {
       width: 60px;
       min-width: 50px;
@@ -35,13 +69,13 @@
       margin: 2px 0;
     }
 
-    /* Called (blue background, white text) */
+    /* Called squares (overridden by color picker) */
     .called {
-      background-color: #007bff !important;
+      background-color: #007bff !important; /* fallback if no color chosen */
       color: #fff !important;
     }
 
-    /* Large, bold letter cells */
+    /* Bold letter cells in the board */
     .letter-cell {
       font-weight: bold;
       font-size: 1.2rem;
@@ -49,14 +83,14 @@
     }
 
     /*
-      Two containers for the two orientations:
-      1) #landscapeContainer (rows = B,I,N,G,O)
-      2) #portraitContainer  (top row = B,I,N,G,O)
-      We'll toggle them with CSS media queries.
+      Two containers for the board, toggled by orientation:
+      #landscapeContainer (landscape)
+      #portraitContainer (portrait)
+      We set a fixed height so everything fits nicely under the info row.
     */
     #landscapeContainer, #portraitContainer {
       width: 100%;
-      height: calc(100% - 100px); /* minus top bar + pattern area */
+      height: calc(100% - 180px);
       overflow: auto;
       display: none;
       padding: 8px;
@@ -70,117 +104,121 @@
       #portraitContainer { display: block; }
     }
 
-    /* Pattern preview area */
+    /* Pattern preview grid */
     #patternPreviewGrid table {
-      margin: 0 auto; /* center the grid */
+      margin: 0 auto;
       border-collapse: collapse;
     }
     #patternPreviewGrid td {
-      width: 32px; 
-      height: 32px; 
-      border: 1px solid #ccc;
+      width: 32px;
+      height: 32px;
+      border: 1px solid #666;
     }
-    /* Highlight squares in the pattern */
     .pattern-highlight {
-      background-color: #ffc107; /* Gold-ish highlight */
+      background-color: #ffc107; /* gold-ish highlight */
     }
 
-    /* Logo or Title in top bar */
+    /* Settings button (logo or text) */
     #logoBtn {
-      text-decoration: none;
       border: none;
       background: transparent;
       display: flex;
       align-items: center;
       padding: 0;
-      margin: 0 10px;
+      cursor: pointer;
     }
     #logoImg {
       height: 50px;
-      display: none; /* Shown only if logo is set */
+      display: none; /* show only if there's a logo */
     }
+    /* Default text if no logo: "Bingo Caller" */
     #titleText {
+      color: #fff;
+      cursor: pointer;
       font-size: 1.3rem;
       font-weight: 600;
-      display: none; /* Shown only if no logo */
-      color: #fff;   /* White text on primary bg */
+      margin-left: 10px;
     }
 
-    /* "Last Call Ball" styling */
+    /* Last Call Ball styling */
     #lastCallBall {
       width: 80px;
       height: 80px;
       border-radius: 50%;
-      background-color: #fff;    /* default white */
-      border: 3px solid #000;    /* black outline */
+      background-color: #fff;
+      border: 3px solid #000;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto;
       font-size: 1.4rem;
       font-weight: bold;
+      cursor: pointer;
+      margin: 0 auto;
+    }
+
+    /* Glow effect for the single most recently called square */
+    .last-ball {
+      box-shadow: 0 0 15px 5px rgba(255, 255, 0, 0.5) !important;
+
+      transition: box-shadow 0.8s ease-in-out;
     }
   </style>
 </head>
 <body>
-
-  <!-- TOP BAR -->
-  <div class="container-fluid bg-primary text-white p-2">
-    <div class="d-flex justify-content-between align-items-center">
-
-      <!-- Logo/Title (click to open Settings) -->
-      <button
-        id="logoBtn"
-        type="button"
-        data-bs-toggle="offcanvas"
-        data-bs-target="#offcanvasSettings"
-        aria-controls="offcanvasSettings"
-      >
-        <img src="" alt="Logo" id="logoImg" />
-        <span id="titleText"></span>
-      </button>
-
-      <!-- Round, Pot, and Total Calls -->
-      <div class="text-center flex-grow-1">
-        <div class="fw-bold" style="font-size: 0.9rem;">
-          Round: <span id="roundDisplay">1</span> | 
-          Prize: $<span id="prizeDisplay">500</span> | 
-          Total Calls: <span id="callsDisplay">0</span>
-        </div>
+  <!-- Info Row -->
+  <div class="container-fluid py-2">
+    <div class="row g-3 align-items-center">
+      <!-- Logo or Title -->
+      <div class="col-auto">
+        <button
+          id="logoBtn"
+          type="button"
+          data-bs-toggle="offcanvas"
+          data-bs-target="#offcanvasSettings"
+          aria-controls="offcanvasSettings"
+        >
+          <img src="" alt="Logo" id="logoImg" />
+          <span id="titleText"></span> <!-- Default: "Bingo Caller" -->
+        </button>
       </div>
 
-      <!-- Last Called Display -->
-      <div id="lastCalledDisplay" class="fs-6 fw-bold mb-0 me-2">
-        Last Called: None
+      <!-- Round Number -->
+      <div class="col-auto">
+        <h5 class="mb-0">Round: <span id="roundDisplay">1</span></h5>
       </div>
-    </div>
-  </div>
 
-  <!-- PATTERN PREVIEW & LAST CALL BALL side by side -->
-  <div class="container-fluid bg-white py-2">
-    <div class="row">
+      <!-- Prize Pot -->
+      <div class="col-auto">
+        <h4 class="mb-0 fw-bold">Prize: $<span id="prizeDisplay">500</span></h4>
+      </div>
+
       <!-- Pattern Preview -->
-      <div class="col-md-8 text-center" id="patternPreview">
+      <div class="col-md-2 col-6 text-center" id="patternPreview">
         <div id="patternPreviewGrid"></div>
       </div>
-      <!-- Last Call Ball -->
-      <div class="col-md-4 text-center d-flex justify-content-center align-items-center">
-        <div>
-          <h5>Last Ball</h5>
-          <div id="lastCallBall">No Call</div>
-        </div>
+
+      <!-- Last Ball -->
+      <div class="col-auto text-center">
+        <h6 class="mb-1 fw-bold">Last Ball</h6>
+        <div id="lastCallBall">No Call</div>
+      </div>
+
+      <!-- Last Called and Total Calls -->
+      <div class="col text-end">
+        <h6 id="lastCalledDisplay" class="fw-bold mb-0">Last Called: None</h6>
+        <h6 class="mt-1">Total Calls: <span id="callsDisplay">0</span></h6>
       </div>
     </div>
   </div>
 
-  <!-- LANDSCAPE Layout -->
+  <!-- Landscape Board -->
   <div id="landscapeContainer">
     <table class="table table-bordered">
       <tbody id="landscapeTbody"></tbody>
     </table>
   </div>
 
-  <!-- PORTRAIT Layout -->
+  <!-- Portrait Board -->
   <div id="portraitContainer">
     <table class="table table-bordered">
       <thead>
@@ -190,7 +228,7 @@
     </table>
   </div>
 
-  <!-- Offcanvas (Settings) -->
+  <!-- Offcanvas Settings -->
   <div
     class="offcanvas offcanvas-start"
     tabindex="-1"
@@ -207,6 +245,11 @@
       ></button>
     </div>
     <div class="offcanvas-body">
+      <!-- Dark/Light Mode Toggle -->
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" role="switch" id="darkModeToggle">
+        <label class="form-check-label" for="darkModeToggle">Dark Mode</label>
+      </div>
 
       <!-- Game Title -->
       <div class="mb-3">
@@ -259,54 +302,76 @@
         />
       </div>
 
-      <!-- Color Theme -->
+      <!-- Board Color (jscolor) -->
       <div class="mb-3">
-        <label for="colorTheme" class="form-label">Board Color Theme</label>
-        <select class="form-select" id="colorTheme">
-          <option value="#007bff" selected>Default Blue</option>
-          <option value="#28a745">Green</option>
-          <option value="#dc3545">Red</option>
-          <option value="#ffc107">Yellow</option>
-          <option value="#6f42c1">Purple</option>
-        </select>
+        <label for="boardColorPicker" class="form-label">Board Color Theme</label>
+        <input
+          id="boardColorPicker"
+          class="jscolor"
+          value="007bff"
+        />
       </div>
 
-      <!-- Pattern Selection (dynamic highlight) -->
+      <!-- Pattern Selection -->
       <div class="mb-3">
         <label for="patternSelect" class="form-label">Current Pattern</label>
         <select id="patternSelect" class="form-select">
           <option value="FourCorners">Four Corners</option>
-          <option value="Line" selected>Line</option>
+          <option value="Line">Line</option>
           <option value="Blackout">Blackout</option>
+          <option value="X">X</option>
+          <option value="Cross">Cross</option>
+          <option value="PostageStamp">Postage Stamp</option>
+          <option value="SmallSquare">Small Square</option>
+          <option value="LargeSquare">Large Square</option>
+          <option value="L">L</option>
+          <option value="T" selected>T</option>
         </select>
       </div>
 
-      <!-- Random mode toggle -->
-      <div class="form-check form-switch mb-3">
+      <!-- Random Mode -->
+      <div class="form-check form-switch mb-1">
         <input class="form-check-input" type="checkbox" role="switch" id="randomModeToggle">
         <label class="form-check-label" for="randomModeToggle">Randomizer Mode</label>
       </div>
-
-      <!-- Button: Call Next (random) -->
-      <button id="callNextBtn" class="btn btn-secondary w-100 mb-3" disabled>
-        Call Next Random
-      </button>
+      <small id="randomInstruction" class="text-muted" style="display: none;">
+        Tap the "Last Ball" circle to call the next random ball.
+      </small>
+      <hr/>
 
       <!-- Reset Board Button -->
       <button id="resetBoardBtn" class="btn btn-danger w-100">
-        Reset Board & Clear Cache
+        Reset Board &amp; Clear Cache
       </button>
-
+      <!-- Hard Wipe (clears all localStorage) -->
+      <button id="wipeEverythingBtn" class="btn btn-danger mt-2">
+        Wipe Everything
+      </button>
     </div>
   </div>
+
+  <!-- Floating Reset Button -->
+  <button
+    id="resetBottomBtn"
+    class="btn btn-link"
+    style="
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 9999;
+    "
+  >
+    Reset
+  </button>
 
   <!-- Bootstrap 5 JS Bundle -->
   <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"
   ></script>
 
+  <!-- Your main Bingo script at the bottom, runs after DOM & jscolor load -->
   <script>
-    // Bingo columns with their respective number ranges
+    // Bingo columns
     const columns = [
       { letter: 'B', start: 1,  end: 15 },
       { letter: 'I', start: 16, end: 30 },
@@ -315,71 +380,86 @@
       { letter: 'O', start: 61, end: 75 }
     ];
 
-    // Data we want to persist to localStorage
+    // App state (persisted in localStorage)
     const state = {
+      darkMode: true,
       gameTitle: "",
       logoData: "",
-      calledStates: {},         // e.g. { "B1": true, "B2": false, ... }
-      lastCalledNumbers: [],    // up to 3 strings like "B1", "N44", ...
+      calledStates: {},
+      lastCalledNumbers: [],
       roundNumber: 1,
       prizePot: 500,
       totalCalls: 0,
-      randomMode: false,        // on/off for random calls
-      colorTheme: "#007bff",    // default
-      pattern: "Line"
+      randomMode: false,
+      colorTheme: "#007bff",
+      pattern: "T"
     };
 
-    // Pattern coordinate definitions for the preview (5x5 => row, col from 0..4)
+    // Patterns
     const patternCoordinates = {
-      FourCorners: [ [0,0],[0,4],[4,0],[4,4] ],
-      // Example "Line": top row [0,0]..[0,4]
-      Line: [ [0,0],[0,1],[0,2],[0,3],[0,4] ],
-      // Blackout = all squares => 25 squares
-      Blackout: Array.from({length: 25}, (_, i) => [Math.floor(i/5), i%5]),
+      FourCorners:  [ [0,0],[0,4],[4,0],[4,4] ],
+      Line:         [ [0,0],[0,1],[0,2],[0,3],[0,4] ],
+      Blackout:     Array.from({length:25}, (_, i) => [Math.floor(i/5), i%5]),
+      X:            [ [0,0],[1,1],[2,2],[3,3],[4,4],
+                      [0,4],[1,3],[3,1],[4,0] ],
+      Cross:        [ [2,0],[2,1],[2,2],[2,3],[2,4],
+                      [0,2],[1,2],[3,2],[4,2] ],
+      PostageStamp: [ [0,0],[0,1],[1,0],[1,1] ],
+      SmallSquare:  [ [1,1],[1,2],[2,1],[2,2] ],
+      LargeSquare:  [ [0,0],[0,1],[0,2],[0,3],[0,4],
+                      [1,0],[1,4],[2,0],[2,4],[3,0],[3,4],
+                      [4,0],[4,1],[4,2],[4,3],[4,4] ],
+      L:            [ [0,0],[1,0],[2,0],[3,0],[4,0],
+                      [4,1],[4,2],[4,3],[4,4] ],
+      T:            [ [0,0],[0,1],[0,2],[0,3],[0,4],
+                      [1,2],[2,2],[3,2],[4,2] ]
     };
 
-    // Keep an array of all possible labels (B1..B15, I16..I30, etc.)
+    // Build full list of 75 labels
     const allLabels = [];
     columns.forEach(({letter, start, end}) => {
-      for (let num = start; num <= end; num++) {
-        allLabels.push(letter + num);
+      for (let i = start; i <= end; i++) {
+        allLabels.push(letter + i);
       }
     });
 
-    // References
-    const logoBtn            = document.getElementById('logoBtn');
+    // Document references
+    const darkModeToggle     = document.getElementById('darkModeToggle');
     const logoImg            = document.getElementById('logoImg');
     const titleText          = document.getElementById('titleText');
     const lastCalledDisplay  = document.getElementById('lastCalledDisplay');
-    const landscapeTbody     = document.getElementById('landscapeTbody');
-    const portraitLettersRow = document.getElementById('portraitLettersRow');
-    const portraitNumbersBody= document.getElementById('portraitNumbersBody');
-
-    // Offcanvas inputs
-    const gameTitleInput   = document.getElementById('gameTitleInput');
-    const logoFileInput    = document.getElementById('logoFile');
-    const removeLogoBtn    = document.getElementById('removeLogoBtn');
-    const roundInput       = document.getElementById('roundNumber');
-    const potInput         = document.getElementById('prizePot');
-    const colorSelect      = document.getElementById('colorTheme');
-    const patternSelect    = document.getElementById('patternSelect');
-    const randomToggle     = document.getElementById('randomModeToggle');
-    const callNextBtn      = document.getElementById('callNextBtn');
-    const resetBoardBtn    = document.getElementById('resetBoardBtn');
-
-    // Top bar displays
-    const roundDisplay     = document.getElementById('roundDisplay');
-    const prizeDisplay     = document.getElementById('prizeDisplay');
-    const callsDisplay     = document.getElementById('callsDisplay');
-
-    // Dynamic pattern grid container
-    const patternPreviewGrid = document.getElementById('patternPreviewGrid');
+    const roundDisplay       = document.getElementById('roundDisplay');
+    const prizeDisplay       = document.getElementById('prizeDisplay');
     const lastCallBall       = document.getElementById('lastCallBall');
+    const callsDisplay       = document.getElementById('callsDisplay');
 
-    //--------------------------
-    //  BUILD THE CALLER GRIDS
-    //--------------------------
-    // LANDSCAPE table
+    // Offcanvas references
+    const gameTitleInput    = document.getElementById('gameTitleInput');
+    const logoFileInput     = document.getElementById('logoFile');
+    const removeLogoBtn     = document.getElementById('removeLogoBtn');
+    const roundInput        = document.getElementById('roundNumber');
+    const potInput          = document.getElementById('prizePot');
+    const boardColorPicker  = document.getElementById('boardColorPicker');
+    const patternSelect     = document.getElementById('patternSelect');
+    const randomToggle      = document.getElementById('randomModeToggle');
+    const randomInstruction = document.getElementById('randomInstruction');
+    const resetBoardBtn     = document.getElementById('resetBoardBtn');
+    const wipeEverythingBtn = document.getElementById('wipeEverythingBtn');
+
+    // Floating reset button
+    const resetBottomBtn    = document.getElementById('resetBottomBtn');
+
+    // For building the pattern preview
+    const patternPreviewGrid = document.getElementById('patternPreviewGrid');
+
+    // Keep track of previously “last called”
+    let previousLastLabel = null;
+
+    //-----------------------------
+    //   BUILD GRIDS
+    //-----------------------------
+    // LANDSCAPE board
+    const landscapeTbody = document.getElementById('landscapeTbody');
     columns.forEach(({letter, start, end}) => {
       const row = document.createElement('tr');
       const letterCell = document.createElement('td');
@@ -392,7 +472,7 @@
         const btn = document.createElement('button');
         const label = letter + num;
 
-        btn.className = 'btn bingo-btn';
+        btn.className = 'btn bingo-btn btn-outline-primary';
         btn.textContent = num;
         btn.setAttribute('data-label', label);
         btn.onclick = () => toggleCalled(label);
@@ -403,14 +483,15 @@
       landscapeTbody.appendChild(row);
     });
 
-    // PORTRAIT table (top row = letters)
+    // PORTRAIT board
+    const portraitLettersRow = document.getElementById('portraitLettersRow');
+    const portraitNumbersBody= document.getElementById('portraitNumbersBody');
     columns.forEach(({letter}) => {
       const th = document.createElement('th');
       th.className = 'letter-cell';
       th.textContent = letter;
       portraitLettersRow.appendChild(th);
     });
-    // Next 15 rows for numbers
     for (let i = 0; i < 15; i++) {
       const row = document.createElement('tr');
       columns.forEach(({letter, start}) => {
@@ -419,7 +500,7 @@
         const num = start + i;
         const label = letter + num;
 
-        btn.className = 'btn bingo-btn';
+        btn.className = 'btn bingo-btn btn-outline-primary';
         btn.textContent = num;
         btn.setAttribute('data-label', label);
         btn.onclick = () => toggleCalled(label);
@@ -430,18 +511,15 @@
       portraitNumbersBody.appendChild(row);
     }
 
-    //--------------------------
-    //  BUILD THE PATTERN GRID
-    //--------------------------
+    // PATTERN PREVIEW
     function buildPatternGrid() {
-      patternPreviewGrid.innerHTML = ""; // clear old
-
+      patternPreviewGrid.innerHTML = "";
       const tbl = document.createElement('table');
       for (let r = 0; r < 5; r++) {
         const row = document.createElement('tr');
         for (let c = 0; c < 5; c++) {
           const cell = document.createElement('td');
-          cell.classList.add('pattern-cell');
+          cell.className = 'pattern-cell';
           cell.setAttribute('data-row', r);
           cell.setAttribute('data-col', c);
           row.appendChild(cell);
@@ -450,269 +528,26 @@
       }
       patternPreviewGrid.appendChild(tbl);
     }
+    buildPatternGrid();
 
-    // Highlight squares for the selected pattern
+    //-----------------------------
+    //   PATTERN PREVIEW
+    //-----------------------------
     function showPattern(patternName) {
-      // Clear old highlights
       document.querySelectorAll('.pattern-cell').forEach(cell => {
         cell.classList.remove('pattern-highlight');
       });
-
       const coords = patternCoordinates[patternName] || [];
-      coords.forEach(([r, c]) => {
+      coords.forEach(([r,c]) => {
         const selector = `.pattern-cell[data-row="${r}"][data-col="${c}"]`;
         const cell = document.querySelector(selector);
-        if (cell) {
-          cell.classList.add('pattern-highlight');
-        }
+        if (cell) cell.classList.add('pattern-highlight');
       });
     }
 
-    //--------------------------
-    //  EVENT LISTENERS
-    //--------------------------
-    // Game Title
-    gameTitleInput.addEventListener('input', () => {
-      state.gameTitle = gameTitleInput.value.trim();
-      updateLogoOrTitle();
-      saveState();
-    });
-
-    // Logo Upload
-    logoFileInput.addEventListener('change', handleLogoUpload);
-    removeLogoBtn.addEventListener('click', () => {
-      if (confirm("Remove the current logo?")) {
-        state.logoData = "";
-        logoFileInput.value = "";
-        updateLogoOrTitle();
-        saveState();
-      }
-    });
-
-    // Round & Pot
-    roundInput.addEventListener('input', () => {
-      state.roundNumber = parseInt(roundInput.value, 10) || 1;
-      roundDisplay.textContent = state.roundNumber;
-      saveState();
-    });
-    potInput.addEventListener('input', () => {
-      state.prizePot = parseInt(potInput.value, 10) || 500;
-      prizeDisplay.textContent = state.prizePot;
-      saveState();
-    });
-
-    // Color theme
-    colorSelect.addEventListener('change', () => {
-      state.colorTheme = colorSelect.value;
-      updateCalledColor();
-      saveState();
-    });
-
-    // Pattern select
-    patternSelect.addEventListener('change', () => {
-      state.pattern = patternSelect.value;
-      showPattern(state.pattern);
-      saveState();
-    });
-
-    // Random mode switch
-    randomToggle.addEventListener('change', () => {
-      state.randomMode = randomToggle.checked;
-      callNextBtn.disabled = !state.randomMode;
-      saveState();
-    });
-
-    // Call Next button (random)
-    callNextBtn.addEventListener('click', callRandomNumber);
-
-    // Reset Board
-    resetBoardBtn.addEventListener('click', () => {
-      if (!confirm("Are you sure you want to reset the board and clear all data?")) {
-        return;
-      }
-      // Clear calls
-      state.calledStates = {};
-      state.lastCalledNumbers = [];
-      state.totalCalls = 0;
-      updateDisplayFromState();
-
-      saveState();
-    });
-
-    //--------------------------
-    //  TOGGLE CALLED
-    //--------------------------
-    function toggleCalled(label) {
-      // Flip the called state
-      const wasCalled = !!state.calledStates[label];
-      state.calledStates[label] = !wasCalled;
-
-      // If newly called
-      if (!wasCalled) {
-        state.lastCalledNumbers.push(label);
-        if (state.lastCalledNumbers.length > 3) {
-          state.lastCalledNumbers.shift();
-        }
-        state.totalCalls++;
-      } else {
-        // Un-called
-        state.lastCalledNumbers = state.lastCalledNumbers.filter(x => x !== label);
-        state.totalCalls = Math.max(0, state.totalCalls - 1);
-      }
-
-      updateDisplayFromState();
-      saveState();
-    }
-
-    //--------------------------
-    //  CALL RANDOM
-    //--------------------------
-    function callRandomNumber() {
-      // Array of uncalled labels
-      const uncalled = allLabels.filter(lbl => !state.calledStates[lbl]);
-      if (uncalled.length === 0) {
-        alert("All numbers have been called!");
-        return;
-      }
-      // Pick random
-      const randomIndex = Math.floor(Math.random() * uncalled.length);
-      const chosen = uncalled[randomIndex];
-      toggleCalled(chosen);
-    }
-
-    //--------------------------
-    //  LOGO UPLOAD
-    //--------------------------
-    function handleLogoUpload() {
-      const file = logoFileInput.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => {
-        state.logoData = e.target.result; // base64 dataURL
-        updateLogoOrTitle();
-        saveState();
-      };
-      reader.readAsDataURL(file);
-    }
-
-    //--------------------------
-    //  UPDATE LOGO OR TITLE
-    //--------------------------
-    function updateLogoOrTitle() {
-      if (state.logoData) {
-        // If we have a logo
-        logoImg.style.display = "block";
-        logoImg.src = state.logoData;
-        titleText.style.display = "none";
-        removeLogoBtn.style.display = "block";
-      } else {
-        // If no logo, show the text
-        logoImg.style.display = "none";
-        logoImg.src = "";
-        removeLogoBtn.style.display = "none";
-        if (state.gameTitle) {
-          titleText.style.display = "block";
-          titleText.textContent = state.gameTitle;
-        } else {
-          titleText.style.display = "block";
-          titleText.textContent = "BINGO GAME";
-        }
-      }
-    }
-
-    //--------------------------
-    //  UPDATE DISPLAY
-    //--------------------------
-    function updateDisplayFromState() {
-      // Round/Pot/Calls
-      roundDisplay.textContent = state.roundNumber;
-      prizeDisplay.textContent = state.prizePot;
-      callsDisplay.textContent = state.totalCalls;
-
-      // Last Called
-      if (state.lastCalledNumbers.length === 0) {
-        lastCalledDisplay.textContent = "Last Called: None";
-      } else {
-        lastCalledDisplay.textContent = "Last Called: " + state.lastCalledNumbers.join(", ");
-      }
-
-      // Mark all buttons as called/uncalled
-      document.querySelectorAll("[data-label]").forEach(btn => {
-        const label = btn.getAttribute('data-label');
-        if (state.calledStates[label]) {
-          btn.classList.add('called');
-        } else {
-          btn.classList.remove('called');
-        }
-      });
-
-      // Random Mode
-      randomToggle.checked = state.randomMode;
-      callNextBtn.disabled = !state.randomMode;
-
-      // Offcanvas inputs
-      roundInput.value    = state.roundNumber;
-      potInput.value      = state.prizePot;
-      colorSelect.value   = state.colorTheme;
-      patternSelect.value = state.pattern;
-      gameTitleInput.value= state.gameTitle || "";
-
-      // Logo or Title
-      updateLogoOrTitle();
-
-      // Update color theme
-      updateCalledColor();
-
-      // Update pattern preview
-      showPattern(state.pattern);
-
-      // Update last call ball
-      updateLastCallBall();
-    }
-
-    // Create a circle that displays the last letter-number call
-    function updateLastCallBall() {
-      // If no calls, show "No Call"
-      if (state.lastCalledNumbers.length === 0) {
-        lastCallBall.textContent = "No Call";
-        // White background is fine here
-        return;
-      }
-
-      const latest = state.lastCalledNumbers[state.lastCalledNumbers.length - 1];
-      // For example, "B12": letter = B12[0] => 'B', number = B12.slice(1) => '12'
-      const letter = latest[0];
-      const number = latest.slice(1);
-
-      // Display e.g. "B12" or "B - 12"
-      lastCallBall.textContent = letter + number;
-
-      // If you want the ball to share the color theme, uncomment:
-      // lastCallBall.style.backgroundColor = state.colorTheme;
-      // lastCallBall.style.color = '#fff';
-      // or keep it white w/ black text for contrast, up to you
-    }
-
-    function updateCalledColor() {
-      // Override .called background color
-      const styleEl = document.getElementById('dynamicTheme');
-      if (styleEl) {
-        styleEl.remove();
-      }
-      const newStyle = document.createElement('style');
-      newStyle.id = 'dynamicTheme';
-      newStyle.innerHTML = `
-        .called {
-          background-color: ${state.colorTheme} !important;
-          color: #fff !important;
-        }
-      `;
-      document.head.appendChild(newStyle);
-    }
-
-    //--------------------------
-    //  LOCAL STORAGE
-    //--------------------------
+    //-----------------------------
+    //   LOCAL STORAGE
+    //-----------------------------
     function loadState() {
       try {
         const saved = JSON.parse(localStorage.getItem('bingoState') || '{}');
@@ -725,12 +560,252 @@
       localStorage.setItem('bingoState', JSON.stringify(state));
     }
 
-    // On page load:
-    loadState();
-    // Build the pattern preview grid once
-    buildPatternGrid();
-    // Then update everything from saved state
-    updateDisplayFromState();
+    //-----------------------------
+    //   DARK / LIGHT MODE
+    //-----------------------------
+    function applyDarkMode() {
+      if (state.darkMode) {
+        document.body.classList.add('dark-mode');
+        document.body.classList.remove('light-mode');
+      } else {
+        document.body.classList.add('light-mode');
+        document.body.classList.remove('dark-mode');
+      }
+    }
+
+    //-----------------------------
+    //   UPDATE LOGO OR TITLE
+    //-----------------------------
+    function updateLogoOrTitle() {
+      if (state.logoData) {
+        logoImg.style.display = "block";
+        logoImg.src = state.logoData;
+        removeLogoBtn.style.display = "block";
+        titleText.style.display = "none";
+      } else {
+        logoImg.style.display = "none";
+        logoImg.src = "";
+        removeLogoBtn.style.display = "none";
+
+        // If user typed a custom title, show that; else fallback to "Bingo Caller"
+        const displayTitle = state.gameTitle.trim() || "Bingo Caller";
+        titleText.textContent = displayTitle;
+        titleText.style.display = "block";
+      }
+    }
+
+    //-----------------------------
+    //   UPDATE CALLED COLOR
+    //-----------------------------
+    function updateCalledColor() {
+      let styleEl = document.getElementById('dynamicTheme');
+      if (styleEl) styleEl.remove();
+      styleEl = document.createElement('style');
+      styleEl.id = 'dynamicTheme';
+      styleEl.innerHTML = `
+        .called {
+          background-color: ${state.colorTheme} !important;
+          color: #fff !important;
+        }
+      `;
+      document.head.appendChild(styleEl);
+    }
+
+    //-----------------------------
+    //   TOGGLE CALLED
+    //-----------------------------
+    function toggleCalled(label) {
+      const wasCalled = !!state.calledStates[label];
+      state.calledStates[label] = !wasCalled;
+
+      if (!wasCalled) {
+        state.lastCalledNumbers.push(label);
+        if (state.lastCalledNumbers.length > 3) {
+          state.lastCalledNumbers.shift();
+        }
+        state.totalCalls++;
+      } else {
+        state.lastCalledNumbers = state.lastCalledNumbers.filter(x => x !== label);
+        state.totalCalls = Math.max(0, state.totalCalls - 1);
+      }
+
+      highlightLastBall();
+      updateDisplayFromState();
+      saveState();
+    }
+
+    //-----------------------------
+    //   HIGHLIGHT LAST BALL
+    //-----------------------------
+    function highlightLastBall() {
+      if (previousLastLabel) {
+        document.querySelectorAll(`[data-label="${previousLastLabel}"]`).forEach(cell => {
+          cell.classList.remove('last-ball');
+        });
+      }
+      if (state.lastCalledNumbers.length > 0) {
+        const newLastLabel = state.lastCalledNumbers[state.lastCalledNumbers.length - 1];
+        document.querySelectorAll(`[data-label="${newLastLabel}"]`).forEach(cell => {
+          cell.classList.add('last-ball');
+        });
+        previousLastLabel = newLastLabel;
+      } else {
+        previousLastLabel = null;
+      }
+    }
+
+    //-----------------------------
+    //   CALL RANDOM
+    //-----------------------------
+    function callRandomNumber() {
+      const uncalled = allLabels.filter(lbl => !state.calledStates[lbl]);
+      if (uncalled.length === 0) {
+        alert("All numbers have been called!");
+        return;
+      }
+      const chosen = uncalled[Math.floor(Math.random() * uncalled.length)];
+      toggleCalled(chosen);
+    }
+
+    //-----------------------------
+    //   HANDLE LOGO UPLOAD
+    //-----------------------------
+    function handleLogoUpload() {
+      const file = logoFileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        state.logoData = e.target.result;
+        updateLogoOrTitle();
+        saveState();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    //-----------------------------
+    //   UPDATE DISPLAY
+    //-----------------------------
+    function updateDisplayFromState() {
+      // Dark/Light mode
+      darkModeToggle.checked = state.darkMode;
+      applyDarkMode();
+
+      // Round & pot
+      roundDisplay.textContent = state.roundNumber;
+      prizeDisplay.textContent = state.prizePot;
+
+      // Last Called
+      if (state.lastCalledNumbers.length === 0) {
+        lastCalledDisplay.textContent = "Last Called: None";
+      } else {
+        lastCalledDisplay.textContent = "Last Called: " + state.lastCalledNumbers.join(", ");
+      }
+
+      // Total Calls
+      callsDisplay.textContent = state.totalCalls;
+
+      // Mark squares
+      document.querySelectorAll("[data-label]").forEach(btn => {
+        const label = btn.getAttribute('data-label');
+        if (state.calledStates[label]) {
+          btn.classList.add('called');
+        } else {
+          btn.classList.remove('called');
+        }
+      });
+
+      // Offcanvas inputs
+      gameTitleInput.value   = state.gameTitle;
+      roundInput.value       = state.roundNumber;
+      potInput.value         = state.prizePot;
+      patternSelect.value    = state.pattern;
+      randomToggle.checked   = state.randomMode;
+      randomInstruction.style.display = state.randomMode ? 'inline' : 'none';
+
+      // Ensure the color picker is set
+      boardColorPicker.jscolor.fromString(state.colorTheme.replace('#', ''));
+
+      updateLogoOrTitle();
+      updateCalledColor();
+      showPattern(state.pattern);
+      updateLastCallBall();
+    }
+
+    // Show the last-called in the circle
+    function updateLastCallBall() {
+      if (state.lastCalledNumbers.length === 0) {
+        lastCallBall.textContent = "No Call";
+      } else {
+        const latest = state.lastCalledNumbers[state.lastCalledNumbers.length - 1];
+        lastCallBall.textContent = latest;
+      }
+    }
+
+    //-----------------------------
+    //   INIT
+    //-----------------------------
+    function init() {
+      loadState();
+      updateDisplayFromState();
+    }
+
+    init();
+
+    //-----------------------------
+    //   EVENT LISTENERS
+    //-----------------------------
+    // Dark Mode
+    darkModeToggle.addEventListener('change', () => {
+      state.darkMode = darkModeToggle.checked;
+      saveState();
+      applyDarkMode();
+    });
+
+    // Random Mode
+    randomModeToggle.addEventListener('change', () => {
+      state.randomMode = randomModeToggle.checked;
+      saveState();
+      randomInstruction.style.display = state.randomMode ? 'inline' : 'none';
+    });
+
+    // Reset (Offcanvas)
+    resetBoardBtn.addEventListener('click', () => {
+      if (!confirm("Are you sure you want to reset the board and clear all data?")) return;
+      state.calledStates = {};
+      state.lastCalledNumbers = [];
+      state.totalCalls = 0;
+      updateDisplayFromState();
+      saveState();
+    });
+
+    // Floating Reset
+    resetBottomBtn.addEventListener('click', () => {
+      if (!confirm("Are you sure you want to reset the board and clear all data?")) return;
+      state.calledStates = {};
+      state.lastCalledNumbers = [];
+      state.totalCalls = 0;
+      updateDisplayFromState();
+      saveState();
+    });
+
+    // Wipe Everything
+    wipeEverythingBtn.addEventListener('click', () => {
+      if (confirm("Are you sure you want to erase ALL saved data?")) {
+        localStorage.clear();
+        location.reload();
+      }
+    });
+
+    // Logo Upload & Removal
+    logoFileInput.addEventListener('change', handleLogoUpload);
+    removeLogoBtn.addEventListener('click', () => {
+      if (!confirm("Remove the current logo?")) return;
+      state.logoData = "";
+      logoFileInput.value = "";
+      updateLogoOrTitle();
+      saveState();
+    });
+
   </script>
 </body>
 </html>
