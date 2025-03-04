@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0,
+                 user-scalable=no,
+                 maximum-scale=1.0" />
+  <title>Bingo Caller Board</title>
+
+  <!-- Bootstrap 5 CSS -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+  />
+
+  <!-- jscolor for color picking -->
+  <script src="https://cdn.jsdelivr.net/npm/jscolor@2.4.6/jscolor.min.js"></script>
+
+  <style>
+    /* Overall Light/Dark modes */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    body.light-mode {
+      background-color: #f8f9fa;
+      color: #212529;
+    }
+    body.dark-mode {
+      background-color: #212529;
+      color: #f8f9fa;
+    }
+
+    /* In dark mode, style the table & inputs, etc. */
+    body.dark-mode .table,
+    body.dark-mode .table-bordered {
+      color: #f8f9fa;
+      background-color: #343a40;
+      border-color: #454d55;
+    }
+
+    .table {
+      --bs-table-bg: #212529 !important;
+    }
+    body.dark-mode .bingo-btn.btn-outline-primary {
+      background-color: #212529;
+      color: #fff;
+      border-color: #6c757d;
+    }
+    body.dark-mode .bingo-btn {
+      color: #fff;
+    }
+    body.dark-mode .offcanvas {
+      background-color: #2b2b2b;
+      color: #fff;
+    }
+    body.dark-mode input,
+    body.dark-mode select,
+    body.dark-mode textarea {
+      background-color: #444;
+      color: #fff;
+      border-color: #666;
+    }
+
+    /* Bingo buttons */
+    .bingo-btn {
+      width: 60px;
+      min-width: 50px;
+      height: 50px;
+      font-size: 1rem;
+      margin: 2px 0;
+    }
+
+    /* Called squares (dynamic color) */
+    .called {
+      background-color: #267eb5 !important; 
+      color: #fff !important;
+    }
+
+    /* Letter cells */
+    .letter-cell {
+      font-weight: bold;
+      font-size: 1.2rem;
+      width: 50px;
+      background-color: black;
+      color: #fff;
+    }
+
+    /* Orientation containers */
+    #landscapeContainer, #portraitContainer {
+      width: 100%;
+      height: calc(100% - 180px);
+      overflow: auto;
+      display: none;
+      padding: 8px;
+    }
+    @media (orientation: landscape) {
+      #landscapeContainer { display: block; }
+      #portraitContainer { display: none; }
+    }
+    @media (orientation: portrait) {
+      #landscapeContainer { display: none; }
+      #portraitContainer { display: block; }
+    }
+
+    /* Pattern preview grid */
+    #patternPreviewGrid table {
+      margin: 0 auto;
+      border-collapse: collapse;
+    }
+    #patternPreviewGrid td {
+      width: 32px;
+      height: 32px;
+      border: 1px solid #666;
+    }
+    .pattern-highlight {
+      background-color: #ffc107;
+    }
+
+    /* Settings button (logo or text) */
+    #logoBtn {
+      border: none;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      padding: 0;
+      cursor: pointer;
+      width: 100%;
+      justify-content: center; /* center horizontally */
+    }
+    #logoImg {
+      height: 100%;
+      max-height: 70px;
+      display: none;
+    }
+    #titleText {
+      color: #fff;
+      cursor: pointer;
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+
+    /* Last Call Ball styling */
+    #lastCallBall {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background-color: #fff;
+      border: 3px solid #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 0 auto;
+      color: black; /* text is black */
+    }
+
+    /* Glow effect for the single most recently called square */
+    .last-ball {
+      box-shadow: 0 0 15px 5px rgba(255, 255, 0, 0.5) !important;
+      transition: box-shadow 0.8s ease-in-out;
+    }
+
+    /* "New Game" button */
+    #newGameBtn {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      z-index: 0;
+    }
+  </style>
+</head>
+<body class="dark-mode">
+  <!-- Info Row -->
+  <div class="container-fluid py-2">
+    <div class="row g-3 align-items-center">
+      <!-- Logo or Title -->
+      <div class="col-2">
+        <button
+          id="logoBtn"
+          type="button"
+          data-bs-toggle="offcanvas"
+          data-bs-target="#offcanvasSettings"
+          aria-controls="offcanvasSettings"
+        >
+          <img src="" alt="Logo" id="logoImg" />
+          <span id="titleText">Bingo Caller</span>
+        </button>
+      </div>
+
+      <!-- Round Number -->
+      <div class="col-2">
+        <h5 class="mb-0">Round: <span id="roundDisplay">1</span></h5>
+      </div>
+
+      <!-- Prize Pot -->
+      <div class="col-2">
+        <h4 class="mb-0 fw-bold">Prize: $<span id="prizeDisplay">TBD</span></h4>
+      </div>
+
+      <!-- Pattern Preview -->
+      <div class="col-2 text-center" id="patternPreview">
+        <div id="patternPreviewGrid"></div>
+      </div>
+
+      <!-- Last Ball -->
+      <div class="col-2 text-center">
+        <h6 class="mb-1 fw-bold">Last Ball</h6>
+        <div id="lastCallBall">No Call</div>
+      </div>
+
+      <!-- Last Called and Total Calls -->
+      <div class="col-2">
+        <h4 id="lastCalledDisplay" class="fw-bold mb-0">Last Called: None</h4>
+        <h3 class="mt-1">Total Calls: <span id="callsDisplay">0</span></h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- Landscape Board -->
+  <div id="landscapeContainer">
+    <table class="table table-bordered">
+      <tbody id="landscapeTbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Portrait Board -->
+  <div id="portraitContainer">
+    <table class="table table-bordered">
+      <thead>
+        <tr id="portraitLettersRow"></tr>
+      </thead>
+      <tbody id="portraitNumbersBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Offcanvas Settings -->
+  <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasSettings">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title">Game Settings</h5>
+      <button
+        type="button"
+        class="btn-close"
+        data-bs-dismiss="offcanvas"
+        aria-label="Close"
+      ></button>
+    </div>
+    <div class="offcanvas-body">
+      <!-- Dark/Light Mode Toggle -->
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" role="switch" id="darkModeToggle">
+        <label class="form-check-label" for="darkModeToggle">Light Mode</label>
+      </div>
+
+      <!-- Game Title -->
+      <div class="mb-3">
+        <label for="gameTitleInput" class="form-label">Bingo Game Title</label>
+        <input
+          type="text"
+          class="form-control"
+          id="gameTitleInput"
+          placeholder="e.g. Friday Night Bingo"
+        />
+      </div>
+
+      <!-- Logo Upload OR URL -->
+      <div class="mb-3">
+        <label for="logoUrlInput" class="form-label">Logo URL</label>
+        <input
+          type="text"
+          class="form-control"
+          id="logoUrlInput"
+          placeholder="https://example.com/image.png"
+        />
+        <small class="text-muted">If a local file is selected, it overrides this URL.</small>
+      </div>
+      <div class="mb-3">
+        <label for="logoFile" class="form-label">Upload Logo (resized in-browser)</label>
+        <input
+          type="file"
+          class="form-control"
+          id="logoFile"
+          accept="image/*"
+        />
+        <button
+          id="removeLogoBtn"
+          class="btn btn-warning mt-2 w-100"
+          style="display: none;"
+        >
+          Remove Logo
+        </button>
+      </div>
+
+      <!-- Round Number -->
+      <div class="mb-3">
+        <label for="roundNumber" class="form-label">Round Number</label>
+        <input
+          type="number"
+          class="form-control"
+          id="roundNumber"
+          placeholder="1"
+        />
+      </div>
+
+      <!-- Prize Pot -->
+      <div class="mb-3">
+        <label for="prizePot" class="form-label">Prize Pot ($)</label>
+        <input
+          type="text"
+          class="form-control"
+          id="prizePot"
+          placeholder="TBD or 500"
+        />
+      </div>
+
+      <!-- Uncalled Squares Color Picker -->
+      <div class="mb-3">
+        <label for="uncalledColorPicker" class="form-label">Uncalled Square Color</label>
+        <input
+          id="uncalledColorPicker"
+          class="jscolor"
+          value="212529"
+        />
+      </div>
+
+      <!-- Called Square Color Picker -->
+      <div class="mb-3">
+        <label for="boardColorPicker" class="form-label">Called Square Color</label>
+        <input
+          id="boardColorPicker"
+          class="jscolor"
+          value="267eb5"
+        />
+      </div>
+
+      <!-- Pattern Selection -->
+      <div class="mb-3">
+        <label for="patternSelect" class="form-label">Current Pattern</label>
+        <select id="patternSelect" class="form-select">
+          <option value="FourCorners">Four Corners</option>
+          <option value="Line" selected>Line</option>
+          <option value="Blackout">Blackout</option>
+          <option value="X">X</option>
+          <option value="Cross">Cross</option>
+          <option value="PostageStamp">Postage Stamp</option>
+          <option value="SmallSquare">Small Square</option>
+          <option value="LargeSquare">Large Square</option>
+          <option value="L">L</option>
+          <option value="T">T</option>
+        </select>
+      </div>
+
+      <!-- Random Mode -->
+      <div class="form-check form-switch mb-1">
+        <input class="form-check-input" type="checkbox" role="switch" id="randomModeToggle">
+        <label class="form-check-label" for="randomModeToggle">Randomizer Mode</label>
+      </div>
+      <small id="randomInstruction" class="text-muted" style="display: none;">
+        Tap the "Last Ball" circle to call the next random ball.
+      </small>
+
+      <hr/>
+
+      <!-- Reset Board (Partial Reset) -->
+      <button id="resetBoardBtn" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#partialResetModal">
+        Reset Board &amp; Clear Calls
+      </button>
+
+      <!-- Hard Wipe (clears all localStorage) -->
+      <button id="wipeEverythingBtn" class="btn btn-danger mt-2" data-bs-toggle="modal" data-bs-target="#wipeEverythingModal">
+        Wipe Everything
+      </button>
+    </div>
+  </div>
+
+  <!-- Floating Reset Button (same partial reset) -->
+  <button
+    id="resetBottomBtn"
+    class="btn btn-link"
+    style="
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 9999;
+    "
+    data-bs-toggle="modal"
+    data-bs-target="#partialResetModal"
+  >
+    Reset
+  </button>
+
+  <!-- NEW GAME Button (bottom-left) -->
+  <button
+    id="newGameBtn"
+    class="btn btn-primary"
+    data-bs-toggle="modal"
+    data-bs-target="#newGameModal"
+  >
+    New Game
+  </button>
+
+  <!-- Bootstrap 5 JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- MODALS (Partial Reset / New Game / Wipe Everything) -->
+  <!-- Partial Reset Modal -->
+  <div class="modal fade" id="partialResetModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Reset Board</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>This will clear all called squares but keep the round number. Proceed?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="partialResetConfirmBtn" class="btn btn-danger" data-bs-dismiss="modal">Yes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Game Modal -->
+  <div class="modal fade" id="newGameModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">New Game</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>This will reset calls and advance the round number. Continue?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="newGameConfirmBtn" class="btn btn-primary" data-bs-dismiss="modal">Yes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Wipe Everything Modal -->
+  <div class="modal fade" id="wipeEverythingModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Wipe Everything</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>This will erase ALL saved data (including logos). Continue?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="wipeEverythingConfirmBtn" class="btn btn-danger" data-bs-dismiss="modal">Yes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+    //---------------------
+    //   DOMContentLoaded
+    //---------------------
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.jscolor) {
+        jscolor.installByClassName('jscolor');
+      }
+      init();
+    });
+
+    // Bingo columns
+    const columns = [
+      { letter: 'B', start: 1,  end: 15 },
+      { letter: 'I', start: 16, end: 30 },
+      { letter: 'N', start: 31, end: 45 },
+      { letter: 'G', start: 46, end: 60 },
+      { letter: 'O', start: 61, end: 75 }
+    ];
+    const allLabels = [];
+    columns.forEach(({letter, start, end}) => {
+      for (let i = start; i <= end; i++) {
+        allLabels.push(letter + i);
+      }
+    });
+
+    // Patterns
+    const patternCoordinates = {
+      FourCorners:  [ [0,0],[0,4],[4,0],[4,4] ],
+      Line:         [ [0,0],[0,1],[0,2],[0,3],[0,4] ],
+      Blackout:     Array.from({length:25}, (_, i) => [Math.floor(i/5), i%5]),
+      X:            [ [0,0],[1,1],[2,2],[3,3],[4,4],
+                      [0,4],[1,3],[3,1],[4,0] ],
+      Cross:        [ [2,0],[2,1],[2,2],[2,3],[2,4],
+                      [0,2],[1,2],[3,2],[4,2] ],
+      PostageStamp: [ [0,0],[0,1],[1,0],[1,1] ],
+      SmallSquare:  [ [1,1],[1,2],[2,1],[2,2] ],
+      LargeSquare:  [ [0,0],[0,1],[0,2],[0,3],[0,4],
+                      [1,0],[1,4],[2,0],[2,4],[3,0],[3,4],
+                      [4,0],[4,1],[4,2],[4,3],[4,4] ],
+      L:            [ [0,0],[1,0],[2,0],[3,0],[4,0],
+                      [4,1],[4,2],[4,3],[4,4] ],
+      T:            [ [0,0],[0,1],[0,2],[0,3],[0,4],
+                      [1,2],[2,2],[3,2],[4,2] ]
+    };
+
+    // State
+    const state = {
+      darkMode: true,
+      gameTitle: "",
+      logoData: "",
+      logoUrl: "",
+      calledStates: {},
+      lastCalledNumbers: [],
+      roundNumber: 1,
+      prizePot: "TBD",     // default to "TBD"
+      totalCalls: 0,
+      randomMode: false,
+      uncalledSquareColor: "#212529",
+      calledSquareColor:   "#267eb5",
+      pattern: "Line"
+    };
+
+    // Refs
+    const darkModeToggle      = document.getElementById('darkModeToggle');
+    const randomModeToggle    = document.getElementById('randomModeToggle');
+    const randomInstruction   = document.getElementById('randomInstruction');
+    const lastCallBall        = document.getElementById('lastCallBall');
+    const callsDisplay        = document.getElementById('callsDisplay');
+    const lastCalledDisplay   = document.getElementById('lastCalledDisplay');
+    const roundDisplay        = document.getElementById('roundDisplay');
+    const prizeDisplay        = document.getElementById('prizeDisplay');
+    const gameTitleInput      = document.getElementById('gameTitleInput');
+    const logoUrlInput        = document.getElementById('logoUrlInput');
+    const logoFileInput       = document.getElementById('logoFile');
+    const removeLogoBtn       = document.getElementById('removeLogoBtn');
+    const roundInput          = document.getElementById('roundNumber');
+    const potInput            = document.getElementById('prizePot');
+    const uncalledColorPicker = document.getElementById('uncalledColorPicker');
+    const boardColorPicker    = document.getElementById('boardColorPicker');
+    const patternSelect       = document.getElementById('patternSelect');
+
+    const resetBoardBtn       = document.getElementById('resetBoardBtn');
+    const wipeEverythingBtn   = document.getElementById('wipeEverythingBtn');
+    const resetBottomBtn      = document.getElementById('resetBottomBtn');
+    const newGameBtn          = document.getElementById('newGameBtn');
+
+    // Confirm modal buttons
+    const partialResetConfirmBtn   = document.getElementById('partialResetConfirmBtn');
+    const newGameConfirmBtn        = document.getElementById('newGameConfirmBtn');
+    const wipeEverythingConfirmBtn = document.getElementById('wipeEverythingConfirmBtn');
+
+    const patternPreviewGrid  = document.getElementById('patternPreviewGrid');
+    const logoImg             = document.getElementById('logoImg');
+    const titleText           = document.getElementById('titleText');
+
+    let previousLastLabel = null;
+
+    //---------------------
+    //   BUILD THE BOARDS
+    //---------------------
+    const landscapeTbody = document.getElementById('landscapeTbody');
+    columns.forEach(({letter, start, end}) => {
+      const row = document.createElement('tr');
+      const letterCell = document.createElement('td');
+      letterCell.className = 'letter-cell text-center align-middle text-light';
+      letterCell.textContent = letter;
+      row.appendChild(letterCell);
+
+      for (let num = start; num <= end; num++) {
+        const label = letter + num;
+        const td = document.createElement('td');
+        td.classList.add('text-center');
+
+        const btn = document.createElement('button');
+        btn.className = 'btn bingo-btn btn-outline-primary';
+        btn.textContent = num;
+        btn.setAttribute('data-label', label);
+        btn.addEventListener('click', () => handleCellClick(label));
+
+        td.appendChild(btn);
+        row.appendChild(td);
+      }
+      landscapeTbody.appendChild(row);
+    });
+
+    const portraitLettersRow  = document.getElementById('portraitLettersRow');
+    const portraitNumbersBody = document.getElementById('portraitNumbersBody');
+    columns.forEach(({letter}) => {
+      const th = document.createElement('th');
+      th.className = 'letter-cell';
+      th.textContent = letter;
+      portraitLettersRow.appendChild(th);
+    });
+    for (let i = 0; i < 15; i++) {
+      const row = document.createElement('tr');
+      columns.forEach(({letter, start}) => {
+        const num = start + i;
+        const label = letter + num;
+        const td = document.createElement('td');
+        td.classList.add('text-center');
+
+        const btn = document.createElement('button');
+        btn.className = 'btn bingo-btn btn-outline-primary';
+        btn.textContent = num;
+        btn.setAttribute('data-label', label);
+        btn.addEventListener('click', () => handleCellClick(label));
+
+        td.appendChild(btn);
+        row.appendChild(td);
+      });
+      portraitNumbersBody.appendChild(row);
+    }
+
+    // Pattern preview
+    function buildPatternGrid() {
+      patternPreviewGrid.innerHTML = "";
+      const tbl = document.createElement('table');
+      for (let r = 0; r < 5; r++) {
+        const row = document.createElement('tr');
+        for (let c = 0; c < 5; c++) {
+          const cell = document.createElement('td');
+          cell.className = 'pattern-cell';
+          cell.setAttribute('data-row', r);
+          cell.setAttribute('data-col', c);
+          row.appendChild(cell);
+        }
+        tbl.appendChild(row);
+      }
+      patternPreviewGrid.appendChild(tbl);
+    }
+    buildPatternGrid();
+
+    // Show pattern
+    function showPattern(patternName) {
+      document.querySelectorAll('.pattern-cell').forEach(cell => {
+        cell.classList.remove('pattern-highlight');
+      });
+      const coords = patternCoordinates[patternName] || [];
+      coords.forEach(([r,c]) => {
+        const sel = `.pattern-cell[data-row="${r}"][data-col="${c}"]`;
+        const cell = document.querySelector(sel);
+        if (cell) cell.classList.add('pattern-highlight');
+      });
+    }
+
+    //---------------------
+    //   LOCAL STORAGE
+    //---------------------
+    function loadState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('bingoState') || '{}');
+        Object.assign(state, saved);
+      } catch (e) {
+        console.warn("No valid saved state found or parse error.");
+      }
+    }
+    function saveState() {
+      localStorage.setItem('bingoState', JSON.stringify(state));
+    }
+
+    //---------------------
+    //   DARK / LIGHT MODE
+    //---------------------
+    function applyDarkMode() {
+      if (state.darkMode) {
+        document.body.classList.add('dark-mode');
+        document.body.classList.remove('light-mode');
+      } else {
+        document.body.classList.add('light-mode');
+        document.body.classList.remove('dark-mode');
+      }
+    }
+
+    //---------------------
+    //   LOGO / TITLE
+    //---------------------
+    function updateLogoOrTitle() {
+      // If there's a local base64, that takes precedence
+      if (state.logoData) {
+        logoImg.style.display = "block";
+        logoImg.src = state.logoData;
+        removeLogoBtn.style.display = "block";
+        titleText.style.display = "none";
+        return;
+      }
+      // Else if we have a URL
+      if (state.logoUrl) {
+        logoImg.style.display = "block";
+        logoImg.src = state.logoUrl;
+        removeLogoBtn.style.display = "block";
+        titleText.style.display = "none";
+        return;
+      }
+      // Otherwise, no logo
+      logoImg.style.display = "none";
+      logoImg.src = "";
+      removeLogoBtn.style.display = "none";
+
+      // Show text
+      const displayTitle = state.gameTitle.trim() || "Bingo Caller";
+      titleText.textContent = displayTitle;
+      titleText.style.display = "block";
+    }
+
+    //---------------------
+    //   UPDATE BOARD COLORS
+    //---------------------
+    function updateBoardColors() {
+      // Remove old style block
+      const old = document.getElementById('dynamicTheme');
+      if (old) old.remove();
+
+      // Insert new style
+      const styleEl = document.createElement('style');
+      styleEl.id = 'dynamicTheme';
+      styleEl.innerHTML = `
+        /* Untoggled squares */
+        .bingo-btn:not(.called) {
+          background-color: ${state.uncalledSquareColor} !important;
+          color: #fff !important;
+        }
+        /* Toggled squares */
+        .called {
+          background-color: ${state.calledSquareColor} !important;
+          color: #fff !important;
+        }
+      `;
+      document.head.appendChild(styleEl);
+    }
+
+    //---------------------
+    //   TOGGLE CALLED
+    //---------------------
+    function toggleCalled(label) {
+      const wasCalled = !!state.calledStates[label];
+      state.calledStates[label] = !wasCalled;
+
+      if (!wasCalled) {
+        state.lastCalledNumbers.push(label);
+        // keep only last 3
+        if (state.lastCalledNumbers.length > 3) {
+          state.lastCalledNumbers.shift();
+        }
+        state.totalCalls++;
+      } else {
+        state.lastCalledNumbers = state.lastCalledNumbers.filter(x => x !== label);
+        state.totalCalls = Math.max(0, state.totalCalls - 1);
+      }
+
+      highlightLastBall();
+      updateDisplayFromState();
+      saveState();
+    }
+
+    //---------------------
+    //   CLICK HANDLER
+    //---------------------
+    function handleCellClick(label) {
+      if (state.randomMode) return;
+      toggleCalled(label);
+    }
+
+    //---------------------
+    //   HIGHLIGHT LAST BALL
+    //---------------------
+    function highlightLastBall() {
+      if (previousLastLabel) {
+        document.querySelectorAll(`[data-label="${previousLastLabel}"]`).forEach(cell => {
+          cell.classList.remove('last-ball');
+        });
+      }
+      const len = state.lastCalledNumbers.length;
+      if (len > 0) {
+        const newLastLabel = state.lastCalledNumbers[len - 1];
+        document.querySelectorAll(`[data-label="${newLastLabel}"]`).forEach(cell => {
+          cell.classList.add('last-ball');
+        });
+        previousLastLabel = newLastLabel;
+      } else {
+        previousLastLabel = null;
+      }
+    }
+
+    //---------------------
+    //   CALL RANDOM NUMBER
+    //---------------------
+    function callRandomNumber() {
+      const uncalled = allLabels.filter(lbl => !state.calledStates[lbl]);
+      if (uncalled.length === 0) {
+        alert("All numbers have been called!");
+        return;
+      }
+      const chosen = uncalled[Math.floor(Math.random() * uncalled.length)];
+      toggleCalled(chosen);
+    }
+
+    //---------------------
+    //   RESIZE IMAGE (LOCAL FILE)
+    //---------------------
+    function resizeImage(file, maxDim, callback) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          let { width, height } = img;
+
+          // Scale down if bigger than maxDim in either width or height
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.floor(height * (maxDim / width));
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.floor(width * (maxDim / height));
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/png');
+          callback(dataUrl);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    //---------------------
+    //   LOGO UPLOAD
+    //---------------------
+    function handleLogoUpload() {
+      const file = logoFileInput.files[0];
+      if (!file) return;
+
+      // override any existing URL
+      state.logoUrl = "";
+
+      // resize to max 600 px dimension (adjust as you prefer)
+      resizeImage(file, 600, (resizedDataUrl) => {
+        state.logoData = resizedDataUrl;
+        updateLogoOrTitle();
+        saveState();
+      });
+    }
+
+    //---------------------
+    //   UPDATE DISPLAY
+    //---------------------
+    function updateDisplayFromState() {
+      // Dark/Light
+      darkModeToggle.checked = !state.darkMode;
+      applyDarkMode();
+
+      // Round & pot
+      roundDisplay.textContent = state.roundNumber;
+
+      // If user never set a numeric pot, keep "TBD"
+      prizeDisplay.textContent = state.prizePot;
+
+      // Last Called
+      if (state.lastCalledNumbers.length === 0) {
+        lastCalledDisplay.textContent = "Last Called: None";
+      } else {
+        lastCalledDisplay.textContent =
+          "Last Called: " + state.lastCalledNumbers.join(", ");
+      }
+      callsDisplay.textContent = state.totalCalls;
+
+      // Mark squares
+      document.querySelectorAll("[data-label]").forEach(btn => {
+        const label = btn.getAttribute('data-label');
+        if (state.calledStates[label]) {
+          btn.classList.add('called');
+        } else {
+          btn.classList.remove('called');
+        }
+      });
+
+      // Offcanvas
+      gameTitleInput.value    = state.gameTitle;
+      logoUrlInput.value     = state.logoUrl;
+      roundInput.value       = state.roundNumber;
+      potInput.value         = state.prizePot;
+      patternSelect.value    = state.pattern;
+      randomModeToggle.checked = state.randomMode;
+      randomInstruction.style.display = state.randomMode ? 'inline' : 'none';
+
+      // Color pickers
+      if (uncalledColorPicker && uncalledColorPicker.jscolor) {
+        uncalledColorPicker.jscolor.fromString(state.uncalledSquareColor.replace('#',''));
+      }
+      if (boardColorPicker && boardColorPicker.jscolor) {
+        boardColorPicker.jscolor.fromString(state.calledSquareColor.replace('#',''));
+      }
+
+      updateLogoOrTitle();
+      updateBoardColors();
+      showPattern(state.pattern);
+      updateLastCallBall();
+    }
+
+    function updateLastCallBall() {
+      if (state.lastCalledNumbers.length === 0) {
+        lastCallBall.textContent = "No Call";
+      } else {
+        const latest = state.lastCalledNumbers[state.lastCalledNumbers.length - 1];
+        lastCallBall.textContent = latest;
+      }
+    }
+
+    //---------------------
+    //   PARTIAL RESET
+    //---------------------
+    function partialReset() {
+      // Do NOT change roundNumber (preserved)
+      state.calledStates = {};
+      state.lastCalledNumbers = [];
+      state.totalCalls = 0;
+      // pot remains whatever the user set (including "TBD"), or remove if you want to reset pot as well?
+
+      updateDisplayFromState();
+      saveState();
+    }
+
+    //---------------------
+    //   NEW GAME
+    //---------------------
+    function newGame() {
+      // increment round
+      state.roundNumber++;
+
+      // reset board calls
+      state.calledStates = {};
+      state.lastCalledNumbers = [];
+      state.totalCalls = 0;
+
+      // reset pattern to "Line"
+      state.pattern = "Line";
+
+      // reset pot to "TBD" (or "500" if you prefer)
+      state.prizePot = "TBD";
+
+      updateDisplayFromState();
+      saveState();
+    }
+
+    //---------------------
+    //   WIPE EVERYTHING
+    //---------------------
+    function wipeEverything() {
+      localStorage.clear();
+      location.reload();
+    }
+
+    //---------------------
+    //   INIT
+    //---------------------
+    function init() {
+      loadState();
+      updateDisplayFromState();
+    }
+
+    //---------------------
+    //   EVENT LISTENERS
+    //---------------------
+    // Dark Mode
+    darkModeToggle.addEventListener('change', () => {
+      state.darkMode = !darkModeToggle.checked;
+      saveState();
+      applyDarkMode();
+    });
+
+    // Random Mode
+    randomModeToggle.addEventListener('change', () => {
+      state.randomMode = randomModeToggle.checked;
+      saveState();
+      updateDisplayFromState();
+    });
+
+    // Tap Last Ball
+    lastCallBall.addEventListener('click', () => {
+      if (state.randomMode) {
+        callRandomNumber();
+      }
+    });
+
+    // Logo URL
+    logoUrlInput.addEventListener('change', () => {
+      // if user typed a URL, store it and clear local file data
+      state.logoUrl = logoUrlInput.value.trim();
+      state.logoData = "";
+      saveState();
+      updateLogoOrTitle();
+    });
+
+    // Remove Logo
+    removeLogoBtn.addEventListener('click', () => {
+      state.logoData = "";
+      state.logoUrl  = "";
+      logoFileInput.value = "";
+      logoUrlInput.value = "";
+      updateLogoOrTitle();
+      saveState();
+    });
+
+    // Pattern
+    patternSelect.addEventListener('change', () => {
+      state.pattern = patternSelect.value;
+      saveState();
+      showPattern(state.pattern);
+    });
+
+    // Round
+    roundInput.addEventListener('change', () => {
+      state.roundNumber = parseInt(roundInput.value, 10) || 1;
+      saveState();
+      updateDisplayFromState();
+    });
+
+    // Prize pot
+    potInput.addEventListener('change', () => {
+      const val = potInput.value.trim();
+      // if it's empty or not a valid number, store "TBD"
+      if (!val || isNaN(parseInt(val, 10))) {
+        state.prizePot = "TBD";
+      } else {
+        state.prizePot = parseInt(val, 10).toString();
+      }
+      saveState();
+      updateDisplayFromState();
+    });
+
+    // Game Title
+    gameTitleInput.addEventListener('input', () => {
+      state.gameTitle = gameTitleInput.value;
+      saveState();
+      updateLogoOrTitle();
+    });
+
+    // Uncalled color
+    uncalledColorPicker.addEventListener('change', () => {
+      state.uncalledSquareColor = "#" + uncalledColorPicker.jscolor.toString();
+      saveState();
+      updateBoardColors();
+    });
+
+    // Called color
+    boardColorPicker.addEventListener('change', () => {
+      state.calledSquareColor = "#" + boardColorPicker.jscolor.toString();
+      saveState();
+      updateBoardColors();
+    });
+
+    // Partial Reset Confirm
+    partialResetConfirmBtn.addEventListener('click', partialReset);
+
+    // New Game Confirm
+    newGameConfirmBtn.addEventListener('click', newGame);
+
+    // Wipe Everything Confirm
+    wipeEverythingConfirmBtn.addEventListener('click', wipeEverything);
+
+    // Also tie the floating reset button to open the partial reset modal
+    // (We've already done that in the HTML data-bs-target)
+
+    // Logo upload
+    logoFileInput.addEventListener('change', handleLogoUpload);
+
+  </script>
+</body>
+</html>
