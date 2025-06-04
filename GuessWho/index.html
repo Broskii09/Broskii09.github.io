@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Guess Who — Bar Edition</title>
+
+  <!-- Bootstrap 5 CSS (via CDN) -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+
+  <style>
+    /* ==============================
+       Flip-card CSS
+       ==============================
+       We force .flip-card to display:block, but the front/back
+       are absolutely positioned, so we will explicitly set each
+       .flip-card’s height in JS so that children don’t collapse
+       and rows can’t overlap.
+    */
+    .flip-card {
+      display: block;
+      perspective: 1000px;
+      width: 100%;
+      cursor: pointer;
+      /* height will be set dynamically via JS */
+    }
+    .flip-card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%; /* fill parent once JS sets it */
+      text-align: center;
+      transition: transform 0.6s;
+      transform-style: preserve-3d;
+    }
+    .flip-card.flipped .flip-card-inner {
+      transform: rotateY(180deg);
+    }
+    .flip-card-front,
+    .flip-card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+    }
+    .flip-card-front {
+      z-index: 2;
+    }
+    .flip-card-back {
+      transform: rotateY(180deg);
+      z-index: 1;
+    }
+    .back-card-content {
+      height: 100%;
+      background-color: #6c757d; /* Bootstrap secondary */
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+    }
+
+    /* ==============================
+       Scale container
+       ==============================
+       #cardsWrapper will get transform:scale(...)
+       so the entire grid zooms in/out on demand.
+    */
+    #cardsWrapper {
+      transform-origin: top center;
+      transition: transform 0.2s;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ==============================
+       Navbar (collapsed unless you click the logo)
+       ==============================
+       - Logo centered; clicking it toggles the collapse
+       - Inside collapse: Upload Logo, Import CSV, Add Photo form,
+         Shuffle / Clear / Reset Flips / Download CSV, Scale slider
+  -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-light px-3">
+    <div class="container-fluid justify-content-center">
+      <!-- Logo acts as collapse toggle -->
+      <a
+        class="navbar-brand mb-0 h1"
+        href="#"
+        data-bs-toggle="collapse"
+        data-bs-target="#topControls"
+        aria-expanded="false"
+        aria-controls="topControls"
+      >
+        <img
+          id="logoPreview"
+          src="https://via.placeholder.com/120x50?text=Your+Logo"
+          alt="Logo"
+          height="50"
+        />
+      </a>
+    </div>
+
+    <!-- Collapsed content -->
+    <div class="collapse" id="topControls">
+      <div class="bg-light p-3 mx-3 rounded shadow-sm">
+        <div class="container-fluid">
+
+          <!-- ── Row 1: Upload Logo & Import CSV ── -->
+          <div class="row gx-2 gy-2 align-items-center mb-3">
+            <div class="col-auto">
+              <button class="btn btn-outline-secondary" id="uploadLogoBtn">
+                Upload Logo
+              </button>
+              <input
+                type="file"
+                id="logoInput"
+                accept="image/*"
+                style="display: none;"
+              />
+            </div>
+
+            <div class="col-auto">
+              <button class="btn btn-outline-info" id="importCSVBtn">
+                Import CSV
+              </button>
+              <input
+                type="file"
+                id="csvInput"
+                accept=".csv"
+                style="display: none;"
+              />
+            </div>
+          </div>
+
+          <!-- ── Row 2: Add Photo form (URL + Name) ── -->
+          <div class="row gx-2 gy-2 align-items-end">
+            <div class="col-md-5">
+              <label for="photoURL" class="form-label">Photo URL</label>
+              <input
+                type="text"
+                id="photoURL"
+                class="form-control"
+                placeholder="Paste image link"
+              />
+            </div>
+            <div class="col-md-5">
+              <label for="personName" class="form-label">Name</label>
+              <input
+                type="text"
+                id="personName"
+                class="form-control"
+                placeholder="Enter name"
+              />
+            </div>
+            <div class="col-md-2">
+              <button class="btn btn-primary w-100" id="addPhotoBtn">
+                Add Photo
+              </button>
+            </div>
+          </div>
+
+          <!-- ── Row 3: Control Buttons (Shuffle, Clear, Reset Flips, Download CSV) ── -->
+          <div class="row gx-2 gy-2 align-items-center mt-3">
+            <div class="col-auto">
+              <button class="btn btn-secondary" id="shuffleBtn">
+                Shuffle
+              </button>
+            </div>
+            <div class="col-auto">
+              <button class="btn btn-danger" id="clearBtn">
+                Clear All
+              </button>
+            </div>
+            <div class="col-auto">
+              <button class="btn btn-warning" id="resetFlipsBtn">
+                Reset Flips
+              </button>
+            </div>
+            <div class="col-auto">
+              <button class="btn btn-success" id="downloadCSVBtn">
+                Download CSV
+              </button>
+            </div>
+          </div>
+
+          <!-- ── Row 4: Scale Slider ── -->
+          <div class="row gx-2 gy-2 align-items-center mt-3">
+            <div class="col-auto">
+              <label for="scaleRange" class="form-label mb-0">Scale</label>
+            </div>
+            <div class="col">
+              <input
+                type="range"
+                class="form-range"
+                id="scaleRange"
+                min="0.5"
+                max="1.5"
+                step="0.05"
+                value="1"
+              />
+            </div>
+            <div class="col-auto">
+              <span id="scaleValue">100%</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ==============================
+       Main container → grid of flip-cards
+       ==============================
+       We wrap #cardsContainer inside #cardsWrapper so we can apply
+       `transform: scale(...)` without overlap. Each column also has
+       a bottom margin (`mb-4`), just in case. Height of each .flip-card
+       will be forced via JS to match the tallest front side.
+  -->
+  <div class="container-fluid mt-3">
+    <div id="cardsWrapper">
+      <div
+        id="cardsContainer"
+        class="row gx-3 gy-4 justify-content-center"
+      >
+        <!-- JS will inject <div class="col-3 mb-4">…flip-card…</div> here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 JS bundle -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  ></script>
+
+  <script>
+    // ==============================
+    //   In-Memory “Bank” of Faces (persisted in localStorage)
+    // ==============================
+    let cardBank = [];
+
+    // DOM references
+    const photoURLInput = document.getElementById('photoURL');
+    const personNameInput = document.getElementById('personName');
+    const addPhotoBtn = document.getElementById('addPhotoBtn');
+    const shuffleBtn = document.getElementById('shuffleBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const resetFlipsBtn = document.getElementById('resetFlipsBtn');
+    const downloadCSVBtn = document.getElementById('downloadCSVBtn');
+    const importCSVBtn = document.getElementById('importCSVBtn');
+    const csvInput = document.getElementById('csvInput');
+    const cardsContainer = document.getElementById('cardsContainer');
+    const cardsWrapper = document.getElementById('cardsWrapper');
+
+    const uploadLogoBtn = document.getElementById('uploadLogoBtn');
+    const logoInput = document.getElementById('logoInput');
+    const logoPreview = document.getElementById('logoPreview');
+
+    const scaleRange = document.getElementById('scaleRange');
+    const scaleValue = document.getElementById('scaleValue');
+
+    // ==============================
+    //   Utility: Save / Load from localStorage
+    // ==============================
+    function saveToLocalStorage() {
+      localStorage.setItem('guessWhoBank', JSON.stringify(cardBank));
+    }
+    function loadFromLocalStorage() {
+      const stored = localStorage.getItem('guessWhoBank');
+      if (stored) {
+        try {
+          cardBank = JSON.parse(stored);
+        } catch {
+          cardBank = [];
+        }
+      } else {
+        cardBank = [];
+      }
+    }
+
+    // ==============================
+    //   On page load → load from localStorage and render
+    // ==============================
+    window.addEventListener('DOMContentLoaded', () => {
+      loadFromLocalStorage();
+      renderCards();
+    });
+
+    // ==============================
+    //   Upload Logo Logic
+    // ==============================
+    uploadLogoBtn.addEventListener('click', () => {
+      logoInput.click();
+    });
+    logoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        logoPreview.src = event.target.result;
+        // (Optionally: persist your logo in localStorage here)
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // ==============================
+    //   Add Photo → push into cardBank & persist & render
+    // ==============================
+    addPhotoBtn.addEventListener('click', () => {
+      const url = photoURLInput.value.trim();
+      const name = personNameInput.value.trim();
+      if (!url || !name) {
+        alert('Both URL and Name are required.');
+        return;
+      }
+      cardBank.push({ url, name, flipped: false });
+      photoURLInput.value = '';
+      personNameInput.value = '';
+      saveToLocalStorage();
+      renderCards();
+    });
+
+    // ==============================
+    //   Shuffle (Fisher–Yates) + persist + render
+    // ==============================
+    shuffleBtn.addEventListener('click', () => {
+      for (let i = cardBank.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cardBank[i], cardBank[j]] = [cardBank[j], cardBank[i]];
+      }
+      saveToLocalStorage();
+      renderCards();
+    });
+
+    // ==============================
+    //   Clear All
+    // ==============================
+    clearBtn.addEventListener('click', () => {
+      if (confirm('Are you sure you want to clear ALL cards?')) {
+        cardBank = [];
+        saveToLocalStorage();
+        renderCards();
+      }
+    });
+
+    // ==============================
+    //   Reset Flips (un-flip every card)
+    // ==============================
+    resetFlipsBtn.addEventListener('click', () => {
+      cardBank = cardBank.map((c) => ({ ...c, flipped: false }));
+      saveToLocalStorage();
+      renderCards();
+    });
+
+    // ==============================
+    //   Download CSV (PhotoURL,Name)
+    // ==============================
+    downloadCSVBtn.addEventListener('click', () => {
+      if (cardBank.length === 0) {
+        alert('No cards to download.');
+        return;
+      }
+      let csvContent = 'PhotoURL,Name\n';
+      cardBank.forEach((c) => {
+        // If name contains commas, wrap in quotes
+        const safeName = c.name.includes(',')
+          ? `"${c.name.replace(/"/g, '""')}"`
+          : c.name;
+        csvContent += `${c.url},${safeName}\n`;
+      });
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'guess_who_bank.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // ==============================
+    //   Import CSV
+    // ==============================
+    importCSVBtn.addEventListener('click', () => {
+      csvInput.click();
+    });
+    csvInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target.result.trim();
+        const lines = text.split('\n').map((l) => l.trim());
+        const newBank = [];
+        // Skip header; parse subsequent lines as URL,name
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i]) continue;
+          const commaIndex = lines[i].indexOf(',');
+          if (commaIndex === -1) continue;
+          const url = lines[i].slice(0, commaIndex).trim();
+          let name = lines[i].slice(commaIndex + 1).trim();
+          // Remove surrounding quotes if present
+          if (
+            name.startsWith('"') &&
+            name.endsWith('"') &&
+            name.length >= 2
+          ) {
+            name = name.slice(1, -1).replace(/""/g, '"');
+          }
+          if (url && name) {
+            newBank.push({ url, name, flipped: false });
+          }
+        }
+        if (newBank.length === 0) {
+          alert('No valid entries found in CSV.');
+          return;
+        }
+        if (
+          confirm(
+            `Import ${newBank.length} items? This will replace your current set.`
+          )
+        ) {
+          cardBank = newBank;
+          saveToLocalStorage();
+          renderCards();
+        }
+      };
+      reader.readAsText(file);
+      csvInput.value = ''; // reset so same file can be reimported
+    });
+
+    // ==============================
+    //   Scale slider logic
+    // ==============================
+    scaleRange.addEventListener('input', () => {
+      const scaleVal = parseFloat(scaleRange.value);
+      cardsWrapper.style.transform = `scale(${scaleVal})`;
+      scaleValue.textContent = Math.round(scaleVal * 100) + '%';
+    });
+
+    // ==============================
+    //   Render Cards to #cardsContainer
+    // ==============================
+    function renderCards() {
+      cardsContainer.innerHTML = ''; // clear everything
+
+      // Insert each card (col-3 with mb-4)
+      cardBank.forEach((person, index) => {
+        const col = document.createElement('div');
+        col.className = 'col-3 mb-4';
+
+        const flipCard = document.createElement('div');
+        flipCard.className = 'flip-card';
+        if (person.flipped) flipCard.classList.add('flipped');
+        flipCard.setAttribute('data-index', index);
+
+        const flipInner = document.createElement('div');
+        flipInner.className = 'flip-card-inner';
+
+        // ── Front ──
+        const front = document.createElement('div');
+        front.className = 'flip-card-front';
+
+        const cardFront = document.createElement('div');
+        cardFront.className = 'card';
+
+        const img = document.createElement('img');
+        img.src = person.url;
+        img.alt = person.name;
+        img.className = 'card-img-top img-fluid';
+
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body p-2';
+        const nameTag = document.createElement('p');
+        nameTag.className = 'card-text text-center mb-0';
+        nameTag.textContent = person.name;
+
+        cardBody.appendChild(nameTag);
+        cardFront.appendChild(img);
+        cardFront.appendChild(cardBody);
+        front.appendChild(cardFront);
+
+        // ── Back ──
+        const back = document.createElement('div');
+        back.className = 'flip-card-back';
+        const backContent = document.createElement('div');
+        backContent.className = 'back-card-content';
+        backContent.textContent = 'X';
+        back.appendChild(backContent);
+
+        flipInner.appendChild(front);
+        flipInner.appendChild(back);
+        flipCard.appendChild(flipInner);
+
+        // Toggle flipped state on click
+        flipCard.addEventListener('click', () => {
+          const idx = parseInt(flipCard.getAttribute('data-index'));
+          cardBank[idx].flipped = !cardBank[idx].flipped;
+          saveToLocalStorage();
+          renderCards();
+        });
+
+        col.appendChild(flipCard);
+        cardsContainer.appendChild(col);
+      });
+
+      // After inserting all cards into the DOM, wait until all images finish loading
+      waitForAllImages(cardsContainer, setUniformCardHeights);
+    }
+
+    // ==============================
+    //   Once every <img> in `container` is loaded (or already complete),
+    //   call callback(). This prevents measuring while images are still rendering.
+    // ==============================
+    function waitForAllImages(container, callback) {
+      const imgElements = Array.from(container.querySelectorAll('img'));
+      if (imgElements.length === 0) {
+        // No images, just measure immediately
+        callback();
+        return;
+      }
+
+      let toLoad = imgElements.length;
+      imgElements.forEach((img) => {
+        // If already loaded (cached), decrement immediately
+        if (img.complete) {
+          toLoad--;
+        } else {
+          // If not yet loaded, attach a load listener
+          img.addEventListener('load', () => {
+            toLoad--;
+            if (toLoad === 0) callback();
+          });
+          // Also listen for error (so a broken link won't hang us)
+          img.addEventListener('error', () => {
+            toLoad--;
+            if (toLoad === 0) callback();
+          });
+        }
+      });
+
+      // If they were all cached/complete from the start, `toLoad` is <= 0
+      if (toLoad <= 0) {
+        callback();
+      }
+    }
+
+    // ==============================
+    //   Measure the tallest .flip-card-front (the <div class="card">),
+    //   then explicitly set every .flip-card and .flip-card-inner to that height in pixels.
+    //   This ensures none of the absolute‐positioned front/back faces collapse,
+    //   and Bootstrap rows will stack cleanly without overlap.
+    // ==============================
+    function setUniformCardHeights() {
+      let maxHeight = 0;
+      const allFlipCards = Array.from(
+        cardsContainer.querySelectorAll('.flip-card')
+      );
+
+      allFlipCards.forEach((flipCard) => {
+        // Find the front side’s <div class="card">
+        const frontCard = flipCard.querySelector('.flip-card-front .card');
+        if (!frontCard) return;
+        // Because the .card is absolutely positioned, we measure its scrollHeight
+        const h = frontCard.scrollHeight;
+        if (h > maxHeight) {
+          maxHeight = h;
+        }
+      });
+
+      // Now apply that maxHeight (in px) to every flip-card
+      allFlipCards.forEach((flipCard) => {
+        flipCard.style.height = maxHeight + 'px';
+        const inner = flipCard.querySelector('.flip-card-inner');
+        if (inner) inner.style.height = '100%'; 
+      });
+    }
+  </script>
+</body>
+</html>
