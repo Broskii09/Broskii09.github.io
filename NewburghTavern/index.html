@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fullscreen 16:9 Gallery</title>
+  <title>Fullscreen 16:9 Photo</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <style>
     html, body {
@@ -16,8 +16,7 @@
       position: relative;
       width: 100%;
       height: 0;
-      padding-bottom: 56.25%; /* 16:9 */
-      overflow: hidden;
+      padding-bottom: 56.25%; /* 16:9 Aspect Ratio (9/16 = 0.5625) */
     }
 
     .aspect-ratio-box img {
@@ -26,13 +25,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      object-fit: contain; /* Use 'contain' to best-fit without cropping */
-      transition: opacity 1s ease-in-out;
-      opacity: 0;
-    }
-
-    .aspect-ratio-box img.active {
-      opacity: 1;
+      object-fit: cover;
     }
   </style>
 </head>
@@ -40,36 +33,9 @@
 
   <div class="d-flex align-items-center justify-content-center vh-100">
     <div class="aspect-ratio-box">
-      <img id="galleryImage" src="img/promo.png" alt="Gallery Image" class="active">
+      <img src="img/promo.png" alt="Fullscreen Image">
     </div>
   </div>
-
-  <script>
-  const images = [
-    "img/promo.png",
-    "img/promo2.jpg",
-    "img/event.jpg",
-    "img/promo3.jpg",
-    "img/promo4.png"
-  ];
-
-  let current = 0;
-  const imgElement = document.getElementById("galleryImage");
-
-  function showNextImage() {
-    imgElement.classList.remove("active");
-
-    setTimeout(() => {
-      current = (current + 1) % images.length;
-      imgElement.src = images[current];
-      imgElement.classList.add("active");
-    }, 1000); // Transition duration (matches CSS fade)
-  }
-
-  // Start the slideshow
-  setInterval(showNextImage, 30000); // 30 seconds
-</script>
-
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
