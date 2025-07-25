@@ -5,37 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fullscreen 16:9 Photo</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <style>
-    html, body {
-      margin: 0;
-      height: 100%;
-      background-color: #000;
-    }
-
-    .aspect-ratio-box {
-      position: relative;
-      width: 100%;
-      height: 0;
-      padding-bottom: 56.25%; /* 16:9 Aspect Ratio (9/16 = 0.5625) */
-    }
-
-    .aspect-ratio-box img {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-  </style>
 </head>
 <body>
 
-  <div class="d-flex align-items-center justify-content-center vh-100">
-    <div class="aspect-ratio-box">
-      <img src="img/promo.png" alt="Fullscreen Image">
-    </div>
-  </div>
+  <iframe title="Event Feature" width="1920" height="1080" src="https://embed-player.yodeck.com/?uuid=d41e7b4c6a3d4bd7b31dab6b0138790b" style="background-color:black; border: none" allow="autoplay; fullscreen; geolocation"></iframe>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
