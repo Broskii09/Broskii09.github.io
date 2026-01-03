@@ -21,7 +21,7 @@ const OMJN = (() => {
       features: { jamEnabled: false },
       operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false },
       profiles: {},
-      splash: { backgroundAssetPath: "./assets/splash.svg", showNextTwo: true },
+        splash: { backgroundAssetPath: "./assets/OpenMicBG.jpg", showNextTwo: true },
       viewerPrefs: { warnAtSec: 120, finalAtSec: 30, showOvertime: true, showProgressBar: true },
       settings: {
         theme: {

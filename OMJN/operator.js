@@ -953,7 +953,7 @@ function renderKPIs(){
   function render(){
     // sync header inputs
     els.showTitle.value = state.showTitle || "";
-    els.splashPath.value = state.splash?.backgroundAssetPath || "./assets/splash.svg";
+      els.splashPath.value = state.splash?.backgroundAssetPath || "./assets/OpenMicBG.jpg";
     els.jamEnabled.checked = !!state.features.jamEnabled;
 
     // Operator prefs
