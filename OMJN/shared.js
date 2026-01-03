@@ -65,6 +65,13 @@ const OMJN = (() => {
       if(!s.profiles) s.profiles = {};
       if(!s.splash) s.splash = { backgroundAssetPath: "./assets/splash.svg", showNextTwo: true };
       if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
+      // Timer migration: normalize shape
+      if(!s.timer) s.timer = { running:false, startedAt:null, pausedAt:null, elapsedMs:0, baseDurationMs:null };
+      if(typeof s.timer.elapsedMs !== "number") s.timer.elapsedMs = 0;
+      if(s.timer.startedAt === 0) s.timer.startedAt = null;
+      if(s.timer.pausedAt === 0) s.timer.pausedAt = null;
+      if(s.timer.baseDurationMs === 0) s.timer.baseDurationMs = null;
+
       if(!s.settings) s.settings = d.settings;
 
       if(!s.assetsIndex) s.assetsIndex = {};
@@ -378,6 +385,6 @@ function ensureJamShape(slot){
     uid, defaultState, loadState, saveState, publish, subscribe,
     getSlotType, effectiveMinutes, displaySlotTypeLabel, normalizeSlot, ensureJamShape, computeNextTwo, computeCurrent, computeTimer,
     openAssetDB, putAsset, getAsset, deleteAsset, compressImageFile,
-    formatMMSS, sanitizeText
+    formatMMSS, sanitizeText, applyThemeToDocument
   };
 })();

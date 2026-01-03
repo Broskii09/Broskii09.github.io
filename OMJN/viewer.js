@@ -2,7 +2,9 @@
 (() => {
   let state = OMJN.loadState();
   OMJN.applyThemeToDocument(document, state);
+
   let lastRemainingMs = null;
+  let lastSlotId = null;
   let overtimeFlashTimeout = null;
 
   const bg = document.getElementById("bg");
@@ -40,6 +42,51 @@
   function setBg(){
     const path = state.splash?.backgroundAssetPath || "./assets/splash.svg";
     bg.style.backgroundImage = `url('${path}')`;
+  }
+
+  function clearCardCues(){
+    if(!vMainCard) return;
+    vMainCard.classList.remove("pulseWarn","pulseFinal","overtimeFlash");
+    if(overtimeFlashTimeout){
+      clearTimeout(overtimeFlashTimeout);
+      overtimeFlashTimeout = null;
+    }
+  }
+
+  function triggerOvertimeFlash(){
+    if(!vMainCard) return;
+    // Remove pulse so flash stands out
+    vMainCard.classList.remove("pulseWarn","pulseFinal");
+
+    // Restart animation reliably
+    vMainCard.classList.remove("overtimeFlash");
+    void vMainCard.offsetWidth; // force reflow
+    vMainCard.classList.add("overtimeFlash");
+
+    if(overtimeFlashTimeout) clearTimeout(overtimeFlashTimeout);
+    overtimeFlashTimeout = setTimeout(() => {
+      vMainCard.classList.remove("overtimeFlash");
+      overtimeFlashTimeout = null;
+    }, 1150);
+  }
+
+  function applyCardCues(remainingMs, warnAtMs, finalAtMs){
+    if(!vMainCard) return;
+
+    // One-time flash when crossing into overtime
+    if(lastRemainingMs !== null && lastRemainingMs > 0 && remainingMs <= 0){
+      triggerOvertimeFlash();
+    }
+
+    // Pulse behavior only while time is still remaining
+    vMainCard.classList.remove("pulseWarn","pulseFinal");
+    if(remainingMs > 0 && remainingMs <= warnAtMs && remainingMs > finalAtMs){
+      vMainCard.classList.add("pulseWarn");
+    } else if(remainingMs > 0 && remainingMs <= finalAtMs){
+      vMainCard.classList.add("pulseFinal");
+    }
+
+    lastRemainingMs = remainingMs;
   }
 
   async function setMedia(slot){
@@ -85,17 +132,20 @@
     overlay.style.display = "none";
     splashInfo.style.display = "flex";
 
+    clearCardCues();
+    lastRemainingMs = null;
+    lastSlotId = null;
+
     const [n1, n2] = OMJN.computeNextTwo(state);
     sNext.textContent = n1?.displayName || "TBD";
     sDeck.textContent = n2?.displayName || "TBD";
 
-    // little subtext: show slot type + minutes
+    // subtext: slot type + minutes
     const sub1 = n1 ? `${OMJN.displaySlotTypeLabel(state, n1)} • ${OMJN.effectiveMinutes(state, n1)}m` : "Sign ups open";
     const sub2 = n2 ? `${OMJN.displaySlotTypeLabel(state, n2)} • ${OMJN.effectiveMinutes(state, n2)}m` : "Get ready";
     sNextSub.textContent = sub1;
     sDeckSub.textContent = sub2;
 
-    // background is splash graphic
     setBg();
   }
 
@@ -107,6 +157,13 @@
     if(!cur){
       renderSplash();
       return;
+    }
+
+    // Reset cue tracking when slot changes
+    if(lastSlotId !== cur.id){
+      clearCardCues();
+      lastRemainingMs = null;
+      lastSlotId = cur.id;
     }
 
     const type = OMJN.getSlotType(state, cur.slotTypeId);
@@ -125,13 +182,13 @@
     chipState.className = "vChip " + (state.phase === "PAUSED" ? "warn" : "good");
 
     // warning thresholds
-    const warnAt = (state.viewerPrefs?.warnAtSec ?? 120) * 1000;
-    const finalAt = (state.viewerPrefs?.finalAtSec ?? 30) * 1000;
+    const warnAtMs = (state.viewerPrefs?.warnAtSec ?? 120) * 1000;
+    const finalAtMs = (state.viewerPrefs?.finalAtSec ?? 30) * 1000;
 
-    chipWarn.style.display = (remainingMs > 0 && remainingMs <= warnAt && remainingMs > finalAt) ? "inline-flex" : "none";
-    chipFinal.style.display = (remainingMs > 0 && remainingMs <= finalAt) ? "inline-flex" : "none";
+    chipWarn.style.display = (remainingMs > 0 && remainingMs <= warnAtMs && remainingMs > finalAtMs) ? "inline-flex" : "none";
+    chipFinal.style.display = (remainingMs > 0 && remainingMs <= finalAtMs) ? "inline-flex" : "none";
 
-    // overtime
+    // overtime chip
     if(overtimeMs > 0){
       chipOver.style.display = "inline-flex";
       chipOver.textContent = `Overtime +${OMJN.formatMMSS(overtimeMs)}`;
@@ -139,6 +196,9 @@
     } else {
       chipOver.style.display = "none";
     }
+
+    // cues on main card (pulse + overtime flash)
+    applyCardCues(remainingMs, warnAtMs, finalAtMs);
 
     // next line
     const [n1] = OMJN.computeNextTwo(state);
@@ -167,6 +227,7 @@
     // media
     await setMedia(cur);
 
+    // hide media column entirely if nothing exists (no awkward blanks)
     const hasImage = !!(cur.media && cur.media.imageAssetId && ["IMAGE_ONLY","QR_ONLY","IMAGE_PLUS_QR"].includes(cur.media.mediaLayout));
     const hasLink = !!(cur.media && cur.media.donationUrl);
     if(!hasImage && !hasLink){
@@ -177,7 +238,6 @@
       overlay.style.gridTemplateColumns = "1.25fr .75fr";
     }
 
-    // keep background as splash or could be dark; use splash for consistency
     setBg();
   }
 
@@ -191,13 +251,13 @@
 
   // animate timer locally without spamming BroadcastChannel
   function tick(){
-    // Only rerender parts that need to update every frame? For MVP, rerender is fine.
     render().catch(()=>{});
   }
 
   // Subscribe to state updates
   OMJN.subscribe((s) => {
     state = s;
+    OMJN.applyThemeToDocument(document, state);
     render().catch(()=>{});
   });
 
@@ -205,49 +265,3 @@
   render().catch(()=>{});
   setInterval(tick, 250);
 })();
-  function clearCardCues(){
-    if(!vMainCard) return;
-    vMainCard.classList.remove("pulseWarn","pulseFinal","overtimeFlash");
-    if(overtimeFlashTimeout){
-      clearTimeout(overtimeFlashTimeout);
-      overtimeFlashTimeout = null;
-    }
-  }
-
-  function triggerOvertimeFlash(){
-    if(!vMainCard) return;
-    // Remove pulse so flash stands out
-    vMainCard.classList.remove("pulseWarn","pulseFinal");
-
-    // Restart animation reliably
-    vMainCard.classList.remove("overtimeFlash");
-    void vMainCard.offsetWidth; // force reflow
-    vMainCard.classList.add("overtimeFlash");
-
-    if(overtimeFlashTimeout) clearTimeout(overtimeFlashTimeout);
-    overtimeFlashTimeout = setTimeout(() => {
-      vMainCard.classList.remove("overtimeFlash");
-      overtimeFlashTimeout = null;
-    }, 1150);
-  }
-
-  function applyCardCues(remainingMs, warnAtMs, finalAtMs){
-    if(!vMainCard) return;
-
-    // Detect transition into overtime for one-time flash
-    if(lastRemainingMs !== null && lastRemainingMs > 0 && remainingMs <= 0){
-      triggerOvertimeFlash();
-    }
-
-    // Pulse behavior only while time is still remaining
-    vMainCard.classList.remove("pulseWarn","pulseFinal");
-    if(remainingMs > 0 && remainingMs <= warnAtMs && remainingMs > finalAtMs){
-      vMainCard.classList.add("pulseWarn");
-    } else if(remainingMs > 0 && remainingMs <= finalAtMs){
-      vMainCard.classList.add("pulseFinal");
-    }
-
-    lastRemainingMs = remainingMs;
-  }
-
-
