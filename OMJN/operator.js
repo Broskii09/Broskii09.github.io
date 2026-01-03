@@ -45,6 +45,10 @@
     importFile: document.getElementById("importFile"),
     btnReset: document.getElementById("btnReset"),
 
+    btnSettings: document.getElementById("btnSettings"),
+    settingsModal: document.getElementById("settingsModal"),
+    btnCloseSettings: document.getElementById("btnCloseSettings"),
+
     statusLine: document.getElementById("statusLine"),
     kpiCurrent: document.getElementById("kpiCurrent"),
     kpiNext: document.getElementById("kpiNext"),
@@ -1450,7 +1454,23 @@ els.editLayout.addEventListener("change", () => {
     els.addCustomMinutesWrap.style.display = isCustom ? "block" : "none";
   }
 
-  function bind(){
+  
+  function openSettingsModal(){
+    if(!els.settingsModal) return;
+    els.settingsModal.hidden = false;
+    document.body.classList.add("modalOpen");
+    // focus close for quick escape
+    setTimeout(() => { els.btnCloseSettings?.focus?.(); }, 0);
+  }
+
+  function closeSettingsModal(){
+    if(!els.settingsModal) return;
+    els.settingsModal.hidden = true;
+    document.body.classList.remove("modalOpen");
+    els.btnSettings?.focus?.();
+  }
+
+function bind(){
     // initial select options
     fillTypeSelect(els.addType, false);
     fillTypeSelect(els.editType, true);
@@ -1522,6 +1542,17 @@ els.showTitle.addEventListener("input", () => {
       if(file) importJSON(file);
     });
 
+    // Settings modal
+    els.btnSettings.addEventListener("click", openSettingsModal);
+    els.btnCloseSettings.addEventListener("click", closeSettingsModal);
+    els.settingsModal.addEventListener("mousedown", (e) => {
+      if(e.target === els.settingsModal) closeSettingsModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if(e.key === "Escape" && !els.settingsModal.hidden) closeSettingsModal();
+    });
+
+
     
     // Queue drag/drop (bind once)
     els.queue.addEventListener("dragover", (e) => {
@@ -1572,6 +1603,8 @@ bindEditor();
     }
 
     function handleHotkeys(e){
+      // disable shortcuts while Settings modal is open
+      if(els.settingsModal && !els.settingsModal.hidden) return;
       if(state.operatorPrefs?.hotkeysEnabled === false) return;
 
       const isMac = navigator.platform.toLowerCase().includes("mac");

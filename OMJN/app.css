@@ -379,3 +379,56 @@ details:not([open]) > summary .chev::before{content:"▸";}
   35%  { background: var(--overtime-flash-bg); }
   100% { background: var(--card-bg); }
 }
+
+
+/* Modal */
+body.modalOpen{ overflow:hidden; }
+
+.modalOverlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.65);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  z-index:9999;
+}
+
+.modalPanel{
+  width:min(1040px, 96vw);
+  max-height:92vh;
+  overflow:auto;
+  background:var(--panel);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.modalHeader{
+  position:sticky;
+  top:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px 16px;
+  background:linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,0));
+  backdrop-filter: blur(6px);
+  border-bottom:1px solid rgba(255,255,255,.10);
+}
+
+.modalTitle h2{
+  margin:0;
+  font-size:18px;
+  letter-spacing:.3px;
+}
+
+.modalBody{
+  padding:16px;
+}
+
+/* Inside modal, nested cards look better without huge margin */
+.modalBody .card.nested{
+  margin-top:0;
+}
