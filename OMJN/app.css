@@ -15,8 +15,8 @@
 
   /* Viewer card + time cue vars (overridden by Settings) */
   --card-bg: rgba(0,0,0,.90);
-  --pulse-warn-bg: rgba(0, 180, 255, .12);
-  --pulse-final-bg: rgba(0, 220, 200, .18);
+  --pulse-warn-bg: rgba(0, 180, 255, .50);
+  --pulse-final-bg: rgba(0, 220, 200, .80);
   --overtime-flash-bg: rgba(255, 0, 0, .85);
   --pulse-warn-dur: 3.2s;
   --pulse-final-dur: 1.4s;
