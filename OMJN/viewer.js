@@ -40,7 +40,7 @@
   let currentAssetUrl = null;
 
   function setBg(){
-    const path = state.splash?.backgroundAssetPath || "./assets/splash.svg";
+      const path = state.splash?.backgroundAssetPath || "./assets/OpenMicBG.jpg";
     bg.style.backgroundImage = `url('${path}')`;
   }
 
