@@ -58,47 +58,132 @@
 
         <hr class="sep"/>
 
-        <div class="row" style="margin-bottom:10px;">
-          <div class="field" style="flex:1 1 260px;">
-            <label>Show Title</label>
-            <input id="showTitle" type="text" placeholder="Open Mic & Jam Night"/>
+        <details class="card nested" id="settingsCard">
+          <summary class="cardHeader collapsibleHeader">
+            <h2>Settings</h2>
+            <div class="small">Theme · Viewer cues · Slot types</div>
+            <span class="chev" aria-hidden="true"></span>
+          </summary>
+          <div class="cardBody">
+
+            <div class="row" style="margin-bottom:10px;">
+              <span class="pill" title="Prevents accidental starts">
+                Start Confirm
+                <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                  <input type="checkbox" id="startGuard"/>
+                  <span class="small">on</span>
+                </label>
+              </span>
+
+              <span class="pill" title="Prevents accidental end-to-splash while live">
+                End Confirm
+                <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                  <input type="checkbox" id="endGuard"/>
+                  <span class="small">on</span>
+                </label>
+              </span>
+
+              <span class="pill" title="Keyboard shortcuts for fast hosting">
+                Hotkeys
+                <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                  <input type="checkbox" id="hotkeysEnabled"/>
+                  <span class="small">on</span>
+                </label>
+              </span>
+
+              <span class="pill" title="Collapse or expand the editor card">
+                Collapse Editor
+                <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                  <input type="checkbox" id="prefCollapseEditor"/>
+                  <span class="small">on</span>
+                </label>
+              </span>
+
+              <div class="spacer"></div>
+              <div class="small">Shortcuts: Space Start/Pause/Resume · N End · Ctrl+Z Undo</div>
+            </div>
+
+            <hr class="sep"/>
+
+            <h3 class="subhead">Theme</h3>
+            <div class="row wrap">
+              <div class="field" style="flex:1 1 180px;">
+                <label>Background</label>
+                <input id="setBgColor" type="color"/>
+              </div>
+              <div class="field" style="flex:1 1 180px;">
+                <label>Panel</label>
+                <input id="setPanelColor" type="color"/>
+              </div>
+              <div class="field" style="flex:1 1 180px;">
+                <label>Accent</label>
+                <input id="setAccentColor" type="color"/>
+              </div>
+              <div class="field" style="flex:1 1 180px;">
+                <label>Text</label>
+                <input id="setTextColor" type="color"/>
+              </div>
+            </div>
+
+            <div class="row wrap" style="margin-top:10px;">
+              <div class="field" style="flex:1 1 180px;">
+                <label>Viewer Card Color</label>
+                <input id="setCardColor" type="color"/>
+              </div>
+              <div class="field" style="flex:1 1 240px;">
+                <label>Viewer Card Opacity</label>
+                <input id="setCardOpacity" type="range" min="0.50" max="1.00" step="0.01"/>
+                <div class="small mono" id="setCardOpacityVal">0.90</div>
+              </div>
+            </div>
+
+            <hr class="sep"/>
+
+            <h3 class="subhead">Viewer time cues</h3>
+            <div class="row wrap">
+              <div class="field" style="flex:1 1 180px;">
+                <label>2:00 Pulse Color</label>
+                <input id="setWarnColor" type="color"/>
+              </div>
+              <div class="field" style="flex:1 1 220px;">
+                <label>2:00 Pulse Speed (sec)</label>
+                <input id="setWarnSpeed" type="number" min="0.6" step="0.1"/>
+              </div>
+              <div class="field" style="flex:1 1 180px;">
+                <label>0:30 Pulse Color</label>
+                <input id="setFinalColor" type="color"/>
+              </div>
+              <div class="field" style="flex:1 1 220px;">
+                <label>0:30 Pulse Speed (sec)</label>
+                <input id="setFinalSpeed" type="number" min="0.4" step="0.1"/>
+              </div>
+              <div class="field" style="flex:1 1 180px;">
+                <label>Overtime Flash Color</label>
+                <input id="setOvertimeColor" type="color"/>
+              </div>
+            </div>
+
+            <hr class="sep"/>
+
+            <h3 class="subhead">Slot types</h3>
+            <div class="small" style="margin-bottom:8px;">Defaults for new signups. You can still override minutes per performer.</div>
+            <div id="slotTypesEditor" class="slotTypesEditor"></div>
+
+            <hr class="sep"/>
+
+            <h3 class="subhead">Backup</h3>
+            <div class="row">
+              <button class="btn small" id="btnExportSettings">Export Settings</button>
+              <label class="btn small" for="importSettingsFile" style="cursor:pointer;">Import Settings</label>
+              <input id="importSettingsFile" type="file" accept="application/json" hidden />
+              <button class="btn small danger" id="btnResetSettings">Reset Settings</button>
+              <div class="spacer"></div>
+              <div class="small">Move your theme and slot defaults to a new computer.</div>
+            </div>
+
           </div>
-          <div class="field" style="flex:1 1 260px;">
-            <label>Splash Background (URL/path)</label>
-            <input id="splashPath" type="text" placeholder="./assets/splash.svg"/>
-            <div class="small">Tip: Replace <span class="mono">/assets/splash.svg</span> with your own full-screen 16:9 graphic.</div>
-          </div>
-        </div>
+        </details>
 
-        
-        <div class="row" style="margin-bottom:10px;">
-          <span class="pill" title="Prevents accidental starts">
-            Start Confirm
-            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-              <input type="checkbox" id="startGuard"/>
-              <span class="small">on</span>
-            </label>
-          </span>
-
-          <span class="pill" title="Prevents accidental end-to-splash while live">
-            End Confirm
-            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-              <input type="checkbox" id="endGuard"/>
-              <span class="small">on</span>
-            </label>
-          </span>
-
-          <span class="pill" title="Keyboard shortcuts for fast hosting">
-            Hotkeys
-            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-              <input type="checkbox" id="hotkeysEnabled"/>
-              <span class="small">on</span>
-            </label>
-          </span>
-
-          <div class="spacer"></div>
-          <div class="small">Shortcuts: Space Start/Pause/Resume · N End · Ctrl+Z Undo</div>
-        </div>
 <div class="queue" id="queue"></div>
       </div>
     </div>
@@ -132,6 +217,9 @@
             <button class="btn danger" id="btnEnd">End → Splash</button>
             <button class="btn" id="btnUndo" title="Undo (Ctrl+Z)">Undo</button>
             <button class="btn" id="btnRedo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+            </div>
+
+          <div class="row" style="margin-top:10px;">
             <div class="spacer"></div>
             <button class="btn tiny" id="btnMinus1">-1m</button>
             <button class="btn tiny" id="btnMinus5">-5m</button>
@@ -139,6 +227,7 @@
             <button class="btn tiny" id="btnPlus5">+5m</button>
             <button class="btn tiny" id="btnResetTime">Reset Time</button>
           </div>
+
 
           <div style="margin-top:10px;">
             <div class="timerSub">Elapsed / Remaining</div>
@@ -148,11 +237,12 @@
         </div>
       </div>
 
-      <div class="card" id="editCard">
-        <div class="cardHeader">
+      <details class="card" id="editCard" open>
+        <summary class="cardHeader collapsibleHeader">
           <h2>Edit Selected</h2>
           <div class="small mono" id="selId">—</div>
-        </div>
+          <span class="chev" aria-hidden="true"></span>
+        </summary>
         <div class="cardBody">
           <div class="field">
             <label>Name (viewer)</label>
@@ -231,7 +321,7 @@
           </div>
 
         </div>
-      </div>
+      </details>
 
     </div>
   </div>

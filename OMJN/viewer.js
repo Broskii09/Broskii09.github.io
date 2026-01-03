@@ -1,6 +1,7 @@
 /* Viewer UI */
 (() => {
   let state = OMJN.loadState();
+  OMJN.applyThemeToDocument(document, state);
   let lastRemainingMs = null;
   let overtimeFlashTimeout = null;
 

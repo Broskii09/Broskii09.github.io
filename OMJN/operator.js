@@ -1,6 +1,7 @@
 /* Operator UI + actions */
 (() => {
   let state = OMJN.loadState();
+  OMJN.applyThemeToDocument(document, state);
   ensureProfilesShape(state);
   const els = {
     queue: document.getElementById("queue"),
@@ -20,6 +21,25 @@
     startGuard: document.getElementById("startGuard"),
     endGuard: document.getElementById("endGuard"),
     hotkeysEnabled: document.getElementById("hotkeysEnabled"),
+
+    // Settings
+    prefCollapseEditor: document.getElementById("prefCollapseEditor"),
+    setBgColor: document.getElementById("setBgColor"),
+    setPanelColor: document.getElementById("setPanelColor"),
+    setAccentColor: document.getElementById("setAccentColor"),
+    setTextColor: document.getElementById("setTextColor"),
+    setCardColor: document.getElementById("setCardColor"),
+    setCardOpacity: document.getElementById("setCardOpacity"),
+    setCardOpacityVal: document.getElementById("setCardOpacityVal"),
+    setWarnColor: document.getElementById("setWarnColor"),
+    setWarnSpeed: document.getElementById("setWarnSpeed"),
+    setFinalColor: document.getElementById("setFinalColor"),
+    setFinalSpeed: document.getElementById("setFinalSpeed"),
+    setOvertimeColor: document.getElementById("setOvertimeColor"),
+    slotTypesEditor: document.getElementById("slotTypesEditor"),
+    btnExportSettings: document.getElementById("btnExportSettings"),
+    importSettingsFile: document.getElementById("importSettingsFile"),
+    btnResetSettings: document.getElementById("btnResetSettings"),
 
     btnExport: document.getElementById("btnExport"),
     importFile: document.getElementById("importFile"),
@@ -42,6 +62,7 @@
     btnResetTime: document.getElementById("btnResetTime"),
     timerLine: document.getElementById("timerLine"),
 
+    editCard: document.getElementById("editCard"),
     selId: document.getElementById("selId"),
     editName: document.getElementById("editName"),
     editType: document.getElementById("editType"),
@@ -169,7 +190,7 @@
 
 
   function visibleSlotTypes(){
-    return state.slotTypes.filter(t => state.features.jamEnabled ? true : !t.isJamMode);
+    return state.slotTypes.filter(t => (t.enabled !== false) && (state.features.jamEnabled ? true : !t.isJamMode));
   }
 
   function ensureSelectedValid(){
@@ -185,6 +206,7 @@
     ensureProfilesShape(next);
 
     state = next;
+    OMJN.applyThemeToDocument(document, state);
     publish();
     render();
   }
@@ -206,7 +228,300 @@
     setState(s);
   }
 
-  function fillTypeSelect(selectEl, includeJam){
+  
+  function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+  function renderSlotTypesEditor(){
+    if(!els.slotTypesEditor) return;
+    els.slotTypesEditor.innerHTML = "";
+    const order = ["musician","comedian","custom","jam"];
+    const types = [...(state.slotTypes||[])].sort((a,b)=>{
+      const ia = order.indexOf(a.id); const ib = order.indexOf(b.id);
+      if(ia===-1 && ib===-1) return String(a.label).localeCompare(String(b.label));
+      if(ia===-1) return 1;
+      if(ib===-1) return -1;
+      return ia-ib;
+    });
+
+    for(const t of types){
+      const row = document.createElement("div");
+      row.className = "slotTypeRow";
+      row.dataset.id = t.id;
+
+      const dot = document.createElement("div");
+      dot.className = "slotTypeDot";
+      dot.style.background = t.color || "#00c2ff";
+      row.appendChild(dot);
+
+      const fEn = document.createElement("div");
+      fEn.className = "field";
+      fEn.style.flex = "0 0 auto";
+      const labEn = document.createElement("label");
+      labEn.textContent = "On";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = (t.enabled !== false);
+      cb.disabled = (t.id === "custom" || t.id === "jam");
+      cb.addEventListener("change", () => {
+        updateState(s => {
+          const tt = s.slotTypes.find(x=>x.id===t.id);
+          if(tt) tt.enabled = cb.checked;
+        }, { recordHistory:false });
+      });
+      fEn.appendChild(labEn);
+      fEn.appendChild(cb);
+      row.appendChild(fEn);
+
+      const fColor = document.createElement("div");
+      fColor.className = "field";
+      fColor.style.flex = "0 0 120px";
+      const labC = document.createElement("label");
+      labC.textContent = "Color";
+      const col = document.createElement("input");
+      col.type = "color";
+      col.value = t.color || "#00c2ff";
+      col.addEventListener("input", () => {
+        dot.style.background = col.value;
+        updateState(s => {
+          const tt = s.slotTypes.find(x=>x.id===t.id);
+          if(tt) tt.color = col.value;
+        }, { recordHistory:false });
+      });
+      fColor.appendChild(labC);
+      fColor.appendChild(col);
+      row.appendChild(fColor);
+
+      const fLabel = document.createElement("div");
+      fLabel.className = "field";
+      fLabel.style.flex = "1 1 220px";
+      const labL = document.createElement("label");
+      labL.textContent = "Title";
+      const inpL = document.createElement("input");
+      inpL.type = "text";
+      inpL.value = t.label || t.id;
+      inpL.addEventListener("input", () => {
+        updateState(s => {
+          const tt = s.slotTypes.find(x=>x.id===t.id);
+          if(tt) tt.label = inpL.value;
+        }, { recordHistory:false });
+      });
+      fLabel.appendChild(labL);
+      fLabel.appendChild(inpL);
+      row.appendChild(fLabel);
+
+      const fMin = document.createElement("div");
+      fMin.className = "field";
+      fMin.style.flex = "0 0 140px";
+      const labM = document.createElement("label");
+      labM.textContent = "Default (min)";
+      const inpM = document.createElement("input");
+      inpM.type = "number";
+      inpM.min = "1";
+      inpM.step = "1";
+      inpM.value = String(t.defaultMinutes ?? 15);
+      inpM.addEventListener("change", () => {
+        const val = clamp(parseInt(inpM.value||"0",10) || 0, 1, 240);
+        inpM.value = String(val);
+        updateState(s => {
+          const tt = s.slotTypes.find(x=>x.id===t.id);
+          if(tt) tt.defaultMinutes = val;
+        }, { recordHistory:false });
+      });
+      fMin.appendChild(labM);
+      fMin.appendChild(inpM);
+
+      if(t.isJamMode){
+        const meta = document.createElement("div");
+        meta.className = "tinyMeta";
+        meta.textContent = "Jam";
+        labM.appendChild(meta);
+      }
+
+      row.appendChild(fMin);
+
+      els.slotTypesEditor.appendChild(row);
+    }
+  }
+
+  function renderSettings(){
+    const st = state.settings || {};
+    const vars = st.theme?.vars || {};
+    if(els.setBgColor) els.setBgColor.value = vars.bg || "#0b172e";
+    if(els.setPanelColor) els.setPanelColor.value = vars.panel || "#0f2140";
+    if(els.setAccentColor) els.setAccentColor.value = vars.accent || "#00c2ff";
+    if(els.setTextColor) els.setTextColor.value = vars.text || "#e7eefb";
+
+    const card = st.theme?.viewerCard || { hex:"#000000", opacity:0.90 };
+    if(els.setCardColor) els.setCardColor.value = card.hex || "#000000";
+    if(els.setCardOpacity){
+      els.setCardOpacity.value = String(card.opacity ?? 0.90);
+      if(els.setCardOpacityVal) els.setCardOpacityVal.textContent = Number(card.opacity ?? 0.90).toFixed(2);
+    }
+
+    const cues = st.viewerCues || {};
+    if(els.setWarnColor) els.setWarnColor.value = cues.warnHex || "#00c2ff";
+    if(els.setWarnSpeed) els.setWarnSpeed.value = String(cues.warnDurSec ?? 3.2);
+    if(els.setFinalColor) els.setFinalColor.value = cues.finalHex || "#2dd4bf";
+    if(els.setFinalSpeed) els.setFinalSpeed.value = String(cues.finalDurSec ?? 1.4);
+    if(els.setOvertimeColor) els.setOvertimeColor.value = cues.overtimeHex || "#ff0000";
+
+    if(els.prefCollapseEditor){
+      els.prefCollapseEditor.checked = !!state.operatorPrefs?.editCollapsed;
+    }
+
+    renderSlotTypesEditor();
+  }
+
+  function bindSettings(){
+    function bindColor(inputEl, key){
+      if(!inputEl) return;
+      inputEl.addEventListener("input", () => {
+        updateState(s => {
+          s.settings = s.settings || {};
+          s.settings.theme = s.settings.theme || {};
+          s.settings.theme.vars = s.settings.theme.vars || {};
+          s.settings.theme.vars[key] = inputEl.value;
+        }, { recordHistory:false });
+      });
+    }
+    bindColor(els.setBgColor, "bg");
+    bindColor(els.setPanelColor, "panel");
+    bindColor(els.setAccentColor, "accent");
+    bindColor(els.setTextColor, "text");
+
+    if(els.setCardColor){
+      els.setCardColor.addEventListener("input", () => {
+        updateState(s => {
+          s.settings = s.settings || {};
+          s.settings.theme = s.settings.theme || {};
+          s.settings.theme.viewerCard = s.settings.theme.viewerCard || { hex:"#000000", opacity:0.90 };
+          s.settings.theme.viewerCard.hex = els.setCardColor.value;
+        }, { recordHistory:false });
+      });
+    }
+    if(els.setCardOpacity){
+      els.setCardOpacity.addEventListener("input", () => {
+        const val = clamp(parseFloat(els.setCardOpacity.value||"0.9"), 0.5, 1);
+        if(els.setCardOpacityVal) els.setCardOpacityVal.textContent = val.toFixed(2);
+        updateState(s => {
+          s.settings = s.settings || {};
+          s.settings.theme = s.settings.theme || {};
+          s.settings.theme.viewerCard = s.settings.theme.viewerCard || { hex:"#000000", opacity:0.90 };
+          s.settings.theme.viewerCard.opacity = val;
+        }, { recordHistory:false });
+      });
+    }
+
+    function bindCueColor(inputEl, key){
+      if(!inputEl) return;
+      inputEl.addEventListener("input", () => {
+        updateState(s => {
+          s.settings = s.settings || {};
+          s.settings.viewerCues = s.settings.viewerCues || {};
+          s.settings.viewerCues[key] = inputEl.value;
+        }, { recordHistory:false });
+      });
+    }
+    bindCueColor(els.setWarnColor, "warnHex");
+    bindCueColor(els.setFinalColor, "finalHex");
+    bindCueColor(els.setOvertimeColor, "overtimeHex");
+
+    function bindCueNumber(inputEl, key, min, max){
+      if(!inputEl) return;
+      inputEl.addEventListener("change", () => {
+        const val = clamp(parseFloat(inputEl.value||"0"), min, max);
+        inputEl.value = String(val);
+        updateState(s => {
+          s.settings = s.settings || {};
+          s.settings.viewerCues = s.settings.viewerCues || {};
+          s.settings.viewerCues[key] = val;
+        }, { recordHistory:false });
+      });
+    }
+    bindCueNumber(els.setWarnSpeed, "warnDurSec", 0.6, 30);
+    bindCueNumber(els.setFinalSpeed, "finalDurSec", 0.4, 30);
+
+    if(els.startGuard){
+      els.startGuard.addEventListener("change", () => updateState(s => { s.operatorPrefs.startGuard = !!els.startGuard.checked; }, { recordHistory:false }));
+    }
+    if(els.endGuard){
+      els.endGuard.addEventListener("change", () => updateState(s => { s.operatorPrefs.endGuard = !!els.endGuard.checked; }, { recordHistory:false }));
+    }
+    if(els.hotkeysEnabled){
+      els.hotkeysEnabled.addEventListener("change", () => updateState(s => { s.operatorPrefs.hotkeysEnabled = !!els.hotkeysEnabled.checked; }, { recordHistory:false }));
+    }
+
+    if(els.prefCollapseEditor){
+      els.prefCollapseEditor.addEventListener("change", () => {
+        const collapsed = !!els.prefCollapseEditor.checked;
+        updateState(s => { s.operatorPrefs.editCollapsed = collapsed; }, { recordHistory:false });
+        if(els.editCard) els.editCard.open = !collapsed;
+      });
+    }
+    if(els.editCard){
+      els.editCard.addEventListener("toggle", () => {
+        const collapsed = !els.editCard.open;
+        if(els.prefCollapseEditor) els.prefCollapseEditor.checked = collapsed;
+        updateState(s => { s.operatorPrefs.editCollapsed = collapsed; }, { recordHistory:false });
+      });
+    }
+
+    if(els.btnExportSettings){
+      els.btnExportSettings.addEventListener("click", () => {
+        const payload = {
+          version: 1,
+          exportedAt: Date.now(),
+          settings: state.settings,
+          slotTypes: state.slotTypes,
+          viewerPrefs: state.viewerPrefs
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "omjn-settings.json";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 500);
+      });
+    }
+
+    if(els.importSettingsFile){
+      els.importSettingsFile.addEventListener("change", async (e) => {
+        const file = e.target.files?.[0];
+        if(!file) return;
+        try{
+          const text = await file.text();
+          const imported = JSON.parse(text);
+          if(!imported || typeof imported !== "object") throw new Error("Invalid file");
+          updateState(s => {
+            if(imported.settings) s.settings = imported.settings;
+            if(Array.isArray(imported.slotTypes) && imported.slotTypes.length) s.slotTypes = imported.slotTypes;
+            if(imported.viewerPrefs) s.viewerPrefs = imported.viewerPrefs;
+          }, { recordHistory:false });
+        }catch(err){
+          alert("Settings import failed: " + err.message);
+        }finally{
+          els.importSettingsFile.value = "";
+        }
+      });
+    }
+
+    if(els.btnResetSettings){
+      els.btnResetSettings.addEventListener("click", () => {
+        if(!confirm("Reset settings (theme, cues, slot types) back to defaults?")) return;
+        updateState(s => {
+          const d = OMJN.defaultState();
+          s.settings = d.settings;
+          s.slotTypes = d.slotTypes;
+          s.viewerPrefs = d.viewerPrefs;
+        }, { recordHistory:false });
+      });
+    }
+  }
+
+function fillTypeSelect(selectEl, includeJam){
     selectEl.innerHTML = "";
     for(const t of (includeJam ? state.slotTypes : visibleSlotTypes())){
       const opt = document.createElement("option");
@@ -237,6 +552,7 @@
     if(slot.status !== "QUEUED") div.classList.add("notQueued");
     div.draggable = (slot.status === "QUEUED") && (slot.id !== state.currentSlotId);
     div.dataset.id = slot.id;
+    if(t?.color) div.style.borderLeft = `6px solid ${t.color}`;
 
     if(div.draggable){
       div.addEventListener("dragstart", (e) => {
@@ -597,6 +913,15 @@ function renderKPIs(){
     els.startGuard.checked = !!state.operatorPrefs?.startGuard;
     els.endGuard.checked = !!state.operatorPrefs?.endGuard;
     els.hotkeysEnabled.checked = (state.operatorPrefs?.hotkeysEnabled !== false);
+
+    if(els.editCard) els.editCard.open = !state.operatorPrefs?.editCollapsed;
+
+    renderSettings();
+
+    // Editor collapse
+    if(els.editCard) els.editCard.open = !state.operatorPrefs?.editCollapsed;
+
+    renderSettings();
 
     // Undo/redo buttons
     els.btnUndo.disabled = !undoStack.length;
@@ -1130,6 +1455,7 @@ els.editLayout.addEventListener("change", () => {
     fillTypeSelect(els.addType, false);
     fillTypeSelect(els.editType, true);
     toggleCustomAddFields();
+    bindSettings();
     els.addType.addEventListener("change", toggleCustomAddFields);
 
     els.addName.addEventListener("keydown", (e) => {

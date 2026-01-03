@@ -19,17 +19,26 @@ const OMJN = (() => {
       showTitle: "Open Mic & Jam Night",
       phase: "SPLASH", // SPLASH | LIVE | PAUSED
       features: { jamEnabled: false },
-      operatorPrefs: { startGuard: true, endGuard: true, hotkeysEnabled: true },
+      operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false },
       profiles: {},
       splash: { backgroundAssetPath: "./assets/splash.svg", showNextTwo: true },
       viewerPrefs: { warnAtSec: 120, finalAtSec: 30, showOvertime: true, showProgressBar: true },
+      settings: {
+        theme: {
+          vars: { bg:"#0b172e", panel:"#0f2140", panel2:"#132a52", text:"#e7eefb", muted:"#a5b4d6", accent:"#00c2ff" },
+          viewerCard: { hex:"#000000", opacity:0.90 }
+        },
+        viewerCues: {
+          warnHex:"#00c2ff", warnAlpha:0.12, warnDurSec:3.2,
+          finalHex:"#2dd4bf", finalAlpha:0.18, finalDurSec:1.4,
+          overtimeHex:"#ff0000", overtimeAlpha:0.85
+        }
+      },
       slotTypes: [
-        { id:"standard", label:"Standard", defaultMinutes:15, isJamMode:false },
-        { id:"quick", label:"Quick", defaultMinutes:5, isJamMode:false },
-        { id:"feature", label:"Feature", defaultMinutes:20, isJamMode:false },
-        { id:"band", label:"Band", defaultMinutes:25, isJamMode:false },
-        { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false },
-        { id:"jam", label:"Jam Block", defaultMinutes:15, isJamMode:true },
+        { id:"musician", label:"Musician", defaultMinutes:15, isJamMode:false, color:"#00c2ff", enabled:true },
+        { id:"comedian", label:"Comedian", defaultMinutes:10, isJamMode:false, color:"#2dd4bf", enabled:true },
+        { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
+        { id:"jam", label:"Jam", defaultMinutes:5, isJamMode:true, color:"#8b5cf6", enabled:true },
       ],
       queue: [],
       currentSlotId: null,
@@ -42,30 +51,87 @@ const OMJN = (() => {
   function loadState(){
     try{
       const raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return defaultState();
+      const d = defaultState();
+      if(!raw) return d;
+
       const s = JSON.parse(raw);
-      // minimal migration hooks
+
       if(!s.version) s.version = 1;
       if(!s.features) s.features = { jamEnabled: false };
-      if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true };
+
+      if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false };
+      if(s.operatorPrefs.editCollapsed === undefined) s.operatorPrefs.editCollapsed = false;
+
       if(!s.profiles) s.profiles = {};
       if(!s.splash) s.splash = { backgroundAssetPath: "./assets/splash.svg", showNextTwo: true };
-      if(!s.viewerPrefs) s.viewerPrefs = { warnAtSec: 120, finalAtSec: 30, showOvertime: true, showProgressBar: true };
+      if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
+      if(!s.settings) s.settings = d.settings;
+
       if(!s.assetsIndex) s.assetsIndex = {};
-      // Ensure slotTypes include Custom (migration)
-      if(Array.isArray(s.slotTypes) && !s.slotTypes.some(t=>t.id==="custom")){
-        // insert before Jam if present, else at end
-        const jamIdx = s.slotTypes.findIndex(t=>t.id==="jam");
-        const insertAt = jamIdx >= 0 ? jamIdx : s.slotTypes.length;
-        s.slotTypes.splice(insertAt, 0, { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false });
+      if(!Array.isArray(s.queue)) s.queue = [];
+      if(!s.timer) s.timer = { running:false, startedAt:0, pausedAt:0, accumulatedPauseMs:0, baseDurationMs:0 };
+      if(!s.phase) s.phase = "SPLASH";
+      if(s.currentSlotId === undefined) s.currentSlotId = null;
+      if(s.selectedNextId === undefined) s.selectedNextId = null;
+      if(!s.history) s.history = { undo:[], redo:[] };
+
+      // Slot types + migration from older templates
+      if(!Array.isArray(s.slotTypes) || !s.slotTypes.length){
+        s.slotTypes = d.slotTypes;
       }
-      if(!s.selectedNextId) s.selectedNextId = s.currentSlotId ? null : (s.queue?.find(x=>x.status==="QUEUED")?.id ?? null);
+
+      const isOldDefaults =
+        Array.isArray(s.slotTypes) &&
+        s.slotTypes.length >= 5 &&
+        s.slotTypes.some(t=>t.id==="standard" && t.label==="Standard") &&
+        s.slotTypes.some(t=>t.id==="feature" && t.label==="Feature");
+
+      if(isOldDefaults){
+        s.slotTypes = d.slotTypes;
+        const map = { standard:"musician", band:"musician", quick:"musician", feature:"comedian", custom:"custom", jam:"jam" };
+        for(const slot of s.queue){
+          if(map[slot.slotTypeId]) slot.slotTypeId = map[slot.slotTypeId];
+          if(!s.slotTypes.find(t=>t.id===slot.slotTypeId)){
+            slot.slotTypeId = "musician";
+          }
+        }
+      }
+
+      // Ensure core types exist (custom + jam included)
+      for(const core of d.slotTypes){
+        if(!s.slotTypes.some(t=>t.id===core.id)){
+          s.slotTypes.push({ ...core });
+        }
+      }
+
+      // Ensure slotType fields exist
+      for(const t of s.slotTypes){
+        if(t.enabled === undefined) t.enabled = true;
+        if(!t.color) t.color = "#00c2ff";
+        if(t.defaultMinutes === undefined) t.defaultMinutes = 15;
+        if(t.isJamMode === undefined) t.isJamMode = false;
+        if(!t.label) t.label = t.id;
+      }
+
+      // Normalize queue slots and fix unknown type ids
+      for(const slot of s.queue){
+        normalizeSlot(slot);
+        if(!s.slotTypes.find(t=>t.id===slot.slotTypeId)){
+          slot.slotTypeId = "musician";
+        }
+      }
+
+      if(s.selectedNextId === null && !s.currentSlotId){
+        s.selectedNextId = (s.queue.find(x=>x.status==="QUEUED")?.id ?? null);
+      }
+
       return s;
     }catch(e){
       console.warn("Failed to load state, resetting:", e);
       return defaultState();
     }
   }
+
 
   function saveState(state){
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -253,6 +319,60 @@ function ensureJamShape(slot){
   function sanitizeText(s){
     return String(s ?? "").replace(/\s+/g," ").trim();
   }
+
+  function hexToRgb(hex){
+    const h = String(hex || "").trim().replace(/^#/, "");
+    if(h.length === 3){
+      const r = parseInt(h[0]+h[0], 16);
+      const g = parseInt(h[1]+h[1], 16);
+      const b = parseInt(h[2]+h[2], 16);
+      return { r, g, b };
+    }
+    if(h.length !== 6) return null;
+    const r = parseInt(h.slice(0,2), 16);
+    const g = parseInt(h.slice(2,4), 16);
+    const b = parseInt(h.slice(4,6), 16);
+    if(Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
+    return { r, g, b };
+  }
+
+  function rgbaFromHex(hex, a){
+    const rgb = hexToRgb(hex);
+    if(!rgb) return null;
+    const alpha = Math.max(0, Math.min(1, Number(a)));
+    return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+  }
+
+  function applyThemeToDocument(doc, state){
+    try{
+      const root = doc?.documentElement;
+      if(!root) return;
+
+      const vars = state?.settings?.theme?.vars || {};
+      for(const [k,v] of Object.entries(vars)){
+        if(v) root.style.setProperty(`--${k}`, v);
+      }
+
+      const card = state?.settings?.theme?.viewerCard || { hex:"#000000", opacity:0.9 };
+      const cardBg = rgbaFromHex(card.hex, card.opacity) || "rgba(0,0,0,.90)";
+      root.style.setProperty("--card-bg", cardBg);
+
+      const cues = state?.settings?.viewerCues || {};
+      const warnBg = rgbaFromHex(cues.warnHex || "#00c2ff", cues.warnAlpha ?? 0.12) || "rgba(0, 180, 255, .12)";
+      const finalBg = rgbaFromHex(cues.finalHex || "#2dd4bf", cues.finalAlpha ?? 0.18) || "rgba(0, 220, 200, .18)";
+      const overBg = rgbaFromHex(cues.overtimeHex || "#ff0000", cues.overtimeAlpha ?? 0.85) || "rgba(255,0,0,.85)";
+
+      root.style.setProperty("--pulse-warn-bg", warnBg);
+      root.style.setProperty("--pulse-final-bg", finalBg);
+      root.style.setProperty("--overtime-flash-bg", overBg);
+
+      const warnDur = (Number(cues.warnDurSec) || 3.2);
+      const finalDur = (Number(cues.finalDurSec) || 1.4);
+      root.style.setProperty("--pulse-warn-dur", `${warnDur}s`);
+      root.style.setProperty("--pulse-final-dur", `${finalDur}s`);
+    }catch(_){}
+  }
+
 
   return {
     uid, defaultState, loadState, saveState, publish, subscribe,
