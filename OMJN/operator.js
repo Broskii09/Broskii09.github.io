@@ -1542,15 +1542,38 @@ els.showTitle.addEventListener("input", () => {
       if(file) importJSON(file);
     });
 
-    // Settings modal
-    els.btnSettings.addEventListener("click", openSettingsModal);
-    els.btnCloseSettings.addEventListener("click", closeSettingsModal);
-    els.settingsModal.addEventListener("mousedown", (e) => {
-      if(e.target === els.settingsModal) closeSettingsModal();
-    });
-    document.addEventListener("keydown", (e) => {
-      if(e.key === "Escape" && !els.settingsModal.hidden) closeSettingsModal();
-    });
+// Settings Modal (robust)
+const settingsModal = document.getElementById("settingsModal");
+const btnSettings = document.getElementById("btnSettings");
+const btnCloseSettings = document.getElementById("btnCloseSettings");
+
+function openSettingsModal(){
+  if(!settingsModal) return;
+  settingsModal.hidden = false;
+}
+
+function closeSettingsModal(){
+  if(!settingsModal) return;
+  settingsModal.hidden = true;
+}
+
+btnSettings?.addEventListener("click", openSettingsModal);
+btnCloseSettings?.addEventListener("click", closeSettingsModal);
+
+// Click outside the panel closes
+settingsModal?.addEventListener("click", (e) => {
+  if(e.target === settingsModal) closeSettingsModal();
+});
+
+// ESC closes
+document.addEventListener("keydown", (e) => {
+  if(e.key === "Escape" && settingsModal && !settingsModal.hidden){
+    closeSettingsModal();
+  }
+});
+
+// Force closed on boot no matter what
+closeSettingsModal();
 
 
     
