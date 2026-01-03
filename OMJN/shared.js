@@ -63,7 +63,7 @@ const OMJN = (() => {
       if(s.operatorPrefs.editCollapsed === undefined) s.operatorPrefs.editCollapsed = false;
 
       if(!s.profiles) s.profiles = {};
-        if (!s.splash) s.splash = { backgroundAssetPath: "./assets/OpenMicBG.jpg", showNextTwo: true };
+        if (!s.splash) s.splash = { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true };
       if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
       // Timer migration: normalize shape
       if(!s.timer) s.timer = { running:false, startedAt:null, pausedAt:null, elapsedMs:0, baseDurationMs:null };
