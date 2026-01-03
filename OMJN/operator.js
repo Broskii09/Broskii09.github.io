@@ -32,10 +32,16 @@
     setCardOpacity: document.getElementById("setCardOpacity"),
     setCardOpacityVal: document.getElementById("setCardOpacityVal"),
     setWarnColor: document.getElementById("setWarnColor"),
+    setWarnAlpha: document.getElementById("setWarnAlpha"),
+    setWarnAlphaVal: document.getElementById("setWarnAlphaVal"),
     setWarnSpeed: document.getElementById("setWarnSpeed"),
     setFinalColor: document.getElementById("setFinalColor"),
+    setFinalAlpha: document.getElementById("setFinalAlpha"),
+    setFinalAlphaVal: document.getElementById("setFinalAlphaVal"),
     setFinalSpeed: document.getElementById("setFinalSpeed"),
     setOvertimeColor: document.getElementById("setOvertimeColor"),
+    setOvertimeAlpha: document.getElementById("setOvertimeAlpha"),
+    setOvertimeAlphaVal: document.getElementById("setOvertimeAlphaVal"),
     slotTypesEditor: document.getElementById("slotTypesEditor"),
     btnExportSettings: document.getElementById("btnExportSettings"),
     importSettingsFile: document.getElementById("importSettingsFile"),
@@ -364,10 +370,27 @@
 
     const cues = st.viewerCues || {};
     if(els.setWarnColor) els.setWarnColor.value = cues.warnHex || "#00c2ff";
+    if(els.setWarnAlpha){
+      const v = Number(cues.warnAlpha ?? 0.12);
+      els.setWarnAlpha.value = String(v);
+      if(els.setWarnAlphaVal) els.setWarnAlphaVal.textContent = v.toFixed(2);
+    }
     if(els.setWarnSpeed) els.setWarnSpeed.value = String(cues.warnDurSec ?? 3.2);
+
     if(els.setFinalColor) els.setFinalColor.value = cues.finalHex || "#2dd4bf";
+    if(els.setFinalAlpha){
+      const v = Number(cues.finalAlpha ?? 0.18);
+      els.setFinalAlpha.value = String(v);
+      if(els.setFinalAlphaVal) els.setFinalAlphaVal.textContent = v.toFixed(2);
+    }
     if(els.setFinalSpeed) els.setFinalSpeed.value = String(cues.finalDurSec ?? 1.4);
+
     if(els.setOvertimeColor) els.setOvertimeColor.value = cues.overtimeHex || "#ff0000";
+    if(els.setOvertimeAlpha){
+      const v = Number(cues.overtimeAlpha ?? 0.85);
+      els.setOvertimeAlpha.value = String(v);
+      if(els.setOvertimeAlphaVal) els.setOvertimeAlphaVal.textContent = v.toFixed(2);
+    }
 
     if(els.prefCollapseEditor){
       els.prefCollapseEditor.checked = !!state.operatorPrefs?.editCollapsed;
@@ -426,9 +449,29 @@
         }, { recordHistory:false });
       });
     }
+
+    function bindCueRange(rangeEl, valEl, key, min, max){
+      if(!rangeEl) return;
+      const onInput = () => {
+        const val = clamp(parseFloat(rangeEl.value||"0"), min, max);
+        rangeEl.value = String(val);
+        if(valEl) valEl.textContent = val.toFixed(2);
+        updateState(s => {
+          s.settings = s.settings || {};
+          s.settings.viewerCues = s.settings.viewerCues || {};
+          s.settings.viewerCues[key] = val;
+        }, { recordHistory:false });
+      };
+      rangeEl.addEventListener("input", onInput);
+      rangeEl.addEventListener("change", onInput);
+    }
+
     bindCueColor(els.setWarnColor, "warnHex");
     bindCueColor(els.setFinalColor, "finalHex");
     bindCueColor(els.setOvertimeColor, "overtimeHex");
+    bindCueRange(els.setWarnAlpha, els.setWarnAlphaVal, "warnAlpha", 0, 1);
+    bindCueRange(els.setFinalAlpha, els.setFinalAlphaVal, "finalAlpha", 0, 1);
+    bindCueRange(els.setOvertimeAlpha, els.setOvertimeAlphaVal, "overtimeAlpha", 0, 1);
 
     function bindCueNumber(inputEl, key, min, max){
       if(!inputEl) return;
@@ -1542,38 +1585,15 @@ els.showTitle.addEventListener("input", () => {
       if(file) importJSON(file);
     });
 
-// Settings Modal (robust)
-const settingsModal = document.getElementById("settingsModal");
-const btnSettings = document.getElementById("btnSettings");
-const btnCloseSettings = document.getElementById("btnCloseSettings");
-
-function openSettingsModal(){
-  if(!settingsModal) return;
-  settingsModal.hidden = false;
-}
-
-function closeSettingsModal(){
-  if(!settingsModal) return;
-  settingsModal.hidden = true;
-}
-
-btnSettings?.addEventListener("click", openSettingsModal);
-btnCloseSettings?.addEventListener("click", closeSettingsModal);
-
-// Click outside the panel closes
-settingsModal?.addEventListener("click", (e) => {
-  if(e.target === settingsModal) closeSettingsModal();
-});
-
-// ESC closes
-document.addEventListener("keydown", (e) => {
-  if(e.key === "Escape" && settingsModal && !settingsModal.hidden){
-    closeSettingsModal();
-  }
-});
-
-// Force closed on boot no matter what
-closeSettingsModal();
+    // Settings modal
+    els.btnSettings.addEventListener("click", openSettingsModal);
+    els.btnCloseSettings.addEventListener("click", closeSettingsModal);
+    els.settingsModal.addEventListener("mousedown", (e) => {
+      if(e.target === els.settingsModal) closeSettingsModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if(e.key === "Escape" && !els.settingsModal.hidden) closeSettingsModal();
+    });
 
 
     
