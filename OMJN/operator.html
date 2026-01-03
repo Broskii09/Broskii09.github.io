@@ -25,7 +25,8 @@
         <div class="row">
           <div class="field" style="flex:1 1 240px;">
             <label>Quick Add Performer</label>
-            <input id="addName" type="text" placeholder="Type name and press Enter" autocomplete="off"/>
+            <input id="addName" type="text" placeholder="Type name and press Enter" autocomplete="off" list="profileNames"/>
+            <datalist id="profileNames"></datalist>
           </div>
 
           <div class="field" style="width:200px;">
@@ -64,12 +65,41 @@
           </div>
           <div class="field" style="flex:1 1 260px;">
             <label>Splash Background (URL/path)</label>
-            <input id="splashPath" type="text" placeholder="../assets/splash.svg"/>
-            <div class="small">Tip: Replace <span class="mono">./assets/splash.svg</span> with your own full-screen 16:9 graphic.</div>
+            <input id="splashPath" type="text" placeholder="./assets/splash.svg"/>
+            <div class="small">Tip: Replace <span class="mono">/assets/splash.svg</span> with your own full-screen 16:9 graphic.</div>
           </div>
         </div>
 
-        <div class="queue" id="queue"></div>
+        
+        <div class="row" style="margin-bottom:10px;">
+          <span class="pill" title="Prevents accidental starts">
+            Start Confirm
+            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="checkbox" id="startGuard"/>
+              <span class="small">on</span>
+            </label>
+          </span>
+
+          <span class="pill" title="Prevents accidental end-to-splash while live">
+            End Confirm
+            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="checkbox" id="endGuard"/>
+              <span class="small">on</span>
+            </label>
+          </span>
+
+          <span class="pill" title="Keyboard shortcuts for fast hosting">
+            Hotkeys
+            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="checkbox" id="hotkeysEnabled"/>
+              <span class="small">on</span>
+            </label>
+          </span>
+
+          <div class="spacer"></div>
+          <div class="small">Shortcuts: Space Start/Pause/Resume · N End · Ctrl+Z Undo</div>
+        </div>
+<div class="queue" id="queue"></div>
       </div>
     </div>
 
@@ -100,6 +130,8 @@
             <button class="btn" id="btnPause">Pause</button>
             <button class="btn" id="btnResume">Resume</button>
             <button class="btn danger" id="btnEnd">End → Splash</button>
+            <button class="btn" id="btnUndo" title="Undo (Ctrl+Z)">Undo</button>
+            <button class="btn" id="btnRedo" title="Redo (Ctrl+Shift+Z)">Redo</button>
             <div class="spacer"></div>
             <button class="btn tiny" id="btnMinus1">-1m</button>
             <button class="btn tiny" id="btnMinus5">-5m</button>

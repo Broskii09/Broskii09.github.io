@@ -1,11 +1,13 @@
 /* Operator UI + actions */
 (() => {
   let state = OMJN.loadState();
+  ensureProfilesShape(state);
   const els = {
     queue: document.getElementById("queue"),
     addName: document.getElementById("addName"),
     addType: document.getElementById("addType"),
     btnAdd: document.getElementById("btnAdd"),
+    profileNames: document.getElementById("profileNames"),
     addCustomWrap: document.getElementById("addCustomWrap"),
     addCustomLabel: document.getElementById("addCustomLabel"),
     addCustomMinutesWrap: document.getElementById("addCustomMinutesWrap"),
@@ -14,6 +16,10 @@
 
     showTitle: document.getElementById("showTitle"),
     splashPath: document.getElementById("splashPath"),
+
+    startGuard: document.getElementById("startGuard"),
+    endGuard: document.getElementById("endGuard"),
+    hotkeysEnabled: document.getElementById("hotkeysEnabled"),
 
     btnExport: document.getElementById("btnExport"),
     importFile: document.getElementById("importFile"),
@@ -27,6 +33,8 @@
     btnPause: document.getElementById("btnPause"),
     btnResume: document.getElementById("btnResume"),
     btnEnd: document.getElementById("btnEnd"),
+    btnUndo: document.getElementById("btnUndo"),
+    btnRedo: document.getElementById("btnRedo"),
     btnMinus1: document.getElementById("btnMinus1"),
     btnMinus5: document.getElementById("btnMinus5"),
     btnPlus1: document.getElementById("btnPlus1"),
@@ -58,6 +66,108 @@
 
   let selectedId = null;
 
+  // ---- Undo/Redo (operator-only) ----
+  const HISTORY_KEY = "OMJN_HISTORY_V1";
+  const HISTORY_LIMIT = 20;
+  let undoStack = [];
+  let redoStack = [];
+  let isApplyingHistory = false;
+
+  function loadHistory(){
+    try{
+      const raw = localStorage.getItem(HISTORY_KEY);
+      if(!raw) return;
+      const obj = JSON.parse(raw);
+      undoStack = Array.isArray(obj?.undo) ? obj.undo : [];
+      redoStack = Array.isArray(obj?.redo) ? obj.redo : [];
+    }catch(_){}
+  }
+  function saveHistory(){
+    try{
+      localStorage.setItem(HISTORY_KEY, JSON.stringify({ undo: undoStack.slice(-HISTORY_LIMIT), redo: redoStack.slice(-HISTORY_LIMIT) }));
+    }catch(_){}
+  }
+  function pushUndoSnapshot(){
+    try{
+      undoStack.push(JSON.stringify(state));
+      if(undoStack.length > HISTORY_LIMIT) undoStack = undoStack.slice(-HISTORY_LIMIT);
+      redoStack = [];
+      saveHistory();
+    }catch(_){}
+  }
+  function applyHistory(nextJson, direction){
+    try{
+      isApplyingHistory = true;
+      if(direction === "undo") redoStack.push(JSON.stringify(state));
+      if(direction === "redo") undoStack.push(JSON.stringify(state));
+      if(redoStack.length > HISTORY_LIMIT) redoStack = redoStack.slice(-HISTORY_LIMIT);
+      if(undoStack.length > HISTORY_LIMIT) undoStack = undoStack.slice(-HISTORY_LIMIT);
+      const next = JSON.parse(nextJson);
+      setState(next);
+      saveHistory();
+    }finally{
+      isApplyingHistory = false;
+    }
+  }
+  function undo(){
+    if(!undoStack.length) return;
+    const prev = undoStack.pop();
+    applyHistory(prev, "undo");
+  }
+  function redo(){
+    if(!redoStack.length) return;
+    const next = redoStack.pop();
+    applyHistory(next, "redo");
+  }
+
+  // ---- Performer profiles (stored in state) ----
+  function ensureProfilesShape(s){
+    if(!s.profiles) s.profiles = {};
+    if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true };
+  }
+
+  function normNameKey(name){
+    return OMJN.sanitizeText(name).toLowerCase();
+  }
+
+  function getProfileForName(name){
+    const key = normNameKey(name);
+    if(!key) return null;
+    return state.profiles?.[key] || null;
+  }
+
+  function upsertProfileFromSlot(slot){
+    const key = normNameKey(slot.displayName);
+    if(!key) return;
+
+    updateState(s => {
+      ensureProfilesShape(s);
+      s.profiles[key] = {
+        displayName: slot.displayName,
+        defaultSlotTypeId: slot.slotTypeId || "standard",
+        defaultMinutesOverride: slot.minutesOverride ?? null,
+        media: {
+          donationUrl: slot?.media?.donationUrl ?? null,
+          imageAssetId: slot?.media?.imageAssetId ?? null,
+          mediaLayout: slot?.media?.mediaLayout ?? "NONE"
+        },
+        updatedAt: Date.now()
+      };
+    }, { recordHistory:false }); // profile updates shouldn't spam undo
+  }
+
+  function applyProfileDefaultsToSlot(s, slot, profile){
+    if(!profile) return;
+    slot.slotTypeId = profile.defaultSlotTypeId || slot.slotTypeId;
+    slot.minutesOverride = profile.defaultMinutesOverride ?? slot.minutesOverride ?? null;
+    slot.media = slot.media || { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
+    slot.media.donationUrl = profile.media?.donationUrl ?? slot.media.donationUrl ?? null;
+    slot.media.imageAssetId = profile.media?.imageAssetId ?? slot.media.imageAssetId ?? null;
+    slot.media.mediaLayout = profile.media?.mediaLayout ?? slot.media.mediaLayout ?? "NONE";
+  }
+
+
+
   function visibleSlotTypes(){
     return state.slotTypes.filter(t => state.features.jamEnabled ? true : !t.isJamMode);
   }
@@ -72,6 +182,8 @@
   }
 
   function setState(next){
+    ensureProfilesShape(next);
+
     state = next;
     publish();
     render();
@@ -85,8 +197,11 @@
     return JSON.parse(JSON.stringify(obj));
   }
 
-  function updateState(mutator){
+  function updateState(mutator, opts={}){
+    const recordHistory = opts.recordHistory !== false;
+    if(recordHistory && !isApplyingHistory) pushUndoSnapshot();
     const s = cloneState(state);
+    ensureProfilesShape(s);
     mutator(s);
     setState(s);
   }
@@ -117,7 +232,10 @@
     const { t, mins, icons, typeLabel } = slotBadge(slot);
     const div = document.createElement("div");
     div.className = "queueItem";
-    div.draggable = slot.status === "QUEUED";
+    if(slot.id === state.currentSlotId) div.classList.add("livePinned");
+    if(slot.id === state.selectedNextId) div.classList.add("isNext");
+    if(slot.status !== "QUEUED") div.classList.add("notQueued");
+    div.draggable = (slot.status === "QUEUED") && (slot.id !== state.currentSlotId);
     div.dataset.id = slot.id;
 
     if(div.draggable){
@@ -271,7 +389,11 @@
     updateState(s => {
       const idx = s.queue.findIndex(x=>x.id===slotId);
       if(idx < 0) return;
-      const idx2 = Math.max(0, Math.min(s.queue.length-1, idx + delta));
+      const liveIdx = s.currentSlotId ? s.queue.findIndex(x=>x.id===s.currentSlotId) : -1;
+      const minIdx = (liveIdx >= 0) ? liveIdx + 1 : 0;
+      // do not move the live slot
+      if(slotId === s.currentSlotId) return;
+      const idx2 = Math.max(minIdx, Math.min(s.queue.length-1, idx + delta));
       if(idx2 === idx) return;
       const [it] = s.queue.splice(idx, 1);
       s.queue.splice(idx2, 0, it);
@@ -471,10 +593,32 @@ function renderKPIs(){
     els.splashPath.value = state.splash?.backgroundAssetPath || "./assets/splash.svg";
     els.jamEnabled.checked = !!state.features.jamEnabled;
 
+    // Operator prefs
+    els.startGuard.checked = !!state.operatorPrefs?.startGuard;
+    els.endGuard.checked = !!state.operatorPrefs?.endGuard;
+    els.hotkeysEnabled.checked = (state.operatorPrefs?.hotkeysEnabled !== false);
+
+    // Undo/redo buttons
+    els.btnUndo.disabled = !undoStack.length;
+    els.btnRedo.disabled = !redoStack.length;
+
+    // Profiles datalist
+    if(els.profileNames){
+      const opts = Object.values(state.profiles || {})
+        .map(p => p?.displayName)
+        .filter(Boolean)
+        .sort((a,b)=>a.localeCompare(b));
+      els.profileNames.innerHTML = "";
+      for(const n of opts){
+        const opt = document.createElement("option");
+        opt.value = n;
+        els.profileNames.appendChild(opt);
+      }
+    }
+
     fillTypeSelect(els.addType, false);
     fillTypeSelect(els.editType, true);
     toggleCustomAddFields();
-    els.addType.addEventListener("change", toggleCustomAddFields);
 
     renderQueue();
     renderKPIs();
@@ -507,7 +651,20 @@ function renderKPIs(){
         OMJN.ensureJamShape(slot);
         slot.jam.title = "Jam";
       }
-      s.queue.push(slot);
+      const prof = s.profiles?.[normNameKey(slot.displayName)] || null;
+        if(prof) applyProfileDefaultsToSlot(s, slot, prof);
+        s.queue.push(slot);
+        // create/update profile for future auto-fill
+        if(slot.displayName){
+          const key = normNameKey(slot.displayName);
+          s.profiles[key] = {
+            displayName: slot.displayName,
+            defaultSlotTypeId: slot.slotTypeId,
+            defaultMinutesOverride: slot.minutesOverride ?? null,
+            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
+            updatedAt: Date.now()
+          };
+        }
       if(!s.selectedNextId && !s.currentSlotId){
         const t = OMJN.getSlotType(s, slot.slotTypeId);
         if(!(t.isJamMode && !s.features?.jamEnabled)) s.selectedNextId = slot.id;
@@ -515,8 +672,6 @@ function renderKPIs(){
     });
 
     els.addName.value = "";
-    if(els.addCustomLabel) els.addCustomLabel.value = "";
-    if(els.addCustomMinutes) els.addCustomMinutes.value = "";
     els.addName.focus();
   }
 
@@ -548,19 +703,54 @@ function renderKPIs(){
     });
   }
 
-  function start(){
+  
+  function guardedStart(){
+    // determine who would start
+    const pick = (() => {
+      const eligible = (x) => x.status==="QUEUED" && (state.features?.jamEnabled || OMJN.getSlotType(state, x.slotTypeId).isJamMode === false);
+      return state.queue.find(x=>x.id===state.selectedNextId && eligible(x)) || state.queue.find(x=>eligible(x));
+    })();
+
+    if(state.operatorPrefs?.startGuard){
+      const name = pick?.displayName || "—";
+      const ok = confirm(`Start now: "${name}"?`);
+      if(!ok) return;
+    }
+    start();
+  }
+
+  function guardedEnd(){
+    if(state.operatorPrefs?.endGuard && state.phase !== "SPLASH"){
+      const name = (state.queue.find(x=>x.id===state.currentSlotId)?.displayName) || "—";
+      const ok = confirm(`End performance and return to Splash? (Current: "${name}")`);
+      if(!ok) return;
+    }
+    endToSplash();
+  }
+
+function start(){
     updateState(s => {
-      if(s.phase === "LIVE") return;
-      // choose selectedNextId if valid, else first queued
       const eligible = (x) => x.status==="QUEUED" && (s.features?.jamEnabled || OMJN.getSlotType(s, x.slotTypeId).isJamMode === false);
       const pick = s.queue.find(x=>x.id===s.selectedNextId && eligible(x)) || s.queue.find(x=>eligible(x));
       if(!pick) return;
+
+      // Pin live slot to top of the queue for clarity
+      const idx = s.queue.findIndex(x=>x.id===pick.id);
+      if(idx > 0){
+        const [moved] = s.queue.splice(idx, 1);
+        s.queue.unshift(moved);
+      }
+
       s.currentSlotId = pick.id;
       s.phase = "LIVE";
       s.timer.running = true;
       s.timer.startedAt = Date.now();
       s.timer.elapsedMs = 0;
       s.timer.baseDurationMs = OMJN.effectiveMinutes(s, pick) * 60 * 1000;
+
+      // pre-select next eligible slot
+      const next = s.queue.find(x=>x.id!==pick.id && eligible(x));
+      s.selectedNextId = next ? next.id : null;
     });
   }
 
@@ -681,6 +871,18 @@ function renderKPIs(){
       if(!slot.media.mediaLayout || slot.media.mediaLayout === "NONE"){
         slot.media.mediaLayout = "IMAGE_ONLY";
       }
+      // profile auto-save
+      const key = normNameKey(slot.displayName);
+      if(key){
+        s.profiles[key] = {
+          displayName: slot.displayName,
+          defaultSlotTypeId: slot.slotTypeId || "standard",
+          defaultMinutesOverride: slot.minutesOverride ?? null,
+          media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
+          updatedAt: Date.now()
+        };
+      }
+
     });
   }
 
@@ -691,6 +893,19 @@ function renderKPIs(){
       if(!slot?.media?.imageAssetId) return;
       const assetId = slot.media.imageAssetId;
       slot.media.imageAssetId = null;
+
+      // profile auto-save
+      const key = normNameKey(slot.displayName);
+      if(key){
+        s.profiles[key] = {
+          displayName: slot.displayName,
+          defaultSlotTypeId: slot.slotTypeId || "standard",
+          defaultMinutesOverride: slot.minutesOverride ?? null,
+          media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
+          updatedAt: Date.now()
+        };
+      }
+
       delete s.assetsIndex[assetId];
       // async delete in background (best-effort)
       OMJN.deleteAsset(assetId).catch(()=>{});
@@ -719,7 +934,11 @@ function renderKPIs(){
         imported.splash = imported.splash ?? { backgroundAssetPath:"./assets/splash.svg", showNextTwo:true };
         imported.viewerPrefs = imported.viewerPrefs ?? { warnAtSec:120, finalAtSec:30, showOvertime:true, showProgressBar:true };
         imported.assetsIndex = imported.assetsIndex ?? {};
+        pushUndoSnapshot();
+        undoStack = undoStack.slice(-HISTORY_LIMIT);
+        redoStack = [];
         setState(imported);
+        saveHistory();
         selectedId = null;
       }catch(e){
         alert("Import failed: " + e.message);
@@ -735,8 +954,21 @@ function renderKPIs(){
       if(!selectedId) return;
       updateState(s => {
         const slot = s.queue.find(x=>x.id===selectedId);
-        if(slot) slot.displayName = v;
-      });
+        if(slot){
+          slot.displayName = v;
+          // profile auto-save
+          const key = normNameKey(slot.displayName);
+          if(key){
+            s.profiles[key] = {
+              displayName: slot.displayName,
+              defaultSlotTypeId: slot.slotTypeId || "standard",
+              defaultMinutesOverride: slot.minutesOverride ?? null,
+              media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
+              updatedAt: Date.now()
+            };
+          }
+        }
+      }, { recordHistory:false });
     });
 
     els.editType.addEventListener("change", () => {
@@ -748,7 +980,17 @@ function renderKPIs(){
         slot.slotTypeId = v;
         if(v === "jam") OMJN.ensureJamShape(slot);
         if(v !== "custom") slot.customTypeLabel = slot.customTypeLabel || "";
-      });
+        const key = normNameKey(slot.displayName);
+        if(key){
+          s.profiles[key] = {
+            displayName: slot.displayName,
+            defaultSlotTypeId: slot.slotTypeId || "standard",
+            defaultMinutesOverride: slot.minutesOverride ?? null,
+            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
+            updatedAt: Date.now()
+          };
+        }
+      }, { recordHistory:false });
     });
 
     els.editMinutes.addEventListener("input", () => {
@@ -778,10 +1020,20 @@ function renderKPIs(){
         if(!slot) return;
         if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
         slot.media.donationUrl = v || null;
-      });
+        const key = normNameKey(slot.displayName);
+        if(key){
+          s.profiles[key] = {
+            displayName: slot.displayName,
+            defaultSlotTypeId: slot.slotTypeId || "standard",
+            defaultMinutesOverride: slot.minutesOverride ?? null,
+            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
+            updatedAt: Date.now()
+          };
+        }
+      }, { recordHistory:false });
     });
 
-    els.editLayout.addEventListener("change", () => {
+els.editLayout.addEventListener("change", () => {
       if(!selectedId) return;
       const v = els.editLayout.value;
       updateState(s => {
@@ -789,6 +1041,16 @@ function renderKPIs(){
         if(!slot) return;
         if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
         slot.media.mediaLayout = v;
+        const key = normNameKey(slot.displayName);
+        if(key){
+          s.profiles[key] = {
+            displayName: slot.displayName,
+            defaultSlotTypeId: slot.slotTypeId || "standard",
+            defaultMinutesOverride: slot.minutesOverride ?? null,
+            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
+            updatedAt: Date.now()
+          };
+        }
       });
     });
 
@@ -868,6 +1130,7 @@ function renderKPIs(){
     fillTypeSelect(els.addType, false);
     fillTypeSelect(els.editType, true);
     toggleCustomAddFields();
+    els.addType.addEventListener("change", toggleCustomAddFields);
 
     els.addName.addEventListener("keydown", (e) => {
       if(e.key === "Enter"){ e.preventDefault(); addPerformer(); }
@@ -891,25 +1154,34 @@ function renderKPIs(){
       });
     });
 
-    els.showTitle.addEventListener("input", () => {
+    
+    // Operator prefs
+    els.startGuard.addEventListener("change", () => {
+      updateState(s => { s.operatorPrefs.startGuard = !!els.startGuard.checked; }, { recordHistory:false });
+    });
+    els.endGuard.addEventListener("change", () => {
+      updateState(s => { s.operatorPrefs.endGuard = !!els.endGuard.checked; }, { recordHistory:false });
+    });
+    els.hotkeysEnabled.addEventListener("change", () => {
+      updateState(s => { s.operatorPrefs.hotkeysEnabled = !!els.hotkeysEnabled.checked; }, { recordHistory:false });
+    });
+
+els.showTitle.addEventListener("input", () => {
       const v = OMJN.sanitizeText(els.showTitle.value);
       updateState(s => { s.showTitle = v || "Open Mic & Jam Night"; });
     });
 
     els.splashPath.addEventListener("input", () => {
-      let v = OMJN.sanitizeText(els.splashPath.value);
-      if(v && !/^https?:\/\//i.test(v) && v.startsWith("/")) v = "." + v; // /assets/... -> ./assets/...
-      updateState(s => {
-        s.splash.backgroundAssetPath = v || "./assets/splash.svg";
-        // If operator manually sets a path, prefer it over uploaded asset
-        if(s.splash) s.splash.backgroundAssetId = null;
-      });
+      const v = OMJN.sanitizeText(els.splashPath.value);
+      updateState(s => { s.splash.backgroundAssetPath = v || "./assets/splash.svg"; });
     });
 
-els.btnStart.addEventListener("click", start);
+    els.btnStart.addEventListener("click", guardedStart);
+    els.btnUndo.addEventListener("click", undo);
+    els.btnRedo.addEventListener("click", redo);
     els.btnPause.addEventListener("click", pause);
     els.btnResume.addEventListener("click", resume);
-    els.btnEnd.addEventListener("click", endToSplash);
+    els.btnEnd.addEventListener("click", guardedEnd);
     els.btnMinus1.addEventListener("click", () => addMinutes(-1));
     els.btnMinus5.addEventListener("click", () => addMinutes(-5));
     els.btnPlus1.addEventListener("click", () => addMinutes(1));
@@ -938,15 +1210,115 @@ els.btnStart.addEventListener("click", start);
         const idxFrom = s.queue.findIndex(x=>x.id===draggedId);
         if(idxFrom < 0) return;
         const [moved] = s.queue.splice(idxFrom, 1);
+        const liveIdx = s.currentSlotId ? s.queue.findIndex(x=>x.id===s.currentSlotId) : -1;
+        const minIdx = (liveIdx >= 0) ? liveIdx + 1 : 0;
+
         if(!afterElement){
+          // drop at end
           s.queue.push(moved);
         }else{
-          const idxTo = s.queue.findIndex(x=>x.id===afterElement.dataset.id);
-          s.queue.splice(Math.max(idxTo,0), 0, moved);
+          let idxTo = s.queue.findIndex(x=>x.id===afterElement.dataset.id);
+          if(idxTo < 0) idxTo = s.queue.length;
+          // never insert above the live slot
+          idxTo = Math.max(idxTo, minIdx);
+          s.queue.splice(idxTo, 0, moved);
+        }
+
+        // if dropped above minIdx, ensure it snaps below live
+        const idxMoved = s.queue.findIndex(x=>x.id===moved.id);
+        if(idxMoved < minIdx){
+          s.queue.splice(idxMoved, 1);
+          s.queue.splice(minIdx, 0, moved);
         }
       });
     });
+
 bindEditor();
+
+    // Hotkeys (operator)
+    function isTypingContext(){
+      const a = document.activeElement;
+      if(!a) return false;
+      const tag = (a.tagName || "").toLowerCase();
+      if(tag === "input" || tag === "textarea" || tag === "select") return true;
+      if(a.isContentEditable) return true;
+      return false;
+    }
+
+    function handleHotkeys(e){
+      if(state.operatorPrefs?.hotkeysEnabled === false) return;
+
+      const isMac = navigator.platform.toLowerCase().includes("mac");
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+
+      // Undo/Redo
+      if(mod && e.key.toLowerCase() === "z"){
+        e.preventDefault();
+        if(e.shiftKey) redo(); else undo();
+        return;
+      }
+      if(mod && e.key.toLowerCase() === "y"){
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      // If typing in fields, allow only special case: Enter on addName
+      if(isTypingContext()){
+        if(document.activeElement === els.addName && e.key === "Enter"){
+          e.preventDefault();
+          addPerformer();
+        }
+        return;
+      }
+
+      const k = e.key.toLowerCase();
+      if(k === " "){
+        e.preventDefault();
+        if(state.phase === "SPLASH") guardedStart();
+        else if(state.phase === "LIVE") pause();
+        else if(state.phase === "PAUSED") resume();
+        return;
+      }
+      if(k === "n"){
+        e.preventDefault();
+        guardedEnd();
+        return;
+      }
+      if(k === "j"){
+        // rotate jam spotlight if available
+        if(els.btnJamRotate && !els.btnJamRotate.disabled){
+          e.preventDefault();
+          els.btnJamRotate.click();
+        }
+        return;
+      }
+      if(e.key === "Delete" || e.key === "Backspace"){
+        if(selectedId){
+          e.preventDefault();
+          removeSlot(selectedId);
+        }
+        return;
+      }
+      if(k === "arrowup"){
+        if(selectedId){
+          e.preventDefault();
+          moveSlot(selectedId, -1);
+        }
+        return;
+      }
+      if(k === "arrowdown"){
+        if(selectedId){
+          e.preventDefault();
+          moveSlot(selectedId, 1);
+        }
+        return;
+      }
+    }
+
+    document.addEventListener("keydown", handleHotkeys);
+
+
 
     // live timer UI update loop
     setInterval(() => {
@@ -960,7 +1332,8 @@ bindEditor();
     render();
   });
 
-  // Boot
+    loadHistory();
+// Boot
   bind();
   render();
 })();

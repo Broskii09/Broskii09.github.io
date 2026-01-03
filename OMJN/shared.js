@@ -19,7 +19,9 @@ const OMJN = (() => {
       showTitle: "Open Mic & Jam Night",
       phase: "SPLASH", // SPLASH | LIVE | PAUSED
       features: { jamEnabled: false },
-      splash: { backgroundAssetPath: "./assets/splash.svg", backgroundAssetId: null, showNextTwo: true },
+      operatorPrefs: { startGuard: true, endGuard: true, hotkeysEnabled: true },
+      profiles: {},
+      splash: { backgroundAssetPath: "./assets/splash.svg", showNextTwo: true },
       viewerPrefs: { warnAtSec: 120, finalAtSec: 30, showOvertime: true, showProgressBar: true },
       slotTypes: [
         { id:"standard", label:"Standard", defaultMinutes:15, isJamMode:false },
@@ -45,8 +47,9 @@ const OMJN = (() => {
       // minimal migration hooks
       if(!s.version) s.version = 1;
       if(!s.features) s.features = { jamEnabled: false };
-      if(!s.splash) s.splash = { backgroundAssetPath: "./assets/splash.svg", backgroundAssetId: null, showNextTwo: true };
-      if(!("backgroundAssetId" in s.splash)) s.splash.backgroundAssetId = null;
+      if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true };
+      if(!s.profiles) s.profiles = {};
+      if(!s.splash) s.splash = { backgroundAssetPath: "./assets/splash.svg", showNextTwo: true };
       if(!s.viewerPrefs) s.viewerPrefs = { warnAtSec: 120, finalAtSec: 30, showOvertime: true, showProgressBar: true };
       if(!s.assetsIndex) s.assetsIndex = {};
       // Ensure slotTypes include Custom (migration)

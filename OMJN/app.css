@@ -291,3 +291,15 @@ hr.sep{
   .container{grid-template-columns: 1fr; height:auto}
   .queue{max-height: 60vh;}
 }
+
+
+/* Operator: pin live performer row */
+.queueItem.livePinned{
+  border:1px solid rgba(255,255,255,.28);
+  background:rgba(255,255,255,.06);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.08) inset;
+}
+.queueItem.livePinned .dragHandle{opacity:.35}
+.queueItem.isNext{
+  border-color: rgba(255,215,0,.35);
+}

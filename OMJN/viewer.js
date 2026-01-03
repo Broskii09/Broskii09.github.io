@@ -138,11 +138,9 @@
 
     // next line
     const [n1] = OMJN.computeNextTwo(state);
-    nextLine.textContent = "Next: ";
-    const strong = document.createElement("strong");
-    strong.textContent = (n1?.displayName || "—");
-    nextLine.appendChild(strong);
-// donation link
+    nextLine.innerHTML = `Next: <strong>${n1?.displayName || "—"}</strong>`;
+
+    // donation link
     const url = cur.media?.donationUrl || "";
     if(url){
       donationText.textContent = url;
