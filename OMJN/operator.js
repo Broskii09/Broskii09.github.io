@@ -953,7 +953,7 @@ function renderKPIs(){
   function render(){
     // sync header inputs
     els.showTitle.value = state.showTitle || "";
-      els.splashPath.value = state.splash?.backgroundAssetPath || "./assets/OpenMicBG.jpg";
+      els.splashPath.value = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
     els.jamEnabled.checked = !!state.features.jamEnabled;
 
     // Operator prefs
@@ -1303,7 +1303,7 @@ function start(){
         // light validation
         imported.version = imported.version ?? 1;
         imported.features = imported.features ?? { jamEnabled:false };
-        imported.splash = imported.splash ?? { backgroundAssetPath:"./assets/splash.svg", showNextTwo:true };
+        imported.splash = imported.splash ?? { backgroundAssetPath:"./assets/splash_BG.jpg", showNextTwo:true };
         imported.viewerPrefs = imported.viewerPrefs ?? { warnAtSec:120, finalAtSec:30, showOvertime:true, showProgressBar:true };
         imported.assetsIndex = imported.assetsIndex ?? {};
         pushUndoSnapshot();
@@ -1562,7 +1562,7 @@ els.showTitle.addEventListener("input", () => {
 
     els.splashPath.addEventListener("input", () => {
       const v = OMJN.sanitizeText(els.splashPath.value);
-      updateState(s => { s.splash.backgroundAssetPath = v || "./assets/splash.svg"; });
+        updateState(s => { s.splash.backgroundAssetPath = v || "./assets/splash_BG.jpg"; });
     });
 
     els.btnStart.addEventListener("click", guardedStart);
