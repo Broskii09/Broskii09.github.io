@@ -67,7 +67,7 @@
     overtimeFlashTimeout = setTimeout(() => {
       vMainCard.classList.remove("overtimeFlash");
       overtimeFlashTimeout = null;
-    }, 1150);
+    }, 1050);
   }
 
   function applyCardCues(remainingMs, warnAtMs, finalAtMs){
