@@ -27,6 +27,9 @@ html,body{height:100%; margin:0; background:var(--bg); color:var(--text); font-f
 a{color:inherit}
 button, input, select, textarea {font-family:inherit}
 
+[hidden] { display: none !important; }
+.modalOverlay[hidden] { display: none !important; }
+
 .container{
   width:100vw; height:100vh;
   display:grid;
