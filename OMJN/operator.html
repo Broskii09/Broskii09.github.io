@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>OMJN — Operator</title>
+  <link rel="stylesheet" href="./app.css"/>
+</head>
+<body>
+  <div class="container">
+    <!-- LEFT: Queue -->
+    <div class="card">
+      <div class="cardHeader">
+        <h2>Operator — Queue</h2>
+        <div class="row">
+          <a class="btn small" href="./viewer.html" target="_blank" rel="noopener">Open Viewer</a>
+          <button class="btn small" id="btnExport">Export JSON</button>
+          <label class="btn small" for="importFile" style="cursor:pointer;">Import JSON</label>
+          <input id="importFile" type="file" accept="application/json" hidden />
+          <button class="btn small danger" id="btnReset">New Show</button>
+        </div>
+      </div>
+
+      <div class="cardBody">
+        <div class="row">
+          <div class="field" style="flex:1 1 240px;">
+            <label>Quick Add Performer</label>
+            <input id="addName" type="text" placeholder="Type name and press Enter" autocomplete="off"/>
+          </div>
+
+          <div class="field" style="width:200px;">
+            <label>Slot Type</label>
+            <select id="addType"></select>
+          </div>
+
+          <div class="field" id="addCustomWrap" style="flex:1 1 240px; display:none;">
+            <label>Custom Slot Label</label>
+            <input id="addCustomLabel" type="text" placeholder="e.g., Trivia, Host Break, Raffle"/>
+          </div>
+
+          <div class="field" id="addCustomMinutesWrap" style="width:140px; display:none;">
+            <label>Minutes</label>
+            <input id="addCustomMinutes" type="number" min="1" step="1" placeholder="15"/>
+          </div>
+
+          <button class="btn good" id="btnAdd">Add</button>
+          <div class="spacer"></div>
+
+          <span class="pill" title="Hide/Show Jam Slot Type in the UI">
+            Jam
+            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="checkbox" id="jamEnabled"/>
+              <span class="small">enabled</span>
+            </label>
+          </span>
+        </div>
+
+        <hr class="sep"/>
+
+        <div class="row" style="margin-bottom:10px;">
+          <div class="field" style="flex:1 1 260px;">
+            <label>Show Title</label>
+            <input id="showTitle" type="text" placeholder="Open Mic & Jam Night"/>
+          </div>
+          <div class="field" style="flex:1 1 260px;">
+            <label>Splash Background (URL/path)</label>
+            <input id="splashPath" type="text" placeholder="../assets/splash.svg"/>
+            <div class="small">Tip: Replace <span class="mono">./assets/splash.svg</span> with your own full-screen 16:9 graphic.</div>
+          </div>
+        </div>
+
+        <div class="queue" id="queue"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Now / Next / Edit -->
+    <div class="rightGrid">
+
+      <div class="card">
+        <div class="cardHeader">
+          <h2>Live Control</h2>
+          <div class="small mono" id="statusLine">SPLASH</div>
+        </div>
+        <div class="cardBody">
+          <div class="kpi">
+            <div>
+              <div class="label">Current</div>
+              <div class="value" id="kpiCurrent">—</div>
+            </div>
+            <div>
+              <div class="label">Next</div>
+              <div class="value" id="kpiNext">—</div>
+            </div>
+          </div>
+
+          <hr class="sep"/>
+
+          <div class="row">
+            <button class="btn primary" id="btnStart">Start</button>
+            <button class="btn" id="btnPause">Pause</button>
+            <button class="btn" id="btnResume">Resume</button>
+            <button class="btn danger" id="btnEnd">End → Splash</button>
+            <div class="spacer"></div>
+            <button class="btn tiny" id="btnMinus1">-1m</button>
+            <button class="btn tiny" id="btnMinus5">-5m</button>
+            <button class="btn tiny" id="btnPlus1">+1m</button>
+            <button class="btn tiny" id="btnPlus5">+5m</button>
+            <button class="btn tiny" id="btnResetTime">Reset Time</button>
+          </div>
+
+          <div style="margin-top:10px;">
+            <div class="timerSub">Elapsed / Remaining</div>
+            <div class="timerBig mono" id="timerLine">0:00 / 0:00</div>
+            <div class="small" id="timerHint">Hard stop at 0:00. Overtime shown on viewer.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="editCard">
+        <div class="cardHeader">
+          <h2>Edit Selected</h2>
+          <div class="small mono" id="selId">—</div>
+        </div>
+        <div class="cardBody">
+          <div class="field">
+            <label>Name (viewer)</label>
+            <input id="editName" type="text" placeholder="Performer name"/>
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <div class="field" style="flex:1 1 220px;">
+              <label>Slot Type</label>
+              <select id="editType"></select>
+            </div>
+            <div class="field" id="editCustomWrap" style="flex:1 1 220px; display:none;">
+              <label>Custom Slot Label</label>
+              <input id="editCustomLabel" type="text" placeholder="Custom"/>
+            </div>
+            <div class="field" style="width:140px;">
+              <label>Minutes (override)</label>
+              <input id="editMinutes" type="number" min="1" step="1" placeholder="—"/>
+            </div>
+          </div>
+
+          <div class="field" style="margin-top:10px;">
+            <label>Operator Notes (private)</label>
+            <textarea id="editNotes" placeholder="Notes the audience won't see..."></textarea>
+          </div>
+
+          <hr class="sep"/>
+
+          <div class="row">
+            <div class="field" style="flex:1 1 240px;">
+              <label>Website/Socials</label>
+              <input id="editUrl" type="text" placeholder="https://... (viewer will show as text; upload QR as image for now)"/>
+              <div class="small">MVP supports image upload for QR. Auto QR generation can be added next.</div>
+            </div>
+            <div class="field" style="width:220px;">
+              <label>Media Layout</label>
+              <select id="editLayout">
+                <option value="NONE">None</option>
+                <option value="IMAGE_ONLY">Image only</option>
+                <option value="QR_ONLY">QR only (upload image)</option>
+                <option value="IMAGE_PLUS_QR">Image + QR (upload image)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <label class="btn small" for="imgFile" style="cursor:pointer;">Upload Image / QR</label>
+            <input id="imgFile" type="file" accept="image/*" hidden />
+            <button class="btn small" id="btnClearImg">Clear Image</button>
+            <div class="spacer"></div>
+            <button class="btn small danger" id="btnSkip">Skip / No-show</button>
+            <button class="btn small" id="btnSelectNext">Set as Next</button>
+          </div>
+
+          <div class="small" style="margin-top:10px;">
+            Image is auto-compressed locally and stored on this computer (IndexedDB).
+          </div>
+
+          <div id="jamPanel" style="display:none; margin-top:14px;">
+            <hr class="sep"/>
+            <div class="row" style="align-items:flex-end;">
+              <div class="field" style="flex:1 1 220px;">
+                <label>Jam Title</label>
+                <input id="jamTitle" type="text" placeholder="Jam"/>
+              </div>
+              <div class="field" style="flex:1 1 220px;">
+                <label>Add Jam Participant</label>
+                <input id="jamAdd" type="text" placeholder="Name (press Enter)"/>
+              </div>
+              <button class="btn good" id="btnJamAdd">Add</button>
+              <button class="btn" id="btnJamRotate">Rotate Spotlight</button>
+            </div>
+
+            <div class="small" style="margin-top:10px;">Jam list is separate from the main queue order.</div>
+            <div class="queue" id="jamList" style="max-height:220px;"></div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="./shared.js"></script>
+  <script src="./operator.js"></script>
+</body>
+</html>
