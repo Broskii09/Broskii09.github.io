@@ -1,11 +1,14 @@
 /* Viewer UI */
 (() => {
   let state = OMJN.loadState();
+  let lastRemainingMs = null;
+  let overtimeFlashTimeout = null;
 
   const bg = document.getElementById("bg");
   const overlay = document.getElementById("overlay");
   const splashInfo = document.getElementById("splashInfo");
 
+  const vMainCard = document.getElementById("vMainCard");
   const nowName = document.getElementById("nowName");
   const timerEl = document.getElementById("timer");
   const chipState = document.getElementById("chipState");
@@ -201,3 +204,49 @@
   render().catch(()=>{});
   setInterval(tick, 250);
 })();
+  function clearCardCues(){
+    if(!vMainCard) return;
+    vMainCard.classList.remove("pulseWarn","pulseFinal","overtimeFlash");
+    if(overtimeFlashTimeout){
+      clearTimeout(overtimeFlashTimeout);
+      overtimeFlashTimeout = null;
+    }
+  }
+
+  function triggerOvertimeFlash(){
+    if(!vMainCard) return;
+    // Remove pulse so flash stands out
+    vMainCard.classList.remove("pulseWarn","pulseFinal");
+
+    // Restart animation reliably
+    vMainCard.classList.remove("overtimeFlash");
+    void vMainCard.offsetWidth; // force reflow
+    vMainCard.classList.add("overtimeFlash");
+
+    if(overtimeFlashTimeout) clearTimeout(overtimeFlashTimeout);
+    overtimeFlashTimeout = setTimeout(() => {
+      vMainCard.classList.remove("overtimeFlash");
+      overtimeFlashTimeout = null;
+    }, 1150);
+  }
+
+  function applyCardCues(remainingMs, warnAtMs, finalAtMs){
+    if(!vMainCard) return;
+
+    // Detect transition into overtime for one-time flash
+    if(lastRemainingMs !== null && lastRemainingMs > 0 && remainingMs <= 0){
+      triggerOvertimeFlash();
+    }
+
+    // Pulse behavior only while time is still remaining
+    vMainCard.classList.remove("pulseWarn","pulseFinal");
+    if(remainingMs > 0 && remainingMs <= warnAtMs && remainingMs > finalAtMs){
+      vMainCard.classList.add("pulseWarn");
+    } else if(remainingMs > 0 && remainingMs <= finalAtMs){
+      vMainCard.classList.add("pulseFinal");
+    }
+
+    lastRemainingMs = remainingMs;
+  }
+
+

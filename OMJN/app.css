@@ -303,3 +303,33 @@ hr.sep{
 .queueItem.isNext{
   border-color: rgba(255,215,0,.35);
 }
+
+
+/* Viewer: subtle time cues on main card */
+#vMainCard.pulseWarn{
+  animation: vPulseSoft 3.2s ease-in-out infinite;
+}
+
+#vMainCard.pulseFinal{
+  animation: vPulseFast 1.4s ease-in-out infinite;
+}
+
+#vMainCard.overtimeFlash{
+  animation: vFlashRed 1.1s ease-in-out 1;
+}
+
+@keyframes vPulseSoft{
+  0%, 100% { background: rgba(0,0,0,.90); }
+  50%      { background: rgba(32,24,14,.92); }
+}
+
+@keyframes vPulseFast{
+  0%, 100% { background: rgba(0,0,0,.90); }
+  50%      { background: rgba(58,40,10,.94); }
+}
+
+@keyframes vFlashRed{
+  0%   { background: rgba(255,0,0,.85); }
+  35%  { background: rgba(255,0,0,.85); }
+  100% { background: rgba(0,0,0,.90); }
+}
