@@ -10,6 +10,7 @@
   const bg = document.getElementById("bg");
   const overlay = document.getElementById("overlay");
   const splashInfo = document.getElementById("splashInfo");
+  const liveFooter = document.getElementById("liveFooter");
   const vShowTitle = document.getElementById("vShowTitle");
 
   const vMainCard = document.getElementById("vMainCard");
@@ -20,10 +21,6 @@
   const chipOver = document.getElementById("chipOver");
   const chipWarn = document.getElementById("chipWarn");
   const chipFinal = document.getElementById("chipFinal");
-
-  const vFooter = document.getElementById("vFooter");
-  const vHouseBand = document.getElementById("vHouseBand");
-  const vHouseBandTrack = document.getElementById("vHouseBandTrack");
   const nextLine = document.getElementById("nextLine");
 
   const vMedia = document.getElementById("vMedia");
@@ -39,12 +36,66 @@
   const sNextSub = document.getElementById("sNextSub");
   const sDeckSub = document.getElementById("sDeckSub");
 
+  const hbLineup = document.getElementById("hbLineup");
+  const hbLiveLineup = document.getElementById("hbLiveLineup");
+  const lfNext = document.getElementById("lfNext");
+  const lfDeck = document.getElementById("lfDeck");
+
   let currentAssetUrl = null;
 
   function setBg(){
     const path = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
     bg.style.backgroundImage = `url('${path}')`;
   }
+
+  function renderHouseBandLineup(targetEl, opts={}){
+    if(!targetEl) return;
+    const compact = !!opts.compact;
+    const members = (state.houseBand || []).filter(m => m && m.active !== false);
+    targetEl.innerHTML = "";
+
+    if(!members.length){
+      const empty = document.createElement("div");
+      empty.className = "small";
+      empty.style.opacity = ".85";
+      empty.textContent = "—";
+      targetEl.appendChild(empty);
+      return;
+    }
+
+    for(const m of members){
+      OMJN.normalizeHouseBandMember(m);
+
+      const chip = document.createElement("span");
+      chip.className = "hbChip" + ((m.cooldownRemaining > 0) ? " cooling" : "");
+      const label = OMJN.houseBandMemberLabel(m) || "—";
+      chip.textContent = label;
+
+      // cooldown indicator
+      if(m.cooldownRemaining > 0){
+        const cd = document.createElement("span");
+        cd.className = "hbCd mono";
+        cd.textContent = `CD ${m.cooldownRemaining}`;
+        chip.appendChild(cd);
+      }
+
+      // skill tags
+      const tags = Array.isArray(m.skillTags) ? m.skillTags : [];
+      for(const t of tags){
+        const tag = document.createElement("span");
+        tag.className = "hbTag";
+        tag.textContent = t;
+        chip.appendChild(tag);
+      }
+
+      targetEl.appendChild(chip);
+    }
+
+    if(compact){
+      // nothing special for now; CSS handles it
+    }
+  }
+
 
   function clearCardCues(){
     if(!vMainCard) return;
@@ -130,104 +181,12 @@
     mediaBox.style.display = "flex";
   }
 
-  
-  function renderHouseBandFooter(){
-    if(!vFooter || !vHouseBand) return;
-
-    const prefs = state.viewerPrefs?.houseBand || { show:true, tickerSpeed:60 };
-    if(prefs.show === false){
-      vFooter.style.display = "none";
-      return;
-    }
-
-    const roster = Array.isArray(state.houseBand) ? state.houseBand : [];
-    const visible = roster.some(m => (m && (m.name || m.customInstrument)));
-    if(!visible){
-      vFooter.style.display = "none";
-      return;
-    }
-
-    // Build a single-line ticker that scrolls horizontally
-    const track = vHouseBandTrack || vHouseBand;
-    vFooter.style.display = "flex";
-    track.innerHTML = "";
-
-    const content = document.createElement("div");
-    content.className = "vHouseBandContent";
-
-    let added = 0;
-    for(const m of roster){
-      if(!m) continue;
-      const label = OMJN.houseBandMemberLabel(m);
-      if(!label) continue;
-
-      if(added > 0){
-        const sep = document.createElement("span");
-        sep.className = "hbSep";
-        sep.textContent = "•";
-        content.appendChild(sep);
-      }
-
-      const span = document.createElement("span");
-      const available = OMJN.isHouseBandMemberAvailable(m);
-      span.className = "hbItem " + (available ? "hbAvail" : "hbRest");
-      if(!m.active) span.classList.add("hbInactive");
-
-      const rawRemaining = Math.max(0, Math.floor(Number(m.cooldownRemaining || 0)));
-      const displayRemaining = Math.max(0, rawRemaining - (state.currentSlotId ? 1 : 0));
-
-      const nameSpan = document.createElement("span");
-      nameSpan.textContent = label;
-      span.appendChild(nameSpan);
-
-      if(m.active && displayRemaining > 0){
-        const rest = document.createElement("span");
-        rest.className = "hbRestTag";
-        rest.textContent = ` ⏳${displayRemaining}`;
-        span.appendChild(rest);
-      }else if(!m.active){
-        const off = document.createElement("span");
-        off.className = "hbRestTag";
-        off.textContent = " OFF";
-        span.appendChild(off);
-      }
-
-      content.appendChild(span);
-
-      added++;
-    }
-
-    if(added === 0){
-      vFooter.style.display = "none";
-      return;
-    }
-
-    // Duplicate for seamless looping scroll
-    track.appendChild(content);
-    track.appendChild(content.cloneNode(true));
-
-    // Set duration based on content width (px/sec)
-    requestAnimationFrame(() => {
-      const pxPerSec = Number.isFinite(prefs.tickerSpeed) ? prefs.tickerSpeed : 0;
-      const w = content.getBoundingClientRect().width || 0;
-      const dur = Math.max(18, w / pxPerSec);
-      track.style.setProperty("--hbTickerDuration", `${dur.toFixed(2)}s`);
-
-      // Restart animation so updates don't "jump"
-      track.style.animation = "none";
-      // force reflow
-      void track.offsetHeight;
-      track.style.animation = "";
-    });
-  }
-
-function renderSplash(){
+  function renderSplash(){
     overlay.style.display = "none";
-    splashInfo.style.display = "flex";
+    splashInfo.style.display = "grid";
+    if(liveFooter) liveFooter.style.display = "none";
 
     if(vShowTitle) vShowTitle.textContent = state.showTitle || "Open Mic & Jam Night";
-
-    renderHouseBandFooter();
 
     clearCardCues();
     lastRemainingMs = null;
@@ -237,24 +196,13 @@ function renderSplash(){
     sNext.textContent = n1?.displayName || "TBD";
     sDeck.textContent = n2?.displayName || "TBD";
 
-    const anyQueued = (state.queue || []).some(x => x && x.status === "QUEUED");
-    const hasCompleted = (state.queue || []).some(x => x && (x.status === "DONE" || x.status === "SKIPPED"));
-    const showEnded = hasCompleted && !anyQueued;
-    if(showEnded){
-      sNext.textContent = "Thanks for coming!";
-      sNextSub.textContent = "Show has ended";
-      sDeck.textContent = "See you next time";
-      sDeckSub.textContent = "";
-      setBg();
-      return;
-    }
-
-
     // subtext: slot type + minutes
     const sub1 = n1 ? `${OMJN.displaySlotTypeLabel(state, n1)} • ${OMJN.effectiveMinutes(state, n1)}m` : "Sign ups open";
     const sub2 = n2 ? `${OMJN.displaySlotTypeLabel(state, n2)} • ${OMJN.effectiveMinutes(state, n2)}m` : "Get ready";
     sNextSub.textContent = sub1;
     sDeckSub.textContent = sub2;
+
+    renderHouseBandLineup(hbLineup);
 
     setBg();
   }
@@ -262,18 +210,15 @@ function renderSplash(){
   async function renderLive(){
     overlay.style.display = "grid";
     splashInfo.style.display = "none";
+    if(liveFooter) liveFooter.style.display = "flex";
 
     if(vShowTitle) vShowTitle.textContent = state.showTitle || "Open Mic & Jam Night";
-
-    renderHouseBandFooter();
 
     const cur = OMJN.computeCurrent(state);
     if(!cur){
       renderSplash();
       return;
     }
-
-    renderHouseBandFooter();
 
     // Reset cue tracking when slot changes
     if(lastSlotId !== cur.id){
@@ -318,11 +263,15 @@ function renderSplash(){
 
     // next line
     const [n1] = OMJN.computeNextTwo(state);
-    nextLine.textContent = "";
-    nextLine.appendChild(document.createTextNode("Next: "));
-    const strong = document.createElement("strong");
-    strong.textContent = (n1?.displayName || "—");
-    nextLine.appendChild(strong);
+    nextLine.innerHTML = `Next: <strong>${n1?.displayName || "—"}</strong>`;
+
+    // Small footer (Next / On Deck) during LIVE
+    if(lfNext) lfNext.textContent = n1?.displayName || "—";
+    if(lfDeck){
+      const [, n2] = OMJN.computeNextTwo(state);
+      lfDeck.textContent = n2?.displayName || "—";
+    }
+    renderHouseBandLineup(hbLiveLineup, { compact:true });
 
     // donation link
     const url = cur.media?.donationUrl || "";

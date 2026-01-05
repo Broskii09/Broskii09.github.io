@@ -42,7 +42,7 @@ const OMJN = (() => {
 operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false },
       profiles: {},
         splash: { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true },
-      viewerPrefs: { warnAtSec: 120, finalAtSec: 30, showOvertime: true, showProgressBar: true, houseBand:{ show:true, tickerSpeed:60 } },
+      viewerPrefs: { warnAtSec: 120, finalAtSec: 30, showOvertime: true, showProgressBar: true },
       settings: {
         theme: {
           vars: { bg:"#0b172e", panel:"#0f2140", panel2:"#132a52", text:"#e7eefb", muted:"#a5b4d6", accent:"#00c2ff" },
@@ -85,10 +85,6 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(!s.profiles) s.profiles = {};
       if (!s.splash) s.splash = { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true };
       if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
-      // viewer prefs migration (House Band footer)
-      if(!s.viewerPrefs.houseBand) s.viewerPrefs.houseBand = { ...d.viewerPrefs.houseBand };
-      if(s.viewerPrefs.houseBand.show === undefined) s.viewerPrefs.houseBand.show = true;
-      if(!Number.isFinite(s.viewerPrefs.houseBand.tickerSpeed)) s.viewerPrefs.houseBand.tickerSpeed = d.viewerPrefs.houseBand.tickerSpeed;
       // Timer migration: normalize shape
       if(!s.timer) s.timer = { running:false, startedAt:null, pausedAt:null, elapsedMs:0, baseDurationMs:null };
       if(typeof s.timer.elapsedMs !== "number") s.timer.elapsedMs = 0;
@@ -169,88 +165,12 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(s.selectedNextId === null && !s.currentSlotId){
         s.selectedNextId = (s.queue.find(x=>x.status==="QUEUED")?.id ?? null);
       }
-      return normalizeStateInPlace(s);
+
+      return s;
     }catch(e){
       console.warn("Failed to load state, resetting:", e);
       return defaultState();
     }
-  }
-
-
-  // Normalize a state object in-place (used for import/export hardening)
-  function normalizeStateInPlace(s){
-    const d = defaultState();
-    if(!s || typeof s !== "object") return d;
-
-    if(!s.version) s.version = 1;
-
-    if(!s.operatorPrefs) s.operatorPrefs = { ...d.operatorPrefs };
-    if(s.operatorPrefs.startGuard === undefined) s.operatorPrefs.startGuard = true;
-    if(s.operatorPrefs.endGuard === undefined) s.operatorPrefs.endGuard = true;
-    if(s.operatorPrefs.hotkeysEnabled === undefined) s.operatorPrefs.hotkeysEnabled = true;
-    if(s.operatorPrefs.editCollapsed === undefined) s.operatorPrefs.editCollapsed = false;
-
-    if(!s.profiles) s.profiles = {};
-    if(!s.splash) s.splash = { ...d.splash };
-
-    if(!s.viewerPrefs) s.viewerPrefs = { ...d.viewerPrefs };
-    if(!s.viewerPrefs.houseBand) s.viewerPrefs.houseBand = { ...d.viewerPrefs.houseBand };
-    if(s.viewerPrefs.houseBand.show === undefined) s.viewerPrefs.houseBand.show = true;
-    if(!Number.isFinite(s.viewerPrefs.houseBand.tickerSpeed)) s.viewerPrefs.houseBand.tickerSpeed = d.viewerPrefs.houseBand.tickerSpeed;
-
-    if(!s.settings) s.settings = d.settings;
-
-    if(!s.assetsIndex) s.assetsIndex = {};
-    if(!Array.isArray(s.queue)) s.queue = [];
-    if(!Array.isArray(s.slotTypes) || !s.slotTypes.length) s.slotTypes = d.slotTypes.map(x => ({ ...x }));
-    s.slotTypes = s.slotTypes.filter(t => t && t.id !== "jam");
-
-    // Ensure core types exist
-    for(const core of d.slotTypes){
-      if(!s.slotTypes.some(t=>t.id===core.id)){
-        s.slotTypes.push({ ...core });
-      }
-    }
-
-    // Normalize slot types
-    for(const t of s.slotTypes){
-      if(t.enabled === undefined) t.enabled = true;
-      if(!t.color) t.color = "#00c2ff";
-      if(t.defaultMinutes === undefined) t.defaultMinutes = 15;
-      if(t.isJamMode === undefined) t.isJamMode = false;
-      if(!t.label) t.label = t.id;
-    }
-
-    // House Band
-    if(!Array.isArray(s.houseBand)) s.houseBand = [];
-    for(const m of s.houseBand) normalizeHouseBandMember(m);
-
-    // Queue cleanup + jam removal
-    for(const slot of s.queue){
-      if(slot?.slotTypeId === "jam") slot.slotTypeId = "musician";
-      if(slot?.jam) delete slot.jam;
-      normalizeSlot(slot);
-      if(!s.slotTypes.find(t=>t.id===slot.slotTypeId)){
-        slot.slotTypeId = "musician";
-      }
-    }
-
-    if(s.currentSlotId === undefined) s.currentSlotId = null;
-    if(s.selectedNextId === undefined) s.selectedNextId = null;
-    if(!s.phase) s.phase = "SPLASH";
-
-    if(!s.timer) s.timer = { running:false, startedAt:null, pausedAt:null, elapsedMs:0, baseDurationMs:null };
-    if(typeof s.timer.elapsedMs !== "number") s.timer.elapsedMs = 0;
-    if(!("baseDurationMs" in s.timer)) s.timer.baseDurationMs = null;
-    if(!("running" in s.timer)) s.timer.running = false;
-    if(!("startedAt" in s.timer)) s.timer.startedAt = null;
-    if(!("pausedAt" in s.timer)) s.timer.pausedAt = null;
-
-    if(s.selectedNextId === null && !s.currentSlotId){
-      s.selectedNextId = (s.queue.find(x=>x.status==="QUEUED")?.id ?? null);
-    }
-
-    return s;
   }
 
 
@@ -303,6 +223,13 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
     if(m.customInstrument === undefined) m.customInstrument = "";
     m.customInstrument = sanitizeText(m.customInstrument);
 
+    // Optional skill tags (array of short strings)
+    if(!Array.isArray(m.skillTags)) m.skillTags = [];
+    m.skillTags = m.skillTags
+      .map(x => sanitizeText(x))
+      .filter(Boolean)
+      .slice(0, 10);
+
     if(m.active === undefined) m.active = true;
 
     // Cooldown: based on how many *performers* must pass in the queue.
@@ -330,16 +257,11 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
     return !!(m?.active) && (Number(m?.cooldownRemaining) <= 0);
   }
 
-  function markHouseBandMemberPlayed(state, memberId, opts={}){
+  function markHouseBandMemberPlayed(state, memberId){
     const m = state?.houseBand?.find(x => x.id === memberId);
     if(!m) return;
     normalizeHouseBandMember(m);
-
-    // If called while a performer is currently live, we add 1 so the current performer
-    // doesn't count toward the "sit out X performers" cooldown.
-    const addOne = opts && opts.addOne ? 1 : 0;
-    const len = Math.max(0, Math.floor(Number(m.cooldownLength || 0)));
-    m.cooldownRemaining = len + addOne;
+    m.cooldownRemaining = Math.max(0, Math.floor(Number(m.cooldownLength || 0)));
   }
 
   function decrementHouseBandCooldowns(state, performersPassed = 1){
@@ -556,7 +478,7 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
 
 
   return {
-    uid, defaultState, loadState, saveState, normalizeStateInPlace, publish, subscribe,
+    uid, defaultState, loadState, saveState, publish, subscribe,
     getSlotType, effectiveMinutes, displaySlotTypeLabel, normalizeSlot,
     // House Band
     houseBandInstrumentOptions, normalizeHouseBandMember, houseBandMemberLabel,

@@ -51,31 +51,45 @@
 
     <!-- Splash overlay -->
     <div class="vSplashInfo" id="splashInfo">
-      <div class="vCard">
+      <div class="vCard vSplashCard">
         <h3>Next Up</h3>
         <p class="who" id="sNext">TBD</p>
         <div class="sub" id="sNextSub">Sign ups open</div>
       </div>
-      <div class="vCard">
+      <div class="vCard vSplashCard">
         <h3>On Deck</h3>
         <p class="who" id="sDeck">TBD</p>
         <div class="sub" id="sDeckSub">Get ready</div>
       </div>
-    </div>
 
-
-
-        <!-- House Band Footer -->
-    <div class="vFooter" id="vFooter" style="display:none;">
-      <div class="vFooterInner">
-        <span class="vFooterLabel">House Band:</span>
-        <div class="vHouseBandTicker" id="vHouseBand">
-          <div class="vHouseBandTrack" id="vHouseBandTrack"></div>
-        </div>
+      <div class="vCard vBandCard">
+        <h3>House Band</h3>
+        <div class="vBandLine" id="hbLineup"></div>
       </div>
     </div>
+
+    <!-- Small footer during LIVE -->
+    <div class="vLiveFooter" id="liveFooter" style="display:none;">
+      <div class="vFooterRow">
+        <div class="vCard vFooterCard">
+          <div class="small">Next Up</div>
+          <div class="vFooterWho" id="lfNext">—</div>
+        </div>
+        <div class="vCard vFooterCard">
+          <div class="small">On Deck</div>
+          <div class="vFooterWho" id="lfDeck">—</div>
+        </div>
+      </div>
+
+      <div class="vCard vFooterBandCard">
+        <div class="small">House Band</div>
+        <div class="vBandLine compact" id="hbLiveLineup"></div>
+      </div>
+    </div>
+
   </div>
-    <script src="./shared.js"></script>
+
+  <script src="./shared.js"></script>
   <script src="./viewer.js"></script>
 </body>
 </html>

@@ -103,14 +103,6 @@
                         <button class="btn" id="btnRedo" title="Redo (Ctrl+Shift+Z)">Redo</button>
                     </div>
 
-                    <div id="hbQuickWrap" style="margin-top:10px;">
-                        <div class="small" style="margin-bottom:6px;">
-                            House Band quick: <span class="mono">1–9</span> Played · <span class="mono">Shift+1–9</span> Clear
-                        </div>
-                        <div class="hbQuickRow" id="hbQuickRow"></div>
-                    </div>
-
-
                     <div class="row" style="margin-top:10px;">
                         <div class="spacer"></div>
                         <button class="btn tiny" id="btnMinus1">-1m</button>
@@ -129,48 +121,6 @@
                 </div>
             </div>
 
-
-
-            <div class="card" id="houseBandCard">
-                <div class="cardHeader">
-                    <h2>House Band</h2>
-                    <div class="row" style="align-items:center; gap:8px;">
-                        <div class="small">Availability + cooldown by performers</div>
-                        <div class="spacer"></div>
-                        <button class="btn tiny" id="hbAllActive" type="button">All Active</button>
-                        <button class="btn tiny" id="hbAllInactive" type="button">All Inactive</button>
-                    </div>
-                </div>
-                <div class="cardBody">
-                    <div class="row">
-                        <div class="field" style="flex:1 1 180px;">
-                            <label>Member Name</label>
-                            <input id="hbName" type="text" placeholder="Name" autocomplete="off" />
-                        </div>
-                        <div class="field" style="width:220px;">
-                            <label>Instrument</label>
-                            <select id="hbInstrument"></select>
-                        </div>
-                        <div class="field" id="hbCustomWrap" style="flex:1 1 180px; display:none;">
-                            <label>Custom Instrument</label>
-                            <input id="hbCustomInstrument" type="text" placeholder="Type instrument" autocomplete="off" />
-                        </div>
-                        <div class="field" style="width:140px;">
-                            <label>Cooldown</label>
-                            <input id="hbCooldown" type="number" min="0" step="1" placeholder="0" />
-                        </div>
-                        <button class="btn good" id="hbAdd" type="button">Add</button>
-                    </div>
-
-                    <div class="small" style="margin-top:10px;">
-                        Click <strong>Played</strong> to start that member’s cooldown. Cooldowns decrement each time a performer ends.
-                    </div>
-
-                    <hr class="sep" />
-
-                    <div id="hbList" class="hbList"></div>
-                </div>
-            </div>
             <details class="card" id="editCard" open>
                 <summary class="cardHeader collapsibleHeader">
                     <h2>Edit Selected</h2>
@@ -238,6 +188,21 @@
                     
                 </div>
             </details>
+
+            <div class="card">
+                <div class="cardHeader">
+                    <h2>House Band</h2>
+                    <div class="row">
+                        <button class="btn small" id="btnAddHB" type="button">Add Member</button>
+                    </div>
+                </div>
+                <div class="cardBody">
+                    <div class="small" style="margin-bottom:10px;">
+                        Cooldowns are counted in <strong>performers</strong> (not minutes). When you end/skip a performer, all cooldowns tick down by 1.
+                    </div>
+                    <div id="houseBandList" class="hbList"></div>
+                </div>
+            </div>
 
         </div>
     </div>
@@ -369,25 +334,6 @@
                         <label>Overtime Flash Opacity</label>
                         <input id="setOvertimeAlpha" type="range" min="0" max="1" step="0.01" />
                         <div class="small mono" id="setOvertimeAlphaVal">0.85</div>
-                    </div>
-
-                    <hr class="sep" />
-
-                    <h3 class="subhead">House Band footer</h3>
-                    <div class="row wrap">
-                        <span class="pill" title="Show or hide the House Band footer on the viewer">
-                            Show footer
-                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-                                <input type="checkbox" id="hbFooterShow" />
-                                <span class="small">on</span>
-                            </label>
-                        </span>
-
-                        <div class="field" style="flex:1 1 320px;">
-                            <label>Ticker speed (px/sec)</label>
-                            <input id="hbTickerSpeed" type="range" min="20" max="140" step="5" />
-                            <div class="small mono" id="hbTickerSpeedVal">60</div>
-                        </div>
                     </div>
 
                     <hr class="sep" />

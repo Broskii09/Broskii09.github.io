@@ -3,6 +3,7 @@
   let state = OMJN.loadState();
   OMJN.applyThemeToDocument(document, state);
   ensureProfilesShape(state);
+  ensureHouseBandShape(state);
   const els = {
     queue: document.getElementById("queue"),
     addName: document.getElementById("addName"),
@@ -87,21 +88,8 @@
     btnSelectNext: document.getElementById("btnSelectNext"),
 
     // House Band
-    hbName: document.getElementById("hbName"),
-    hbInstrument: document.getElementById("hbInstrument"),
-    hbCustomWrap: document.getElementById("hbCustomWrap"),
-    hbCustomInstrument: document.getElementById("hbCustomInstrument"),
-    hbCooldown: document.getElementById("hbCooldown"),
-    hbAdd: document.getElementById("hbAdd"),
-    hbList: document.getElementById("hbList"),
-    hbAllActive: document.getElementById("hbAllActive"),
-    hbAllInactive: document.getElementById("hbAllInactive"),
-    hbQuickRow: document.getElementById("hbQuickRow"),
-    hbQuickWrap: document.getElementById("hbQuickWrap"),
-    // Viewer prefs: House Band footer
-    hbFooterShow: document.getElementById("hbFooterShow"),
-    hbTickerSpeed: document.getElementById("hbTickerSpeed"),
-    hbTickerSpeedVal: document.getElementById("hbTickerSpeedVal"),
+    btnAddHB: document.getElementById("btnAddHB"),
+    houseBandList: document.getElementById("houseBandList"),
   };
 
   let selectedId = null;
@@ -163,37 +151,17 @@
   // ---- Performer profiles (stored in state) ----
   function ensureProfilesShape(s){
     if(!s.profiles) s.profiles = {};
-    if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false };
+    if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true };
   }
 
+  // ---- House Band shape ----
   function ensureHouseBandShape(s){
-    if(!s.houseBand || !Array.isArray(s.houseBand)) s.houseBand = [];
+    if(!Array.isArray(s.houseBand)) s.houseBand = [];
     for(const m of s.houseBand){
       OMJN.normalizeHouseBandMember(m);
     }
   }
 
-  function fillInstrumentSelect(selectEl, selected){
-    if(!selectEl) return;
-    const prior = selected ?? selectEl.value ?? "";
-    selectEl.innerHTML = "";
-    const opts = OMJN.houseBandInstrumentOptions();
-    for(const it of opts){
-      const o = document.createElement("option");
-      o.value = it.id;
-      o.textContent = it.label;
-      selectEl.appendChild(o);
-    }
-    if(prior && opts.some(x=>x.id===prior)) selectEl.value = prior;
-    else selectEl.value = opts[0]?.id || "custom";
-  }
-
-  function toggleHbCustomAddFields(){
-    if(!els.hbCustomWrap || !els.hbInstrument) return;
-    const show = (els.hbInstrument.value === "custom");
-    els.hbCustomWrap.style.display = show ? "block" : "none";
-    if(!show && els.hbCustomInstrument) els.hbCustomInstrument.value = "";
-  }
 
   function normNameKey(name){
     return OMJN.sanitizeText(name).toLowerCase();
@@ -226,10 +194,9 @@
   }
 
   function applyProfileDefaultsToSlot(s, slot, profile){
-    if(!profile) return;    // Respect the operator's dropdown choice when adding; only fill if missing.
-    if(!slot.slotTypeId) slot.slotTypeId = profile.defaultSlotTypeId || slot.slotTypeId;    if(slot.minutesOverride === undefined || slot.minutesOverride === null){
-      slot.minutesOverride = profile.defaultMinutesOverride ?? slot.minutesOverride ?? null;
-    }
+    if(!profile) return;
+    slot.slotTypeId = profile.defaultSlotTypeId || slot.slotTypeId;
+    slot.minutesOverride = profile.defaultMinutesOverride ?? slot.minutesOverride ?? null;
     slot.media = slot.media || { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
     slot.media.donationUrl = profile.media?.donationUrl ?? slot.media.donationUrl ?? null;
     slot.media.imageAssetId = profile.media?.imageAssetId ?? slot.media.imageAssetId ?? null;
@@ -430,15 +397,6 @@
       els.prefCollapseEditor.checked = !!state.operatorPrefs?.editCollapsed;
     }
 
-    // House Band footer viewer prefs
-    const hb = state.viewerPrefs?.houseBand || { show:true, tickerSpeed:60 };
-    if(els.hbFooterShow) els.hbFooterShow.checked = (hb.show !== false);
-    if(els.hbTickerSpeed){
-      const spd = Number.isFinite(hb.tickerSpeed) ? hb.tickerSpeed : 60;
-      els.hbTickerSpeed.value = String(spd);
-      if(els.hbTickerSpeedVal) els.hbTickerSpeedVal.textContent = String(spd);
-    }
-
     renderSlotTypesEditor();
   }
 
@@ -556,34 +514,6 @@
       });
     }
 
-
-
-    // Viewer: House Band footer prefs
-    if(els.hbFooterShow){
-      els.hbFooterShow.addEventListener("change", () => {
-        updateState(s => {
-          s.viewerPrefs = s.viewerPrefs || {};
-          s.viewerPrefs.houseBand = s.viewerPrefs.houseBand || { show:true, tickerSpeed:60 };
-          s.viewerPrefs.houseBand.show = !!els.hbFooterShow.checked;
-        }, { recordHistory:false });
-      });
-    }
-
-    if(els.hbTickerSpeed){
-      const onSpeed = () => {
-        const val = clamp(parseInt(els.hbTickerSpeed.value||"60",10) || 60, 20, 140);
-        els.hbTickerSpeed.value = String(val);
-        if(els.hbTickerSpeedVal) els.hbTickerSpeedVal.textContent = String(val);
-        updateState(s => {
-          s.viewerPrefs = s.viewerPrefs || {};
-          s.viewerPrefs.houseBand = s.viewerPrefs.houseBand || { show:true, tickerSpeed:60 };
-          s.viewerPrefs.houseBand.tickerSpeed = val;
-        }, { recordHistory:false });
-      };
-      els.hbTickerSpeed.addEventListener("input", onSpeed);
-      els.hbTickerSpeed.addEventListener("change", onSpeed);
-    }
-
     if(els.btnExportSettings){
       els.btnExportSettings.addEventListener("click", () => {
         const payload = {
@@ -617,7 +547,6 @@
             if(imported.settings) s.settings = imported.settings;
             if(Array.isArray(imported.slotTypes) && imported.slotTypes.length) s.slotTypes = imported.slotTypes;
             if(imported.viewerPrefs) s.viewerPrefs = imported.viewerPrefs;
-            OMJN.normalizeStateInPlace(s);
           }, { recordHistory:false });
         }catch(err){
           alert("Settings import failed: " + err.message);
@@ -917,261 +846,207 @@ function renderKPIs(){
   }
 
 
+  function parseSkillTags(raw){
+    return String(raw ?? "")
+      .split(",")
+      .map(x => OMJN.sanitizeText(x))
+      .filter(Boolean)
+      .slice(0, 10);
+  }
 
   function renderHouseBand(){
-    if(!els.hbList) return;
-    ensureHouseBandShape(state);
+    if(!els.houseBandList) return;
+    els.houseBandList.innerHTML = "";
 
-    // Ensure add-form instrument select has options
-    if(els.hbInstrument && els.hbInstrument.options.length === 0){
-      fillInstrumentSelect(els.hbInstrument, "guitar");
-      toggleHbCustomAddFields();
-    }
-
-    els.hbList.innerHTML = "";
-
-    if(!state.houseBand.length){
+    const members = Array.isArray(state.houseBand) ? state.houseBand : [];
+    if(!members.length){
       const empty = document.createElement("div");
       empty.className = "small";
-      empty.textContent = "No house band members yet. Add them above.";
-      els.hbList.appendChild(empty);
+      empty.textContent = "No house band members yet.";
+      els.houseBandList.appendChild(empty);
       return;
     }
 
-    for(const m0 of state.houseBand){
-      OMJN.normalizeHouseBandMember(m0);
+    const instruments = OMJN.houseBandInstrumentOptions();
 
-      const item = document.createElement("div");
-      item.className = "hbItem";
+    members.forEach((m, idx) => {
+      OMJN.normalizeHouseBandMember(m);
 
-      // Left: Active toggle
-      const left = document.createElement("div");
-      const lbl = document.createElement("label");
-      lbl.className = "hbActiveLabel";
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.checked = !!m0.active;
-      cb.addEventListener("change", () => {
+      const wrap = document.createElement("div");
+      wrap.className = "hbRow";
+
+      // Row 1: active, name, instrument, cooldown length
+      const row1 = document.createElement("div");
+      row1.className = "row wrap";
+      row1.style.gap = "10px";
+
+      const activeField = document.createElement("label");
+      activeField.className = "pill";
+      activeField.style.cursor = "pointer";
+      activeField.title = "Show/hide this member on the viewer";
+      activeField.innerHTML = `
+        Active
+        <span style="display:inline-flex; align-items:center; gap:8px; margin-left:8px;">
+          <input type="checkbox" ${m.active ? "checked" : ""} />
+        </span>
+      `;
+      const activeChk = activeField.querySelector("input");
+      activeChk.addEventListener("change", () => {
         updateState(s => {
-          ensureHouseBandShape(s);
-          const mm = s.houseBand.find(x => x.id === m0.id);
+          const mm = s.houseBand?.[idx];
           if(!mm) return;
-          mm.active = !!cb.checked;
-        }, { recordHistory:false });
+          mm.active = !!activeChk.checked;
+          OMJN.normalizeHouseBandMember(mm);
+        });
       });
-      const span = document.createElement("span");
-      span.textContent = "Active";
-      lbl.appendChild(cb);
-      lbl.appendChild(span);
-      left.appendChild(lbl);
 
-      // Middle: Inputs + status
-      const mid = document.createElement("div");
-
-      const inputs = document.createElement("div");
-      inputs.className = "hbInputs";
-
-      const nameInput = document.createElement("input");
-      nameInput.type = "text";
-      nameInput.placeholder = "Name";
-      nameInput.value = m0.name || "";
+      const nameField = document.createElement("div");
+      nameField.className = "field";
+      nameField.style.flex = "1 1 200px";
+      nameField.innerHTML = `<label>Name</label><input type="text" value="${(m.name||"").replaceAll('"','&quot;')}" placeholder="Name" />`;
+      const nameInput = nameField.querySelector("input");
       nameInput.addEventListener("input", () => {
         const v = OMJN.sanitizeText(nameInput.value);
         updateState(s => {
-          ensureHouseBandShape(s);
-          const mm = s.houseBand.find(x => x.id === m0.id);
+          const mm = s.houseBand?.[idx];
           if(!mm) return;
           mm.name = v;
-        }, { recordHistory:false });
+          OMJN.normalizeHouseBandMember(mm);
+        });
       });
 
-      const instSel = document.createElement("select");
-      fillInstrumentSelect(instSel, m0.instrumentId || "guitar");
-
-      const customInput = document.createElement("input");
-      customInput.type = "text";
-      customInput.placeholder = "Custom instrument";
-      customInput.value = m0.customInstrument || "";
-      customInput.style.display = (instSel.value === "custom") ? "inline-block" : "none";
-
+      const instField = document.createElement("div");
+      instField.className = "field";
+      instField.style.flex = "1 1 200px";
+      instField.innerHTML = `<label>Instrument</label><select></select>`;
+      const instSel = instField.querySelector("select");
+      for(const opt of instruments){
+        const o = document.createElement("option");
+        o.value = opt.id;
+        o.textContent = opt.label;
+        instSel.appendChild(o);
+      }
+      instSel.value = m.instrumentId || "guitar";
       instSel.addEventListener("change", () => {
-        const v = instSel.value;
-        customInput.style.display = (v === "custom") ? "inline-block" : "none";
-        if(v !== "custom") customInput.value = "";
         updateState(s => {
-          ensureHouseBandShape(s);
-          const mm = s.houseBand.find(x => x.id === m0.id);
+          const mm = s.houseBand?.[idx];
           if(!mm) return;
-          mm.instrumentId = v;
-          if(v !== "custom") mm.customInstrument = "";
-        }, { recordHistory:false });
+          mm.instrumentId = instSel.value;
+          if(mm.instrumentId !== "custom") mm.customInstrument = "";
+          OMJN.normalizeHouseBandMember(mm);
+        });
       });
 
+      const cdLenField = document.createElement("div");
+      cdLenField.className = "field";
+      cdLenField.style.width = "150px";
+      cdLenField.innerHTML = `<label>Cooldown (performers)</label><input type="number" min="0" step="1" value="${m.cooldownLength}" />`;
+      const cdLenInput = cdLenField.querySelector("input");
+      cdLenInput.addEventListener("input", () => {
+        const v = Math.max(0, Math.floor(Number(cdLenInput.value || 0)));
+        updateState(s => {
+          const mm = s.houseBand?.[idx];
+          if(!mm) return;
+          mm.cooldownLength = v;
+          // clamp remaining so it never exceeds length
+          mm.cooldownRemaining = Math.min(mm.cooldownRemaining || 0, v);
+          OMJN.normalizeHouseBandMember(mm);
+        });
+      });
+
+      row1.appendChild(activeField);
+      row1.appendChild(nameField);
+      row1.appendChild(instField);
+      row1.appendChild(cdLenField);
+
+      wrap.appendChild(row1);
+
+      // Row 2: custom instrument + skill tags + controls
+      const row2 = document.createElement("div");
+      row2.className = "row wrap";
+      row2.style.marginTop = "10px";
+      row2.style.gap = "10px";
+
+      const customField = document.createElement("div");
+      customField.className = "field";
+      customField.style.flex = "1 1 220px";
+      customField.innerHTML = `<label>Custom instrument</label><input type="text" placeholder="e.g., Sax, Fiddle" value="${(m.customInstrument||"").replaceAll('"','&quot;')}" />`;
+      const customInput = customField.querySelector("input");
       customInput.addEventListener("input", () => {
         const v = OMJN.sanitizeText(customInput.value);
         updateState(s => {
-          ensureHouseBandShape(s);
-          const mm = s.houseBand.find(x => x.id === m0.id);
+          const mm = s.houseBand?.[idx];
           if(!mm) return;
           mm.customInstrument = v;
-        }, { recordHistory:false });
+          mm.instrumentId = "custom";
+          OMJN.normalizeHouseBandMember(mm);
+        });
       });
+      customField.style.display = (m.instrumentId === "custom") ? "block" : "none";
 
-      const cdInput = document.createElement("input");
-      cdInput.type = "number";
-      cdInput.min = "0";
-      cdInput.step = "1";
-      cdInput.value = String(Number.isFinite(m0.cooldownLength) ? m0.cooldownLength : 0);
-      cdInput.title = "Cooldown length (# performers)";
-      cdInput.addEventListener("input", () => {
-        const raw = cdInput.value;
-        const n = (raw === "") ? 0 : Math.max(0, Math.floor(Number(raw)));
+      const tagsField = document.createElement("div");
+      tagsField.className = "field";
+      tagsField.style.flex = "1 1 260px";
+      tagsField.innerHTML = `<label>Skill tags (comma-separated)</label><input type="text" placeholder="e.g., blues, jazz, harmony" value="${(m.skillTags||[]).join(', ').replaceAll('"','&quot;')}" />`;
+      const tagsInput = tagsField.querySelector("input");
+      tagsInput.addEventListener("change", () => {
+        const tags = parseSkillTags(tagsInput.value);
         updateState(s => {
-          ensureHouseBandShape(s);
-          const mm = s.houseBand.find(x => x.id === m0.id);
+          const mm = s.houseBand?.[idx];
           if(!mm) return;
-          mm.cooldownLength = n;
-          mm.cooldownRemaining = Math.max(0, Math.floor(Number(mm.cooldownRemaining || 0)));
-        }, { recordHistory:false });
+          mm.skillTags = tags;
+          OMJN.normalizeHouseBandMember(mm);
+        });
       });
 
-      inputs.appendChild(nameInput);
-      inputs.appendChild(instSel);
-      inputs.appendChild(customInput);
-      inputs.appendChild(cdInput);
-
-      const status = document.createElement("div");
-      status.className = "hbStatus";
-      const rawRemaining = Math.max(0, Math.floor(Number(m0.cooldownRemaining || 0)));
-      // If a performance is live, we subtract 1 for display so the current performer isn't counted.
-      const displayRemaining = Math.max(0, rawRemaining - (state.currentSlotId ? 1 : 0));
-      if(!m0.active){
-        status.textContent = "Inactive";
-      }else if(displayRemaining > 0){
-        status.textContent = `Resting: ${displayRemaining} performer${displayRemaining===1?"":"s"}`;
-      }else{
-        status.textContent = "Available";
-      }
-
-      mid.appendChild(inputs);
-      mid.appendChild(status);
-
-      // Right: Buttons
-      const btns = document.createElement("div");
-      btns.className = "hbButtons";
+      const meta = document.createElement("div");
+      meta.className = "pill";
+      meta.title = "Cooldown remaining (in performers)";
+      meta.innerHTML = `Remaining: <strong class="mono">${m.cooldownRemaining}</strong>`;
 
       const btnPlayed = document.createElement("button");
+      btnPlayed.className = "btn tiny";
       btnPlayed.type = "button";
-      btnPlayed.className = "btn tiny good";
-      btnPlayed.textContent = "Played";
+      btnPlayed.textContent = "Mark Played";
       btnPlayed.addEventListener("click", () => {
-        const rawRemaining = Math.max(0, Math.floor(Number(m0.cooldownRemaining || 0)));
-        if(rawRemaining > 0){
-          const ok = confirm(`"${m0.name || "—"}" is already resting. Restart their cooldown?`);
-          if(!ok) return;
-        }
         updateState(s => {
-          ensureHouseBandShape(s);
-          OMJN.markHouseBandMemberPlayed(s, m0.id, { addOne: !!s.currentSlotId });
-        }, { recordHistory:false });
+          OMJN.markHouseBandMemberPlayed(s, m.id);
+        });
       });
 
       const btnClear = document.createElement("button");
-      btnClear.type = "button";
       btnClear.className = "btn tiny";
+      btnClear.type = "button";
       btnClear.textContent = "Clear Cooldown";
       btnClear.addEventListener("click", () => {
         updateState(s => {
-          ensureHouseBandShape(s);
-          OMJN.clearHouseBandCooldown(s, m0.id);
-        }, { recordHistory:false });
+          OMJN.clearHouseBandCooldown(s, m.id);
+        });
       });
 
       const btnRemove = document.createElement("button");
-      btnRemove.type = "button";
       btnRemove.className = "btn tiny danger";
+      btnRemove.type = "button";
       btnRemove.textContent = "Remove";
       btnRemove.addEventListener("click", () => {
-        const ok = confirm(`Remove house band member "${m0.name || "—"}"?`);
-        if(!ok) return;
         updateState(s => {
-          ensureHouseBandShape(s);
-          s.houseBand = s.houseBand.filter(x => x.id !== m0.id);
-        }, { recordHistory:false });
+          s.houseBand = (s.houseBand || []).filter(x => x.id !== m.id);
+        });
       });
 
-      btns.appendChild(btnPlayed);
-      btns.appendChild(btnClear);
-      btns.appendChild(btnRemove);
+      row2.appendChild(customField);
+      row2.appendChild(tagsField);
+      row2.appendChild(meta);
+      row2.appendChild(btnPlayed);
+      row2.appendChild(btnClear);
+      row2.appendChild(btnRemove);
 
-      item.appendChild(left);
-      item.appendChild(mid);
-      item.appendChild(btns);
+      wrap.appendChild(row2);
 
-      els.hbList.appendChild(item);
-    }
-
-  function renderHouseBandQuickControls(){
-    if(!els.hbQuickRow || !els.hbQuickWrap) return;
-    ensureHouseBandShape(state);
-
-    els.hbQuickRow.innerHTML = "";
-    const roster = state.houseBand || [];
-    if(!roster.length){
-      els.hbQuickWrap.style.display = "none";
-      return;
-    }
-    els.hbQuickWrap.style.display = "block";
-
-    const max = Math.min(9, roster.length);
-    for(let i=0;i<max;i++){
-      const m = roster[i];
-      OMJN.normalizeHouseBandMember(m);
-
-      const rawRemaining = Math.max(0, Math.floor(Number(m.cooldownRemaining || 0)));
-      const displayRemaining = Math.max(0, rawRemaining - (state.currentSlotId ? 1 : 0));
-      const available = OMJN.isHouseBandMemberAvailable(m) && displayRemaining <= 0;
-
-      const pill = document.createElement("div");
-      pill.className = "hbQuickPill";
-
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "btn tiny " + (available ? "good" : (!m.active ? "" : "warn"));
-      const label = OMJN.houseBandMemberLabel(m);
-      const restTag = (!m.active) ? "OFF" : (displayRemaining > 0 ? `⏳${displayRemaining}` : "✓");
-      btn.textContent = `${i+1} ${label} ${restTag}`;
-      btn.title = `Played: ${i+1} · Clear: Shift+${i+1}`;
-      btn.addEventListener("click", () => {
-        // spam guard
-        if(rawRemaining > 0){
-          const ok = confirm(`"${m.name || "—"}" is already resting. Restart their cooldown?`);
-          if(!ok) return;
-        }
-        updateState(s => {
-          ensureHouseBandShape(s);
-          OMJN.markHouseBandMemberPlayed(s, m.id, { addOne: !!s.currentSlotId });
-        }, { recordHistory:false });
-      });
-
-      const clr = document.createElement("button");
-      clr.type = "button";
-      clr.className = "btn tiny";
-      clr.textContent = "Clear";
-      clr.addEventListener("click", () => {
-        updateState(s => {
-          ensureHouseBandShape(s);
-          OMJN.clearHouseBandCooldown(s, m.id);
-        }, { recordHistory:false });
-      });
-
-      pill.appendChild(btn);
-      pill.appendChild(clr);
-      els.hbQuickRow.appendChild(pill);
-    }
+      els.houseBandList.appendChild(wrap);
+    });
   }
 
-  }
   function render(){
     // sync header inputs
     els.showTitle.value = state.showTitle || "";
@@ -1213,44 +1088,10 @@ function renderKPIs(){
     renderKPIs();
     renderTimerLine();
     renderEditor();
-    renderHouseBandQuickControls();
     renderHouseBand();
   }
 
   // ---- Actions ----
-
-  function addHouseBandMember(){
-    if(!els.hbName) return;
-    const name = OMJN.sanitizeText(els.hbName.value);
-    if(!name) return;
-
-    const instrumentId = els.hbInstrument?.value || "guitar";
-    const customInstrument = (instrumentId === "custom") ? OMJN.sanitizeText(els.hbCustomInstrument?.value || "") : "";
-    const rawCooldown = els.hbCooldown?.value ?? "";
-    const cooldownLength = (rawCooldown === "") ? 0 : Math.max(0, Math.floor(Number(rawCooldown)));
-
-    updateState(s => {
-      ensureHouseBandShape(s);
-      const m = {
-        id: OMJN.uid("hb"),
-        name,
-        instrumentId,
-        customInstrument,
-        active: true,
-        cooldownLength,
-        cooldownRemaining: 0
-      };
-      OMJN.normalizeHouseBandMember(m);
-      s.houseBand.push(m);
-    }, { recordHistory:false });
-
-    // reset add form
-    els.hbName.value = "";
-    if(els.hbCustomInstrument) els.hbCustomInstrument.value = "";
-    if(els.hbCooldown) els.hbCooldown.value = "";
-    if(els.hbName) els.hbName.focus();
-  }
-
   function addPerformer(){
     const name = OMJN.sanitizeText(els.addName.value);
     if(!name) return;
@@ -1412,7 +1253,7 @@ function start(){
       }
       const cur = s.queue.find(x=>x.id===s.currentSlotId);
       if(cur) cur.status = "DONE";
-      // Decrement house band cooldowns: one performer finished
+      // Queue-based House Band cooldowns: one performer has passed
       OMJN.decrementHouseBandCooldowns(s, 1);
       s.currentSlotId = null;
       s.phase = "SPLASH";
@@ -1447,7 +1288,7 @@ function start(){
       if(!slot) return;
       slot.status = "SKIPPED";
       if(s.currentSlotId === slot.id){
-        // Decrement house band cooldowns: current performer ended (even if skipped)
+        // Queue-based House Band cooldowns: one performer has passed (skip)
         OMJN.decrementHouseBandCooldowns(s, 1);
         s.currentSlotId = null;
         s.phase = "SPLASH";
@@ -1467,13 +1308,10 @@ function start(){
     const ok = confirm("Start a new show? This clears the queue (images stay in local storage unless you clear browser data).");
     if(!ok) return;
     const fresh = OMJN.defaultState();
+    // preserve house band lineup
+    fresh.houseBand = (state.houseBand ? JSON.parse(JSON.stringify(state.houseBand)) : []);
     // preserve splash path if user changed it
     fresh.splash.backgroundAssetPath = state.splash?.backgroundAssetPath || fresh.splash.backgroundAssetPath;
-    // preserve show title
-    fresh.showTitle = state.showTitle || fresh.showTitle;
-    // preserve house band roster (reset cooldowns)
-    fresh.houseBand = Array.isArray(state.houseBand) ? state.houseBand.map(m => ({ ...m, cooldownRemaining: 0 })) : [];
-    for(const m of fresh.houseBand) OMJN.normalizeHouseBandMember(m);
     setState(fresh);
     selectedId = null;
   }
@@ -1562,9 +1400,6 @@ function start(){
         imported.splash = imported.splash ?? { backgroundAssetPath:"./assets/splash_BG.jpg", showNextTwo:true };
         imported.viewerPrefs = imported.viewerPrefs ?? { warnAtSec:120, finalAtSec:30, showOvertime:true, showProgressBar:true };
         imported.assetsIndex = imported.assetsIndex ?? {};
-        // House Band
-        imported.houseBand = Array.isArray(imported.houseBand) ? imported.houseBand : [];
-        for(const m of imported.houseBand) OMJN.normalizeHouseBandMember(m);
         // Drop legacy Jam mode data (Lineup-only)
         if(Array.isArray(imported.slotTypes)) imported.slotTypes = imported.slotTypes.filter(t => t?.id !== "jam");
         if(Array.isArray(imported.queue)){
@@ -1573,7 +1408,6 @@ function start(){
             if(slot?.jam) delete slot.jam;
           }
         }
-        OMJN.normalizeStateInPlace(imported);
         pushUndoSnapshot();
         undoStack = undoStack.slice(-HISTORY_LIMIT);
         redoStack = [];
@@ -1639,7 +1473,7 @@ function start(){
       updateState(s => {
         const slot = s.queue.find(x=>x.id===selectedId);
         if(slot) slot.minutesOverride = val;
-      }, { recordHistory:false });
+      });
     });
 
     els.editNotes.addEventListener("input", () => {
@@ -1648,7 +1482,7 @@ function start(){
       updateState(s => {
         const slot = s.queue.find(x=>x.id===selectedId);
         if(slot) slot.notes = v;
-      }, { recordHistory:false });
+      });
     });
 
     els.editUrl.addEventListener("input", () => {
@@ -1744,38 +1578,6 @@ function bind(){
     bindSettings();
     els.addType.addEventListener("change", toggleCustomAddFields);
 
-    // House Band bulk actions
-    if(els.hbAllActive){
-      els.hbAllActive.addEventListener("click", () => {
-        updateState(s => {
-          ensureHouseBandShape(s);
-          for(const m of s.houseBand){ m.active = true; }
-        }, { recordHistory:false });
-      });
-    }
-    if(els.hbAllInactive){
-      els.hbAllInactive.addEventListener("click", () => {
-        updateState(s => {
-          ensureHouseBandShape(s);
-          for(const m of s.houseBand){ m.active = false; }
-        }, { recordHistory:false });
-      });
-    }
-
-    // House Band add form
-    if(els.hbInstrument){
-      fillInstrumentSelect(els.hbInstrument, "guitar");
-      toggleHbCustomAddFields();
-      els.hbInstrument.addEventListener("change", toggleHbCustomAddFields);
-    }
-    if(els.hbAdd) els.hbAdd.addEventListener("click", addHouseBandMember);
-    if(els.hbName){
-      els.hbName.addEventListener("keydown", (e) => {
-        if(e.key === "Enter"){ e.preventDefault(); addHouseBandMember(); }
-      });
-    }
-
-
     els.addName.addEventListener("keydown", (e) => {
       if(e.key === "Enter"){ e.preventDefault(); addPerformer(); }
     });
@@ -1813,6 +1615,26 @@ els.showTitle.addEventListener("input", () => {
     els.btnPlus1.addEventListener("click", () => addMinutes(1));
     els.btnPlus5.addEventListener("click", () => addMinutes(5));
     els.btnResetTime.addEventListener("click", resetTimer);
+
+    // House Band
+    if(els.btnAddHB){
+      els.btnAddHB.addEventListener("click", () => {
+        updateState(s => {
+          ensureHouseBandShape(s);
+          s.houseBand.push({
+            id: OMJN.uid("hb"),
+            name: "",
+            instrumentId: "guitar",
+            customInstrument: "",
+            skillTags: [],
+            active: true,
+            cooldownLength: 0,
+            cooldownRemaining: 0
+          });
+        });
+      });
+    }
+
 
     els.btnReset.addEventListener("click", resetShow);
     els.btnExport.addEventListener("click", exportJSON);
@@ -1924,33 +1746,9 @@ bindEditor();
         guardedEnd();
         return;
       }
-
-      // House Band hotkeys: Digit1-9 = Played, Shift+Digit1-9 = Clear
-      const code = e.code || "";
-      const isDigit = code.startsWith("Digit") || code.startsWith("Numpad");
-      if(isDigit){
-        const m = code.match(/(Digit|Numpad)([1-9])/);
-        if(m){
-          const idx = parseInt(m[2], 10) - 1;
-          const roster = state.houseBand || [];
-          const member = roster[idx];
-          if(member){
-            e.preventDefault();
-            if(e.shiftKey){
-              updateState(s => { ensureHouseBandShape(s); OMJN.clearHouseBandCooldown(s, member.id); }, { recordHistory:false });
-            }else{
-              const rawRemaining = Math.max(0, Math.floor(Number(member.cooldownRemaining || 0)));
-              if(rawRemaining > 0){
-                const ok = confirm(`"${member.name || "—"}" is already resting. Restart their cooldown?`);
-                if(!ok) return;
-              }
-              updateState(s => { ensureHouseBandShape(s); OMJN.markHouseBandMemberPlayed(s, member.id, { addOne: !!s.currentSlotId }); }, { recordHistory:false });
-            }
-            return;
-          }
-        }
+      if(k === "j"){
+        return;
       }
-
       if(e.key === "Delete" || e.key === "Backspace"){
         if(selectedId){
           e.preventDefault();
