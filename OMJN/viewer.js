@@ -35,9 +35,6 @@
   const sNextSub = document.getElementById("sNextSub");
   const sDeckSub = document.getElementById("sDeckSub");
 
-  const jamSpot = document.getElementById("jamSpot");
-  const jamSpotName = document.getElementById("jamSpotName");
-
   let currentAssetUrl = null;
 
   function setBg(){
@@ -217,16 +214,6 @@
     } else {
       donationText.textContent = "";
       donationCard.style.display = "none";
-    }
-
-    // jam spotlight
-    const showJam = type.isJamMode && state.features?.jamEnabled;
-    if(showJam && cur.jam){
-      const active = cur.jam.subList?.find(x=>x.id===cur.jam.activeJamEntryId) || null;
-      jamSpot.hidden = false;
-      jamSpotName.textContent = active?.name || "—";
-    }else{
-      jamSpot.hidden = true;
     }
 
     // media

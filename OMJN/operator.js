@@ -13,7 +13,6 @@
     addCustomLabel: document.getElementById("addCustomLabel"),
     addCustomMinutesWrap: document.getElementById("addCustomMinutesWrap"),
     addCustomMinutes: document.getElementById("addCustomMinutes"),
-    jamEnabled: document.getElementById("jamEnabled"),
 
     showTitle: document.getElementById("showTitle"),
     splashPath: document.getElementById("splashPath"),
@@ -86,13 +85,6 @@
     btnClearImg: document.getElementById("btnClearImg"),
     btnSkip: document.getElementById("btnSkip"),
     btnSelectNext: document.getElementById("btnSelectNext"),
-
-    jamPanel: document.getElementById("jamPanel"),
-    jamTitle: document.getElementById("jamTitle"),
-    jamAdd: document.getElementById("jamAdd"),
-    btnJamAdd: document.getElementById("btnJamAdd"),
-    btnJamRotate: document.getElementById("btnJamRotate"),
-    jamList: document.getElementById("jamList"),
   };
 
   let selectedId = null;
@@ -175,7 +167,7 @@
       ensureProfilesShape(s);
       s.profiles[key] = {
         displayName: slot.displayName,
-        defaultSlotTypeId: slot.slotTypeId || "standard",
+        defaultSlotTypeId: slot.slotTypeId || "musician",
         defaultMinutesOverride: slot.minutesOverride ?? null,
         media: {
           donationUrl: slot?.media?.donationUrl ?? null,
@@ -200,7 +192,7 @@
 
 
   function visibleSlotTypes(){
-    return state.slotTypes.filter(t => (t.enabled !== false) && (state.features.jamEnabled ? true : !t.isJamMode));
+    return state.slotTypes.filter(t => (t.enabled !== false));
   }
 
   function ensureSelectedValid(){
@@ -244,7 +236,7 @@
   function renderSlotTypesEditor(){
     if(!els.slotTypesEditor) return;
     els.slotTypesEditor.innerHTML = "";
-    const order = ["musician","comedian","custom","jam"];
+    const order = ["musician","comedian","custom"];
     const types = [...(state.slotTypes||[])].sort((a,b)=>{
       const ia = order.indexOf(a.id); const ib = order.indexOf(b.id);
       if(ia===-1 && ib===-1) return String(a.label).localeCompare(String(b.label));
@@ -271,7 +263,7 @@
       const cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = (t.enabled !== false);
-      cb.disabled = (t.id === "custom" || t.id === "jam");
+      cb.disabled = (t.id === "custom");
       cb.addEventListener("change", () => {
         updateState(s => {
           const tt = s.slotTypes.find(x=>x.id===t.id);
@@ -339,13 +331,6 @@
       });
       fMin.appendChild(labM);
       fMin.appendChild(inpM);
-
-      if(t.isJamMode){
-        const meta = document.createElement("div");
-        meta.className = "tinyMeta";
-        meta.textContent = "Jam";
-        labM.appendChild(meta);
-      }
 
       row.appendChild(fMin);
 
@@ -568,9 +553,9 @@
     }
   }
 
-function fillTypeSelect(selectEl, includeJam){
+function fillTypeSelect(selectEl){
     selectEl.innerHTML = "";
-    for(const t of (includeJam ? state.slotTypes : visibleSlotTypes())){
+    for(const t of visibleSlotTypes()){
       const opt = document.createElement("option");
       opt.value = t.id;
       opt.textContent = `${t.label} (${t.defaultMinutes}m)`;
@@ -730,8 +715,7 @@ function fillTypeSelect(selectEl, includeJam){
     }
 
     for(const slot of list){
-      if(slot.slotTypeId === "jam" && !state.features.jamEnabled) continue;
-      els.queue.appendChild(queueRow(slot));
+els.queue.appendChild(queueRow(slot));
     }
   }
 
@@ -784,7 +768,7 @@ function fillTypeSelect(selectEl, includeJam){
         s.timer.baseDurationMs = null;
       }
       if(s.selectedNextId === slotId){
-        const next = s.queue.find(x=>x.status==="QUEUED" && (s.features?.jamEnabled || OMJN.getSlotType(s, x.slotTypeId).isJamMode === false));
+        const next = s.queue.find(x=>x.status==="QUEUED" && true);
         s.selectedNextId = next ? next.id : null;
       }
 
@@ -843,118 +827,12 @@ function renderKPIs(){
     const showCustom = slot.slotTypeId === "custom";
     els.editCustomWrap.style.display = showCustom ? "block" : "none";
     if(showCustom) els.editCustomLabel.value = slot.customTypeLabel || "";
-    const showJam = state.features.jamEnabled && type.isJamMode;
-    els.jamPanel.style.display = showJam ? "block" : "none";
-
-    if(showJam){
-      OMJN.ensureJamShape(slot);
-      els.jamTitle.value = slot.jam.title || "Jam";
-      renderJamList(slot);
-    }
-  }
-
-  function renderJamList(jamSlot){
-    const jam = jamSlot.jam;
-    els.jamList.innerHTML = "";
-
-    const activeId = jam.activeJamEntryId;
-    const list = jam.subList || [];
-
-    if(!list.length){
-      const empty = document.createElement("div");
-      empty.className = "small";
-      empty.textContent = "No jam participants yet.";
-      els.jamList.appendChild(empty);
-      return;
-    }
-
-    for(const entry of list){
-      const div = document.createElement("div");
-      div.className = "queueItem";
-      div.dataset.id = entry.id;
-
-      const handle = document.createElement("div");
-      handle.className = "dragHandle";
-      handle.textContent = "♪";
-
-      const main = document.createElement("div");
-      main.className = "qMain";
-      const top = document.createElement("div");
-      top.className = "qTop";
-      const nm = document.createElement("div");
-      nm.className = "qName";
-      nm.textContent = entry.name;
-
-      const badge = document.createElement("span");
-      badge.className = "badge";
-      badge.textContent = entry.status;
-
-      if(entry.id === activeId){
-        const a = document.createElement("span");
-        a.className = "badge gold";
-        a.textContent = "SPOTLIGHT";
-        top.appendChild(a);
-      }
-      top.appendChild(nm);
-      top.appendChild(badge);
-
-      main.appendChild(top);
-
-      const actions = document.createElement("div");
-      actions.className = "qActions";
-
-      const btnSpot = document.createElement("button");
-      btnSpot.className = "btn tiny";
-      btnSpot.textContent = "Spot";
-      btnSpot.addEventListener("click", () => {
-        updateState(s => {
-          const sl = s.queue.find(x=>x.id===jamSlot.id);
-          if(!sl?.jam) return;
-          sl.jam.activeJamEntryId = entry.id;
-        });
-      });
-
-      const btnDone = document.createElement("button");
-      btnDone.className = "btn tiny good";
-      btnDone.textContent = "Done";
-      btnDone.addEventListener("click", () => {
-        updateState(s => {
-          const sl = s.queue.find(x=>x.id===jamSlot.id);
-          const e = sl?.jam?.subList?.find(x=>x.id===entry.id);
-          if(e) e.status = "DONE";
-          if(sl?.jam?.activeJamEntryId === entry.id) sl.jam.activeJamEntryId = null;
-        });
-      });
-
-      const btnSkip = document.createElement("button");
-      btnSkip.className = "btn tiny danger";
-      btnSkip.textContent = "Skip";
-      btnSkip.addEventListener("click", () => {
-        updateState(s => {
-          const sl = s.queue.find(x=>x.id===jamSlot.id);
-          const e = sl?.jam?.subList?.find(x=>x.id===entry.id);
-          if(e) e.status = "SKIPPED";
-          if(sl?.jam?.activeJamEntryId === entry.id) sl.jam.activeJamEntryId = null;
-        });
-      });
-
-      actions.appendChild(btnSpot);
-      actions.appendChild(btnDone);
-      actions.appendChild(btnSkip);
-
-      div.appendChild(handle);
-      div.appendChild(main);
-      div.appendChild(actions);
-
-      els.jamList.appendChild(div);
-    }
   }
 
   function render(){
     // sync header inputs
     els.showTitle.value = state.showTitle || "";
     els.splashPath.value = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
-    els.jamEnabled.checked = !!state.features.jamEnabled;
 
     // Operator prefs
     els.startGuard.checked = !!state.operatorPrefs?.startGuard;
@@ -984,8 +862,8 @@ function renderKPIs(){
       }
     }
 
-    fillTypeSelect(els.addType, false);
-    fillTypeSelect(els.editType, true);
+    fillTypeSelect(els.addType);
+    fillTypeSelect(els.editType);
     toggleCustomAddFields();
 
     renderQueue();
@@ -1000,7 +878,7 @@ function renderKPIs(){
     if(!name) return;
 
     updateState(s => {
-      const slotTypeId = els.addType.value || "standard";
+      const slotTypeId = els.addType.value || "musician";
       const isCustom = slotTypeId === "custom";
       const customTypeLabel = isCustom ? OMJN.sanitizeText(els.addCustomLabel.value) : "";
       const customMinutesRaw = isCustom ? els.addCustomMinutes.value : "";
@@ -1015,10 +893,6 @@ function renderKPIs(){
         notes: "",
         media: { donationUrl: null, imageAssetId: null, mediaLayout: "NONE" }
       };
-      if(slotTypeId === "jam") {
-        OMJN.ensureJamShape(slot);
-        slot.jam.title = "Jam";
-      }
       const prof = s.profiles?.[normNameKey(slot.displayName)] || null;
         if(prof) applyProfileDefaultsToSlot(s, slot, prof);
         s.queue.push(slot);
@@ -1034,8 +908,7 @@ function renderKPIs(){
           };
         }
       if(!s.selectedNextId && !s.currentSlotId){
-        const t = OMJN.getSlotType(s, slot.slotTypeId);
-        if(!(t.isJamMode && !s.features?.jamEnabled)) s.selectedNextId = slot.id;
+        s.selectedNextId = slot.id;
       }
     });
 
@@ -1075,7 +948,7 @@ function renderKPIs(){
   function guardedStart(){
     // determine who would start
     const pick = (() => {
-      const eligible = (x) => x.status==="QUEUED" && (state.features?.jamEnabled || OMJN.getSlotType(state, x.slotTypeId).isJamMode === false);
+      const eligible = (x) => x.status==="QUEUED" && true;
       return state.queue.find(x=>x.id===state.selectedNextId && eligible(x)) || state.queue.find(x=>eligible(x));
     })();
 
@@ -1098,7 +971,7 @@ function renderKPIs(){
 
 function start(){
     updateState(s => {
-      const eligible = (x) => x.status==="QUEUED" && (s.features?.jamEnabled || OMJN.getSlotType(s, x.slotTypeId).isJamMode === false);
+      const eligible = (x) => x.status==="QUEUED" && true;
       const pick = s.queue.find(x=>x.id===s.selectedNextId && eligible(x)) || s.queue.find(x=>eligible(x));
       if(!pick) return;
 
@@ -1168,7 +1041,7 @@ function start(){
       s.timer.elapsedMs = 0;
       s.timer.baseDurationMs = null;
       // auto-select next queued
-      const next = s.queue.find(x=>x.status==="QUEUED" && (s.features?.jamEnabled || OMJN.getSlotType(s, x.slotTypeId).isJamMode === false));
+      const next = s.queue.find(x=>x.status==="QUEUED" && true);
       s.selectedNextId = next ? next.id : null;
     });
   }
@@ -1202,7 +1075,7 @@ function start(){
         s.timer.baseDurationMs = null;
       }
       if(s.selectedNextId === slot.id){
-        const next = s.queue.find(x=>x.status==="QUEUED" && (s.features?.jamEnabled || OMJN.getSlotType(s, x.slotTypeId).isJamMode === false));
+        const next = s.queue.find(x=>x.status==="QUEUED" && true);
         s.selectedNextId = next ? next.id : null;
       }
     });
@@ -1244,7 +1117,7 @@ function start(){
       if(key){
         s.profiles[key] = {
           displayName: slot.displayName,
-          defaultSlotTypeId: slot.slotTypeId || "standard",
+          defaultSlotTypeId: slot.slotTypeId || "musician",
           defaultMinutesOverride: slot.minutesOverride ?? null,
           media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
           updatedAt: Date.now()
@@ -1267,7 +1140,7 @@ function start(){
       if(key){
         s.profiles[key] = {
           displayName: slot.displayName,
-          defaultSlotTypeId: slot.slotTypeId || "standard",
+          defaultSlotTypeId: slot.slotTypeId || "musician",
           defaultMinutesOverride: slot.minutesOverride ?? null,
           media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
           updatedAt: Date.now()
@@ -1298,10 +1171,18 @@ function start(){
         if(!imported || typeof imported !== "object") throw new Error("Invalid JSON");
         // light validation
         imported.version = imported.version ?? 1;
-        imported.features = imported.features ?? { jamEnabled:false };
+        imported.features = imported.features ?? {};
         imported.splash = imported.splash ?? { backgroundAssetPath:"./assets/splash_BG.jpg", showNextTwo:true };
         imported.viewerPrefs = imported.viewerPrefs ?? { warnAtSec:120, finalAtSec:30, showOvertime:true, showProgressBar:true };
         imported.assetsIndex = imported.assetsIndex ?? {};
+        // Drop legacy Jam mode data (Lineup-only)
+        if(Array.isArray(imported.slotTypes)) imported.slotTypes = imported.slotTypes.filter(t => t?.id !== "jam");
+        if(Array.isArray(imported.queue)){
+          for(const slot of imported.queue){
+            if(slot?.slotTypeId === "jam") slot.slotTypeId = "musician";
+            if(slot?.jam) delete slot.jam;
+          }
+        }
         pushUndoSnapshot();
         undoStack = undoStack.slice(-HISTORY_LIMIT);
         redoStack = [];
@@ -1329,7 +1210,7 @@ function start(){
           if(key){
             s.profiles[key] = {
               displayName: slot.displayName,
-              defaultSlotTypeId: slot.slotTypeId || "standard",
+              defaultSlotTypeId: slot.slotTypeId || "musician",
               defaultMinutesOverride: slot.minutesOverride ?? null,
               media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
               updatedAt: Date.now()
@@ -1346,13 +1227,12 @@ function start(){
         const slot = s.queue.find(x=>x.id===selectedId);
         if(!slot) return;
         slot.slotTypeId = v;
-        if(v === "jam") OMJN.ensureJamShape(slot);
         if(v !== "custom") slot.customTypeLabel = slot.customTypeLabel || "";
         const key = normNameKey(slot.displayName);
         if(key){
           s.profiles[key] = {
             displayName: slot.displayName,
-            defaultSlotTypeId: slot.slotTypeId || "standard",
+            defaultSlotTypeId: slot.slotTypeId || "musician",
             defaultMinutesOverride: slot.minutesOverride ?? null,
             media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
             updatedAt: Date.now()
@@ -1392,7 +1272,7 @@ function start(){
         if(key){
           s.profiles[key] = {
             displayName: slot.displayName,
-            defaultSlotTypeId: slot.slotTypeId || "standard",
+            defaultSlotTypeId: slot.slotTypeId || "musician",
             defaultMinutesOverride: slot.minutesOverride ?? null,
             media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
             updatedAt: Date.now()
@@ -1413,7 +1293,7 @@ els.editLayout.addEventListener("change", () => {
         if(key){
           s.profiles[key] = {
             displayName: slot.displayName,
-            defaultSlotTypeId: slot.slotTypeId || "standard",
+            defaultSlotTypeId: slot.slotTypeId || "musician",
             defaultMinutesOverride: slot.minutesOverride ?? null,
             media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
             updatedAt: Date.now()
@@ -1438,50 +1318,6 @@ els.editLayout.addEventListener("change", () => {
       updateState(s => {
         const slot = s.queue.find(x=>x.id===selectedId);
         if(slot) slot.customTypeLabel = v;
-      });
-    });
-
-    // Jam bindings
-    els.jamTitle.addEventListener("input", () => {
-      if(!selectedId) return;
-      const v = OMJN.sanitizeText(els.jamTitle.value);
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
-        if(!slot) return;
-        OMJN.ensureJamShape(slot);
-        slot.jam.title = v || "Jam";
-      });
-    });
-
-    const jamAddNow = () => {
-      if(!selectedId) return;
-      const name = OMJN.sanitizeText(els.jamAdd.value);
-      if(!name) return;
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
-        if(!slot) return;
-        OMJN.ensureJamShape(slot);
-        slot.jam.subList.push({ id: OMJN.uid("jam"), name, status:"IN_POOL" });
-        if(!slot.jam.activeJamEntryId) slot.jam.activeJamEntryId = slot.jam.subList[0].id;
-      });
-      els.jamAdd.value = "";
-      els.jamAdd.focus();
-    };
-    els.btnJamAdd.addEventListener("click", jamAddNow);
-    els.jamAdd.addEventListener("keydown", (e) => {
-      if(e.key === "Enter"){ e.preventDefault(); jamAddNow(); }
-    });
-
-    els.btnJamRotate.addEventListener("click", () => {
-      if(!selectedId) return;
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
-        if(!slot?.jam?.subList?.length) return;
-        const list = slot.jam.subList.filter(x=>x.status==="IN_POOL");
-        if(!list.length) return;
-        const idx = list.findIndex(x=>x.id===slot.jam.activeJamEntryId);
-        const next = list[(idx+1) % list.length];
-        slot.jam.activeJamEntryId = next.id;
       });
     });
   }
@@ -1511,8 +1347,8 @@ els.editLayout.addEventListener("change", () => {
 
 function bind(){
     // initial select options
-    fillTypeSelect(els.addType, false);
-    fillTypeSelect(els.editType, true);
+    fillTypeSelect(els.addType);
+    fillTypeSelect(els.editType);
     toggleCustomAddFields();
     bindSettings();
     els.addType.addEventListener("change", toggleCustomAddFields);
@@ -1522,24 +1358,6 @@ function bind(){
     });
     els.btnAdd.addEventListener("click", addPerformer);
 
-    els.jamEnabled.addEventListener("change", () => {
-      updateState(s => {
-        s.features.jamEnabled = !!els.jamEnabled.checked;
-        // if jam disabled and selected slot is jam, nudge selection
-        if(!s.features.jamEnabled){
-          if(s.currentSlotId){
-            const cur = s.queue.find(x=>x.id===s.currentSlotId);
-            if(cur?.slotTypeId==="jam") { /* allow existing; just hide adding */ }
-          }
-          if(s.selectedNextId){
-            const nx = s.queue.find(x=>x.id===s.selectedNextId);
-            if(nx?.slotTypeId==="jam") s.selectedNextId = s.queue.find(x=>x.status==="QUEUED" && x.slotTypeId!=="jam")?.id ?? null;
-          }
-        }
-      });
-    });
-
-    
     // Operator prefs
     els.startGuard.addEventListener("change", () => {
       updateState(s => { s.operatorPrefs.startGuard = !!els.startGuard.checked; }, { recordHistory:false });
@@ -1684,11 +1502,6 @@ bindEditor();
         return;
       }
       if(k === "j"){
-        // rotate jam spotlight if available
-        if(els.btnJamRotate && !els.btnJamRotate.disabled){
-          e.preventDefault();
-          els.btnJamRotate.click();
-        }
         return;
       }
       if(e.key === "Delete" || e.key === "Backspace"){
