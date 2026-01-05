@@ -208,7 +208,7 @@
 
     // Set duration based on content width (px/sec)
     requestAnimationFrame(() => {
-      const pxPerSec = Number.isFinite(prefs.tickerSpeed) ? prefs.tickerSpeed : 60;
+      const pxPerSec = Number.isFinite(prefs.tickerSpeed) ? prefs.tickerSpeed : 0;
       const w = content.getBoundingClientRect().width || 0;
       const dur = Math.max(18, w / pxPerSec);
       track.style.setProperty("--hbTickerDuration", `${dur.toFixed(2)}s`);
