@@ -7,6 +7,27 @@ const OMJN = (() => {
   const STORAGE_KEY = "omjn.showState.v1";
   const ASSET_DB = { name: "omjn_assets_v1", store: "assets" };
 
+  // ---- House Band ----
+  // Default instrument list (intentionally excludes fiddle/violin and horns).
+  // UI should offer a "Custom" option that uses member.customInstrument.
+  const HOUSE_BAND_INSTRUMENTS = [
+    { id:"guitar",      label:"Guitar" },
+    { id:"acoustic",    label:"Acoustic Guitar" },
+    { id:"electric",    label:"Electric Guitar" },
+    { id:"bass",        label:"Bass" },
+    { id:"drums",       label:"Drums" },
+    { id:"keys",        label:"Keys" },
+    { id:"piano",       label:"Piano" },
+    { id:"vocals",      label:"Vocals" },
+    { id:"percussion",  label:"Percussion" },
+    { id:"harmonica",   label:"Harmonica" },
+    { id:"mandolin",    label:"Mandolin" },
+    { id:"banjo",       label:"Banjo" },
+    { id:"ukulele",     label:"Ukulele" },
+    { id:"other",       label:"Other" },
+    { id:"custom",      label:"Custom" },
+  ];
+
   const now = () => Date.now();
 
   function uid(prefix="id"){
@@ -18,8 +39,7 @@ const OMJN = (() => {
       version: 1,
       showTitle: "Open Mic & Jam Night",
       phase: "SPLASH", // SPLASH | LIVE | PAUSED
-      features: { jamEnabled: false },
-      operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false },
+operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false },
       profiles: {},
         splash: { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true },
       viewerPrefs: { warnAtSec: 120, finalAtSec: 30, showOvertime: true, showProgressBar: true },
@@ -38,8 +58,10 @@ const OMJN = (() => {
         { id:"musician", label:"Musician", defaultMinutes:15, isJamMode:false, color:"#00c2ff", enabled:true },
         { id:"comedian", label:"Comedian", defaultMinutes:10, isJamMode:false, color:"#2dd4bf", enabled:true },
         { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
-        { id:"jam", label:"Jam", defaultMinutes:5, isJamMode:true, color:"#8b5cf6", enabled:true },
-      ],
+],
+      // House Band: list of members shown in Viewer footer (lineup mode).
+      // Cooldowns are based on queue *positions* (performers), not time.
+      houseBand: [],
       queue: [],
       currentSlotId: null,
       selectedNextId: null,
@@ -57,13 +79,11 @@ const OMJN = (() => {
       const s = JSON.parse(raw);
 
       if(!s.version) s.version = 1;
-      if(!s.features) s.features = { jamEnabled: false };
-
-      if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false };
+if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false };
       if(s.operatorPrefs.editCollapsed === undefined) s.operatorPrefs.editCollapsed = false;
 
       if(!s.profiles) s.profiles = {};
-        if (!s.splash) s.splash = { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true };
+      if (!s.splash) s.splash = { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true };
       if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
       // Timer migration: normalize shape
       if(!s.timer) s.timer = { running:false, startedAt:null, pausedAt:null, elapsedMs:0, baseDurationMs:null };
@@ -82,6 +102,13 @@ const OMJN = (() => {
       if(s.selectedNextId === undefined) s.selectedNextId = null;
       if(!s.history) s.history = { undo:[], redo:[] };
 
+      // House Band migration
+      if(!Array.isArray(s.houseBand)) s.houseBand = [];
+      // Normalize members (safe defaults; UI can manage more later)
+      for(const m of s.houseBand){
+        normalizeHouseBandMember(m);
+      }
+
       // Slot types + migration from older templates
       if(!Array.isArray(s.slotTypes) || !s.slotTypes.length){
         s.slotTypes = d.slotTypes;
@@ -95,7 +122,7 @@ const OMJN = (() => {
 
       if(isOldDefaults){
         s.slotTypes = d.slotTypes;
-        const map = { standard:"musician", band:"musician", quick:"musician", feature:"comedian", custom:"custom", jam:"jam" };
+        const map = { standard:"musician", band:"musician", quick:"musician", feature:"comedian", custom:"custom", jam:"musician" };
         for(const slot of s.queue){
           if(map[slot.slotTypeId]) slot.slotTypeId = map[slot.slotTypeId];
           if(!s.slotTypes.find(t=>t.id===slot.slotTypeId)){
@@ -104,12 +131,15 @@ const OMJN = (() => {
         }
       }
 
-      // Ensure core types exist (custom + jam included)
+      // Ensure core types exist (custom included)
       for(const core of d.slotTypes){
         if(!s.slotTypes.some(t=>t.id===core.id)){
           s.slotTypes.push({ ...core });
         }
       }
+
+      // Drop legacy Jam type if present
+      s.slotTypes = s.slotTypes.filter(t => t.id !== "jam");
 
       // Ensure slotType fields exist
       for(const t of s.slotTypes){
@@ -123,6 +153,10 @@ const OMJN = (() => {
       // Normalize queue slots and fix unknown type ids
       for(const slot of s.queue){
         normalizeSlot(slot);
+        if(slot.slotTypeId === "jam"){
+          slot.slotTypeId = "musician";
+          if(slot.jam) delete slot.jam;
+        }
         if(!s.slotTypes.find(t=>t.id===slot.slotTypeId)){
           slot.slotTypeId = "musician";
         }
@@ -169,24 +203,86 @@ const OMJN = (() => {
     return slot;
   }
 
-function ensureJamShape(slot){
-    if(slot.jam) return slot;
-    slot.jam = {
-      title: "Jam",
-      subList: [],
-      activeJamEntryId: null,
-      rotationMode: "MANUAL",
-      rotationSeconds: 180
-    };
-    return slot;
+  function houseBandInstrumentOptions(){
+    // Return a copy to prevent accidental mutation.
+    return HOUSE_BAND_INSTRUMENTS.map(x => ({ ...x }));
+  }
+
+  function normalizeHouseBandMember(m){
+    if(!m || typeof m !== "object") return m;
+
+    if(!m.id) m.id = uid("hb");
+    m.name = sanitizeText(m.name || "");
+
+    // instrumentId: one of HOUSE_BAND_INSTRUMENTS ids; "custom" enables customInstrument.
+    if(!m.instrumentId) m.instrumentId = "guitar";
+    const valid = HOUSE_BAND_INSTRUMENTS.some(x => x.id === m.instrumentId);
+    if(!valid) m.instrumentId = "custom";
+
+    if(m.instrumentId !== "custom") m.customInstrument = "";
+    if(m.customInstrument === undefined) m.customInstrument = "";
+    m.customInstrument = sanitizeText(m.customInstrument);
+
+    // Optional skill tags (array of short strings)
+    if(!Array.isArray(m.skillTags)) m.skillTags = [];
+    m.skillTags = m.skillTags
+      .map(x => sanitizeText(x))
+      .filter(Boolean)
+      .slice(0, 10);
+
+    if(m.active === undefined) m.active = true;
+
+    // Cooldown: based on how many *performers* must pass in the queue.
+    if(!Number.isFinite(m.cooldownLength)) m.cooldownLength = 0;
+    if(!Number.isFinite(m.cooldownRemaining)) m.cooldownRemaining = 0;
+    m.cooldownLength = Math.max(0, Math.floor(Number(m.cooldownLength)));
+    m.cooldownRemaining = Math.max(0, Math.floor(Number(m.cooldownRemaining)));
+
+    return m;
+  }
+
+  function houseBandMemberLabel(m){
+    if(!m) return "";
+    const name = sanitizeText(m.name || "");
+    const inst = (m.instrumentId === "custom")
+      ? sanitizeText(m.customInstrument || "")
+      : (HOUSE_BAND_INSTRUMENTS.find(x => x.id === m.instrumentId)?.label || "");
+    if(!name && !inst) return "";
+    if(!inst) return name;
+    if(!name) return inst;
+    return `${name} (${inst})`;
+  }
+
+  function isHouseBandMemberAvailable(m){
+    return !!(m?.active) && (Number(m?.cooldownRemaining) <= 0);
+  }
+
+  function markHouseBandMemberPlayed(state, memberId){
+    const m = state?.houseBand?.find(x => x.id === memberId);
+    if(!m) return;
+    normalizeHouseBandMember(m);
+    m.cooldownRemaining = Math.max(0, Math.floor(Number(m.cooldownLength || 0)));
+  }
+
+  function decrementHouseBandCooldowns(state, performersPassed = 1){
+    const n = Math.max(0, Math.floor(Number(performersPassed || 0)));
+    if(!n || !Array.isArray(state?.houseBand)) return;
+    for(const m of state.houseBand){
+      normalizeHouseBandMember(m);
+      if(m.cooldownRemaining > 0) m.cooldownRemaining = Math.max(0, m.cooldownRemaining - n);
+    }
+  }
+
+  function clearHouseBandCooldown(state, memberId){
+    const m = state?.houseBand?.find(x => x.id === memberId);
+    if(!m) return;
+    m.cooldownRemaining = 0;
   }
 
   function computeNextTwo(state){
     const queued = state.queue.filter(s => {
       if(s.status !== "QUEUED") return false;
       if(s.id === state.currentSlotId) return false;
-      const t = getSlotType(state, s.slotTypeId);
-      if(t.isJamMode && !(state.features?.jamEnabled)) return false;
       return true;
     });
     return [queued[0] || null, queued[1] || null];
@@ -383,7 +479,11 @@ function ensureJamShape(slot){
 
   return {
     uid, defaultState, loadState, saveState, publish, subscribe,
-    getSlotType, effectiveMinutes, displaySlotTypeLabel, normalizeSlot, ensureJamShape, computeNextTwo, computeCurrent, computeTimer,
+    getSlotType, effectiveMinutes, displaySlotTypeLabel, normalizeSlot,
+    // House Band
+    houseBandInstrumentOptions, normalizeHouseBandMember, houseBandMemberLabel,
+    isHouseBandMemberAvailable, markHouseBandMemberPlayed, decrementHouseBandCooldowns, clearHouseBandCooldown,
+    computeNextTwo, computeCurrent, computeTimer,
     openAssetDB, putAsset, getAsset, deleteAsset, compressImageFile,
     formatMMSS, sanitizeText, applyThemeToDocument
   };

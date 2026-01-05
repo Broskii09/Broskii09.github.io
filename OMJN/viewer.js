@@ -10,6 +10,8 @@
   const bg = document.getElementById("bg");
   const overlay = document.getElementById("overlay");
   const splashInfo = document.getElementById("splashInfo");
+  const liveFooter = document.getElementById("liveFooter");
+  const vShowTitle = document.getElementById("vShowTitle");
 
   const vMainCard = document.getElementById("vMainCard");
   const nowName = document.getElementById("nowName");
@@ -34,15 +36,66 @@
   const sNextSub = document.getElementById("sNextSub");
   const sDeckSub = document.getElementById("sDeckSub");
 
-  const jamSpot = document.getElementById("jamSpot");
-  const jamSpotName = document.getElementById("jamSpotName");
+  const hbLineup = document.getElementById("hbLineup");
+  const hbLiveLineup = document.getElementById("hbLiveLineup");
+  const lfNext = document.getElementById("lfNext");
+  const lfDeck = document.getElementById("lfDeck");
 
   let currentAssetUrl = null;
 
   function setBg(){
-      const path = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
+    const path = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
     bg.style.backgroundImage = `url('${path}')`;
   }
+
+  function renderHouseBandLineup(targetEl, opts={}){
+    if(!targetEl) return;
+    const compact = !!opts.compact;
+    const members = (state.houseBand || []).filter(m => m && m.active !== false);
+    targetEl.innerHTML = "";
+
+    if(!members.length){
+      const empty = document.createElement("div");
+      empty.className = "small";
+      empty.style.opacity = ".85";
+      empty.textContent = "—";
+      targetEl.appendChild(empty);
+      return;
+    }
+
+    for(const m of members){
+      OMJN.normalizeHouseBandMember(m);
+
+      const chip = document.createElement("span");
+      chip.className = "hbChip" + ((m.cooldownRemaining > 0) ? " cooling" : "");
+      const label = OMJN.houseBandMemberLabel(m) || "—";
+      chip.textContent = label;
+
+      // cooldown indicator
+      if(m.cooldownRemaining > 0){
+        const cd = document.createElement("span");
+        cd.className = "hbCd mono";
+        cd.textContent = `CD ${m.cooldownRemaining}`;
+        chip.appendChild(cd);
+      }
+
+      // skill tags
+      const tags = Array.isArray(m.skillTags) ? m.skillTags : [];
+      for(const t of tags){
+        const tag = document.createElement("span");
+        tag.className = "hbTag";
+        tag.textContent = t;
+        chip.appendChild(tag);
+      }
+
+      targetEl.appendChild(chip);
+    }
+
+    if(compact){
+      // nothing special for now; CSS handles it
+    }
+  }
+
 
   function clearCardCues(){
     if(!vMainCard) return;
@@ -130,7 +183,10 @@
 
   function renderSplash(){
     overlay.style.display = "none";
-    splashInfo.style.display = "flex";
+    splashInfo.style.display = "grid";
+    if(liveFooter) liveFooter.style.display = "none";
+
+    if(vShowTitle) vShowTitle.textContent = state.showTitle || "Open Mic & Jam Night";
 
     clearCardCues();
     lastRemainingMs = null;
@@ -146,12 +202,17 @@
     sNextSub.textContent = sub1;
     sDeckSub.textContent = sub2;
 
+    renderHouseBandLineup(hbLineup);
+
     setBg();
   }
 
   async function renderLive(){
     overlay.style.display = "grid";
     splashInfo.style.display = "none";
+    if(liveFooter) liveFooter.style.display = "flex";
+
+    if(vShowTitle) vShowTitle.textContent = state.showTitle || "Open Mic & Jam Night";
 
     const cur = OMJN.computeCurrent(state);
     if(!cur){
@@ -204,6 +265,14 @@
     const [n1] = OMJN.computeNextTwo(state);
     nextLine.innerHTML = `Next: <strong>${n1?.displayName || "—"}</strong>`;
 
+    // Small footer (Next / On Deck) during LIVE
+    if(lfNext) lfNext.textContent = n1?.displayName || "—";
+    if(lfDeck){
+      const [, n2] = OMJN.computeNextTwo(state);
+      lfDeck.textContent = n2?.displayName || "—";
+    }
+    renderHouseBandLineup(hbLiveLineup, { compact:true });
+
     // donation link
     const url = cur.media?.donationUrl || "";
     if(url){
@@ -212,16 +281,6 @@
     } else {
       donationText.textContent = "";
       donationCard.style.display = "none";
-    }
-
-    // jam spotlight
-    const showJam = type.isJamMode && state.features?.jamEnabled;
-    if(showJam && cur.jam){
-      const active = cur.jam.subList?.find(x=>x.id===cur.jam.activeJamEntryId) || null;
-      jamSpot.hidden = false;
-      jamSpotName.textContent = active?.name || "—";
-    }else{
-      jamSpot.hidden = true;
     }
 
     // media

@@ -56,14 +56,7 @@
                         <input id="addCustomMinutes" type="number" min="1" step="1" placeholder="15" />
                     </div>
 
-                    <button class="btn good" id="btnAdd">Add</button>
-
-                    <span class="pill" title="Hide/Show Jam Slot Type in the UI">
-                        Jam
-                        <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-                            <input type="checkbox" id="jamEnabled" />
-                            <span class="small">enabled</span>
-                        </label>
+                    <button class="btn good" id="btnAdd">Add</button></label>
                     </span>
                 </div>
 
@@ -192,27 +185,24 @@
                         Image is auto-compressed locally and stored on this computer (IndexedDB).
                     </div>
 
-                    <div id="jamPanel" style="display:none; margin-top:14px;">
-                        <hr class="sep" />
-                        <div class="row" style="align-items:flex-end;">
-                            <div class="field" style="flex:1 1 220px;">
-                                <label>Jam Title</label>
-                                <input id="jamTitle" type="text" placeholder="Jam" />
-                            </div>
-                            <div class="field" style="flex:1 1 220px;">
-                                <label>Add Jam Participant</label>
-                                <input id="jamAdd" type="text" placeholder="Name (press Enter)" />
-                            </div>
-                            <button class="btn good" id="btnJamAdd">Add</button>
-                            <button class="btn" id="btnJamRotate">Rotate Spotlight</button>
-                        </div>
-
-                        <div class="small" style="margin-top:10px;">Jam list is separate from the main queue order.</div>
-                        <div class="queue" id="jamList" style="max-height:220px;"></div>
-                    </div>
-
+                    
                 </div>
             </details>
+
+            <div class="card">
+                <div class="cardHeader">
+                    <h2>House Band</h2>
+                    <div class="row">
+                        <button class="btn small" id="btnAddHB" type="button">Add Member</button>
+                    </div>
+                </div>
+                <div class="cardBody">
+                    <div class="small" style="margin-bottom:10px;">
+                        Cooldowns are counted in <strong>performers</strong> (not minutes). When you end/skip a performer, all cooldowns tick down by 1.
+                    </div>
+                    <div id="houseBandList" class="hbList"></div>
+                </div>
+            </div>
 
         </div>
     </div>

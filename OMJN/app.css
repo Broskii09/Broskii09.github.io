@@ -211,6 +211,27 @@ hr.sep{
   padding:48px;
 }
 
+.vHeader{
+  position:absolute;
+  top:26px;
+  left:48px;
+  right:48px;
+  z-index:5;
+  display:flex;
+  justify-content:flex-start;
+  pointer-events:none;
+}
+.vShowTitle{
+  font-size:28px;
+  font-weight:950;
+  letter-spacing:.2px;
+  padding:10px 16px;
+  border-radius:999px;
+  background:rgba(0,0,0,.35);
+  border:1px solid rgba(255,255,255,.10);
+  backdrop-filter: blur(6px);
+}
+
 /* Push "Next" line to bottom of the main card */
 #vMainCard{
   display:flex;
@@ -291,13 +312,84 @@ hr.sep{
   left:48px;
   bottom:48px;
   right:48px;
-  display:flex;
+  display:grid;
+  grid-template-columns: 1fr 1fr;
   gap:18px;
+  align-items:stretch;
 }
-.vSplashInfo .vCard{padding:18px 20px; border-radius:24px; flex:1 1 auto;}
+.vSplashInfo .vCard{padding:18px 20px; border-radius:24px;}
+.vSplashCard{min-height:150px;}
+.vBandCard{grid-column: 1 / -1; padding:16px 18px;}
 .vSplashInfo h3{margin:0 0 6px; font-size:18px; color:var(--muted); font-weight:850;}
 .vSplashInfo .who{font-size:30px; font-weight:950; margin:0;}
 .vSplashInfo .sub{margin-top:6px; font-size:14px; color:var(--muted);}
+
+.vBandLine{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+}
+.vBandLine.compact{gap:8px;}
+
+.hbChip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 12px;
+  border-radius:999px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.10);
+  font-weight:850;
+  font-size:14px;
+}
+.hbChip.cooling{opacity:.55;}
+.hbCd{
+  margin-left:6px;
+  padding:4px 8px;
+  border-radius:999px;
+  background:rgba(0,0,0,.25);
+  border:1px solid rgba(255,255,255,.12);
+  font-weight:900;
+  font-size:12px;
+}
+.hbTag{
+  padding:4px 8px;
+  border-radius:999px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.10);
+  font-weight:800;
+  font-size:12px;
+  color:var(--muted);
+}
+
+.vLiveFooter{
+  position:absolute;
+  left:32px;
+  right:32px;
+  bottom:24px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.vFooterRow{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+}
+.vFooterCard{
+  padding:14px 16px;
+  border-radius:22px;
+}
+.vFooterWho{
+  margin-top:6px;
+  font-size:24px;
+  font-weight:950;
+}
+.vFooterBandCard{
+  padding:12px 14px;
+  border-radius:22px;
+}
 
 @media (max-width:1200px){
   .container{grid-template-columns: 1fr; height:auto}
@@ -316,6 +408,19 @@ hr.sep{
 }
 
 .row.wrap{flex-wrap:wrap;}
+
+/* Operator: House Band editor */
+.hbList{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.hbRow{
+  padding:12px 12px;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.16);
+}
 
 .slotTypesEditor{
   display:flex;
