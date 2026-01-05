@@ -172,6 +172,34 @@ hr.sep{
   height:100%;
 }
 
+/* House Band (Operator) */
+.hbList{display:flex; flex-direction:column; gap:10px;}
+.hbItem{
+  display:grid;
+  grid-template-columns: 92px 1fr auto;
+  gap:12px;
+  padding:12px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.16);
+}
+.hbActiveLabel{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); user-select:none;}
+.hbActiveLabel input{transform:translateY(1px);}
+.hbInputs{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+.hbInputs input[type="text"], .hbInputs input[type="number"], .hbInputs select{
+  background:rgba(0,0,0,.22);
+  border:1px solid rgba(255,255,255,.10);
+  color:var(--text);
+  padding:8px 10px;
+  border-radius:12px;
+  outline:none;
+}
+.hbInputs input[type="text"]{min-width:160px; flex:1 1 160px;}
+.hbInputs select{min-width:180px;}
+.hbInputs input[type="number"]{width:110px;}
+.hbStatus{font-size:12px; color:var(--muted); margin-top:6px;}
+.hbButtons{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+
 .timerBig{
   font-size:48px;
   font-weight:900;
@@ -208,7 +236,7 @@ hr.sep{
   display:grid;
   grid-template-columns: 1.25fr .75fr;
   gap:20px;
-  padding:48px;
+  padding:48px 48px 132px;
 }
 
 .vHeader{
@@ -310,15 +338,57 @@ hr.sep{
 .vSplashInfo{
   position:absolute;
   left:48px;
-  bottom:48px;
+  bottom:132px;
   right:48px;
   display:flex;
   gap:18px;
 }
-.vSplashInfo .vCard{padding:18px 20px; border-radius:24px; flex:1 1 auto;}
-.vSplashInfo h3{margin:0 0 6px; font-size:18px; color:var(--muted); font-weight:850;}
-.vSplashInfo .who{font-size:30px; font-weight:950; margin:0;}
+.vSplashInfo .vCard{padding:14px 18px; border-radius:22px; flex:1 1 auto;}
+.vSplashInfo h3{margin:0 0 6px; font-size:16px; color:var(--muted); font-weight:850;}
+.vSplashInfo .who{font-size:28px; font-weight:950; margin:0;}
 .vSplashInfo .sub{margin-top:6px; font-size:14px; color:var(--muted);}
+
+
+
+/* House Band Footer (Viewer + Splash) */
+.vFooter{
+  position:absolute;
+  left:48px;
+  right:48px;
+  bottom:48px;
+  z-index:6;
+  display:flex;
+  justify-content:flex-start;
+  pointer-events:none;
+}
+.vFooterInner{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  padding:10px 16px;
+  border-radius:999px;
+  background:rgba(0,0,0,.35);
+  border:1px solid rgba(255,255,255,.10);
+  backdrop-filter: blur(6px);
+}
+.vFooterLabel{
+  font-weight:900;
+  letter-spacing:.2px;
+  opacity:.95;
+}
+.vHouseBand{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.hbItem{
+  font-weight:800;
+  opacity:.92;
+  white-space:nowrap;
+}
+.hbItem.hbRest{ opacity:.45; }
+.hbItem.hbInactive{ opacity:.25; }
 
 @media (max-width:1200px){
   .container{grid-template-columns: 1fr; height:auto}

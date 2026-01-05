@@ -250,11 +250,16 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
     return !!(m?.active) && (Number(m?.cooldownRemaining) <= 0);
   }
 
-  function markHouseBandMemberPlayed(state, memberId){
+  function markHouseBandMemberPlayed(state, memberId, opts={}){
     const m = state?.houseBand?.find(x => x.id === memberId);
     if(!m) return;
     normalizeHouseBandMember(m);
-    m.cooldownRemaining = Math.max(0, Math.floor(Number(m.cooldownLength || 0)));
+
+    // If called while a performer is currently live, we add 1 so the current performer
+    // doesn't count toward the "sit out X performers" cooldown.
+    const addOne = opts && opts.addOne ? 1 : 0;
+    const len = Math.max(0, Math.floor(Number(m.cooldownLength || 0)));
+    m.cooldownRemaining = len + addOne;
   }
 
   function decrementHouseBandCooldowns(state, performersPassed = 1){

@@ -121,6 +121,43 @@
                 </div>
             </div>
 
+
+
+            <div class="card" id="houseBandCard">
+                <div class="cardHeader">
+                    <h2>House Band</h2>
+                    <div class="small">Availability + cooldown by performers</div>
+                </div>
+                <div class="cardBody">
+                    <div class="row">
+                        <div class="field" style="flex:1 1 180px;">
+                            <label>Member Name</label>
+                            <input id="hbName" type="text" placeholder="Name" autocomplete="off" />
+                        </div>
+                        <div class="field" style="width:220px;">
+                            <label>Instrument</label>
+                            <select id="hbInstrument"></select>
+                        </div>
+                        <div class="field" id="hbCustomWrap" style="flex:1 1 180px; display:none;">
+                            <label>Custom Instrument</label>
+                            <input id="hbCustomInstrument" type="text" placeholder="Type instrument" autocomplete="off" />
+                        </div>
+                        <div class="field" style="width:140px;">
+                            <label>Cooldown</label>
+                            <input id="hbCooldown" type="number" min="0" step="1" placeholder="0" />
+                        </div>
+                        <button class="btn good" id="hbAdd" type="button">Add</button>
+                    </div>
+
+                    <div class="small" style="margin-top:10px;">
+                        Click <strong>Played</strong> to start that member’s cooldown. Cooldowns decrement each time a performer ends.
+                    </div>
+
+                    <hr class="sep" />
+
+                    <div id="hbList" class="hbList"></div>
+                </div>
+            </div>
             <details class="card" id="editCard" open>
                 <summary class="cardHeader collapsibleHeader">
                     <h2>Edit Selected</h2>

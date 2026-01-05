@@ -20,6 +20,9 @@
   const chipOver = document.getElementById("chipOver");
   const chipWarn = document.getElementById("chipWarn");
   const chipFinal = document.getElementById("chipFinal");
+
+  const vFooter = document.getElementById("vFooter");
+  const vHouseBand = document.getElementById("vHouseBand");
   const nextLine = document.getElementById("nextLine");
 
   const vMedia = document.getElementById("vMedia");
@@ -126,11 +129,37 @@
     mediaBox.style.display = "flex";
   }
 
-  function renderSplash(){
+  
+  function renderHouseBandFooter(){
+    if(!vFooter || !vHouseBand) return;
+    const roster = Array.isArray(state.houseBand) ? state.houseBand : [];
+    const visible = roster.some(m => (m && (m.name || m.customInstrument)));
+    if(!visible){
+      vFooter.style.display = "none";
+      return;
+    }
+    vFooter.style.display = "flex";
+    vHouseBand.innerHTML = "";
+    for(const m of roster){
+      if(!m) continue;
+      const label = OMJN.houseBandMemberLabel(m);
+      if(!label) continue;
+      const span = document.createElement("span");
+      const available = OMJN.isHouseBandMemberAvailable(m);
+      span.className = "hbItem " + (available ? "hbAvail" : "hbRest");
+      if(!m.active) span.classList.add("hbInactive");
+      span.textContent = label;
+      vHouseBand.appendChild(span);
+    }
+  }
+
+function renderSplash(){
     overlay.style.display = "none";
     splashInfo.style.display = "flex";
 
     if(vShowTitle) vShowTitle.textContent = state.showTitle || "Open Mic & Jam Night";
+
+    renderHouseBandFooter();
 
     clearCardCues();
     lastRemainingMs = null;
@@ -139,6 +168,19 @@
     const [n1, n2] = OMJN.computeNextTwo(state);
     sNext.textContent = n1?.displayName || "TBD";
     sDeck.textContent = n2?.displayName || "TBD";
+
+    const anyQueued = (state.queue || []).some(x => x && x.status === "QUEUED");
+    const hasCompleted = (state.queue || []).some(x => x && (x.status === "DONE" || x.status === "SKIPPED"));
+    const showEnded = hasCompleted && !anyQueued;
+    if(showEnded){
+      sNext.textContent = "Thanks for coming!";
+      sNextSub.textContent = "Show has ended";
+      sDeck.textContent = "See you next time";
+      sDeckSub.textContent = "";
+      setBg();
+      return;
+    }
+
 
     // subtext: slot type + minutes
     const sub1 = n1 ? `${OMJN.displaySlotTypeLabel(state, n1)} • ${OMJN.effectiveMinutes(state, n1)}m` : "Sign ups open";
@@ -155,11 +197,15 @@
 
     if(vShowTitle) vShowTitle.textContent = state.showTitle || "Open Mic & Jam Night";
 
+    renderHouseBandFooter();
+
     const cur = OMJN.computeCurrent(state);
     if(!cur){
       renderSplash();
       return;
     }
+
+    renderHouseBandFooter();
 
     // Reset cue tracking when slot changes
     if(lastSlotId !== cur.id){
