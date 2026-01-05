@@ -23,6 +23,7 @@
 
   const vFooter = document.getElementById("vFooter");
   const vHouseBand = document.getElementById("vHouseBand");
+  const vHouseBandTrack = document.getElementById("vHouseBandTrack");
   const nextLine = document.getElementById("nextLine");
 
   const vMedia = document.getElementById("vMedia");
@@ -132,25 +133,67 @@
   
   function renderHouseBandFooter(){
     if(!vFooter || !vHouseBand) return;
+
     const roster = Array.isArray(state.houseBand) ? state.houseBand : [];
     const visible = roster.some(m => (m && (m.name || m.customInstrument)));
     if(!visible){
       vFooter.style.display = "none";
       return;
     }
+
+    // Build a single-line ticker that scrolls horizontally
+    const track = vHouseBandTrack || vHouseBand;
     vFooter.style.display = "flex";
-    vHouseBand.innerHTML = "";
+    track.innerHTML = "";
+
+    const content = document.createElement("div");
+    content.className = "vHouseBandContent";
+
+    let added = 0;
     for(const m of roster){
       if(!m) continue;
       const label = OMJN.houseBandMemberLabel(m);
       if(!label) continue;
+
+      if(added > 0){
+        const sep = document.createElement("span");
+        sep.className = "hbSep";
+        sep.textContent = "•";
+        content.appendChild(sep);
+      }
+
       const span = document.createElement("span");
       const available = OMJN.isHouseBandMemberAvailable(m);
       span.className = "hbItem " + (available ? "hbAvail" : "hbRest");
       if(!m.active) span.classList.add("hbInactive");
       span.textContent = label;
-      vHouseBand.appendChild(span);
+      content.appendChild(span);
+
+      added++;
     }
+
+    if(added === 0){
+      vFooter.style.display = "none";
+      return;
+    }
+
+    // Duplicate for seamless looping scroll
+    track.appendChild(content);
+    track.appendChild(content.cloneNode(true));
+
+    // Set duration based on content width (px/sec)
+    requestAnimationFrame(() => {
+      const pxPerSec = 60;
+      const w = content.getBoundingClientRect().width || 0;
+      const dur = Math.max(18, w / pxPerSec);
+      track.style.setProperty("--hbTickerDuration", `${dur.toFixed(2)}s`);
+
+      // Restart animation so updates don't "jump"
+      track.style.animation = "none";
+      // force reflow
+      void track.offsetHeight;
+      track.style.animation = "";
+    });
   }
 
 function renderSplash(){

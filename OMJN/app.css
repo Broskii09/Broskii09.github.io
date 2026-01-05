@@ -365,7 +365,8 @@ hr.sep{
   display:flex;
   align-items:center;
   gap:12px;
-  flex-wrap:wrap;
+  flex-wrap:nowrap;
+  min-width:0;
   padding:10px 16px;
   border-radius:999px;
   background:rgba(0,0,0,.35);
@@ -376,19 +377,51 @@ hr.sep{
   font-weight:900;
   letter-spacing:.2px;
   opacity:.95;
+  white-space:nowrap;
 }
-.vHouseBand{
+
+.vHouseBandTicker{
+  position:relative;
+  overflow:hidden;
+  white-space:nowrap;
+  flex:1;
+  min-width:0;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 18px), transparent);
+}
+.vHouseBandTrack{
   display:flex;
-  gap:12px;
-  flex-wrap:wrap;
+  width:max-content;
+  animation: hbTickerScroll var(--hbTickerDuration, 24s) linear infinite;
+  will-change: transform;
 }
+.vHouseBandContent{
+  display:flex;
+  align-items:center;
+  padding-right:64px;
+}
+@keyframes hbTickerScroll{
+  from{ transform: translateX(0); }
+  to{ transform: translateX(-50%); }
+}
+
 .hbItem{
   font-weight:800;
   opacity:.92;
   white-space:nowrap;
 }
+.hbSep{
+  opacity:.55;
+  padding:0 10px;
+  white-space:nowrap;
+}
 .hbItem.hbRest{ opacity:.45; }
 .hbItem.hbInactive{ opacity:.25; }
+
+@media (prefers-reduced-motion: reduce){
+  .vHouseBandTrack{ animation:none; transform:none; }
+}
+
 
 @media (max-width:1200px){
   .container{grid-template-columns: 1fr; height:auto}
