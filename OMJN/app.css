@@ -211,6 +211,27 @@ hr.sep{
   padding:48px;
 }
 
+.vHeader{
+  position:absolute;
+  top:26px;
+  left:48px;
+  right:48px;
+  z-index:5;
+  display:flex;
+  justify-content:flex-start;
+  pointer-events:none;
+}
+.vShowTitle{
+  font-size:28px;
+  font-weight:950;
+  letter-spacing:.2px;
+  padding:10px 16px;
+  border-radius:999px;
+  background:rgba(0,0,0,.35);
+  border:1px solid rgba(255,255,255,.10);
+  backdrop-filter: blur(6px);
+}
+
 /* Push "Next" line to bottom of the main card */
 #vMainCard{
   display:flex;

@@ -953,17 +953,13 @@ function renderKPIs(){
   function render(){
     // sync header inputs
     els.showTitle.value = state.showTitle || "";
-      els.splashPath.value = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
+    els.splashPath.value = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
     els.jamEnabled.checked = !!state.features.jamEnabled;
 
     // Operator prefs
     els.startGuard.checked = !!state.operatorPrefs?.startGuard;
     els.endGuard.checked = !!state.operatorPrefs?.endGuard;
     els.hotkeysEnabled.checked = (state.operatorPrefs?.hotkeysEnabled !== false);
-
-    if(els.editCard) els.editCard.open = !state.operatorPrefs?.editCollapsed;
-
-    renderSettings();
 
     // Editor collapse
     if(els.editCard) els.editCard.open = !state.operatorPrefs?.editCollapsed;

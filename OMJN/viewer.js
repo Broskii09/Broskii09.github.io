@@ -10,6 +10,7 @@
   const bg = document.getElementById("bg");
   const overlay = document.getElementById("overlay");
   const splashInfo = document.getElementById("splashInfo");
+  const vShowTitle = document.getElementById("vShowTitle");
 
   const vMainCard = document.getElementById("vMainCard");
   const nowName = document.getElementById("nowName");
@@ -40,7 +41,7 @@
   let currentAssetUrl = null;
 
   function setBg(){
-      const path = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
+    const path = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
     bg.style.backgroundImage = `url('${path}')`;
   }
 
@@ -132,6 +133,8 @@
     overlay.style.display = "none";
     splashInfo.style.display = "flex";
 
+    if(vShowTitle) vShowTitle.textContent = state.showTitle || "Open Mic & Jam Night";
+
     clearCardCues();
     lastRemainingMs = null;
     lastSlotId = null;
@@ -152,6 +155,8 @@
   async function renderLive(){
     overlay.style.display = "grid";
     splashInfo.style.display = "none";
+
+    if(vShowTitle) vShowTitle.textContent = state.showTitle || "Open Mic & Jam Night";
 
     const cur = OMJN.computeCurrent(state);
     if(!cur){
