@@ -103,6 +103,14 @@
                         <button class="btn" id="btnRedo" title="Redo (Ctrl+Shift+Z)">Redo</button>
                     </div>
 
+                    <div id="hbQuickWrap" style="margin-top:10px;">
+                        <div class="small" style="margin-bottom:6px;">
+                            House Band quick: <span class="mono">1–9</span> Played · <span class="mono">Shift+1–9</span> Clear
+                        </div>
+                        <div class="hbQuickRow" id="hbQuickRow"></div>
+                    </div>
+
+
                     <div class="row" style="margin-top:10px;">
                         <div class="spacer"></div>
                         <button class="btn tiny" id="btnMinus1">-1m</button>
@@ -126,7 +134,12 @@
             <div class="card" id="houseBandCard">
                 <div class="cardHeader">
                     <h2>House Band</h2>
-                    <div class="small">Availability + cooldown by performers</div>
+                    <div class="row" style="align-items:center; gap:8px;">
+                        <div class="small">Availability + cooldown by performers</div>
+                        <div class="spacer"></div>
+                        <button class="btn tiny" id="hbAllActive" type="button">All Active</button>
+                        <button class="btn tiny" id="hbAllInactive" type="button">All Inactive</button>
+                    </div>
                 </div>
                 <div class="cardBody">
                     <div class="row">
@@ -356,6 +369,25 @@
                         <label>Overtime Flash Opacity</label>
                         <input id="setOvertimeAlpha" type="range" min="0" max="1" step="0.01" />
                         <div class="small mono" id="setOvertimeAlphaVal">0.85</div>
+                    </div>
+
+                    <hr class="sep" />
+
+                    <h3 class="subhead">House Band footer</h3>
+                    <div class="row wrap">
+                        <span class="pill" title="Show or hide the House Band footer on the viewer">
+                            Show footer
+                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="hbFooterShow" />
+                                <span class="small">on</span>
+                            </label>
+                        </span>
+
+                        <div class="field" style="flex:1 1 320px;">
+                            <label>Ticker speed (px/sec)</label>
+                            <input id="hbTickerSpeed" type="range" min="20" max="140" step="5" />
+                            <div class="small mono" id="hbTickerSpeedVal">60</div>
+                        </div>
                     </div>
 
                     <hr class="sep" />

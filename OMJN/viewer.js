@@ -134,6 +134,12 @@
   function renderHouseBandFooter(){
     if(!vFooter || !vHouseBand) return;
 
+    const prefs = state.viewerPrefs?.houseBand || { show:true, tickerSpeed:60 };
+    if(prefs.show === false){
+      vFooter.style.display = "none";
+      return;
+    }
+
     const roster = Array.isArray(state.houseBand) ? state.houseBand : [];
     const visible = roster.some(m => (m && (m.name || m.customInstrument)));
     if(!visible){
@@ -166,7 +172,26 @@
       const available = OMJN.isHouseBandMemberAvailable(m);
       span.className = "hbItem " + (available ? "hbAvail" : "hbRest");
       if(!m.active) span.classList.add("hbInactive");
-      span.textContent = label;
+
+      const rawRemaining = Math.max(0, Math.floor(Number(m.cooldownRemaining || 0)));
+      const displayRemaining = Math.max(0, rawRemaining - (state.currentSlotId ? 1 : 0));
+
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = label;
+      span.appendChild(nameSpan);
+
+      if(m.active && displayRemaining > 0){
+        const rest = document.createElement("span");
+        rest.className = "hbRestTag";
+        rest.textContent = ` ⏳${displayRemaining}`;
+        span.appendChild(rest);
+      }else if(!m.active){
+        const off = document.createElement("span");
+        off.className = "hbRestTag";
+        off.textContent = " OFF";
+        span.appendChild(off);
+      }
+
       content.appendChild(span);
 
       added++;
@@ -183,7 +208,7 @@
 
     // Set duration based on content width (px/sec)
     requestAnimationFrame(() => {
-      const pxPerSec = 60;
+      const pxPerSec = Number.isFinite(prefs.tickerSpeed) ? prefs.tickerSpeed : 60;
       const w = content.getBoundingClientRect().width || 0;
       const dur = Math.max(18, w / pxPerSec);
       track.style.setProperty("--hbTickerDuration", `${dur.toFixed(2)}s`);
@@ -293,7 +318,11 @@ function renderSplash(){
 
     // next line
     const [n1] = OMJN.computeNextTwo(state);
-    nextLine.innerHTML = `Next: <strong>${n1?.displayName || "—"}</strong>`;
+    nextLine.textContent = "";
+    nextLine.appendChild(document.createTextNode("Next: "));
+    const strong = document.createElement("strong");
+    strong.textContent = (n1?.displayName || "—");
+    nextLine.appendChild(strong);
 
     // donation link
     const url = cur.media?.donationUrl || "";

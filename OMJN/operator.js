@@ -94,6 +94,14 @@
     hbCooldown: document.getElementById("hbCooldown"),
     hbAdd: document.getElementById("hbAdd"),
     hbList: document.getElementById("hbList"),
+    hbAllActive: document.getElementById("hbAllActive"),
+    hbAllInactive: document.getElementById("hbAllInactive"),
+    hbQuickRow: document.getElementById("hbQuickRow"),
+    hbQuickWrap: document.getElementById("hbQuickWrap"),
+    // Viewer prefs: House Band footer
+    hbFooterShow: document.getElementById("hbFooterShow"),
+    hbTickerSpeed: document.getElementById("hbTickerSpeed"),
+    hbTickerSpeedVal: document.getElementById("hbTickerSpeedVal"),
   };
 
   let selectedId = null;
@@ -155,7 +163,7 @@
   // ---- Performer profiles (stored in state) ----
   function ensureProfilesShape(s){
     if(!s.profiles) s.profiles = {};
-    if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true };
+    if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false };
   }
 
   function ensureHouseBandShape(s){
@@ -218,9 +226,10 @@
   }
 
   function applyProfileDefaultsToSlot(s, slot, profile){
-    if(!profile) return;
-    slot.slotTypeId = profile.defaultSlotTypeId || slot.slotTypeId;
-    slot.minutesOverride = profile.defaultMinutesOverride ?? slot.minutesOverride ?? null;
+    if(!profile) return;    // Respect the operator's dropdown choice when adding; only fill if missing.
+    if(!slot.slotTypeId) slot.slotTypeId = profile.defaultSlotTypeId || slot.slotTypeId;    if(slot.minutesOverride === undefined || slot.minutesOverride === null){
+      slot.minutesOverride = profile.defaultMinutesOverride ?? slot.minutesOverride ?? null;
+    }
     slot.media = slot.media || { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
     slot.media.donationUrl = profile.media?.donationUrl ?? slot.media.donationUrl ?? null;
     slot.media.imageAssetId = profile.media?.imageAssetId ?? slot.media.imageAssetId ?? null;
@@ -421,6 +430,15 @@
       els.prefCollapseEditor.checked = !!state.operatorPrefs?.editCollapsed;
     }
 
+    // House Band footer viewer prefs
+    const hb = state.viewerPrefs?.houseBand || { show:true, tickerSpeed:60 };
+    if(els.hbFooterShow) els.hbFooterShow.checked = (hb.show !== false);
+    if(els.hbTickerSpeed){
+      const spd = Number.isFinite(hb.tickerSpeed) ? hb.tickerSpeed : 60;
+      els.hbTickerSpeed.value = String(spd);
+      if(els.hbTickerSpeedVal) els.hbTickerSpeedVal.textContent = String(spd);
+    }
+
     renderSlotTypesEditor();
   }
 
@@ -538,6 +556,34 @@
       });
     }
 
+
+
+    // Viewer: House Band footer prefs
+    if(els.hbFooterShow){
+      els.hbFooterShow.addEventListener("change", () => {
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.houseBand = s.viewerPrefs.houseBand || { show:true, tickerSpeed:60 };
+          s.viewerPrefs.houseBand.show = !!els.hbFooterShow.checked;
+        }, { recordHistory:false });
+      });
+    }
+
+    if(els.hbTickerSpeed){
+      const onSpeed = () => {
+        const val = clamp(parseInt(els.hbTickerSpeed.value||"60",10) || 60, 20, 140);
+        els.hbTickerSpeed.value = String(val);
+        if(els.hbTickerSpeedVal) els.hbTickerSpeedVal.textContent = String(val);
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.houseBand = s.viewerPrefs.houseBand || { show:true, tickerSpeed:60 };
+          s.viewerPrefs.houseBand.tickerSpeed = val;
+        }, { recordHistory:false });
+      };
+      els.hbTickerSpeed.addEventListener("input", onSpeed);
+      els.hbTickerSpeed.addEventListener("change", onSpeed);
+    }
+
     if(els.btnExportSettings){
       els.btnExportSettings.addEventListener("click", () => {
         const payload = {
@@ -571,6 +617,7 @@
             if(imported.settings) s.settings = imported.settings;
             if(Array.isArray(imported.slotTypes) && imported.slotTypes.length) s.slotTypes = imported.slotTypes;
             if(imported.viewerPrefs) s.viewerPrefs = imported.viewerPrefs;
+            OMJN.normalizeStateInPlace(s);
           }, { recordHistory:false });
         }catch(err){
           alert("Settings import failed: " + err.message);
@@ -1001,7 +1048,7 @@ function renderKPIs(){
       if(!m0.active){
         status.textContent = "Inactive";
       }else if(displayRemaining > 0){
-        status.textContent = `Cooldown: ${displayRemaining}`;
+        status.textContent = `Resting: ${displayRemaining} performer${displayRemaining===1?"":"s"}`;
       }else{
         status.textContent = "Available";
       }
@@ -1018,6 +1065,11 @@ function renderKPIs(){
       btnPlayed.className = "btn tiny good";
       btnPlayed.textContent = "Played";
       btnPlayed.addEventListener("click", () => {
+        const rawRemaining = Math.max(0, Math.floor(Number(m0.cooldownRemaining || 0)));
+        if(rawRemaining > 0){
+          const ok = confirm(`"${m0.name || "—"}" is already resting. Restart their cooldown?`);
+          if(!ok) return;
+        }
         updateState(s => {
           ensureHouseBandShape(s);
           OMJN.markHouseBandMemberPlayed(s, m0.id, { addOne: !!s.currentSlotId });
@@ -1058,6 +1110,67 @@ function renderKPIs(){
 
       els.hbList.appendChild(item);
     }
+
+  function renderHouseBandQuickControls(){
+    if(!els.hbQuickRow || !els.hbQuickWrap) return;
+    ensureHouseBandShape(state);
+
+    els.hbQuickRow.innerHTML = "";
+    const roster = state.houseBand || [];
+    if(!roster.length){
+      els.hbQuickWrap.style.display = "none";
+      return;
+    }
+    els.hbQuickWrap.style.display = "block";
+
+    const max = Math.min(9, roster.length);
+    for(let i=0;i<max;i++){
+      const m = roster[i];
+      OMJN.normalizeHouseBandMember(m);
+
+      const rawRemaining = Math.max(0, Math.floor(Number(m.cooldownRemaining || 0)));
+      const displayRemaining = Math.max(0, rawRemaining - (state.currentSlotId ? 1 : 0));
+      const available = OMJN.isHouseBandMemberAvailable(m) && displayRemaining <= 0;
+
+      const pill = document.createElement("div");
+      pill.className = "hbQuickPill";
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn tiny " + (available ? "good" : (!m.active ? "" : "warn"));
+      const label = OMJN.houseBandMemberLabel(m);
+      const restTag = (!m.active) ? "OFF" : (displayRemaining > 0 ? `⏳${displayRemaining}` : "✓");
+      btn.textContent = `${i+1} ${label} ${restTag}`;
+      btn.title = `Played: ${i+1} · Clear: Shift+${i+1}`;
+      btn.addEventListener("click", () => {
+        // spam guard
+        if(rawRemaining > 0){
+          const ok = confirm(`"${m.name || "—"}" is already resting. Restart their cooldown?`);
+          if(!ok) return;
+        }
+        updateState(s => {
+          ensureHouseBandShape(s);
+          OMJN.markHouseBandMemberPlayed(s, m.id, { addOne: !!s.currentSlotId });
+        }, { recordHistory:false });
+      });
+
+      const clr = document.createElement("button");
+      clr.type = "button";
+      clr.className = "btn tiny";
+      clr.textContent = "Clear";
+      clr.addEventListener("click", () => {
+        updateState(s => {
+          ensureHouseBandShape(s);
+          OMJN.clearHouseBandCooldown(s, m.id);
+        }, { recordHistory:false });
+      });
+
+      pill.appendChild(btn);
+      pill.appendChild(clr);
+      els.hbQuickRow.appendChild(pill);
+    }
+  }
+
   }
   function render(){
     // sync header inputs
@@ -1100,6 +1213,7 @@ function renderKPIs(){
     renderKPIs();
     renderTimerLine();
     renderEditor();
+    renderHouseBandQuickControls();
     renderHouseBand();
   }
 
@@ -1459,6 +1573,7 @@ function start(){
             if(slot?.jam) delete slot.jam;
           }
         }
+        OMJN.normalizeStateInPlace(imported);
         pushUndoSnapshot();
         undoStack = undoStack.slice(-HISTORY_LIMIT);
         redoStack = [];
@@ -1524,7 +1639,7 @@ function start(){
       updateState(s => {
         const slot = s.queue.find(x=>x.id===selectedId);
         if(slot) slot.minutesOverride = val;
-      });
+      }, { recordHistory:false });
     });
 
     els.editNotes.addEventListener("input", () => {
@@ -1533,7 +1648,7 @@ function start(){
       updateState(s => {
         const slot = s.queue.find(x=>x.id===selectedId);
         if(slot) slot.notes = v;
-      });
+      }, { recordHistory:false });
     });
 
     els.editUrl.addEventListener("input", () => {
@@ -1628,6 +1743,24 @@ function bind(){
     toggleCustomAddFields();
     bindSettings();
     els.addType.addEventListener("change", toggleCustomAddFields);
+
+    // House Band bulk actions
+    if(els.hbAllActive){
+      els.hbAllActive.addEventListener("click", () => {
+        updateState(s => {
+          ensureHouseBandShape(s);
+          for(const m of s.houseBand){ m.active = true; }
+        }, { recordHistory:false });
+      });
+    }
+    if(els.hbAllInactive){
+      els.hbAllInactive.addEventListener("click", () => {
+        updateState(s => {
+          ensureHouseBandShape(s);
+          for(const m of s.houseBand){ m.active = false; }
+        }, { recordHistory:false });
+      });
+    }
 
     // House Band add form
     if(els.hbInstrument){
@@ -1791,9 +1924,33 @@ bindEditor();
         guardedEnd();
         return;
       }
-      if(k === "j"){
-        return;
+
+      // House Band hotkeys: Digit1-9 = Played, Shift+Digit1-9 = Clear
+      const code = e.code || "";
+      const isDigit = code.startsWith("Digit") || code.startsWith("Numpad");
+      if(isDigit){
+        const m = code.match(/(Digit|Numpad)([1-9])/);
+        if(m){
+          const idx = parseInt(m[2], 10) - 1;
+          const roster = state.houseBand || [];
+          const member = roster[idx];
+          if(member){
+            e.preventDefault();
+            if(e.shiftKey){
+              updateState(s => { ensureHouseBandShape(s); OMJN.clearHouseBandCooldown(s, member.id); }, { recordHistory:false });
+            }else{
+              const rawRemaining = Math.max(0, Math.floor(Number(member.cooldownRemaining || 0)));
+              if(rawRemaining > 0){
+                const ok = confirm(`"${member.name || "—"}" is already resting. Restart their cooldown?`);
+                if(!ok) return;
+              }
+              updateState(s => { ensureHouseBandShape(s); OMJN.markHouseBandMemberPlayed(s, member.id, { addOne: !!s.currentSlotId }); }, { recordHistory:false });
+            }
+            return;
+          }
+        }
       }
+
       if(e.key === "Delete" || e.key === "Backspace"){
         if(selectedId){
           e.preventDefault();

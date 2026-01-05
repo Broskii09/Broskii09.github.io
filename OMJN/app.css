@@ -101,6 +101,10 @@ button, input, select, textarea {font-family:inherit}
   background:rgba(85,209,122,.14);
   border-color:rgba(85,209,122,.30);
 }
+.btn.warn{
+  background:rgba(255,204,102,.16);
+  border-color:rgba(255,204,102,.30);
+}
 .btn.small{padding:8px 10px; border-radius:10px; font-size:13px;}
 .btn.tiny{padding:6px 8px; border-radius:10px; font-size:12px;}
 
@@ -417,9 +421,23 @@ hr.sep{
 }
 .hbItem.hbRest{ opacity:.45; }
 .hbItem.hbInactive{ opacity:.25; }
+.hbRestTag{ opacity:.75; font-weight:900; }
 
 @media (prefers-reduced-motion: reduce){
   .vHouseBandTrack{ animation:none; transform:none; }
+}
+
+
+@media (max-height:760px){
+  .viewerOverlay{ padding:28px 28px 112px; gap:14px; }
+  .vHeader{ top:18px; left:28px; right:28px; }
+  .vShowTitle{ font-size:22px; padding:8px 12px; }
+  .vNowName{ font-size:56px; }
+  .vTimer{ font-size:92px; }
+  .vSplashInfo{ left:28px; right:28px; bottom:112px; gap:12px; }
+  .vSplashInfo .who{ font-size:24px; }
+  .vFooter{ left:28px; right:28px; bottom:28px; }
+  .vFooterInner{ padding:8px 12px; gap:10px; }
 }
 
 
@@ -567,3 +585,23 @@ body.modalOpen{ overflow:hidden; }
 .modalBody .card.nested{
   margin-top:0;
 }
+
+
+/* Operator: House Band quick controls */
+.hbQuickRow{
+  display:flex;
+  gap:10px;
+  flex-wrap:nowrap;
+  overflow-x:auto;
+  padding-bottom:6px;
+}
+.hbQuickPill{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  flex:0 0 auto;
+}
+.hbQuickRow .btn.tiny{
+  white-space:nowrap;
+}
+
