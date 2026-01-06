@@ -184,10 +184,15 @@
     sNextSub.textContent = sub1;
     sDeckSub.textContent = sub2;
 
-    renderHouseBandLineup(hbLineup, { maxQueued: 10 });
-    // Hide the House Band card on Splash when empty
-    const hbCard = hbLineup?.closest?.(".vBandCard");
-    if(hbCard) hbCard.style.display = (hbLineup && hbLineup.childElementCount) ? "" : "none";
+      // Respect the Operator toggle for House Band footer/section visibility
+      const footerEnabled = (state.viewerPrefs?.showHouseBandFooter !== false);
+
+      renderHouseBandLineup(hbLineup, { maxQueued: 10 });
+
+      // Hide the House Band card on Splash when toggle is off OR when empty
+      const hbCard = hbLineup?.closest?.(".vBandCard");
+      const hasHB = (hbLineup && hbLineup.childElementCount);
+      if (hbCard) hbCard.style.display = (footerEnabled && hasHB) ? "" : "none";
 
     setBg();
   }
