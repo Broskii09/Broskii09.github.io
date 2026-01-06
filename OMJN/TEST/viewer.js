@@ -48,38 +48,32 @@
     bg.style.backgroundImage = `url('${path}')`;
   }
 
-    function renderHouseBandLineup(targetEl, opts={}){
+  function renderHouseBandLineup(targetEl, opts={}){
     if(!targetEl) return;
-    const display = OMJN.getHouseBandDisplay(state, { maxQueued: opts.maxQueued ?? 8 });
-
+    const top = OMJN.getHouseBandTopPerCategory(state);
     targetEl.innerHTML = "";
-    if(!display.length){
-      return;
-    }
+    if(!top.length) return;
 
-    for(const m of display){
+    const instrumentLabel = (m) => {
+      if(!m) return "";
+      if(m.instrumentId === "custom") return OMJN.sanitizeText(m.customInstrument || "");
+      return (OMJN.houseBandInstrumentOptions().find(x => x.id === m.instrumentId)?.label || "");
+    };
+
+    for(const item of top){
+      const m = item.member;
       const chip = document.createElement("span");
-      chip.className = "hbChip" + ((m._role === "CURRENT") ? "" : "");
-      // Role hint
-      const rolePrefix = (m._role === "CURRENT") ? "Now: " : "";
-      chip.textContent = rolePrefix + (OMJN.houseBandMemberLabel(m) || "—");
+      chip.className = "hbChip" + (opts.compact ? " hbChipFooter" : "");
 
-      // Cooldown indicator (for queued display we don't expect cooldown, but keep safe)
-      if(Number(m.cooldownRemaining) > 0){
-        const cd = document.createElement("span");
-        cd.className = "hbCd mono";
-        cd.textContent = `CD ${m.cooldownRemaining}`;
-        chip.appendChild(cd);
-      }
-
-      const tags = Array.isArray(m.skillTags) ? m.skillTags : [];
-      for(const t of tags){
-        const tag = document.createElement("span");
-        tag.className = "hbTag";
-        tag.textContent = t;
-        chip.appendChild(tag);
-      }
-
+      const name = OMJN.sanitizeText(m?.name || "");
+      const inst = instrumentLabel(m);
+      const cat = item.categoryLabel;
+      let txt = "";
+      if(name && inst && inst.toLowerCase() !== cat.toLowerCase()) txt = `${cat}: ${name} (${inst})`;
+      else if(name) txt = `${cat}: ${name}`;
+      else if(inst) txt = `${cat}: ${inst}`;
+      else txt = cat;
+      chip.textContent = txt;
       targetEl.appendChild(chip);
     }
   }
@@ -201,8 +195,8 @@
   async function renderLive(){
     overlay.style.display = "grid";
     splashInfo.style.display = "none";
-    // Show footer only if enabled AND there is House Band queued/current
-    const hbHasAny = (OMJN.getHouseBandDisplay(state, { maxQueued: 1 }).length > 0);
+    // Show footer only if enabled AND there is at least one active House Band member queued
+    const hbHasAny = (OMJN.getHouseBandTopPerCategory(state).length > 0);
     const footerEnabled = (state.viewerPrefs?.showHouseBandFooter !== false);
     if(liveFooterBar) liveFooterBar.style.display = (footerEnabled && hbHasAny) ? "flex" : "none";
 
@@ -265,7 +259,7 @@
       const [, n2] = OMJN.computeNextTwo(state);
       lfDeck.textContent = n2?.displayName || "—";
     }
-    renderHouseBandLineup(hbLiveLineup, { maxQueued: 6 });
+    renderHouseBandLineup(hbLiveLineup, { compact: true });
 
     // donation link
     const url = cur.media?.donationUrl || "";

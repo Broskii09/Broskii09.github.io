@@ -28,6 +28,18 @@ const OMJN = (() => {
     { id:"custom",      label:"Custom" },
   ];
 
+  // Fixed/predetermined categories for House Band rotation + viewer display.
+  // Each category is its own queue; "Rotate" moves a member to the end of *their* category.
+  const HOUSE_BAND_CATEGORIES = [
+    { key:"drums",      label:"Drums" },
+    { key:"vocals",     label:"Vocals" },
+    { key:"keys",       label:"Keys" },
+    { key:"guitar",     label:"Guitar" },
+    { key:"bass",       label:"Bass" },
+    { key:"percussion", label:"Percussion" },
+    { key:"other",      label:"Other" },
+  ];
+
   const now = () => Date.now();
 
   function uid(prefix="id"){
@@ -59,9 +71,17 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         { id:"comedian", label:"Comedian", defaultMinutes:10, isJamMode:false, color:"#2dd4bf", enabled:true },
         { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
 ],
-      // House Band: list of members shown in Viewer footer (lineup mode).
-      // Cooldowns are based on queue *positions* (performers), not time.
-      houseBand: [],
+      // House Band: independent per-instrument queues.
+      // Viewer footer shows the FIRST active person from each category.
+      houseBandQueues: {
+        drums: [],
+        vocals: [],
+        keys: [],
+        guitar: [],
+        bass: [],
+        percussion: [],
+        other: [],
+      },
       queue: [],
       currentSlotId: null,
       selectedNextId: null,
@@ -102,19 +122,49 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(s.selectedNextId === undefined) s.selectedNextId = null;
       if(!s.history) s.history = { undo:[], redo:[] };
 
-      // House Band migration
-      // New schema: houseBandQueue + houseBandCooldown + houseBandCurrent
-      // If legacy `houseBand` exists (step2), migrate it into the queue.
-      if(Array.isArray(s.houseBand) && !Array.isArray(s.houseBandQueue)){
-        s.houseBandQueue = s.houseBand;
+      // House Band migration (Step 4)
+      // New schema: houseBandQueues (fixed categories, each with its own queue).
+      // Migrate from any legacy schema by collecting known lists and distributing into categories.
+      if(!s.houseBandQueues || typeof s.houseBandQueues !== "object"){
+        s.houseBandQueues = {
+          drums: [],
+          vocals: [],
+          keys: [],
+          guitar: [],
+          bass: [],
+          percussion: [],
+          other: [],
+        };
       }
-      if(!Array.isArray(s.houseBandQueue)) s.houseBandQueue = [];
-      if(!Array.isArray(s.houseBandCooldown)) s.houseBandCooldown = [];
-      if(s.houseBandCurrent === undefined) s.houseBandCurrent = null;
+      for(const cat of HOUSE_BAND_CATEGORIES){
+        if(!Array.isArray(s.houseBandQueues[cat.key])) s.houseBandQueues[cat.key] = [];
+      }
 
-      for(const m of s.houseBandQueue) normalizeHouseBandMember(m);
-      for(const m of s.houseBandCooldown) normalizeHouseBandMember(m);
-      if(s.houseBandCurrent) normalizeHouseBandMember(s.houseBandCurrent);
+      // Gather candidates from older versions
+      const legacyLists = [];
+      if(Array.isArray(s.houseBand)) legacyLists.push(s.houseBand);
+      if(Array.isArray(s.houseBandQueue)) legacyLists.push(s.houseBandQueue);
+      if(Array.isArray(s.houseBandCooldown)) legacyLists.push(s.houseBandCooldown);
+      if(s.houseBandCurrent && typeof s.houseBandCurrent === "object") legacyLists.push([s.houseBandCurrent]);
+
+      const seen = new Set();
+      for(const list of legacyLists){
+        for(const rawMember of list){
+          if(!rawMember || typeof rawMember !== "object") continue;
+          normalizeHouseBandMember(rawMember);
+          if(!rawMember.id) rawMember.id = uid("hb");
+          if(seen.has(rawMember.id)) continue;
+          seen.add(rawMember.id);
+          const catKey = houseBandCategoryKeyForMember(rawMember);
+          if(!Array.isArray(s.houseBandQueues[catKey])) s.houseBandQueues[catKey] = [];
+          s.houseBandQueues[catKey].push(rawMember);
+        }
+      }
+
+      // Normalize members in the new schema
+      for(const cat of HOUSE_BAND_CATEGORIES){
+        for(const m of s.houseBandQueues[cat.key]) normalizeHouseBandMember(m);
+      }
 
       // Slot types + migration from older templates
       if(!Array.isArray(s.slotTypes) || !s.slotTypes.length){
@@ -261,114 +311,92 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
   }
 
   
-  function isHouseBandMemberAvailable(m){
-    return !!(m?.active) && (Number(m?.cooldownRemaining) <= 0);
+  function houseBandCategories(){
+    return HOUSE_BAND_CATEGORIES.map(x => ({ ...x }));
   }
 
-  function ensureHouseBandSchema(state){
+  function houseBandCategoryKeyForInstrumentId(instrumentId){
+    const id = String(instrumentId || "").trim();
+    if(id === "drums") return "drums";
+    if(id === "vocals") return "vocals";
+    if(id === "keys" || id === "piano") return "keys";
+    if(id === "bass") return "bass";
+    if(id === "percussion") return "percussion";
+    if(id === "guitar" || id === "acoustic" || id === "electric") return "guitar";
+    return "other";
+  }
+
+  function houseBandCategoryKeyForMember(m){
+    return houseBandCategoryKeyForInstrumentId(m?.instrumentId);
+  }
+
+  function ensureHouseBandQueues(state){
     if(!state || typeof state !== "object") return;
-    if(!Array.isArray(state.houseBandQueue)) state.houseBandQueue = [];
-    if(!Array.isArray(state.houseBandCooldown)) state.houseBandCooldown = [];
-    if(state.houseBandCurrent === undefined) state.houseBandCurrent = null;
-    for(const m of state.houseBandQueue) normalizeHouseBandMember(m);
-    for(const m of state.houseBandCooldown) normalizeHouseBandMember(m);
-    if(state.houseBandCurrent) normalizeHouseBandMember(state.houseBandCurrent);
-  }
-
-  // Automatically assigns the next available House Band member when a performer starts.
-  // Behavior:
-  // - Picks the first active member from houseBandQueue.
-  // - Removes them from the queue
-  // - Sets houseBandCurrent (for Viewer display)
-  // - Moves them to cooldown (houseBandCooldown) with cooldownRemaining=cooldownLength
-  // - When cooldownLength === 0, they rotate back into the end of the queue immediately.
-  function assignNextHouseBandForPerformer(state){
-    ensureHouseBandSchema(state);
-
-    // Clear any stale "current" (we treat "current" as per-performer, not persistent)
-    state.houseBandCurrent = null;
-
-    // Find the first eligible queued member (active + not cooling)
-    const idx = state.houseBandQueue.findIndex(m => {
-      normalizeHouseBandMember(m);
-      return !!m.active;
-    });
-    if(idx < 0) return null;
-
-    const [m] = state.houseBandQueue.splice(idx, 1);
-    normalizeHouseBandMember(m);
-
-    // Set "current" for the viewer
-    state.houseBandCurrent = { ...m };
-
-    // Apply cooldown automatically
-    const cd = Math.max(0, Math.floor(Number(m.cooldownLength || 0)));
-    m.cooldownRemaining = cd;
-
-    if(cd > 0){
-      state.houseBandCooldown.push(m);
-    }else{
-      // No cooldown: immediate rotation back into the queue
-      state.houseBandQueue.push(m);
+    if(!state.houseBandQueues || typeof state.houseBandQueues !== "object") state.houseBandQueues = {};
+    for(const cat of HOUSE_BAND_CATEGORIES){
+      if(!Array.isArray(state.houseBandQueues[cat.key])) state.houseBandQueues[cat.key] = [];
+      for(const m of state.houseBandQueues[cat.key]) normalizeHouseBandMember(m);
     }
-
-    return state.houseBandCurrent;
   }
 
-  // Decrement cooldowns by a number of performers passing.
-  // Any member whose cooldown reaches 0 is moved back into the end of the queue.
-  function decrementHouseBandCooldowns(state, performersPassed = 1){
-    ensureHouseBandSchema(state);
-    const n = Math.max(0, Math.floor(Number(performersPassed || 0)));
-    if(!n) return;
+  function addHouseBandMember(state, member){
+    ensureHouseBandQueues(state);
+    normalizeHouseBandMember(member);
+    const catKey = houseBandCategoryKeyForMember(member);
+    state.houseBandQueues[catKey].push(member);
+  }
 
-    for(const m of state.houseBandCooldown){
-      normalizeHouseBandMember(m);
-      if(m.cooldownRemaining > 0) m.cooldownRemaining = Math.max(0, m.cooldownRemaining - n);
+  function removeHouseBandMember(state, memberId){
+    ensureHouseBandQueues(state);
+    for(const cat of HOUSE_BAND_CATEGORIES){
+      state.houseBandQueues[cat.key] = state.houseBandQueues[cat.key].filter(m => m.id !== memberId);
     }
+  }
 
-    // Move expired back into queue (stable order)
-    const remaining = [];
-    for(const m of state.houseBandCooldown){
-      if(Number(m.cooldownRemaining) <= 0){
-        m.cooldownRemaining = 0;
-        state.houseBandQueue.push(m);
-      }else{
-        remaining.push(m);
-      }
+  // "Cooldown" in the new model: move the member to the end of their category queue.
+  function rotateHouseBandMemberToEnd(state, memberId){
+    ensureHouseBandQueues(state);
+    for(const cat of HOUSE_BAND_CATEGORIES){
+      const list = state.houseBandQueues[cat.key];
+      const idx = list.findIndex(m => m.id === memberId);
+      if(idx < 0) continue;
+      const [m] = list.splice(idx, 1);
+      list.push(m);
+      return;
     }
-    state.houseBandCooldown = remaining;
   }
 
-  function clearHouseBandCooldown(state, memberId){
-    ensureHouseBandSchema(state);
-    const idx = state.houseBandCooldown.findIndex(m => m.id === memberId);
-    if(idx < 0) return;
-    const [m] = state.houseBandCooldown.splice(idx, 1);
-    normalizeHouseBandMember(m);
-    m.cooldownRemaining = 0;
-    state.houseBandQueue.push(m);
+  function reorderHouseBandCategory(state, categoryKey, orderedIds){
+    ensureHouseBandQueues(state);
+    const key = String(categoryKey || "").trim();
+    if(!HOUSE_BAND_CATEGORIES.some(c => c.key === key)) return;
+    const list = state.houseBandQueues[key] || [];
+    const map = new Map(list.map(m => [m.id, m]));
+    const next = [];
+    for(const id of (orderedIds || [])){
+      if(map.has(id)) next.push(map.get(id));
+    }
+    // Append any members that weren't included (safety)
+    for(const m of list){
+      if(!next.includes(m)) next.push(m);
+    }
+    state.houseBandQueues[key] = next;
   }
 
-  // Helper for viewer UI: returns an ordered list of "current + next few queued".
-  function getHouseBandDisplay(state, opts={}){
-    ensureHouseBandSchema(state);
-    const maxQueued = Math.max(0, Math.floor(Number(opts.maxQueued ?? 6)));
+  // Viewer helper: first ACTIVE member from each category, in a consistent order.
+  function getHouseBandTopPerCategory(state){
+    ensureHouseBandQueues(state);
     const out = [];
-    if(state.houseBandCurrent){
-      normalizeHouseBandMember(state.houseBandCurrent);
-      out.push({ ...state.houseBandCurrent, _role:"CURRENT" });
-    }
-    for(const m of state.houseBandQueue){
-      normalizeHouseBandMember(m);
-      if(!m.active) continue;
-      out.push({ ...m, _role:"QUEUED" });
-      if(out.filter(x=>x._role==="QUEUED").length >= maxQueued) break;
+    for(const cat of HOUSE_BAND_CATEGORIES){
+      const list = state.houseBandQueues[cat.key] || [];
+      const top = list.find(m => {
+        normalizeHouseBandMember(m);
+        return m.active !== false;
+      });
+      if(top) out.push({ categoryKey: cat.key, categoryLabel: cat.label, member: { ...top } });
     }
     return out;
   }
-}
-
   function computeNextTwo(state){
     const queued = state.queue.filter(s => {
       if(s.status !== "QUEUED") return false;
@@ -571,9 +599,11 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
     uid, defaultState, loadState, saveState, publish, subscribe,
     getSlotType, effectiveMinutes, displaySlotTypeLabel, normalizeSlot,
     // House Band
-    houseBandInstrumentOptions, normalizeHouseBandMember, houseBandMemberLabel,
-    isHouseBandMemberAvailable, ensureHouseBandSchema, assignNextHouseBandForPerformer,
-    decrementHouseBandCooldowns, clearHouseBandCooldown, getHouseBandDisplay,
+    houseBandInstrumentOptions, houseBandCategories,
+    normalizeHouseBandMember, houseBandMemberLabel,
+    houseBandCategoryKeyForInstrumentId, houseBandCategoryKeyForMember,
+    ensureHouseBandQueues, addHouseBandMember, removeHouseBandMember,
+    rotateHouseBandMemberToEnd, reorderHouseBandCategory, getHouseBandTopPerCategory,
     computeNextTwo, computeCurrent, computeTimer,
     openAssetDB, putAsset, getAsset, deleteAsset, compressImageFile,
     formatMMSS, sanitizeText, applyThemeToDocument

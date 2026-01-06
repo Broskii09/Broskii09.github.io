@@ -3,7 +3,7 @@
   let state = OMJN.loadState();
   OMJN.applyThemeToDocument(document, state);
   ensureProfilesShape(state);
-  OMJN.ensureHouseBandSchema(state);
+  OMJN.ensureHouseBandQueues(state);
   const els = {
     queue: document.getElementById("queue"),
     addName: document.getElementById("addName"),
@@ -101,11 +101,9 @@
     hbAddInstrument: document.getElementById("hbAddInstrument"),
     hbAddCustomWrap: document.getElementById("hbAddCustomWrap"),
     hbAddCustomInstrument: document.getElementById("hbAddCustomInstrument"),
-    hbAddCooldown: document.getElementById("hbAddCooldown"),
     hbAddTags: document.getElementById("hbAddTags"),
     btnAddHBQ: document.getElementById("btnAddHBQ"),
-    hbQueue: document.getElementById("hbQueue"),
-    hbCooldown: document.getElementById("hbCooldown"),
+    hbCats: document.getElementById("hbCats"),
   };
 
   let selectedId = null;
@@ -229,7 +227,7 @@
 
   function setState(next){
     ensureProfilesShape(next);
-    OMJN.ensureHouseBandSchema(next);
+    OMJN.ensureHouseBandQueues(next);
 
     state = next;
     OMJN.applyThemeToDocument(document, state);
@@ -250,7 +248,7 @@
     if(recordHistory && !isApplyingHistory) pushUndoSnapshot();
     const s = cloneState(state);
     ensureProfilesShape(s);
-    OMJN.ensureHouseBandSchema(s);
+    OMJN.ensureHouseBandQueues(s);
     mutator(s);
     setState(s);
   }
@@ -842,21 +840,18 @@ els.queue.appendChild(queueRow(slot));
     const name = OMJN.sanitizeText(els.hbAddName?.value || "");
     const instrumentId = els.hbAddInstrument?.value || "guitar";
     const customInstrument = OMJN.sanitizeText(els.hbAddCustomInstrument?.value || "");
-    const cooldownLength = Math.max(0, Math.floor(Number(els.hbAddCooldown?.value || 0)));
     const skillTags = parseTagsInput(els.hbAddTags?.value || "");
 
-    if(!name && instrumentId !== "custom") return;
+    if(!name) return;
     updateState(st => {
-      OMJN.ensureHouseBandSchema(st);
-      st.houseBandQueue.push({
+      OMJN.ensureHouseBandQueues(st);
+      OMJN.addHouseBandMember(st, {
         id: OMJN.uid("hb"),
         name,
         instrumentId,
         customInstrument: (instrumentId === "custom") ? customInstrument : "",
         skillTags,
         active: true,
-        cooldownLength,
-        cooldownRemaining: 0
       });
     });
 
@@ -865,147 +860,185 @@ els.queue.appendChild(queueRow(slot));
     if(els.hbAddCustomInstrument) els.hbAddCustomInstrument.value = "";
   }
 
-  function hbRow(member, listName){
+  function hbItem(member, catKey){
     OMJN.normalizeHouseBandMember(member);
+
     const div = document.createElement("div");
     div.className = "queueItem";
-    if(listName === "cooldown") div.classList.add("coolingItem");
+    div.draggable = true;
+    div.dataset.id = member.id;
+    div.dataset.cat = catKey;
 
-    const top = document.createElement("div");
-    top.className = "top";
+    div.addEventListener("dragstart", (e) => {
+      div.classList.add("dragging");
+      e.dataTransfer.setData("text/plain", `${catKey}:${member.id}`);
+      e.dataTransfer.effectAllowed = "move";
+    });
+    div.addEventListener("dragend", () => div.classList.remove("dragging"));
 
-    const title = document.createElement("div");
-    title.className = "name";
-    title.textContent = OMJN.houseBandMemberLabel(member) || "—";
-    top.appendChild(title);
+    const handle = document.createElement("div");
+    handle.className = "dragHandle";
+    handle.textContent = "≡";
 
-    if(state.houseBandCurrent && state.houseBandCurrent.id === member.id){
-      const b = document.createElement("span");
-      b.className = "badge gold";
-      b.textContent = "NOW";
-      top.appendChild(b);
-    }
-
-    if(listName === "cooldown"){
-      const b = document.createElement("span");
-      b.className = "badge";
-      b.textContent = `CD ${member.cooldownRemaining}`;
-      top.appendChild(b);
-    }
-
-    div.appendChild(top);
-
-    const meta = document.createElement("div");
-    meta.className = "meta";
+    const main = document.createElement("div");
+    main.className = "hbItemRow";
 
     const activeWrap = document.createElement("label");
     activeWrap.style.display = "inline-flex";
     activeWrap.style.alignItems = "center";
-    activeWrap.style.gap = "8px";
+    activeWrap.style.gap = "6px";
     activeWrap.style.cursor = "pointer";
     const active = document.createElement("input");
     active.type = "checkbox";
-    active.checked = !!member.active;
+    active.checked = (member.active !== false);
+    active.title = "Active";
     active.addEventListener("change", () => {
       updateState(st => {
-        OMJN.ensureHouseBandSchema(st);
-        const list = (listName === "cooldown") ? st.houseBandCooldown : st.houseBandQueue;
+        OMJN.ensureHouseBandQueues(st);
+        const list = st.houseBandQueues?.[catKey] || [];
         const m = list.find(x => x.id === member.id);
         if(!m) return;
-        m.active = active.checked;
-      });
+        m.active = !!active.checked;
+      }, { recordHistory:false });
     });
     const activeLbl = document.createElement("span");
     activeLbl.className = "small";
     activeLbl.textContent = "active";
     activeWrap.appendChild(active);
     activeWrap.appendChild(activeLbl);
-    meta.appendChild(activeWrap);
 
-    const cdLbl = document.createElement("span");
-    cdLbl.className = "small mono";
-    cdLbl.textContent = `cooldown: ${member.cooldownLength}`;
-    meta.appendChild(cdLbl);
+    const nameField = document.createElement("div");
+    nameField.className = "field";
+    nameField.style.flex = "1 1 180px";
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.value = member.name || "";
+    nameInput.placeholder = "Name";
+    nameInput.addEventListener("input", () => {
+      updateState(st => {
+        OMJN.ensureHouseBandQueues(st);
+        const list = st.houseBandQueues?.[catKey] || [];
+        const m = list.find(x => x.id === member.id);
+        if(!m) return;
+        m.name = OMJN.sanitizeText(nameInput.value);
+      }, { recordHistory:false });
+    });
+    nameField.appendChild(nameInput);
 
-    if(Array.isArray(member.skillTags) && member.skillTags.length){
-      const tags = document.createElement("span");
-      tags.className = "small";
-      tags.textContent = `tags: ${member.skillTags.join(", ")}`;
-      meta.appendChild(tags);
-    }
+    const instField = document.createElement("div");
+    instField.className = "field";
+    instField.style.width = "200px";
+    const instSelect = document.createElement("select");
+    fillHBInstrumentSelect(instSelect);
+    instSelect.value = member.instrumentId || "guitar";
+    instSelect.addEventListener("change", () => {
+      const nextInst = instSelect.value;
+      updateState(st => {
+        OMJN.ensureHouseBandQueues(st);
+        // Find + remove from current category
+        const curList = st.houseBandQueues?.[catKey] || [];
+        const idx = curList.findIndex(x => x.id === member.id);
+        if(idx < 0) return;
+        const [m] = curList.splice(idx, 1);
+        m.instrumentId = nextInst;
+        if(nextInst !== "custom") m.customInstrument = "";
+        const nextCat = OMJN.houseBandCategoryKeyForMember(m);
+        if(!st.houseBandQueues[nextCat]) st.houseBandQueues[nextCat] = [];
+        st.houseBandQueues[nextCat].push(m);
+      }, { recordHistory:false });
+    });
+    instField.appendChild(instSelect);
 
-    div.appendChild(meta);
+    const customField = document.createElement("div");
+    customField.className = "field";
+    customField.style.flex = "1 1 180px";
+    const customInput = document.createElement("input");
+    customInput.type = "text";
+    customInput.placeholder = "Custom instrument";
+    customInput.value = member.customInstrument || "";
+    customField.style.display = (member.instrumentId === "custom") ? "" : "none";
+    customInput.addEventListener("input", () => {
+      updateState(st => {
+        OMJN.ensureHouseBandQueues(st);
+        const list = st.houseBandQueues?.[catKey] || [];
+        const m = list.find(x => x.id === member.id);
+        if(!m) return;
+        m.customInstrument = OMJN.sanitizeText(customInput.value);
+      }, { recordHistory:false });
+    });
+    customField.appendChild(customInput);
 
-    const actions = document.createElement("div");
-    actions.className = "actions";
+    instSelect.addEventListener("change", () => {
+      // Best-effort: toggle custom field visibility immediately
+      customField.style.display = (instSelect.value === "custom") ? "" : "none";
+    });
 
-    if(listName === "cooldown"){
-      const btnClear = document.createElement("button");
-      btnClear.className = "btn small";
-      btnClear.textContent = "Clear CD";
-      btnClear.addEventListener("click", () => {
-        updateState(st => OMJN.clearHouseBandCooldown(st, member.id));
-      });
-      actions.appendChild(btnClear);
-    }
+    const tagsField = document.createElement("div");
+    tagsField.className = "field";
+    tagsField.style.flex = "1 1 220px";
+    const tagsInput = document.createElement("input");
+    tagsInput.type = "text";
+    tagsInput.placeholder = "tags (comma)";
+    tagsInput.value = Array.isArray(member.skillTags) ? member.skillTags.join(", ") : "";
+    tagsInput.addEventListener("input", () => {
+      updateState(st => {
+        OMJN.ensureHouseBandQueues(st);
+        const list = st.houseBandQueues?.[catKey] || [];
+        const m = list.find(x => x.id === member.id);
+        if(!m) return;
+        m.skillTags = parseTagsInput(tagsInput.value);
+      }, { recordHistory:false });
+    });
+    tagsField.appendChild(tagsInput);
+
+    const btnRotate = document.createElement("button");
+    btnRotate.className = "btn tiny hbSmallBtn";
+    btnRotate.textContent = "Rotate";
+    btnRotate.title = "Move to end of this category";
+    btnRotate.addEventListener("click", (e) => {
+      e.stopPropagation();
+      updateState(st => OMJN.rotateHouseBandMemberToEnd(st, member.id));
+    });
 
     const btnRemove = document.createElement("button");
-    btnRemove.className = "btn small danger";
-    btnRemove.textContent = "Remove";
-    btnRemove.addEventListener("click", () => {
-      updateState(st => {
-        OMJN.ensureHouseBandSchema(st);
-        st.houseBandQueue = st.houseBandQueue.filter(x => x.id !== member.id);
-        st.houseBandCooldown = st.houseBandCooldown.filter(x => x.id !== member.id);
-        if(st.houseBandCurrent && st.houseBandCurrent.id === member.id) st.houseBandCurrent = null;
-      });
+    btnRemove.className = "btn tiny danger hbSmallBtn";
+    btnRemove.textContent = "✕";
+    btnRemove.title = "Remove";
+    btnRemove.addEventListener("click", (e) => {
+      e.stopPropagation();
+      updateState(st => OMJN.removeHouseBandMember(st, member.id));
     });
-    actions.appendChild(btnRemove);
 
-    div.appendChild(actions);
+    main.appendChild(activeWrap);
+    main.appendChild(nameField);
+    main.appendChild(instField);
+    main.appendChild(customField);
+    main.appendChild(tagsField);
+    main.appendChild(btnRotate);
+    main.appendChild(btnRemove);
 
-    // Dragging only for queue list
-    if(listName === "queue"){
-      div.draggable = true;
-      div.dataset.id = member.id;
-
-      div.addEventListener("dragstart", (e) => {
-        div.classList.add("dragging");
-        e.dataTransfer.setData("text/plain", member.id);
-        e.dataTransfer.effectAllowed = "move";
-      });
-      div.addEventListener("dragend", () => div.classList.remove("dragging"));
-    }
-
+    div.appendChild(handle);
+    div.appendChild(main);
     return div;
   }
 
-  function renderHouseBandQueues(){
-    if(!els.hbQueue || !els.hbCooldown) return;
-    OMJN.ensureHouseBandSchema(state);
-
-    els.hbQueue.innerHTML = "";
-    els.hbCooldown.innerHTML = "";
-
-    if(!state.houseBandQueue.length){
-      const empty = document.createElement("div");
-      empty.className = "small";
-      empty.textContent = "No House Band members queued.";
-      els.hbQueue.appendChild(empty);
-    }else{
-      for(const m of state.houseBandQueue){
-        els.hbQueue.appendChild(hbRow(m, "queue"));
+  function renderHouseBandCategories(){
+    OMJN.ensureHouseBandQueues(state);
+    const cats = OMJN.houseBandCategories();
+    for(const cat of cats){
+      const listEl = document.getElementById(`hbCat_${cat.key}`);
+      if(!listEl) continue;
+      listEl.innerHTML = "";
+      const members = state.houseBandQueues?.[cat.key] || [];
+      if(!members.length){
+        const empty = document.createElement("div");
+        empty.className = "small";
+        empty.textContent = "—";
+        listEl.appendChild(empty);
+        continue;
       }
-    }
-
-    if(!state.houseBandCooldown.length){
-      const empty = document.createElement("div");
-      empty.className = "small";
-      empty.textContent = "No one is cooling down.";
-      els.hbCooldown.appendChild(empty);
-    }else{
-      for(const m of state.houseBandCooldown){
-        els.hbCooldown.appendChild(hbRow(m, "cooldown"));
+      for(const m of members){
+        listEl.appendChild(hbItem(m, cat.key));
       }
     }
   }
@@ -1097,7 +1130,6 @@ function renderKPIs(){
     if(els.hbAddInstrument){
       fillHBInstrumentSelect(els.hbAddInstrument);
       toggleHBCustomField();
-      els.hbAddInstrument.addEventListener("change", toggleHBCustomField);
     }
 
 
@@ -1105,7 +1137,7 @@ function renderKPIs(){
     renderKPIs();
     renderTimerLine();
     renderEditor();
-    renderHouseBandQueues();
+    renderHouseBandCategories();
   }
 
   // ---- Actions ----
@@ -1225,10 +1257,6 @@ function start(){
       s.timer.elapsedMs = 0;
       s.timer.baseDurationMs = OMJN.effectiveMinutes(s, pick) * 60 * 1000;
 
-      // Auto-assign House Band for this performer
-      OMJN.assignNextHouseBandForPerformer(s);
-
-
       // pre-select next eligible slot
       const next = s.queue.find(x=>x.id!==pick.id && eligible(x));
       s.selectedNextId = next ? next.id : null;
@@ -1274,9 +1302,7 @@ function start(){
       }
       const cur = s.queue.find(x=>x.id===s.currentSlotId);
       if(cur) cur.status = "DONE";
-      // Queue-based House Band cooldowns: one performer has passed
-      OMJN.decrementHouseBandCooldowns(s, 1);
-      s.houseBandCurrent = null;
+      // House Band is independent; no automatic rotation happens here.
       s.currentSlotId = null;
       s.phase = "SPLASH";
       s.timer.running = false;
@@ -1310,9 +1336,7 @@ function start(){
       if(!slot) return;
       slot.status = "SKIPPED";
       if(s.currentSlotId === slot.id){
-        // Queue-based House Band cooldowns: one performer has passed (skip)
-        OMJN.decrementHouseBandCooldowns(s, 1);
-      s.houseBandCurrent = null;
+        // House Band is independent; skipping a performer doesn't rotate House Band.
         s.currentSlotId = null;
         s.phase = "SPLASH";
         s.timer.running = false;
@@ -1331,10 +1355,8 @@ function start(){
     const ok = confirm("Start a new show? This clears the queue (images stay in local storage unless you clear browser data).");
     if(!ok) return;
     const fresh = OMJN.defaultState();
-    // preserve house band queue (reset cooldown/current)
-    fresh.houseBandQueue = (state.houseBandQueue ? JSON.parse(JSON.stringify(state.houseBandQueue)) : []);
-    fresh.houseBandCooldown = [];
-    fresh.houseBandCurrent = null;
+    // preserve House Band lineup queues
+    fresh.houseBandQueues = JSON.parse(JSON.stringify(state.houseBandQueues || fresh.houseBandQueues));
     // preserve splash path if user changed it
     fresh.splash.backgroundAssetPath = state.splash?.backgroundAssetPath || fresh.splash.backgroundAssetPath;
     setState(fresh);
@@ -1637,23 +1659,32 @@ function bind(){
       });
     }
     if(els.btnAddHBQ) els.btnAddHBQ.addEventListener("click", addHouseBandMember);
+    if(els.hbAddInstrument) els.hbAddInstrument.addEventListener("change", toggleHBCustomField);
 
-    // House Band drag/drop (queue only)
-    if(els.hbQueue){
-      els.hbQueue.addEventListener("dragover", (e) => e.preventDefault());
-      els.hbQueue.addEventListener("drop", (e) => {
+    // House Band drag/drop (within each category)
+    const hbLists = [...document.querySelectorAll(".hbCatList")];
+    for(const listEl of hbLists){
+      listEl.addEventListener("dragover", (e) => e.preventDefault());
+      listEl.addEventListener("drop", (e) => {
         e.preventDefault();
-        const draggedId = e.dataTransfer.getData("text/plain");
-        if(!draggedId) return;
-        const afterElement = getDragAfterElement(els.hbQueue, e.clientY);
+        const payload = e.dataTransfer.getData("text/plain");
+        const [srcCat, draggedId] = String(payload || "").split(":");
+        const dstCat = listEl.dataset.hbcat;
+        if(!draggedId || !srcCat || !dstCat) return;
+        // Keep it simple: reorder within the same category only
+        if(srcCat !== dstCat) return;
+
+        const afterElement = getDragAfterElement(listEl, e.clientY);
         updateState(s => {
-          OMJN.ensureHouseBandSchema(s);
-          const idxFrom = s.houseBandQueue.findIndex(x=>x.id===draggedId);
+          OMJN.ensureHouseBandQueues(s);
+          const list = s.houseBandQueues?.[dstCat] || [];
+          const idxFrom = list.findIndex(x=>x.id===draggedId);
           if(idxFrom < 0) return;
-          const [moved] = s.houseBandQueue.splice(idxFrom, 1);
-          const children = [...els.hbQueue.querySelectorAll(".queueItem:not(.dragging)")];
+          const [moved] = list.splice(idxFrom, 1);
+          const children = [...listEl.querySelectorAll(".queueItem:not(.dragging)")];
           const idxTo = afterElement ? children.indexOf(afterElement) : children.length;
-          s.houseBandQueue.splice(Math.max(0, idxTo), 0, moved);
+          list.splice(Math.max(0, idxTo), 0, moved);
+          s.houseBandQueues[dstCat] = list;
         });
       });
     }
@@ -1696,7 +1727,7 @@ els.showTitle.addEventListener("input", () => {
     if(els.btnAddHB){
       els.btnAddHB.addEventListener("click", () => {
         updateState(s => {
-          OMJN.ensureHouseBandSchema(s);
+          OMJN.ensureHouseBandQueues(s);
           s.houseBand.push({
             id: OMJN.uid("hb"),
             name: "",

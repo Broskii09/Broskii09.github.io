@@ -365,6 +365,11 @@ hr.sep{
   font-weight:850;
   font-size:14px;
 }
+.hbChipFooter{
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:850;
+}
 .hbChip.cooling{opacity:.55;}
 .hbCd{
   margin-left:6px;
@@ -464,18 +469,46 @@ hr.sep{
 
 .row.wrap{flex-wrap:wrap;}
 
-/* Operator: House Band editor */
-.hbList{
-  display:flex;
-  flex-direction:column;
-  gap:12px;
+/* Operator: House Band categories */
+.hbCats{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap:14px;
 }
-.hbRow{
+@media (min-width:1100px){
+  .hbCats{grid-template-columns: 1fr 1fr;}
+}
+.hbCat{
   padding:12px 12px;
   border-radius:18px;
   border:1px solid rgba(255,255,255,.10);
-  background:rgba(0,0,0,.16);
+  background:rgba(0,0,0,.14);
 }
+.hbCatHeader{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:10px;
+}
+.hbCatList{max-height: 42vh; overflow:auto;}
+
+.hbItemRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  width:100%;
+}
+.hbItemRow .field{margin:0;}
+.hbItemRow input[type="text"],
+.hbItemRow select{
+  height:34px;
+  padding:0 10px;
+  border-radius:12px;
+}
+.hbItemRow input[type="text"]{min-width:0;}
+.hbSmallBtn{height:34px; padding:0 10px; border-radius:12px;}
 
 .slotTypesEditor{
   display:flex;

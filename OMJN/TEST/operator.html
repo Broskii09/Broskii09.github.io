@@ -99,18 +99,12 @@
                             <label>Custom Instrument</label>
                             <input id="hbAddCustomInstrument" type="text" placeholder="e.g., Sax, Violin" autocomplete="off" />
                         </div>
-
-                        <div class="field" style="width:140px;">
-                            <label>Cooldown</label>
-                            <input id="hbAddCooldown" type="number" min="0" step="1" value="0" />
-                            <div class="small">performers</div>
-                        </div>
                     </div>
 
                     <div class="row" style="margin-bottom:10px;">
                         <div class="field" style="flex:1 1 420px;">
                             <label>Skill Tags (optional)</label>
-                            <input id="hbAddTags" type="text" placeholder="comma-separated (e.g., keys, jazz, vocals)" autocomplete="off" />
+                            <input id="hbAddTags" type="text" placeholder="comma-separated (e.g., jazz, harmony, keys)" autocomplete="off" />
                         </div>
                         <div class="field" style="width:160px;">
                             <label>&nbsp;</label>
@@ -121,18 +115,38 @@
                     <hr class="sep" />
 
                     <div class="small" style="margin-bottom:10px;">
-                        House Band is its own queue. When a performer starts, the <strong>next</strong> House Band member is assigned automatically and rotated into cooldown.
+                        House Band is its own lineup queue by instrument category. Drag to reorder within each category.
+                        The <strong>Rotate</strong> button moves that person to the end of their category queue.
                     </div>
 
-                    <div class="row" style="gap:14px; align-items:flex-start;">
-                        <div style="flex:1 1 340px;">
-                            <div class="small" style="margin-bottom:8px;">Queue</div>
-                            <div class="queue" id="hbQueue"></div>
+                    <div class="hbCats" id="hbCats">
+                        <div class="hbCat">
+                            <div class="hbCatHeader">Drums</div>
+                            <div class="queue hbCatList" id="hbCat_drums" data-hbcat="drums"></div>
                         </div>
-
-                        <div style="flex:1 1 340px;">
-                            <div class="small" style="margin-bottom:8px;">Cooldown</div>
-                            <div class="queue" id="hbCooldown"></div>
+                        <div class="hbCat">
+                            <div class="hbCatHeader">Vocals</div>
+                            <div class="queue hbCatList" id="hbCat_vocals" data-hbcat="vocals"></div>
+                        </div>
+                        <div class="hbCat">
+                            <div class="hbCatHeader">Keys</div>
+                            <div class="queue hbCatList" id="hbCat_keys" data-hbcat="keys"></div>
+                        </div>
+                        <div class="hbCat">
+                            <div class="hbCatHeader">Guitar</div>
+                            <div class="queue hbCatList" id="hbCat_guitar" data-hbcat="guitar"></div>
+                        </div>
+                        <div class="hbCat">
+                            <div class="hbCatHeader">Bass</div>
+                            <div class="queue hbCatList" id="hbCat_bass" data-hbcat="bass"></div>
+                        </div>
+                        <div class="hbCat">
+                            <div class="hbCatHeader">Percussion</div>
+                            <div class="queue hbCatList" id="hbCat_percussion" data-hbcat="percussion"></div>
+                        </div>
+                        <div class="hbCat">
+                            <div class="hbCatHeader">Other</div>
+                            <div class="queue hbCatList" id="hbCat_other" data-hbcat="other"></div>
                         </div>
                     </div>
                 </div>
