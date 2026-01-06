@@ -69,6 +69,8 @@
     btnMinus5: document.getElementById("btnMinus5"),
     btnPlus1: document.getElementById("btnPlus1"),
     btnPlus5: document.getElementById("btnPlus5"),
+    btnMinus30: document.getElementById("btnMinus30"),
+    btnPlus30: document.getElementById("btnPlus30"),
     btnResetTime: document.getElementById("btnResetTime"),
     timerLine: document.getElementById("timerLine"),
 
@@ -161,6 +163,23 @@
     const next = redoStack.pop();
     applyHistory(next, "redo");
   }
+
+    function addSeconds(deltaSec) {
+        updateState(s => {
+            const cur = s.queue.find(x => x.id === s.currentSlotId);
+            if (!cur) return;
+
+            const base = (s.timer.baseDurationMs ?? (OMJN.effectiveMinutes(s, cur) * 60 * 1000));
+            let next = base + (deltaSec * 1000);
+
+            // Prevent going below :30
+            const minMs = 30 * 1000;
+            if (next < minMs) next = minMs;
+
+            // IMPORTANT: do NOT set minutesOverride here (keep it seconds-accurate)
+            s.timer.baseDurationMs = next;
+        });
+    }
 
   // ---- Performer profiles (stored in state) ----
   function ensureProfilesShape(s){
@@ -1721,6 +1740,8 @@ els.showTitle.addEventListener("input", () => {
     els.btnMinus5.addEventListener("click", () => addMinutes(-5));
     els.btnPlus1.addEventListener("click", () => addMinutes(1));
     els.btnPlus5.addEventListener("click", () => addMinutes(5));
+    els.btnMinus30.addEventListener("click", () => addSeconds(-30));
+    els.btnPlus30.addEventListener("click", () => addSeconds(30));
     els.btnResetTime.addEventListener("click", resetTimer);
 
     // House Band
