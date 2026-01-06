@@ -231,6 +231,11 @@ hr.sep{
   padding:48px;
 }
 
+/* When the LIVE House Band footer bar is visible, reserve vertical space so it never overlaps the cards */
+.hasHbFooter .viewerOverlay{
+  padding-bottom:120px;
+}
+
 .vHeader{
   position:absolute;
   top:26px;

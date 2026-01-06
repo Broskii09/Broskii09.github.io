@@ -8,6 +8,7 @@
   let overtimeFlashTimeout = null;
 
   const bg = document.getElementById("bg");
+  const root = document.getElementById("root");
   const overlay = document.getElementById("overlay");
   const splashInfo = document.getElementById("splashInfo");
   const liveFooterBar = document.getElementById("liveFooterBar");
@@ -38,8 +39,6 @@
 
   const hbLineup = document.getElementById("hbLineup");
   const hbLiveLineup = document.getElementById("hbLiveLineup");
-  const lfNext = document.getElementById("lfNext");
-  const lfDeck = document.getElementById("lfDeck");
 
   let currentAssetUrl = null;
 
@@ -167,6 +166,7 @@
     overlay.style.display = "none";
     splashInfo.style.display = "grid";
     if(liveFooterBar) liveFooterBar.style.display = "none";
+    if(root) root.classList.remove("hasHbFooter");
 
     if(vShowTitle) vShowTitle.textContent = state.showTitle || "Open Mic & Jam Night";
 
@@ -184,15 +184,14 @@
     sNextSub.textContent = sub1;
     sDeckSub.textContent = sub2;
 
-      // Respect the Operator toggle for House Band footer/section visibility
-      const footerEnabled = (state.viewerPrefs?.showHouseBandFooter !== false);
+    // Respect the Operator toggle for House Band visibility on Splash
+    const footerEnabled = (state.viewerPrefs?.showHouseBandFooter !== false);
 
-      renderHouseBandLineup(hbLineup, { maxQueued: 10 });
-
-      // Hide the House Band card on Splash when toggle is off OR when empty
-      const hbCard = hbLineup?.closest?.(".vBandCard");
-      const hasHB = (hbLineup && hbLineup.childElementCount);
-      if (hbCard) hbCard.style.display = (footerEnabled && hasHB) ? "" : "none";
+    renderHouseBandLineup(hbLineup, { maxQueued: 10 });
+    // Hide the House Band card on Splash when toggle is off OR empty
+    const hbCard = hbLineup?.closest?.(".vBandCard");
+    const hasHB = (hbLineup && hbLineup.childElementCount);
+    if(hbCard) hbCard.style.display = (footerEnabled && hasHB) ? "" : "none";
 
     setBg();
   }
@@ -203,7 +202,9 @@
     // Show footer only if enabled AND there is at least one active House Band member queued
     const hbHasAny = (OMJN.getHouseBandTopPerCategory(state).length > 0);
     const footerEnabled = (state.viewerPrefs?.showHouseBandFooter !== false);
-    if(liveFooterBar) liveFooterBar.style.display = (footerEnabled && hbHasAny) ? "flex" : "none";
+    const showFooter = (footerEnabled && hbHasAny);
+    if(liveFooterBar) liveFooterBar.style.display = showFooter ? "flex" : "none";
+    if(root) root.classList.toggle("hasHbFooter", showFooter);
 
     if(vShowTitle) vShowTitle.textContent = state.showTitle || "Open Mic & Jam Night";
 
@@ -258,12 +259,7 @@
     const [n1] = OMJN.computeNextTwo(state);
     nextLine.innerHTML = `Next: <strong>${n1?.displayName || "—"}</strong>`;
 
-    // Small footer (Next / On Deck) during LIVE
-    if(lfNext) lfNext.textContent = n1?.displayName || "—";
-    if(lfDeck){
-      const [, n2] = OMJN.computeNextTwo(state);
-      lfDeck.textContent = n2?.displayName || "—";
-    }
+    // House Band footer during LIVE (HB only)
     renderHouseBandLineup(hbLiveLineup, { compact: true });
 
     // donation link
