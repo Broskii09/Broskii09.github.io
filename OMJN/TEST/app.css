@@ -446,13 +446,15 @@ hr.sep{
   font-weight:850;
   flex:0 0 auto;
 }
-.vFooterBandLine{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  flex-wrap:nowrap;
-  overflow:hidden;
-  min-width:0;
+.vFooterBandLine {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    min-width: 0;
+    -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 85%, transparent 100%);
+    mask-image: linear-gradient(90deg, #000 0%, #000 85%, transparent 100%);
 }
 
 

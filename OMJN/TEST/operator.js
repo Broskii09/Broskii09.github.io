@@ -1342,9 +1342,9 @@ function start(){
       let next = base + (deltaMin * 60 * 1000);
       const minMs = 60 * 1000;
       if(next < minMs) next = minMs;
-      s.timer.baseDurationMs = next;
-      const effective = Math.round((s.timer.baseDurationMs / 60000));
-      cur.minutesOverride = effective;
+        s.timer.baseDurationMs = next;
+        // Live timer adjustment only — don't mutate slot minutesOverride here.
+
     });
   }
 
