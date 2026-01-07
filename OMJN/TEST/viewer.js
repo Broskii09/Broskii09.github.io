@@ -21,7 +21,8 @@
   const chipOver = document.getElementById("chipOver");
   const chipWarn = document.getElementById("chipWarn");
   const chipFinal = document.getElementById("chipFinal");
-  // Note: Next/On Deck are intentionally NOT shown during LIVE in the main card.
+  const liveNextUp = document.getElementById("liveNextUp");
+  const liveOnDeck = document.getElementById("liveOnDeck");
 
   const vMedia = document.getElementById("vMedia");
   const donationCard = document.getElementById("donationCard");
@@ -263,6 +264,11 @@
     const type = OMJN.getSlotType(state, cur.slotTypeId);
     nowName.textContent = cur.displayName || "—";
     chipType.textContent = OMJN.displaySlotTypeLabel(state, cur);
+
+    // Next / On Deck (LIVE)
+    const [n1, n2] = OMJN.computeNextTwo(state);
+    if(liveNextUp) liveNextUp.textContent = n1?.displayName || "—";
+    if(liveOnDeck) liveOnDeck.textContent = n2?.displayName || "—";
 
     // timer
     const t = OMJN.computeTimer(state);

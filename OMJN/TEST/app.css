@@ -277,6 +277,33 @@ hr.sep{
   margin-top:10px;
   display:flex; gap:12px; align-items:center; flex-wrap:wrap;
 }
+
+/* Next / On Deck row inside the LIVE main card */
+.vNextDeckRow{
+  margin-top:22px;
+  width:100%;
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:14px;
+  align-items:stretch;
+}
+.vNextDeckCell{
+  padding:14px 16px;
+  border-radius:22px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.10);
+  text-align:left;
+  min-width:0;
+}
+.vNextDeckCell.right{ text-align:right; }
+.vNextDeckName{
+  margin-top:6px;
+  font-size:26px;
+  font-weight:950;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
 .vChip{
   display:inline-flex; align-items:center;
   padding:10px 14px;
