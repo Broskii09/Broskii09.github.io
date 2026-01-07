@@ -233,40 +233,11 @@ hr.sep{
 
 /* When the LIVE House Band footer bar is visible, reserve vertical space so it never overlaps the cards */
 .hasHbFooter .viewerOverlay{
-  padding-bottom:120px;
+  padding-bottom:160px;
 }
 
-.vHeader{
-  position:absolute;
-  top:26px;
-  left:48px;
-  right:48px;
-  z-index:5;
-  display:flex;
-  justify-content:flex-start;
-  pointer-events:none;
-}
-.vShowTitle{
-  font-size:28px;
-  font-weight:950;
-  letter-spacing:.2px;
-  padding:10px 16px;
-  border-radius:999px;
-  background:rgba(0,0,0,.35);
-  border:1px solid rgba(255,255,255,.10);
-  backdrop-filter: blur(6px);
-}
-
-/* Push "Next" line to bottom of the main card */
-#vMainCard{
-  display:flex;
-  flex-direction:column;
-  height:100%;
-}
-#vMainCard #nextLine{
-  margin-top:auto;
-  padding-top:18px;
-}
+/* Safety: Splash overlay should never show during LIVE */
+.isLive #splashInfo{ display:none !important; }
 
 .vCard{
   background:var(--card-bg);

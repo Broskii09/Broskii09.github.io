@@ -12,7 +12,6 @@
   const overlay = document.getElementById("overlay");
   const splashInfo = document.getElementById("splashInfo");
   const liveFooterBar = document.getElementById("liveFooterBar");
-  const vShowTitle = document.getElementById("vShowTitle");
 
   const vMainCard = document.getElementById("vMainCard");
   const nowName = document.getElementById("nowName");
@@ -22,7 +21,7 @@
   const chipOver = document.getElementById("chipOver");
   const chipWarn = document.getElementById("chipWarn");
   const chipFinal = document.getElementById("chipFinal");
-  const nextLine = document.getElementById("nextLine");
+  // Note: Next/On Deck are intentionally NOT shown during LIVE in the main card.
 
   const vMedia = document.getElementById("vMedia");
   const donationCard = document.getElementById("donationCard");
@@ -184,9 +183,11 @@
     overlay.style.display = "none";
     splashInfo.style.display = "grid";
     if(liveFooterBar) liveFooterBar.style.display = "none";
-    if(root) root.classList.remove("hasHbFooter");
-
-    if(vShowTitle) vShowTitle.textContent = state.showTitle || "Open Mic & Jam Night";
+    if(root){
+      root.classList.remove("hasHbFooter");
+      root.classList.remove("isLive");
+      root.classList.add("isSplash");
+    }
 
     clearCardCues();
     lastRemainingMs = null;
@@ -217,14 +218,20 @@
   async function renderLive(){
     overlay.style.display = "grid";
     splashInfo.style.display = "none";
+    if(root){
+      root.classList.remove("isSplash");
+      root.classList.add("isLive");
+    }
     // Show footer only if enabled AND there is at least one active House Band member queued
     const hbHasAny = (OMJN.getHouseBandTopPerCategory(state).length > 0);
     const footerEnabled = (state.viewerPrefs?.showHouseBandFooter !== false);
     const showFooter = (footerEnabled && hbHasAny);
-    if(liveFooterBar) liveFooterBar.style.display = showFooter ? "flex" : "none";
+    if(liveFooterBar){
+      liveFooterBar.style.display = showFooter ? "flex" : "none";
+      liveFooterBar.hidden = !showFooter;
+      if(!showFooter && hbLiveLineup) hbLiveLineup.innerHTML = "";
+    }
     if(root) root.classList.toggle("hasHbFooter", showFooter);
-
-    if(vShowTitle) vShowTitle.textContent = state.showTitle || "Open Mic & Jam Night";
 
     const cur = OMJN.computeCurrent(state);
     if(!cur){
@@ -272,10 +279,6 @@
 
     // cues on main card (pulse + overtime flash)
     applyCardCues(remainingMs, warnAtMs, finalAtMs);
-
-    // next line
-    const [n1] = OMJN.computeNextTwo(state);
-    nextLine.innerHTML = `Next: <strong>${n1?.displayName || "—"}</strong>`;
 
     // House Band footer during LIVE (HB only)
     renderHouseBandLineup(hbLiveLineup, { compact: true });
