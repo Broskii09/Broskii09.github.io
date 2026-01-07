@@ -54,7 +54,7 @@ const OMJN = (() => {
 operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false },
       profiles: {},
         splash: { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true },
-      viewerPrefs: { warnAtSec: 120, finalAtSec: 30, showOvertime: true, showProgressBar: true , showHouseBandFooter:true },
+      viewerPrefs: { warnAtSec: 120, finalAtSec: 30, showOvertime: true, showProgressBar: true , showHouseBandFooter:true, hbFooterFormat:"categoryFirst" },
       settings: {
         theme: {
           vars: { bg:"#0b172e", panel:"#0f2140", panel2:"#132a52", text:"#e7eefb", muted:"#a5b4d6", accent:"#00c2ff" },
@@ -366,6 +366,21 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
     }
   }
 
+  // Move the FIRST active member in a category to the end (quick "Rotate Top").
+  function rotateHouseBandTopToEnd(state, categoryKey){
+    ensureHouseBandQueues(state);
+    const key = String(categoryKey || "");
+    const list = state.houseBandQueues?.[key];
+    if(!Array.isArray(list) || !list.length) return;
+    const idx = list.findIndex(m => {
+      normalizeHouseBandMember(m);
+      return m.active !== false;
+    });
+    if(idx < 0) return;
+    const [m] = list.splice(idx, 1);
+    list.push(m);
+  }
+
   function reorderHouseBandCategory(state, categoryKey, orderedIds){
     ensureHouseBandQueues(state);
     const key = String(categoryKey || "").trim();
@@ -603,7 +618,7 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
     normalizeHouseBandMember, houseBandMemberLabel,
     houseBandCategoryKeyForInstrumentId, houseBandCategoryKeyForMember,
     ensureHouseBandQueues, addHouseBandMember, removeHouseBandMember,
-    rotateHouseBandMemberToEnd, reorderHouseBandCategory, getHouseBandTopPerCategory,
+    rotateHouseBandMemberToEnd, rotateHouseBandTopToEnd, reorderHouseBandCategory, getHouseBandTopPerCategory,
     computeNextTwo, computeCurrent, computeTimer,
     openAssetDB, putAsset, getAsset, deleteAsset, compressImageFile,
     formatMMSS, sanitizeText, applyThemeToDocument

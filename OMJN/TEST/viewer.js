@@ -50,6 +50,7 @@
   function renderHouseBandLineup(targetEl, opts={}){
     if(!targetEl) return;
     const top = OMJN.getHouseBandTopPerCategory(state);
+    const fmt = (state.viewerPrefs?.hbFooterFormat || "categoryFirst");
     targetEl.innerHTML = "";
     if(!top.length) return;
 
@@ -68,10 +69,27 @@
       const inst = instrumentLabel(m);
       const cat = item.categoryLabel;
       let txt = "";
-      if(name && inst && inst.toLowerCase() !== cat.toLowerCase()) txt = `${cat}: ${name} (${inst})`;
-      else if(name) txt = `${cat}: ${name}`;
-      else if(inst) txt = `${cat}: ${inst}`;
-      else txt = cat;
+
+      const catLower = (cat || "").toLowerCase();
+      const instLower = (inst || "").toLowerCase();
+      const instExtra = (inst && instLower && instLower !== catLower) ? inst : "";
+
+      if(fmt === "nameFirst"){
+        if(name){
+          txt = instExtra ? `${name} (${cat} - ${instExtra})` : `${name} (${cat})`;
+        }else if(inst){
+          txt = instExtra ? `${instExtra} (${cat})` : `${cat}: ${inst}`;
+        }else{
+          txt = cat;
+        }
+      }else{
+        // categoryFirst (default)
+        if(name && instExtra) txt = `${cat}: ${name} (${instExtra})`;
+        else if(name) txt = `${cat}: ${name}`;
+        else if(inst) txt = `${cat}: ${inst}`;
+        else txt = cat;
+      }
+
       chip.textContent = txt;
       targetEl.appendChild(chip);
     }

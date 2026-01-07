@@ -42,6 +42,10 @@
                         <input type="checkbox" id="toggleHBFooter" />
                         <span>HB Footer</span>
                     </label>
+                    <select id="hbFooterFormat" title="HB Footer format" style="width:auto; padding:6px 10px; border-radius:999px; font-weight:900; font-size:12px;">
+                        <option value="categoryFirst">Drums: Mike</option>
+                        <option value="nameFirst">Mike (Drums)</option>
+                    </select>
                 </div>
 
                 <div class="tabPanel" id="tabPerformers">
@@ -172,6 +176,14 @@
                             <div class="label">Next</div>
                             <div class="value" id="kpiNext">—</div>
                         </div>
+                        <div>
+                            <div class="label">Left</div>
+                            <div class="value" id="kpiLeft">—</div>
+                        </div>
+                        <div>
+                            <div class="label">Est End</div>
+                            <div class="value" id="kpiEstEnd">—</div>
+                        </div>
                     </div>
 
                     <hr class="sep" />
@@ -183,6 +195,9 @@
                         <button class="btn danger" id="btnEnd">End → Splash</button>
                         <button class="btn" id="btnUndo" title="Undo (Ctrl+Z)">Undo</button>
                         <button class="btn" id="btnRedo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+                        <button class="btn" id="btnExportState" title="Export show state (JSON)">Export</button>
+                        <button class="btn" id="btnImportState" title="Import show state (JSON)">Import</button>
+                        <input type="file" id="importStateFile" accept="application/json" style="display:none;" />
                     </div>
 
                     <div class="row" style="margin-top:10px; justify-content:flex-end;">

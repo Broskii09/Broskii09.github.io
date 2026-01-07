@@ -58,6 +58,8 @@
     statusLine: document.getElementById("statusLine"),
     kpiCurrent: document.getElementById("kpiCurrent"),
     kpiNext: document.getElementById("kpiNext"),
+    kpiLeft: document.getElementById("kpiLeft"),
+    kpiEstEnd: document.getElementById("kpiEstEnd"),
 
     btnStart: document.getElementById("btnStart"),
     btnPause: document.getElementById("btnPause"),
@@ -65,6 +67,9 @@
     btnEnd: document.getElementById("btnEnd"),
     btnUndo: document.getElementById("btnUndo"),
     btnRedo: document.getElementById("btnRedo"),
+    btnExportState: document.getElementById("btnExportState"),
+    btnImportState: document.getElementById("btnImportState"),
+    importStateFile: document.getElementById("importStateFile"),
     btnMinus1: document.getElementById("btnMinus1"),
     btnMinus5: document.getElementById("btnMinus5"),
     btnPlus1: document.getElementById("btnPlus1"),
@@ -97,6 +102,7 @@
 
     // Viewer toggle
     toggleHBFooter: document.getElementById("toggleHBFooter"),
+    hbFooterFormat: document.getElementById("hbFooterFormat"),
 
     // House Band queue
     hbAddName: document.getElementById("hbAddName"),
@@ -879,6 +885,12 @@ els.queue.appendChild(queueRow(slot));
     if(els.hbAddCustomInstrument) els.hbAddCustomInstrument.value = "";
   }
 
+  function rotateHouseBandTop(categoryKey){
+    updateState(s => {
+      OMJN.rotateHouseBandTopToEnd(s, categoryKey);
+    });
+  }
+
   function hbItem(member, catKey){
     OMJN.normalizeHouseBandMember(member);
 
@@ -1065,9 +1077,39 @@ els.queue.appendChild(queueRow(slot));
 function renderKPIs(){
     const current = OMJN.computeCurrent(state);
     const [next] = OMJN.computeNextTwo(state);
+
     els.statusLine.textContent = state.phase;
     els.kpiCurrent.textContent = current ? current.displayName : "—";
     els.kpiNext.textContent = next ? next.displayName : "—";
+
+    // Performers left = current (if LIVE/PAUSED) + queued
+    const queued = (state.queue || []).filter(x => x && x.status === "QUEUED");
+    const hasCurrent = !!current && (state.phase === "LIVE" || state.phase === "PAUSED");
+    const left = queued.length + (hasCurrent ? 1 : 0);
+    if(els.kpiLeft) els.kpiLeft.textContent = String(left);
+
+    // Estimated end time based on remaining LIVE time + queued slots
+    if(els.kpiEstEnd){
+      try{
+        let totalMs = 0;
+        if(hasCurrent){
+          const t = OMJN.computeTimer(state);
+          totalMs += Math.max(t.remainingMs || 0, 0);
+        }
+        for(const s of queued){
+          OMJN.normalizeSlot(s);
+          totalMs += (OMJN.effectiveMinutes(state, s) * 60 * 1000);
+        }
+        if(totalMs <= 0){
+          els.kpiEstEnd.textContent = "—";
+        }else{
+          const end = new Date(Date.now() + totalMs);
+          els.kpiEstEnd.textContent = end.toLocaleTimeString([], { hour:"numeric", minute:"2-digit" });
+        }
+      }catch(_){
+        els.kpiEstEnd.textContent = "—";
+      }
+    }
   }
 
   function renderTimerLine(){
@@ -1118,6 +1160,7 @@ function renderKPIs(){
     els.hotkeysEnabled.checked = (state.operatorPrefs?.hotkeysEnabled !== false);
 
     if(els.toggleHBFooter) els.toggleHBFooter.checked = (state.viewerPrefs?.showHouseBandFooter !== false);
+    if(els.hbFooterFormat) els.hbFooterFormat.value = (state.viewerPrefs?.hbFooterFormat || "categoryFirst");
 
     // Editor collapse
     if(els.editCard) els.editCard.open = !state.operatorPrefs?.editCollapsed;
@@ -1342,9 +1385,8 @@ function start(){
       let next = base + (deltaMin * 60 * 1000);
       const minMs = 60 * 1000;
       if(next < minMs) next = minMs;
-        s.timer.baseDurationMs = next;
-        // Live timer adjustment only — don't mutate slot minutesOverride here.
-
+      s.timer.baseDurationMs = next;
+      // Live timer adjustment only — don\'t mutate slot minutesOverride here.
     });
   }
 
@@ -1660,13 +1702,23 @@ function bind(){
     if(els.tabBtnPerformers) els.tabBtnPerformers.addEventListener("click", () => setActiveTab("perf"));
     if(els.tabBtnHouseBand) els.tabBtnHouseBand.addEventListener("click", () => setActiveTab("hb"));
 
-    // Viewer footer toggle
+    // Viewer footer toggle + formatting
     if(els.toggleHBFooter){
       els.toggleHBFooter.checked = (state.viewerPrefs?.showHouseBandFooter !== false);
       els.toggleHBFooter.addEventListener("change", () => {
         updateState(s => {
           s.viewerPrefs = s.viewerPrefs || {};
           s.viewerPrefs.showHouseBandFooter = !!els.toggleHBFooter.checked;
+        });
+      });
+    }
+    if(els.hbFooterFormat){
+      const fmt = (state.viewerPrefs?.hbFooterFormat || "categoryFirst");
+      els.hbFooterFormat.value = fmt;
+      els.hbFooterFormat.addEventListener("change", () => {
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.hbFooterFormat = String(els.hbFooterFormat.value || "categoryFirst");
         });
       });
     }
@@ -1733,6 +1785,60 @@ els.showTitle.addEventListener("input", () => {
     els.btnStart.addEventListener("click", guardedStart);
     els.btnUndo.addEventListener("click", undo);
     els.btnRedo.addEventListener("click", redo);
+
+    // Export/Import state
+    if(els.btnExportState){
+      els.btnExportState.addEventListener("click", () => {
+        try{
+          const stamp = new Date();
+          const yyyy = String(stamp.getFullYear());
+          const mm = String(stamp.getMonth()+1).padStart(2,"0");
+          const dd = String(stamp.getDate()).padStart(2,"0");
+          const hh = String(stamp.getHours()).padStart(2,"0");
+          const mi = String(stamp.getMinutes()).padStart(2,"0");
+          const filename = `omjn_state_${yyyy}${mm}${dd}_${hh}${mi}.json`;
+
+          const data = JSON.stringify(state, null, 2);
+          const blob = new Blob([data], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }catch(err){
+          alert("Export failed.\n\n" + (err?.message || String(err)));
+        }
+      });
+    }
+
+    if(els.btnImportState && els.importStateFile){
+      els.btnImportState.addEventListener("click", () => els.importStateFile.click());
+      els.importStateFile.addEventListener("change", async () => {
+        const file = els.importStateFile.files && els.importStateFile.files[0];
+        els.importStateFile.value = "";
+        if(!file) return;
+        try{
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          if(!parsed || typeof parsed !== "object") throw new Error("Invalid JSON.");
+          if(!Array.isArray(parsed.queue)) parsed.queue = [];
+          if(!parsed.viewerPrefs) parsed.viewerPrefs = {};
+          if(!parsed.operatorPrefs) parsed.operatorPrefs = parsed.operatorPrefs || {};
+          // Apply and clear undo/redo history (import is a new baseline)
+          undoStack = [];
+          redoStack = [];
+          saveHistory();
+          setState(parsed);
+          OMJN.saveState(parsed);
+          OMJN.publish(parsed);
+        }catch(err){
+          alert("Import failed.\n\n" + (err?.message || String(err)));
+        }
+      });
+    }
     els.btnPause.addEventListener("click", pause);
     els.btnResume.addEventListener("click", resume);
     els.btnEnd.addEventListener("click", guardedEnd);
@@ -1862,6 +1968,16 @@ bindEditor();
       }
 
       const k = e.key.toLowerCase();
+      // House Band rotation shortcuts (Alt+1..7)
+      if(e.altKey && !mod && !e.shiftKey && !isTypingContext()){
+        const map = { "1":"drums", "2":"vocals", "3":"keys", "4":"guitar", "5":"bass", "6":"percussion", "7":"other" };
+        const cat = map[k];
+        if(cat){
+          e.preventDefault();
+          rotateHouseBandTop(cat);
+          return;
+        }
+      }
       if(k === " "){
         e.preventDefault();
         if(state.phase === "SPLASH") guardedStart();
