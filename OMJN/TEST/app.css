@@ -1,0 +1,697 @@
+:root{
+  --bg:#0b172e;
+  --panel:#0f2140;
+  --panel2:#132a52;
+  --text:#e7eefb;
+  --muted:#a5b4d6;
+  --gold:#d4af37;
+  --red:#ff5a5f;
+  --amber:#ffcc66;
+  --green:#55d17a;
+  --shadow: 0 10px 30px rgba(0,0,0,.35);
+  --radius:18px;
+  --gap:14px;
+  --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Helvetica Neue", Helvetica;
+
+  /* Viewer card + time cue vars (overridden by Settings) */
+  --card-bg: rgba(0,0,0,.90);
+  --pulse-warn-bg: rgba(0, 180, 255, .50);
+  --pulse-final-bg: rgba(0, 220, 200, .80);
+  --overtime-flash-bg: rgba(255, 0, 0, .85);
+  --pulse-warn-dur: 3.2s;
+  --pulse-final-dur: 1.4s;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%; margin:0; background:var(--bg); color:var(--text); font-family:var(--font);}
+a{color:inherit}
+button, input, select, textarea {font-family:inherit}
+
+[hidden] { display: none !important; }
+.modalOverlay[hidden] { display: none !important; }
+
+.container{
+  width:100vw; height:100vh;
+  display:grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap:var(--gap);
+  padding:18px;
+}
+
+.card{
+  background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+
+.cardHeader{
+  padding:14px 16px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  background:rgba(0,0,0,.18);
+}
+
+.cardHeader h2{
+  margin:0;
+  font-size:16px;
+  letter-spacing:.3px;
+  font-weight:700;
+}
+
+.cardBody{ padding:14px 16px; }
+
+.row{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+
+.tabs{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.tabBtn{
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.05);
+  color:var(--text);
+  font-weight:900;
+  cursor:pointer;
+}
+.tabBtn.active{
+  background:rgba(255,255,255,.14);
+  border-color:rgba(255,255,255,.22);
+}
+.tabsSpacer{flex:1 1 auto;}
+.row > * {flex: 0 0 auto;}
+.spacer{flex:1 1 auto;}
+.small{font-size:12px; color:var(--muted);}
+.mono{font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1, "ss01" 1;}
+.pill{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px; border-radius:999px;
+  background:rgba(212,175,55,.14); border:1px solid rgba(212,175,55,.25);
+  color:var(--text); font-size:12px;
+}
+
+.btn{
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.08);
+  color:var(--text);
+  padding:10px 12px;
+  border-radius:12px;
+  cursor:pointer;
+  font-weight:650;
+  letter-spacing:.2px;
+}
+.btn:hover{background:rgba(255,255,255,.12)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{
+  background:rgba(212,175,55,.20);
+  border-color:rgba(212,175,55,.35);
+}
+.btn.danger{
+  background:rgba(255,90,95,.18);
+  border-color:rgba(255,90,95,.35);
+}
+.btn.good{
+  background:rgba(85,209,122,.14);
+  border-color:rgba(85,209,122,.30);
+}
+.btn.small{padding:8px 10px; border-radius:10px; font-size:13px;}
+.btn.tiny{padding:6px 8px; border-radius:10px; font-size:12px;}
+
+.field{
+  display:flex; flex-direction:column; gap:6px;
+}
+.field label{font-size:12px; color:var(--muted)}
+.field input[type="text"], .field input[type="number"], .field textarea, .field select{
+  width:100%;
+  background:rgba(0,0,0,.22);
+  border:1px solid rgba(255,255,255,.10);
+  color:var(--text);
+  padding:10px 10px;
+  border-radius:12px;
+  outline:none;
+}
+.field textarea{min-height:90px; resize:vertical;}
+
+.queue{
+  display:flex; flex-direction:column; gap:10px;
+  max-height: calc(100vh - 210px);
+  overflow:auto;
+  padding-right:6px;
+}
+
+.queueItem{
+  display:grid;
+  grid-template-columns: 26px 1fr auto;
+  gap:12px;
+  padding:12px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.16);
+}
+.queueItem[draggable="true"]{cursor:grab}
+.queueItem.dragging{opacity:.55}
+.dragHandle{
+  width:26px; height:26px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.10);
+  user-select:none;
+}
+.qMain{display:flex; flex-direction:column; gap:6px;}
+.qTop{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.qName{font-size:16px; font-weight:800;}
+.badge{
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:12px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.10);
+  color:var(--muted);
+}
+.badge.gold{border-color:rgba(212,175,55,.35); color:var(--gold); background:rgba(212,175,55,.10)}
+.badge.done{border-color:rgba(85,209,122,.30); color:var(--green); background:rgba(85,209,122,.10)}
+.badge.skip{border-color:rgba(255,90,95,.30); color:var(--red); background:rgba(255,90,95,.08)}
+.qMeta{display:flex; gap:10px; color:var(--muted); font-size:12px; flex-wrap:wrap;}
+.qActions{display:flex; gap:8px; align-items:center;}
+.icon{
+  width:18px; height:18px; opacity:.9;
+}
+hr.sep{
+  border:0; height:1px; background:rgba(255,255,255,.10); margin:12px 0;
+}
+
+.rightGrid{
+  display:flex; flex-direction:column; gap:var(--gap);
+  height:100%;
+}
+
+.timerBig{
+  font-size:48px;
+  font-weight:900;
+  letter-spacing:.6px;
+}
+.timerSub{
+  font-size:14px;
+  color:var(--muted);
+}
+.kpi{
+  display:flex; gap:12px; align-items:baseline; flex-wrap:wrap;
+}
+.kpi .label{color:var(--muted); font-size:12px;}
+.kpi .value{font-size:18px; font-weight:800;}
+
+/* Viewer */
+.viewerRoot{
+  width:100vw; height:100vh;
+  position:relative;
+  overflow:hidden;
+  background:#000;
+}
+
+.viewerBg{
+  position:absolute; inset:0;
+  background:var(--bg);
+  background-position:center;
+  background-size:cover;
+  filter:saturate(1.05);
+}
+
+.viewerOverlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: 1.25fr .75fr;
+    gap: 20px;
+    padding: 48px;
+    text-align: center;
+}
+#vMainCard {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* centers block elements horizontally */
+    text-align: center; /* centers text like NOW PERFORMING + name */
+}
+#liveNextDeck {
+    margin-top: auto; /* pushes it to the bottom */
+}
+    /* Center the chip row */
+    #vMainCard .vStateRow {
+        justify-content: center;
+    }
+
+/* When the LIVE House Band footer bar is visible, reserve vertical space so it never overlaps the cards */
+.hasHbFooter .viewerOverlay{
+  padding-bottom:160px;
+}
+
+/* Safety: Splash overlay should never show during LIVE */
+.isLive #splashInfo{ display:none !important; }
+
+.vCard{
+  background:var(--card-bg);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:28px;
+  box-shadow:var(--shadow);
+  padding:28px;
+}
+
+.vNowName{
+  font-size:72px;
+  font-weight:950;
+  line-height:1.05;
+  letter-spacing:.2px;
+  margin:0;
+}
+.vTimer{
+  margin-top:18px;
+  font-size:120px;
+  font-weight:1000;
+  letter-spacing:1px;
+}
+.vStateRow{
+  margin-top:10px;
+  display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+}
+
+/* Next / On Deck row inside the LIVE main card */
+.vNextDeckRow{
+  margin-top:22px;
+  width:100%;
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:14px;
+  align-items:stretch;
+}
+.vNextDeckCell{
+  padding:14px 16px;
+  border-radius:22px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.10);
+  text-align:left;
+  min-width:0;
+}
+.vNextDeckCell.right{ text-align:right; }
+.vNextDeckName{
+  margin-top:6px;
+  font-size:26px;
+  font-weight:950;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.vChip{
+  display:inline-flex; align-items:center;
+  padding:10px 14px;
+  border-radius:999px;
+  font-weight:800;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.10);
+}
+.vChip.warn{background:rgba(255,204,102,.16); border-color:rgba(255,204,102,.30); color:var(--amber)}
+.vChip.final{background:rgba(255,90,95,.14); border-color:rgba(255,90,95,.30); color:var(--red)}
+.vChip.good{background:rgba(85,209,122,.12); border-color:rgba(85,209,122,.25); color:var(--green)}
+.vNext{
+  margin-top:18px;
+  font-size:20px;
+  color:var(--muted);
+}
+.vNext strong{color:var(--text)}
+
+.vMedia{
+  display:flex; flex-direction:column; gap:16px;
+  height:100%;
+}
+.vMediaBox{
+  flex:1 1 auto;
+  background:rgba(0,0,0,.90);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:28px;
+  padding:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
+.vMediaBox img{
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+  border-radius:18px;
+}
+.vSplashInfo{
+  position:absolute;
+  left:48px;
+  bottom:48px;
+  right:48px;
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:18px;
+  align-items:stretch;
+}
+.vSplashInfo .vCard{padding:18px 20px; border-radius:24px;}
+.vSplashCard{min-height:150px;}
+.vBandCard{grid-column: 1 / -1; padding:16px 18px;}
+.vSplashInfo h3{margin:0 0 6px; font-size:18px; color:var(--muted); font-weight:850;}
+.vSplashInfo .who{font-size:30px; font-weight:950; margin:0;}
+.vSplashInfo .sub{margin-top:6px; font-size:14px; color:var(--muted);}
+
+.vBandLine{
+  display:flex;
+  flex-wrap:nowrap;
+  gap:10px;
+  overflow:hidden;
+  white-space:nowrap;
+  align-items:center;
+}
+.vBandLine.compact{gap:8px; overflow:hidden;}
+
+.hbChip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 12px;
+  border-radius:999px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.10);
+  font-weight:850;
+  font-size:14px;
+}
+.hbChipFooter{
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:850;
+}
+.hbChip.cooling{opacity:.55;}
+.hbCd{
+  margin-left:6px;
+  padding:4px 8px;
+  border-radius:999px;
+  background:rgba(0,0,0,.25);
+  border:1px solid rgba(255,255,255,.12);
+  font-weight:900;
+  font-size:12px;
+}
+.hbTag{
+  padding:4px 8px;
+  border-radius:999px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.10);
+  font-weight:800;
+  font-size:12px;
+  color:var(--muted);
+}
+
+.vLiveFooterBar{
+  position:absolute;
+  left:28px;
+  right:28px;
+  bottom:18px;
+  padding:12px 14px;
+  border-radius:24px;
+  background:rgba(0,0,0,.42);
+  border:1px solid rgba(255,255,255,.10);
+  backdrop-filter: blur(8px);
+  display:flex;
+  align-items:center;
+  gap:14px;
+  overflow:hidden;
+  white-space:nowrap;
+}
+.vFooterItem{
+  display:inline-flex;
+  align-items:baseline;
+  gap:8px;
+  min-width:0;
+}
+.vFooterLabel{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:850;
+}
+.vFooterName{
+  font-size:18px;
+  font-weight:950;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:28vw;
+}
+.vFooterDivider{
+  opacity:.35;
+  margin:0 2px;
+}
+.vFooterBand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+  overflow:hidden;
+}
+.vFooterBandTitle{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:850;
+  flex:0 0 auto;
+}
+.vFooterBandLine{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:nowrap;
+  overflow:hidden;
+  min-width:0;
+}
+
+
+@media (max-width:1200px){
+  .container{grid-template-columns: 1fr; height:auto}
+  .queue{max-height: 60vh;}
+}
+
+/* Operator: pin live performer row */
+.queueItem.livePinned{
+  border:1px solid rgba(255,255,255,.28);
+  background:rgba(255,255,255,.06);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.08) inset;
+}
+.queueItem.livePinned .dragHandle{opacity:.35}
+.queueItem.isNext{
+  border-color: rgba(255,215,0,.35);
+}
+
+.row.wrap{flex-wrap:wrap;}
+
+/* Operator: House Band categories */
+.hbCats{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap:14px;
+}
+@media (min-width:1100px){
+  .hbCats{grid-template-columns: 1fr 1fr;}
+}
+.hbCat{
+  padding:12px 12px;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.14);
+}
+.hbCatHeader{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:10px;
+}
+.hbCatList{max-height: 42vh; overflow:auto;}
+
+.hbItemRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  width:100%;
+}
+.hbItemRow .field{margin:0;}
+.hbItemRow input[type="text"],
+.hbItemRow select{
+  height:34px;
+  padding:0 10px;
+  border-radius:12px;
+}
+.hbItemRow input[type="text"]{min-width:0;}
+.hbSmallBtn{height:34px; padding:0 10px; border-radius:12px;}
+
+.slotTypesEditor{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.slotTypeRow{
+  display:flex;
+  align-items:flex-end;
+  gap:10px;
+  padding:10px 12px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:14px;
+  background:rgba(0,0,0,.20);
+}
+.slotTypeRow .field{margin:0;}
+.slotTypeRow .field input[type="text"]{width:100%;}
+.slotTypeRow .tinyMeta{font-size:12px; opacity:.8; margin-left:6px;}
+.slotTypeDot{
+  width:14px; height:14px; border-radius:50%;
+  border:1px solid rgba(255,255,255,.35);
+  margin-bottom:10px;
+}
+details.card > summary{list-style:none;}
+details.card > summary::-webkit-details-marker{display:none;}
+.collapsibleHeader{cursor:pointer; user-select:none;}
+.collapsibleHeader .chev{
+  margin-left:auto;
+  width:18px; height:18px;
+  display:inline-flex;
+  align-items:center; justify-content:center;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(0,0,0,.15);
+}
+details[open] > summary .chev::before{content:"▾";}
+details:not([open]) > summary .chev::before{content:"▸";}
+
+/* Viewer: time cues on main card (driven by CSS vars) */
+#vMainCard.pulseWarn{
+  animation: vPulseSoft var(--pulse-warn-dur) ease-in-out infinite;
+}
+
+#vMainCard.pulseFinal{
+  animation: vPulseFast var(--pulse-final-dur) ease-in-out infinite;
+}
+
+#vMainCard.overtimeFlash{
+  animation: vFlashRedMulti 1.0s linear 1;
+}
+
+@keyframes vPulseSoft{
+  0%, 100% { background: var(--card-bg); }
+  50%      { background: var(--pulse-warn-bg); }
+}
+
+@keyframes vPulseFast{
+  0%, 100% { background: var(--card-bg); }
+  50%      { background: var(--pulse-final-bg); }
+}
+
+@keyframes vFlashRedMulti{
+  0%   { background: var(--overtime-flash-bg); }
+  10%  { background: var(--card-bg); }
+  20%  { background: var(--overtime-flash-bg); }
+  30%  { background: var(--card-bg); }
+  40%  { background: var(--overtime-flash-bg); }
+  50%  { background: var(--card-bg); }
+  60%  { background: var(--overtime-flash-bg); }
+  70%  { background: var(--card-bg); }
+  80%  { background: var(--overtime-flash-bg); }
+  90%  { background: var(--card-bg); }
+  100% { background: var(--card-bg); }
+}
+
+
+/* Modal */
+body.modalOpen{ overflow:hidden; }
+
+.modalOverlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.65);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  z-index:9999;
+}
+
+.modalPanel{
+  width:min(1040px, 96vw);
+  max-height:92vh;
+  overflow:auto;
+  background:var(--panel);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.modalHeader{
+  position:sticky;
+  top:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px 16px;
+  background:linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,0));
+  backdrop-filter: blur(6px);
+  border-bottom:1px solid rgba(255,255,255,.10);
+}
+
+.modalTitle h2{
+  margin:0;
+  font-size:18px;
+  letter-spacing:.3px;
+}
+
+.modalBody{
+  padding:16px;
+}
+
+/* Inside modal, nested cards look better without huge margin */
+.modalBody .card.nested{
+  margin-top:0;
+}
+
+/* House Band cooldown list styling */
+.queueItem.coolingItem{
+  opacity:.65;
+}
+
+/* =========================
+   House Band Tab Viewport (prevents category cut-off)
+   ========================= */
+
+/* Make the HB categories area scroll as a whole so lower categories are always reachable */
+#tabHouseBand #hbCats{
+  max-height: clamp(260px, 48vh, 560px);
+  overflow:auto;
+  padding-right:8px;
+}
+
+/* Keep each category card compact so more categories fit on screen */
+#tabHouseBand .hbCats{ gap:12px; }
+#tabHouseBand .hbCat{ padding:10px 10px; border-radius:16px; }
+#tabHouseBand .hbCatHeader{ margin-bottom:8px; font-size:12px; }
+
+/* The member list inside each category should scroll sooner (prevents tall cards) */
+#tabHouseBand .hbCatList{
+  max-height: clamp(140px, 24vh, 260px);
+  overflow:auto;
+}
+
+/* Reduce row height slightly for HB items */
+#tabHouseBand .hbItemRow{ gap:8px; }
+#tabHouseBand .hbItemRow input[type="text"]{ padding:8px 10px; }
+#tabHouseBand .hbItemRow select{ padding:8px 10px; }
+#tabHouseBand .hbItemRow .btn.small,
+#tabHouseBand .hbItemRow .btn.tiny{ padding:6px 10px; }
+
+/* Extra compact tweaks for shorter laptop screens */
+@media (max-height: 900px){
+  #tabHouseBand #hbCats{ max-height: clamp(220px, 44vh, 480px); }
+  #tabHouseBand .hbCatList{ max-height: clamp(120px, 22vh, 220px); }
+}
+
