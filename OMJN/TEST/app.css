@@ -777,3 +777,246 @@ details.hbAcc .hbCatList{
   .hbAccSummary{ padding:8px 10px; }
 }
 
+
+
+.viewerRoot{ --cueRGB: 0,194,255; }
+
+/* ============================================================
+   Viewer — modern motion polish (Start transition, shimmer, cues)
+   ============================================================ */
+
+/* Main LIVE card: shimmer overlay + corner accents */
+#vMainCard{
+  position:relative;
+  overflow:hidden;
+  --cueRGB: 0,194,255;
+  --cueBorderA: .10;
+  --cueGlowA: .06;
+  box-shadow: var(--shadow),
+              0 0 0 1px rgba(var(--cueRGB), var(--cueBorderA)),
+              0 0 34px rgba(var(--cueRGB), var(--cueGlowA));
+}
+
+/* Looping gradient shimmer (subtle) */
+#vMainCard::before{
+  content:"";
+  position:absolute;
+  inset:-60% -80%;
+  pointer-events:none;
+  opacity:.18;
+  background: linear-gradient(115deg,
+      transparent 0%,
+      rgba(255,255,255,.06) 18%,
+      rgba(var(--cueRGB), .16) 34%,
+      rgba(255,255,255,.05) 48%,
+      transparent 62%);
+  transform: translateX(-35%);
+  animation: vShimmer 7.5s linear infinite;
+}
+@keyframes vShimmer{
+  0%{ transform: translateX(-45%); }
+  100%{ transform: translateX(45%); }
+}
+
+/* Corner accents (4 corners using layered backgrounds) */
+#vMainCard::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:28px;
+  pointer-events:none;
+  opacity:.62;
+  background:
+    linear-gradient(90deg, rgba(var(--cueRGB), .85), transparent) top left/70px 2px no-repeat,
+    linear-gradient(180deg, rgba(var(--cueRGB), .85), transparent) top left/2px 70px no-repeat,
+
+    linear-gradient(270deg, rgba(var(--cueRGB), .85), transparent) top right/70px 2px no-repeat,
+    linear-gradient(180deg, rgba(var(--cueRGB), .85), transparent) top right/2px 70px no-repeat,
+
+    linear-gradient(90deg, rgba(var(--cueRGB), .85), transparent) bottom left/70px 2px no-repeat,
+    linear-gradient(0deg, rgba(var(--cueRGB), .85), transparent) bottom left/2px 70px no-repeat,
+
+    linear-gradient(270deg, rgba(var(--cueRGB), .85), transparent) bottom right/70px 2px no-repeat,
+    linear-gradient(0deg, rgba(var(--cueRGB), .85), transparent) bottom right/2px 70px no-repeat;
+  filter: drop-shadow(0 0 14px rgba(var(--cueRGB), .18));
+  transition: opacity .25s ease, filter .25s ease;
+}
+
+/* Color shift + gentle glow at thresholds */
+#vMainCard.cue-warn{
+  --cueRGB: 0,194,255;
+  --cueBorderA: .14;
+  --cueGlowA: .10;
+}
+#vMainCard.cue-final{
+  --cueRGB: 45,212,191;
+  --cueBorderA: .16;
+  --cueGlowA: .12;
+}
+#vMainCard.cue-overtime{
+  --cueRGB: 255,90,95;
+  --cueBorderA: .18;
+  --cueGlowA: .14;
+}
+
+/* Timer glow follows cue color */
+#vMainCard.cue-warn .vTimer,
+#vMainCard.cue-final .vTimer,
+#vMainCard.cue-overtime .vTimer{
+  text-shadow: 0 0 28px rgba(var(--cueRGB), .20);
+}
+
+/* One-time pulse only when crossing into warn/final */
+@keyframes cuePulse{
+  0%{ opacity:.55; filter: drop-shadow(0 0 6px rgba(var(--cueRGB), .08)); }
+  40%{ opacity:1;  filter: drop-shadow(0 0 26px rgba(var(--cueRGB), .34)); }
+  100%{ opacity:.66; filter: drop-shadow(0 0 14px rgba(var(--cueRGB), .18)); }
+}
+@keyframes timerGlowPulse{
+  0%{ text-shadow: 0 0 18px rgba(var(--cueRGB), .14); }
+  45%{ text-shadow: 0 0 44px rgba(var(--cueRGB), .34); }
+  100%{ text-shadow: 0 0 26px rgba(var(--cueRGB), .20); }
+}
+#vMainCard.pulseWarnOnce::after,
+#vMainCard.pulseFinalOnce::after{
+  animation: cuePulse 750ms ease-out 1;
+}
+#vMainCard.pulseWarnOnce .vTimer,
+#vMainCard.pulseFinalOnce .vTimer{
+  animation: timerGlowPulse 750ms ease-out 1;
+}
+
+/* Start transition banner (Splash → LIVE) */
+.vStartBanner{
+  position:absolute;
+  left:48px;
+  right:48px;
+  bottom:44px;
+  display:none;
+  justify-content:center;
+  z-index:6;
+  pointer-events:none;
+}
+.vStartBannerInner{
+  width:min(980px, 100%);
+  border-radius:26px;
+  padding:18px 22px;
+  background: rgba(0,0,0,.28);
+  border: 1px solid rgba(255,255,255,.16);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  overflow:hidden;
+  position:relative;
+  box-shadow: 0 18px 50px rgba(0,0,0,.45);
+}
+.vStartBannerInner::before{
+  content:"";
+  position:absolute;
+  inset:-60% -80%;
+  background: linear-gradient(115deg,
+    transparent 0%,
+    rgba(255,255,255,.06) 18%,
+    rgba(var(--cueRGB), .22) 34%,
+    rgba(255,255,255,.05) 48%,
+    transparent 62%);
+  transform: translateX(-35%);
+  opacity:.22;
+  animation: vShimmer 6.5s linear infinite;
+  pointer-events:none;
+}
+.vStartSmall{
+  font-size:12px;
+  letter-spacing:.12em;
+  font-weight:900;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.vStartName{
+  margin-top:6px;
+  font-size:42px;
+  font-weight:1000;
+  line-height:1.05;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* When start intro is active */
+.viewerRoot.startIntro #startBanner .vStartBannerInner{
+  animation: startBanner 1.6s ease-in-out 1;
+}
+@keyframes startBanner{
+  0%{ transform: translateY(26px); opacity:0; }
+  16%{ transform: translateY(0); opacity:1; }
+  72%{ transform: translateY(0); opacity:1; }
+  100%{ transform: translateY(-10px); opacity:0; }
+}
+.viewerRoot.startIntro #vMainCard{
+  animation: cardEnter .65s cubic-bezier(.16,.84,.24,1) 1;
+}
+@keyframes cardEnter{
+  0%{ transform: translateY(10px); opacity:0; }
+  100%{ transform: translateY(0); opacity:1; }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce){
+  #vMainCard::before, .vStartBannerInner::before{ animation:none !important; }
+  .viewerRoot.startIntro #startBanner .vStartBannerInner,
+  .viewerRoot.startIntro #vMainCard{ animation:none !important; }
+  #vMainCard.pulseWarnOnce::after,
+  #vMainCard.pulseFinalOnce::after,
+  #vMainCard.pulseWarnOnce .vTimer,
+  #vMainCard.pulseFinalOnce .vTimer{ animation:none !important; }
+}
+
+/* ============================================================
+   Operator — HB nav + rotate-top buttons + ready strip
+   ============================================================ */
+
+.hbNav{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-bottom:10px;
+}
+.hbNavBtn{
+  border-radius:999px;
+  padding:6px 10px;
+  font-weight:850;
+  font-size:12px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.18);
+  color: var(--text);
+  cursor:pointer;
+}
+.hbNavBtn:hover{ background: rgba(255,255,255,.06); }
+
+.hbRotateTopBtn{
+  margin-left:10px;
+  padding:6px 10px;
+}
+
+/* Ready strip in Live Control */
+.readyStrip{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+  margin: 14px 0;
+}
+.readyCol{
+  padding:12px 14px;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.14);
+  min-width:0;
+}
+.readyCol.right{ text-align:right; }
+.readyName{
+  margin-top:6px;
+  font-size:20px;
+  font-weight:1000;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}

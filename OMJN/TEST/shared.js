@@ -413,12 +413,13 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
     return out;
   }
   function computeNextTwo(state){
-    const queued = state.queue.filter(s => {
-      if(s.status !== "QUEUED") return false;
-      if(s.id === state.currentSlotId) return false;
-      return true;
-    });
-    return [queued[0] || null, queued[1] || null];
+    const eligible = (s) => s && s.status === "QUEUED" && s.id !== state.currentSlotId;
+    const queued = state.queue.filter(eligible);
+
+    const next1 = queued.find(x => x.id === state.selectedNextId) || queued[0] || null;
+    const next2 = next1 ? (queued.find(x => x.id !== next1.id) || null) : null;
+
+    return [next1, next2];
   }
 
   function computeCurrent(state){

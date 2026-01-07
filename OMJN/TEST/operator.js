@@ -1099,11 +1099,13 @@ els.queue.appendChild(queueRow(slot));
 
 function renderKPIs(){
     const current = OMJN.computeCurrent(state);
-    const [next] = OMJN.computeNextTwo(state);
+    const [next, deck] = OMJN.computeNextTwo(state);
 
     els.statusLine.textContent = state.phase;
     els.kpiCurrent.textContent = current ? current.displayName : "—";
     els.kpiNext.textContent = next ? next.displayName : "—";
+    if(els.readyNext) els.readyNext.textContent = next ? next.displayName : "—";
+    if(els.readyDeck) els.readyDeck.textContent = deck ? deck.displayName : "—";
 
     // Performers left = current (if LIVE/PAUSED) + queued
     const queued = (state.queue || []).filter(x => x && x.status === "QUEUED");
@@ -1522,8 +1524,10 @@ function start(){
     const a = document.createElement("a");
     a.href = url;
     a.download = `omjn-show-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 500);
   }
 
   function importJSON(file){
@@ -1787,6 +1791,30 @@ function bind(){
           list.splice(Math.max(0, idxTo), 0, moved);
           s.houseBandQueues[dstCat] = list;
         });
+      });
+    }
+
+    // House Band: quick jump nav + rotate-top buttons in accordion headers
+    if(els.hbNav){
+      els.hbNav.addEventListener("click", (e) => {
+        const btn = e.target.closest(".hbNavBtn");
+        if(!btn) return;
+        const cat = btn.dataset.hbnav;
+        const details = document.querySelector(`details.hbAcc[data-hbcat="${cat}"]`);
+        if(details){
+          details.open = true;
+          details.scrollIntoView({ block:"start", behavior:"smooth" });
+        }
+      });
+    }
+    if(els.hbCats){
+      els.hbCats.addEventListener("click", (e) => {
+        const btn = e.target.closest(".hbRotateTopBtn");
+        if(!btn) return;
+        e.preventDefault();
+        e.stopPropagation(); // prevent toggling <details> when rotating
+        const cat = btn.dataset.rotateTop;
+        if(cat) rotateHouseBandTop(cat);
       });
     }
 

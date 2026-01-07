@@ -1522,8 +1522,10 @@ function start(){
     const a = document.createElement("a");
     a.href = url;
     a.download = `omjn-show-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 500);
   }
 
   function importJSON(file){
