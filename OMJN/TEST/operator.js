@@ -1761,17 +1761,7 @@ function bind(){
     }
 
 
-    // Operator prefs
-    els.startGuard.addEventListener("change", () => {
-      updateState(s => { s.operatorPrefs.startGuard = !!els.startGuard.checked; }, { recordHistory:false });
-    });
-    els.endGuard.addEventListener("change", () => {
-      updateState(s => { s.operatorPrefs.endGuard = !!els.endGuard.checked; }, { recordHistory:false });
-    });
-    els.hotkeysEnabled.addEventListener("change", () => {
-      updateState(s => { s.operatorPrefs.hotkeysEnabled = !!els.hotkeysEnabled.checked; }, { recordHistory:false });
-    });
-
+    // Operator prefs are bound in bindSettings(); avoid duplicate listeners here.
 els.showTitle.addEventListener("input", () => {
       const v = OMJN.sanitizeText(els.showTitle.value);
       updateState(s => { s.showTitle = v || "Open Mic & Jam Night"; });

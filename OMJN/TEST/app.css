@@ -223,13 +223,26 @@ hr.sep{
   filter:saturate(1.05);
 }
 
-.viewerOverlay{
-  position:absolute; inset:0;
-  display:grid;
-  grid-template-columns: 1.25fr .75fr;
-  gap:20px;
-  padding:48px;
+.viewerOverlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: 1.25fr .75fr;
+    gap: 20px;
+    padding: 48px;
+    text-align: center;
 }
+#vMainCard {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* centers block elements horizontally */
+    text-align: center; /* centers text like NOW PERFORMING + name */
+}
+
+    /* Center the chip row */
+    #vMainCard .vStateRow {
+        justify-content: center;
+    }
 
 /* When the LIVE House Band footer bar is visible, reserve vertical space so it never overlaps the cards */
 .hasHbFooter .viewerOverlay{

@@ -40,9 +40,13 @@
   const hbLiveLineup = document.getElementById("hbLiveLineup");
 
   let currentAssetUrl = null;
+  let lastMediaKey = null;
+  let lastBgPath = null;
 
   function setBg(){
     const path = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
+    if(path === lastBgPath) return;
+    lastBgPath = path;
     bg.style.backgroundImage = `url('${path}')`;
   }
 
@@ -141,6 +145,14 @@
   }
 
   async function setMedia(slot){
+    // Avoid expensive IndexedDB reads + image reloads on every 250ms tick.
+    const media = slot?.media || {};
+    const mediaKey = slot
+      ? `${slot.id}|${media.mediaLayout || ""}|${media.imageAssetId || ""}`
+      : "none";
+    if(mediaKey === lastMediaKey) return;
+    lastMediaKey = mediaKey;
+
     // Clear old URL
     if(currentAssetUrl){
       URL.revokeObjectURL(currentAssetUrl);
@@ -154,7 +166,6 @@
       return;
     }
 
-    const media = slot.media || {};
     const wantImage = ["IMAGE_ONLY","QR_ONLY","IMAGE_PLUS_QR"].includes(media.mediaLayout) && !!media.imageAssetId;
 
     if(!wantImage){
@@ -192,6 +203,9 @@
     clearCardCues();
     lastRemainingMs = null;
     lastSlotId = null;
+
+    // Ensure we release any previously-loaded image when switching away from LIVE.
+    setMedia(null).catch(() => {});
 
     const [n1, n2] = OMJN.computeNextTwo(state);
     sNext.textContent = n1?.displayName || "TBD";
