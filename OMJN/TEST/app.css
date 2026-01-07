@@ -799,27 +799,34 @@ details.hbAcc .hbCatList{
               0 0 34px rgba(var(--cueRGB), var(--cueGlowA));
 }
 
-/* Looping gradient shimmer (subtle) */
-#vMainCard::before{
-  content:"";
-  position:absolute;
-  inset:-60% -80%;
-  pointer-events:none;
-  mix-blend-mode: screen;
-  opacity:.30;
-  background: linear-gradient(115deg,
-      transparent 0%,
-      rgba(255,255,255,.06) 18%,
-      rgba(var(--cueRGB), .16) 34%,
-      rgba(255,255,255,.05) 48%,
-      transparent 62%);
-  transform: translateX(-35%);
-  animation: vShimmer 4.8s linear infinite;
+    /* Looping gradient shimmer (high-energy, seamless) */
+    #vMainCard::before {
+        content: "";
+        position: absolute;
+        /* WIDEN IT so the edges stay off-screen */
+        inset: -60% -140%;
+        pointer-events: none;
+        mix-blend-mode: screen;
+        opacity: .80;
+        background: linear-gradient(115deg, transparent 0%, rgba(255,255,255,.06) 18%, rgba(var(--cueRGB), .16) 34%, rgba(255,255,255,.05) 48%, transparent 62%);
+        /* Fade the layer edges so you never see a hard cutoff */
+        -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 82%, transparent 100%);
+        mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 82%, transparent 100%);
+        will-change: transform;
+        animation: vShimmer 4.8s linear infinite;
+    }
+
+@keyframes vShimmer {
+    0% {
+        transform: translate3d(-80%,0,0);
+    }
+
+    100% {
+        transform: translate3d(80%,0,0);
+    }
 }
-@keyframes vShimmer{
-  0%{ transform: translateX(-45%); }
-  100%{ transform: translateX(45%); }
-}
+
+
 
 /* Corner accents (4 corners using layered backgrounds) */
 #vMainCard::after{

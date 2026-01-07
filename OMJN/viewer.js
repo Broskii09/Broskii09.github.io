@@ -7,6 +7,11 @@
   let lastSlotId = null;
   let overtimeFlashTimeout = null;
 
+  let lastPhase = state.phase;
+  let startIntroPending = false;
+  let startIntroTimeout = null;
+  let lastCue = null;
+
   const bg = document.getElementById("bg");
   const root = document.getElementById("root");
   const overlay = document.getElementById("overlay");
@@ -23,6 +28,10 @@
   const chipFinal = document.getElementById("chipFinal");
   const liveNextUp = document.getElementById("liveNextUp");
   const liveOnDeck = document.getElementById("liveOnDeck");
+
+  const startBanner = document.getElementById("startBanner");
+  const startBannerName = document.getElementById("startBannerName");
+
 
   const vMedia = document.getElementById("vMedia");
   const donationCard = document.getElementById("donationCard");
@@ -102,7 +111,7 @@
 
   function clearCardCues(){
     if(!vMainCard) return;
-    vMainCard.classList.remove("pulseWarn","pulseFinal","overtimeFlash");
+    vMainCard.classList.remove("pulseWarn","pulseFinal","overtimeFlash","pulseWarnOnce","pulseFinalOnce","cue-warn","cue-final","cue-overtime");
     if(overtimeFlashTimeout){
       clearTimeout(overtimeFlashTimeout);
       overtimeFlashTimeout = null;
@@ -126,7 +135,24 @@
     }, 1050);
   }
 
-  function applyCardCues(remainingMs, warnAtMs, finalAtMs){
+  
+  function triggerStartIntro(name){
+    if(!root) return;
+    if(startIntroTimeout){
+      clearTimeout(startIntroTimeout);
+      startIntroTimeout = null;
+    }
+    if(startBannerName) startBannerName.textContent = name || "—";
+    if(startBanner) startBanner.style.display = "flex";
+    root.classList.add("startIntro");
+    startIntroTimeout = setTimeout(() => {
+      root.classList.remove("startIntro");
+      if(startBanner) startBanner.style.display = "none";
+      startIntroTimeout = null;
+    }, 1600);
+  }
+
+function applyCardCues(remainingMs, warnAtMs, finalAtMs){
     if(!vMainCard) return;
 
     // One-time flash when crossing into overtime
@@ -134,13 +160,29 @@
       triggerOvertimeFlash();
     }
 
-    // Pulse behavior only while time is still remaining
-    vMainCard.classList.remove("pulseWarn","pulseFinal");
-    if(remainingMs > 0 && remainingMs <= warnAtMs && remainingMs > finalAtMs){
-      vMainCard.classList.add("pulseWarn");
-    } else if(remainingMs > 0 && remainingMs <= finalAtMs){
-      vMainCard.classList.add("pulseFinal");
+    // Cue state (color shift + gentle glow), plus a one-time pulse when crossing thresholds
+    const cue = (remainingMs <= 0) ? "overtime"
+      : (remainingMs <= finalAtMs) ? "final"
+      : (remainingMs <= warnAtMs) ? "warn"
+      : "normal";
+
+    vMainCard.classList.remove("cue-warn","cue-final","cue-overtime");
+    if(cue === "warn") vMainCard.classList.add("cue-warn");
+    if(cue === "final") vMainCard.classList.add("cue-final");
+    if(cue === "overtime") vMainCard.classList.add("cue-overtime");
+
+    // One-time pulse when entering warn/final (not continuous)
+    vMainCard.classList.remove("pulseWarnOnce","pulseFinalOnce");
+    if(lastCue && lastCue !== cue){
+      if(cue === "warn"){
+        vMainCard.classList.add("pulseWarnOnce");
+        setTimeout(() => vMainCard.classList.remove("pulseWarnOnce"), 750);
+      } else if(cue === "final"){
+        vMainCard.classList.add("pulseFinalOnce");
+        setTimeout(() => vMainCard.classList.remove("pulseFinalOnce"), 750);
+      }
     }
+    lastCue = cue;
 
     lastRemainingMs = remainingMs;
   }
@@ -200,10 +242,13 @@
       root.classList.remove("isLive");
       root.classList.add("isSplash");
     }
+    if(startBanner) startBanner.style.display = "none";
+    if(root) root.classList.remove("startIntro");
 
     clearCardCues();
     lastRemainingMs = null;
     lastSlotId = null;
+    lastCue = null;
 
     // Ensure we release any previously-loaded image when switching away from LIVE.
     setMedia(null).catch(() => {});
@@ -264,6 +309,11 @@
     const type = OMJN.getSlotType(state, cur.slotTypeId);
     nowName.textContent = cur.displayName || "—";
     chipType.textContent = OMJN.displaySlotTypeLabel(state, cur);
+
+    if(startIntroPending){
+      triggerStartIntro(cur.displayName || "—");
+      startIntroPending = false;
+    }
 
     // Next / On Deck (LIVE)
     const [n1, n2] = OMJN.computeNextTwo(state);
@@ -345,7 +395,13 @@
 
   // Subscribe to state updates
   OMJN.subscribe((s) => {
+    const prevPhase = state?.phase;
     state = s;
+    if(prevPhase === "SPLASH" && (state.phase === "LIVE" || state.phase === "PAUSED") && state.currentSlotId){
+      startIntroPending = true;
+    }
+    lastPhase = state.phase;
+
     OMJN.applyThemeToDocument(document, state);
     render().catch(()=>{});
   });
