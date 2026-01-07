@@ -883,6 +883,17 @@ els.queue.appendChild(queueRow(slot));
     if(els.hbAddName) els.hbAddName.value = "";
     if(els.hbAddTags) els.hbAddTags.value = "";
     if(els.hbAddCustomInstrument) els.hbAddCustomInstrument.value = "";
+
+    // Accordion UX: auto-open the category we just added to, and scroll it into view.
+    try{
+      const catKey = OMJN.houseBandCategoryKeyForInstrumentId(instrumentId);
+      const target = document.querySelector(`details.hbAcc[data-hbcat="${catKey}"]`);
+        if (target) {
+            target.open = true; // allow multiple categories open
+            target.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+
+    }catch(_){ /* no-op */ }
   }
 
   function rotateHouseBandTop(categoryKey){
@@ -1061,6 +1072,18 @@ els.queue.appendChild(queueRow(slot));
       if(!listEl) continue;
       listEl.innerHTML = "";
       const members = state.houseBandQueues?.[cat.key] || [];
+
+      // Update the accordion count (shows even when collapsed)
+      const countEl = document.getElementById(`hbCount_${cat.key}`);
+      if(countEl){
+        const activeCount = members.filter(m => {
+          OMJN.normalizeHouseBandMember(m);
+          return m.active !== false;
+        }).length;
+        countEl.textContent = members.length ? `${activeCount}/${members.length}` : "";
+        countEl.title = members.length ? `${activeCount} active of ${members.length}` : "";
+      }
+
       if(!members.length){
         const empty = document.createElement("div");
         empty.className = "small";
@@ -1416,9 +1439,16 @@ function start(){
     const ok = confirm("Start a new show? This clears the queue (images stay in local storage unless you clear browser data).");
     if(!ok) return;
     const fresh = OMJN.defaultState();
-    // preserve House Band lineup queues
-    fresh.houseBandQueues = JSON.parse(JSON.stringify(state.houseBandQueues || fresh.houseBandQueues));
-    // preserve splash path if user changed it
+    // Preserve user configuration, but CLEAR both queues (performers + house band)
+    // - keep profiles for autocomplete
+    // - keep slot types + theme/prefs
+    try{ fresh.profiles = JSON.parse(JSON.stringify(state.profiles || fresh.profiles)); }catch(_){ }
+    try{ fresh.slotTypes = JSON.parse(JSON.stringify(state.slotTypes || fresh.slotTypes)); }catch(_){ }
+    try{ fresh.settings = JSON.parse(JSON.stringify(state.settings || fresh.settings)); }catch(_){ }
+    try{ fresh.viewerPrefs = JSON.parse(JSON.stringify(state.viewerPrefs || fresh.viewerPrefs)); }catch(_){ }
+    try{ fresh.operatorPrefs = JSON.parse(JSON.stringify(state.operatorPrefs || fresh.operatorPrefs)); }catch(_){ }
+    // preserve show title + splash path if user changed them
+    fresh.showTitle = state.showTitle || fresh.showTitle;
     fresh.splash.backgroundAssetPath = state.splash?.backgroundAssetPath || fresh.splash.backgroundAssetPath;
     setState(fresh);
     selectedId = null;

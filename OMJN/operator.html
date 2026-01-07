@@ -9,7 +9,7 @@
 <body>
     <div class="container">
         <!-- LEFT: Queue -->
-        <div class="card">
+        <div class="card" id="leftCard">
             <div class="cardHeader">
                 <h2>Operator — Queue</h2>
                 <div class="row">
@@ -122,35 +122,71 @@
                         The <strong>Rotate</strong> button moves that person to the end of their category queue.
                     </div>
 
-                    <div class="hbCats" id="hbCats">
-                        <div class="hbCat">
-                            <div class="hbCatHeader">Drums</div>
+                    <div class="hbCats hbAccWrap" id="hbCats">
+
+                        <details class="hbAcc" data-hbcat="drums" open>
+                            <summary class="hbAccSummary">
+                                <span class="hbAccTitle">Drums</span>
+                                <span class="hbAccCount" id="hbCount_drums"></span>
+                                <span class="hbAccChev" aria-hidden="true"></span>
+                            </summary>
                             <div class="queue hbCatList" id="hbCat_drums" data-hbcat="drums"></div>
-                        </div>
-                        <div class="hbCat">
-                            <div class="hbCatHeader">Vocals</div>
+                        </details>
+
+                        <details class="hbAcc" data-hbcat="vocals">
+                            <summary class="hbAccSummary">
+                                <span class="hbAccTitle">Vocals</span>
+                                <span class="hbAccCount" id="hbCount_vocals"></span>
+                                <span class="hbAccChev" aria-hidden="true"></span>
+                            </summary>
                             <div class="queue hbCatList" id="hbCat_vocals" data-hbcat="vocals"></div>
-                        </div>
-                        <div class="hbCat">
-                            <div class="hbCatHeader">Keys</div>
+                        </details>
+
+                        <details class="hbAcc" data-hbcat="keys">
+                            <summary class="hbAccSummary">
+                                <span class="hbAccTitle">Keys</span>
+                                <span class="hbAccCount" id="hbCount_keys"></span>
+                                <span class="hbAccChev" aria-hidden="true"></span>
+                            </summary>
                             <div class="queue hbCatList" id="hbCat_keys" data-hbcat="keys"></div>
-                        </div>
-                        <div class="hbCat">
-                            <div class="hbCatHeader">Guitar</div>
+                        </details>
+
+                        <details class="hbAcc" data-hbcat="guitar">
+                            <summary class="hbAccSummary">
+                                <span class="hbAccTitle">Guitar</span>
+                                <span class="hbAccCount" id="hbCount_guitar"></span>
+                                <span class="hbAccChev" aria-hidden="true"></span>
+                            </summary>
                             <div class="queue hbCatList" id="hbCat_guitar" data-hbcat="guitar"></div>
-                        </div>
-                        <div class="hbCat">
-                            <div class="hbCatHeader">Bass</div>
+                        </details>
+
+                        <details class="hbAcc" data-hbcat="bass">
+                            <summary class="hbAccSummary">
+                                <span class="hbAccTitle">Bass</span>
+                                <span class="hbAccCount" id="hbCount_bass"></span>
+                                <span class="hbAccChev" aria-hidden="true"></span>
+                            </summary>
                             <div class="queue hbCatList" id="hbCat_bass" data-hbcat="bass"></div>
-                        </div>
-                        <div class="hbCat">
-                            <div class="hbCatHeader">Percussion</div>
+                        </details>
+
+                        <details class="hbAcc" data-hbcat="percussion">
+                            <summary class="hbAccSummary">
+                                <span class="hbAccTitle">Percussion</span>
+                                <span class="hbAccCount" id="hbCount_percussion"></span>
+                                <span class="hbAccChev" aria-hidden="true"></span>
+                            </summary>
                             <div class="queue hbCatList" id="hbCat_percussion" data-hbcat="percussion"></div>
-                        </div>
-                        <div class="hbCat">
-                            <div class="hbCatHeader">Other</div>
+                        </details>
+
+                        <details class="hbAcc" data-hbcat="other">
+                            <summary class="hbAccSummary">
+                                <span class="hbAccTitle">Other</span>
+                                <span class="hbAccCount" id="hbCount_other"></span>
+                                <span class="hbAccChev" aria-hidden="true"></span>
+                            </summary>
                             <div class="queue hbCatList" id="hbCat_other" data-hbcat="other"></div>
-                        </div>
+                        </details>
+
                     </div>
                 </div>
 

@@ -695,3 +695,85 @@ body.modalOpen{ overflow:hidden; }
   #tabHouseBand .hbCatList{ max-height: clamp(120px, 22vh, 220px); }
 }
 
+/* =========================
+   House Band Accordion Layout (v3)
+   - HB categories scroll as a section
+   - Accordion keeps the UI compact
+   ========================= */
+
+/* Make the LEFT card behave like a fixed-height panel so tab contents can scroll internally */
+#leftCard{ display:flex; flex-direction:column; height:100%; }
+#leftCard > .cardBody{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+
+/* Tab panels fill the remaining space */
+#tabPerformers, #tabHouseBand{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+
+/* Performers queue becomes the scroller instead of the whole page */
+#tabPerformers #queue.queue{ flex:1 1 auto; min-height:0; max-height:none; }
+
+/* HB categories wrapper becomes the scroller */
+#tabHouseBand #hbCats{ flex:1 1 auto; min-height:0; max-height:none; overflow:auto; padding-right:8px; }
+
+/* Accordion stack */
+.hbAccWrap{ display:flex; flex-direction:column; gap:10px; }
+
+details.hbAcc {
+    flex: 0 0 auto; /* prevents flexbox from squishing open categories */
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 18px;
+    background: rgba(0,0,0,.14);
+    overflow: hidden;
+}
+
+details.hbAcc > summary{ list-style:none; }
+details.hbAcc > summary::-webkit-details-marker{ display:none; }
+
+.hbAccSummary{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  cursor:pointer;
+  user-select:none;
+}
+
+.hbAccTitle{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.hbAccCount{
+  margin-left:auto;
+  font-size:12px;
+  color:var(--muted);
+  font-weight:800;
+}
+
+.hbAccChev{
+  width:22px;
+  height:22px;
+  border-radius:10px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(255,255,255,.16);
+  background:rgba(0,0,0,.16);
+}
+details.hbAcc[open] .hbAccChev::before{ content:"▾"; }
+details.hbAcc:not([open]) .hbAccChev::before{ content:"▸"; }
+
+/* Inner list area (compact, scrolls when long) */
+details.hbAcc .hbCatList{
+  padding:10px 12px 12px;
+  max-height: 240px;
+  overflow:auto;
+}
+
+@media (max-height: 900px){
+  details.hbAcc .hbCatList{ max-height: 200px; }
+  .hbAccSummary{ padding:8px 10px; }
+}
+
