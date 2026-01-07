@@ -8,10 +8,10 @@
   let overtimeFlashTimeout = null;
 
   const bg = document.getElementById("bg");
+  const root = document.getElementById("root");
   const overlay = document.getElementById("overlay");
   const splashInfo = document.getElementById("splashInfo");
-  const liveFooter = document.getElementById("liveFooter");
-  const vShowTitle = document.getElementById("vShowTitle");
+  const liveFooterBar = document.getElementById("liveFooterBar");
 
   const vMainCard = document.getElementById("vMainCard");
   const nowName = document.getElementById("nowName");
@@ -21,7 +21,8 @@
   const chipOver = document.getElementById("chipOver");
   const chipWarn = document.getElementById("chipWarn");
   const chipFinal = document.getElementById("chipFinal");
-  const nextLine = document.getElementById("nextLine");
+  const liveNextUp = document.getElementById("liveNextUp");
+  const liveOnDeck = document.getElementById("liveOnDeck");
 
   const vMedia = document.getElementById("vMedia");
   const donationCard = document.getElementById("donationCard");
@@ -38,61 +39,63 @@
 
   const hbLineup = document.getElementById("hbLineup");
   const hbLiveLineup = document.getElementById("hbLiveLineup");
-  const lfNext = document.getElementById("lfNext");
-  const lfDeck = document.getElementById("lfDeck");
 
   let currentAssetUrl = null;
+  let lastMediaKey = null;
+  let lastBgPath = null;
 
   function setBg(){
     const path = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
+    if(path === lastBgPath) return;
+    lastBgPath = path;
     bg.style.backgroundImage = `url('${path}')`;
   }
 
   function renderHouseBandLineup(targetEl, opts={}){
     if(!targetEl) return;
-    const compact = !!opts.compact;
-    const members = (state.houseBand || []).filter(m => m && m.active !== false);
+    const top = OMJN.getHouseBandTopPerCategory(state);
+    const fmt = (state.viewerPrefs?.hbFooterFormat || "categoryFirst");
     targetEl.innerHTML = "";
+    if(!top.length) return;
 
-    if(!members.length){
-      const empty = document.createElement("div");
-      empty.className = "small";
-      empty.style.opacity = ".85";
-      empty.textContent = "—";
-      targetEl.appendChild(empty);
-      return;
-    }
+    const instrumentLabel = (m) => {
+      if(!m) return "";
+      if(m.instrumentId === "custom") return OMJN.sanitizeText(m.customInstrument || "");
+      return (OMJN.houseBandInstrumentOptions().find(x => x.id === m.instrumentId)?.label || "");
+    };
 
-    for(const m of members){
-      OMJN.normalizeHouseBandMember(m);
-
+    for(const item of top){
+      const m = item.member;
       const chip = document.createElement("span");
-      chip.className = "hbChip" + ((m.cooldownRemaining > 0) ? " cooling" : "");
-      const label = OMJN.houseBandMemberLabel(m) || "—";
-      chip.textContent = label;
+      chip.className = "hbChip" + (opts.compact ? " hbChipFooter" : "");
 
-      // cooldown indicator
-      if(m.cooldownRemaining > 0){
-        const cd = document.createElement("span");
-        cd.className = "hbCd mono";
-        cd.textContent = `CD ${m.cooldownRemaining}`;
-        chip.appendChild(cd);
+      const name = OMJN.sanitizeText(m?.name || "");
+      const inst = instrumentLabel(m);
+      const cat = item.categoryLabel;
+      let txt = "";
+
+      const catLower = (cat || "").toLowerCase();
+      const instLower = (inst || "").toLowerCase();
+      const instExtra = (inst && instLower && instLower !== catLower) ? inst : "";
+
+      if(fmt === "nameFirst"){
+        if(name){
+          txt = instExtra ? `${name} (${cat} - ${instExtra})` : `${name} (${cat})`;
+        }else if(inst){
+          txt = instExtra ? `${instExtra} (${cat})` : `${cat}: ${inst}`;
+        }else{
+          txt = cat;
+        }
+      }else{
+        // categoryFirst (default)
+        if(name && instExtra) txt = `${cat}: ${name} (${instExtra})`;
+        else if(name) txt = `${cat}: ${name}`;
+        else if(inst) txt = `${cat}: ${inst}`;
+        else txt = cat;
       }
 
-      // skill tags
-      const tags = Array.isArray(m.skillTags) ? m.skillTags : [];
-      for(const t of tags){
-        const tag = document.createElement("span");
-        tag.className = "hbTag";
-        tag.textContent = t;
-        chip.appendChild(tag);
-      }
-
+      chip.textContent = txt;
       targetEl.appendChild(chip);
-    }
-
-    if(compact){
-      // nothing special for now; CSS handles it
     }
   }
 
@@ -143,6 +146,14 @@
   }
 
   async function setMedia(slot){
+    // Avoid expensive IndexedDB reads + image reloads on every 250ms tick.
+    const media = slot?.media || {};
+    const mediaKey = slot
+      ? `${slot.id}|${media.mediaLayout || ""}|${media.imageAssetId || ""}`
+      : "none";
+    if(mediaKey === lastMediaKey) return;
+    lastMediaKey = mediaKey;
+
     // Clear old URL
     if(currentAssetUrl){
       URL.revokeObjectURL(currentAssetUrl);
@@ -156,7 +167,6 @@
       return;
     }
 
-    const media = slot.media || {};
     const wantImage = ["IMAGE_ONLY","QR_ONLY","IMAGE_PLUS_QR"].includes(media.mediaLayout) && !!media.imageAssetId;
 
     if(!wantImage){
@@ -184,13 +194,19 @@
   function renderSplash(){
     overlay.style.display = "none";
     splashInfo.style.display = "grid";
-    if(liveFooter) liveFooter.style.display = "none";
-
-    if(vShowTitle) vShowTitle.textContent = state.showTitle || "Open Mic & Jam Night";
+    if(liveFooterBar) liveFooterBar.style.display = "none";
+    if(root){
+      root.classList.remove("hasHbFooter");
+      root.classList.remove("isLive");
+      root.classList.add("isSplash");
+    }
 
     clearCardCues();
     lastRemainingMs = null;
     lastSlotId = null;
+
+    // Ensure we release any previously-loaded image when switching away from LIVE.
+    setMedia(null).catch(() => {});
 
     const [n1, n2] = OMJN.computeNextTwo(state);
     sNext.textContent = n1?.displayName || "TBD";
@@ -202,7 +218,14 @@
     sNextSub.textContent = sub1;
     sDeckSub.textContent = sub2;
 
-    renderHouseBandLineup(hbLineup);
+    // Respect the Operator toggle for House Band visibility on Splash
+    const footerEnabled = (state.viewerPrefs?.showHouseBandFooter !== false);
+
+    renderHouseBandLineup(hbLineup, { maxQueued: 10 });
+    // Hide the House Band card on Splash when toggle is off OR empty
+    const hbCard = hbLineup?.closest?.(".vBandCard");
+    const hasHB = (hbLineup && hbLineup.childElementCount);
+    if(hbCard) hbCard.style.display = (footerEnabled && hasHB) ? "" : "none";
 
     setBg();
   }
@@ -210,9 +233,20 @@
   async function renderLive(){
     overlay.style.display = "grid";
     splashInfo.style.display = "none";
-    if(liveFooter) liveFooter.style.display = "flex";
-
-    if(vShowTitle) vShowTitle.textContent = state.showTitle || "Open Mic & Jam Night";
+    if(root){
+      root.classList.remove("isSplash");
+      root.classList.add("isLive");
+    }
+    // Show footer only if enabled AND there is at least one active House Band member queued
+    const hbHasAny = (OMJN.getHouseBandTopPerCategory(state).length > 0);
+    const footerEnabled = (state.viewerPrefs?.showHouseBandFooter !== false);
+    const showFooter = (footerEnabled && hbHasAny);
+    if(liveFooterBar){
+      liveFooterBar.style.display = showFooter ? "flex" : "none";
+      liveFooterBar.hidden = !showFooter;
+      if(!showFooter && hbLiveLineup) hbLiveLineup.innerHTML = "";
+    }
+    if(root) root.classList.toggle("hasHbFooter", showFooter);
 
     const cur = OMJN.computeCurrent(state);
     if(!cur){
@@ -230,6 +264,11 @@
     const type = OMJN.getSlotType(state, cur.slotTypeId);
     nowName.textContent = cur.displayName || "—";
     chipType.textContent = OMJN.displaySlotTypeLabel(state, cur);
+
+    // Next / On Deck (LIVE)
+    const [n1, n2] = OMJN.computeNextTwo(state);
+    if(liveNextUp) liveNextUp.textContent = n1?.displayName || "—";
+    if(liveOnDeck) liveOnDeck.textContent = n2?.displayName || "—";
 
     // timer
     const t = OMJN.computeTimer(state);
@@ -261,17 +300,8 @@
     // cues on main card (pulse + overtime flash)
     applyCardCues(remainingMs, warnAtMs, finalAtMs);
 
-    // next line
-    const [n1] = OMJN.computeNextTwo(state);
-    nextLine.innerHTML = `Next: <strong>${n1?.displayName || "—"}</strong>`;
-
-    // Small footer (Next / On Deck) during LIVE
-    if(lfNext) lfNext.textContent = n1?.displayName || "—";
-    if(lfDeck){
-      const [, n2] = OMJN.computeNextTwo(state);
-      lfDeck.textContent = n2?.displayName || "—";
-    }
-    renderHouseBandLineup(hbLiveLineup, { compact:true });
+    // House Band footer during LIVE (HB only)
+    renderHouseBandLineup(hbLiveLineup, { compact: true });
 
     // donation link
     const url = cur.media?.donationUrl || "";

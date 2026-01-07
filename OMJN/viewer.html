@@ -9,11 +9,6 @@
 <body style="margin:0;">
   <div class="viewerRoot" id="root">
     <div class="viewerBg" id="bg"></div>
-
-    <div class="vHeader">
-      <div class="vShowTitle" id="vShowTitle">Open Mic &amp; Jam Night</div>
-    </div>
-
     <div class="viewerOverlay" id="overlay" style="display:none;">
         <div class="vCard" id="vMainCard">
             <div class="small" id="nowLabel">NOW PERFORMING</div>
@@ -29,11 +24,23 @@
                 <span class="vChip final" id="chipFinal" style="display:none;">Final 30 sec</span>
             </div>
 
+            <!-- Next/On Deck (LIVE only) -->
+            <div class="vNextDeckRow" id="liveNextDeck">
+              <div class="vNextDeckCell">
+                <div class="small">Next Up</div>
+                <div class="vNextDeckName" id="liveNextUp">—</div>
+              </div>
+              <div class="vNextDeckCell right">
+                <div class="small">On Deck</div>
+                <div class="vNextDeckName" id="liveOnDeck">—</div>
+              </div>
+            </div>
+
 
 
             
 
-            <div class="vNext" id="nextLine">Next: <strong>—</strong></div>
+
         </div>
 
       <div class="vMedia" id="vMedia">
@@ -68,23 +75,12 @@
       </div>
     </div>
 
-    <!-- Small footer during LIVE -->
-    <div class="vLiveFooter" id="liveFooter" style="display:none;">
-      <div class="vFooterRow">
-        <div class="vCard vFooterCard">
-          <div class="small">Next Up</div>
-          <div class="vFooterWho" id="lfNext">—</div>
-        </div>
-        <div class="vCard vFooterCard">
-          <div class="small">On Deck</div>
-          <div class="vFooterWho" id="lfDeck">—</div>
-        </div>
-      </div>
-
-      <div class="vCard vFooterBandCard">
-        <div class="small">House Band</div>
-        <div class="vBandLine compact" id="hbLiveLineup"></div>
-      </div>
+    <!-- House Band footer during LIVE (single-line bar) -->
+    <div class="vLiveFooterBar" id="liveFooterBar" style="display:none;">
+      <span class="vFooterBand">
+        <span class="vFooterBandTitle">House Band</span>
+        <span class="vFooterBandLine" id="hbLiveLineup"></span>
+      </span>
     </div>
 
   </div>

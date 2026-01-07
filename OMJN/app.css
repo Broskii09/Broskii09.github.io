@@ -66,6 +66,26 @@ button, input, select, textarea {font-family:inherit}
 .cardBody{ padding:14px 16px; }
 
 .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+
+.tabs{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.tabBtn{
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.05);
+  color:var(--text);
+  font-weight:900;
+  cursor:pointer;
+}
+.tabBtn.active{
+  background:rgba(255,255,255,.14);
+  border-color:rgba(255,255,255,.22);
+}
+.tabsSpacer{flex:1 1 auto;}
 .row > * {flex: 0 0 auto;}
 .spacer{flex:1 1 auto;}
 .small{font-size:12px; color:var(--muted);}
@@ -203,45 +223,36 @@ hr.sep{
   filter:saturate(1.05);
 }
 
-.viewerOverlay{
-  position:absolute; inset:0;
-  display:grid;
-  grid-template-columns: 1.25fr .75fr;
-  gap:20px;
-  padding:48px;
+.viewerOverlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: 1.25fr .75fr;
+    gap: 20px;
+    padding: 48px;
+    text-align: center;
+}
+#vMainCard {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* centers block elements horizontally */
+    text-align: center; /* centers text like NOW PERFORMING + name */
+}
+#liveNextDeck {
+    margin-top: auto; /* pushes it to the bottom */
+}
+    /* Center the chip row */
+    #vMainCard .vStateRow {
+        justify-content: center;
+    }
+
+/* When the LIVE House Band footer bar is visible, reserve vertical space so it never overlaps the cards */
+.hasHbFooter .viewerOverlay{
+  padding-bottom:160px;
 }
 
-.vHeader{
-  position:absolute;
-  top:26px;
-  left:48px;
-  right:48px;
-  z-index:5;
-  display:flex;
-  justify-content:flex-start;
-  pointer-events:none;
-}
-.vShowTitle{
-  font-size:28px;
-  font-weight:950;
-  letter-spacing:.2px;
-  padding:10px 16px;
-  border-radius:999px;
-  background:rgba(0,0,0,.35);
-  border:1px solid rgba(255,255,255,.10);
-  backdrop-filter: blur(6px);
-}
-
-/* Push "Next" line to bottom of the main card */
-#vMainCard{
-  display:flex;
-  flex-direction:column;
-  height:100%;
-}
-#vMainCard #nextLine{
-  margin-top:auto;
-  padding-top:18px;
-}
+/* Safety: Splash overlay should never show during LIVE */
+.isLive #splashInfo{ display:none !important; }
 
 .vCard{
   background:var(--card-bg);
@@ -267,6 +278,33 @@ hr.sep{
 .vStateRow{
   margin-top:10px;
   display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+}
+
+/* Next / On Deck row inside the LIVE main card */
+.vNextDeckRow{
+  margin-top:22px;
+  width:100%;
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:14px;
+  align-items:stretch;
+}
+.vNextDeckCell{
+  padding:14px 16px;
+  border-radius:22px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.10);
+  text-align:left;
+  min-width:0;
+}
+.vNextDeckCell.right{ text-align:right; }
+.vNextDeckName{
+  margin-top:6px;
+  font-size:26px;
+  font-weight:950;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 .vChip{
   display:inline-flex; align-items:center;
@@ -326,11 +364,13 @@ hr.sep{
 
 .vBandLine{
   display:flex;
-  flex-wrap:wrap;
+  flex-wrap:nowrap;
   gap:10px;
+  overflow:hidden;
+  white-space:nowrap;
   align-items:center;
 }
-.vBandLine.compact{gap:8px;}
+.vBandLine.compact{gap:8px; overflow:hidden;}
 
 .hbChip{
   display:inline-flex;
@@ -342,6 +382,11 @@ hr.sep{
   border:1px solid rgba(255,255,255,.10);
   font-weight:850;
   font-size:14px;
+}
+.hbChipFooter{
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:850;
 }
 .hbChip.cooling{opacity:.55;}
 .hbCd{
@@ -363,33 +408,66 @@ hr.sep{
   color:var(--muted);
 }
 
-.vLiveFooter{
+.vLiveFooterBar{
   position:absolute;
-  left:32px;
-  right:32px;
-  bottom:24px;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-}
-.vFooterRow{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap:12px;
-}
-.vFooterCard{
-  padding:14px 16px;
-  border-radius:22px;
-}
-.vFooterWho{
-  margin-top:6px;
-  font-size:24px;
-  font-weight:950;
-}
-.vFooterBandCard{
+  left:28px;
+  right:28px;
+  bottom:18px;
   padding:12px 14px;
-  border-radius:22px;
+  border-radius:24px;
+  background:rgba(0,0,0,.42);
+  border:1px solid rgba(255,255,255,.10);
+  backdrop-filter: blur(8px);
+  display:flex;
+  align-items:center;
+  gap:14px;
+  overflow:hidden;
+  white-space:nowrap;
 }
+.vFooterItem{
+  display:inline-flex;
+  align-items:baseline;
+  gap:8px;
+  min-width:0;
+}
+.vFooterLabel{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:850;
+}
+.vFooterName{
+  font-size:18px;
+  font-weight:950;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:28vw;
+}
+.vFooterDivider{
+  opacity:.35;
+  margin:0 2px;
+}
+.vFooterBand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+  overflow:hidden;
+}
+.vFooterBandTitle{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:850;
+  flex:0 0 auto;
+}
+.vFooterBandLine{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:nowrap;
+  overflow:hidden;
+  min-width:0;
+}
+
 
 @media (max-width:1200px){
   .container{grid-template-columns: 1fr; height:auto}
@@ -409,18 +487,46 @@ hr.sep{
 
 .row.wrap{flex-wrap:wrap;}
 
-/* Operator: House Band editor */
-.hbList{
-  display:flex;
-  flex-direction:column;
-  gap:12px;
+/* Operator: House Band categories */
+.hbCats{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap:14px;
 }
-.hbRow{
+@media (min-width:1100px){
+  .hbCats{grid-template-columns: 1fr 1fr;}
+}
+.hbCat{
   padding:12px 12px;
   border-radius:18px;
   border:1px solid rgba(255,255,255,.10);
-  background:rgba(0,0,0,.16);
+  background:rgba(0,0,0,.14);
 }
+.hbCatHeader{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:10px;
+}
+.hbCatList{max-height: 42vh; overflow:auto;}
+
+.hbItemRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  width:100%;
+}
+.hbItemRow .field{margin:0;}
+.hbItemRow input[type="text"],
+.hbItemRow select{
+  height:34px;
+  padding:0 10px;
+  border-radius:12px;
+}
+.hbItemRow input[type="text"]{min-width:0;}
+.hbSmallBtn{height:34px; padding:0 10px; border-radius:12px;}
 
 .slotTypesEditor{
   display:flex;
@@ -547,4 +653,9 @@ body.modalOpen{ overflow:hidden; }
 /* Inside modal, nested cards look better without huge margin */
 .modalBody .card.nested{
   margin-top:0;
+}
+
+/* House Band cooldown list styling */
+.queueItem.coolingItem{
+  opacity:.65;
 }

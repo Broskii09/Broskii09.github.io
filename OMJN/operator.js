@@ -3,7 +3,7 @@
   let state = OMJN.loadState();
   OMJN.applyThemeToDocument(document, state);
   ensureProfilesShape(state);
-  ensureHouseBandShape(state);
+  OMJN.ensureHouseBandQueues(state);
   const els = {
     queue: document.getElementById("queue"),
     addName: document.getElementById("addName"),
@@ -58,6 +58,8 @@
     statusLine: document.getElementById("statusLine"),
     kpiCurrent: document.getElementById("kpiCurrent"),
     kpiNext: document.getElementById("kpiNext"),
+    kpiLeft: document.getElementById("kpiLeft"),
+    kpiEstEnd: document.getElementById("kpiEstEnd"),
 
     btnStart: document.getElementById("btnStart"),
     btnPause: document.getElementById("btnPause"),
@@ -65,10 +67,15 @@
     btnEnd: document.getElementById("btnEnd"),
     btnUndo: document.getElementById("btnUndo"),
     btnRedo: document.getElementById("btnRedo"),
+    btnExportState: document.getElementById("btnExportState"),
+    btnImportState: document.getElementById("btnImportState"),
+    importStateFile: document.getElementById("importStateFile"),
     btnMinus1: document.getElementById("btnMinus1"),
     btnMinus5: document.getElementById("btnMinus5"),
     btnPlus1: document.getElementById("btnPlus1"),
     btnPlus5: document.getElementById("btnPlus5"),
+    btnMinus30: document.getElementById("btnMinus30"),
+    btnPlus30: document.getElementById("btnPlus30"),
     btnResetTime: document.getElementById("btnResetTime"),
     timerLine: document.getElementById("timerLine"),
 
@@ -87,9 +94,24 @@
     btnSkip: document.getElementById("btnSkip"),
     btnSelectNext: document.getElementById("btnSelectNext"),
 
-    // House Band
-    btnAddHB: document.getElementById("btnAddHB"),
-    houseBandList: document.getElementById("houseBandList"),
+    // Tabs
+    tabBtnPerformers: document.getElementById("tabBtnPerformers"),
+    tabBtnHouseBand: document.getElementById("tabBtnHouseBand"),
+    tabPerformers: document.getElementById("tabPerformers"),
+    tabHouseBand: document.getElementById("tabHouseBand"),
+
+    // Viewer toggle
+    toggleHBFooter: document.getElementById("toggleHBFooter"),
+    hbFooterFormat: document.getElementById("hbFooterFormat"),
+
+    // House Band queue
+    hbAddName: document.getElementById("hbAddName"),
+    hbAddInstrument: document.getElementById("hbAddInstrument"),
+    hbAddCustomWrap: document.getElementById("hbAddCustomWrap"),
+    hbAddCustomInstrument: document.getElementById("hbAddCustomInstrument"),
+    hbAddTags: document.getElementById("hbAddTags"),
+    btnAddHBQ: document.getElementById("btnAddHBQ"),
+    hbCats: document.getElementById("hbCats"),
   };
 
   let selectedId = null;
@@ -148,6 +170,23 @@
     applyHistory(next, "redo");
   }
 
+    function addSeconds(deltaSec) {
+        updateState(s => {
+            const cur = s.queue.find(x => x.id === s.currentSlotId);
+            if (!cur) return;
+
+            const base = (s.timer.baseDurationMs ?? (OMJN.effectiveMinutes(s, cur) * 60 * 1000));
+            let next = base + (deltaSec * 1000);
+
+            // Prevent going below :30
+            const minMs = 30 * 1000;
+            if (next < minMs) next = minMs;
+
+            // IMPORTANT: do NOT set minutesOverride here (keep it seconds-accurate)
+            s.timer.baseDurationMs = next;
+        });
+    }
+
   // ---- Performer profiles (stored in state) ----
   function ensureProfilesShape(s){
     if(!s.profiles) s.profiles = {};
@@ -155,14 +194,7 @@
   }
 
   // ---- House Band shape ----
-  function ensureHouseBandShape(s){
-    if(!Array.isArray(s.houseBand)) s.houseBand = [];
-    for(const m of s.houseBand){
-      OMJN.normalizeHouseBandMember(m);
-    }
-  }
-
-
+  
   function normNameKey(name){
     return OMJN.sanitizeText(name).toLowerCase();
   }
@@ -220,7 +252,7 @@
 
   function setState(next){
     ensureProfilesShape(next);
-    ensureHouseBandShape(next);
+    OMJN.ensureHouseBandQueues(next);
 
     state = next;
     OMJN.applyThemeToDocument(document, state);
@@ -241,7 +273,7 @@
     if(recordHistory && !isApplyingHistory) pushUndoSnapshot();
     const s = cloneState(state);
     ensureProfilesShape(s);
-    ensureHouseBandShape(s);
+    OMJN.ensureHouseBandQueues(s);
     mutator(s);
     setState(s);
   }
@@ -802,12 +834,282 @@ els.queue.appendChild(queueRow(slot));
     render();
   }
 
+
+  function fillHBInstrumentSelect(sel){
+    const opts = OMJN.houseBandInstrumentOptions();
+    sel.innerHTML = "";
+    for(const o of opts){
+      const opt = document.createElement("option");
+      opt.value = o.id;
+      opt.textContent = o.label;
+      sel.appendChild(opt);
+    }
+  }
+
+  function toggleHBCustomField(){
+    const id = els.hbAddInstrument?.value || "guitar";
+    if(!els.hbAddCustomWrap) return;
+    els.hbAddCustomWrap.style.display = (id === "custom") ? "" : "none";
+  }
+
+  function parseTagsInput(s){
+    return String(s || "")
+      .split(",")
+      .map(x => OMJN.sanitizeText(x))
+      .map(x => x.trim())
+      .filter(Boolean)
+      .slice(0, 10);
+  }
+
+  function addHouseBandMember(){
+    const name = OMJN.sanitizeText(els.hbAddName?.value || "");
+    const instrumentId = els.hbAddInstrument?.value || "guitar";
+    const customInstrument = OMJN.sanitizeText(els.hbAddCustomInstrument?.value || "");
+    const skillTags = parseTagsInput(els.hbAddTags?.value || "");
+
+    if(!name) return;
+    updateState(st => {
+      OMJN.ensureHouseBandQueues(st);
+      OMJN.addHouseBandMember(st, {
+        id: OMJN.uid("hb"),
+        name,
+        instrumentId,
+        customInstrument: (instrumentId === "custom") ? customInstrument : "",
+        skillTags,
+        active: true,
+      });
+    });
+
+    if(els.hbAddName) els.hbAddName.value = "";
+    if(els.hbAddTags) els.hbAddTags.value = "";
+    if(els.hbAddCustomInstrument) els.hbAddCustomInstrument.value = "";
+  }
+
+  function rotateHouseBandTop(categoryKey){
+    updateState(s => {
+      OMJN.rotateHouseBandTopToEnd(s, categoryKey);
+    });
+  }
+
+  function hbItem(member, catKey){
+    OMJN.normalizeHouseBandMember(member);
+
+    const div = document.createElement("div");
+    div.className = "queueItem";
+    div.draggable = true;
+    div.dataset.id = member.id;
+    div.dataset.cat = catKey;
+
+    div.addEventListener("dragstart", (e) => {
+      div.classList.add("dragging");
+      e.dataTransfer.setData("text/plain", `${catKey}:${member.id}`);
+      e.dataTransfer.effectAllowed = "move";
+    });
+    div.addEventListener("dragend", () => div.classList.remove("dragging"));
+
+    const handle = document.createElement("div");
+    handle.className = "dragHandle";
+    handle.textContent = "≡";
+
+    const main = document.createElement("div");
+    main.className = "hbItemRow";
+
+    const activeWrap = document.createElement("label");
+    activeWrap.style.display = "inline-flex";
+    activeWrap.style.alignItems = "center";
+    activeWrap.style.gap = "6px";
+    activeWrap.style.cursor = "pointer";
+    const active = document.createElement("input");
+    active.type = "checkbox";
+    active.checked = (member.active !== false);
+    active.title = "Active";
+    active.addEventListener("change", () => {
+      updateState(st => {
+        OMJN.ensureHouseBandQueues(st);
+        const list = st.houseBandQueues?.[catKey] || [];
+        const m = list.find(x => x.id === member.id);
+        if(!m) return;
+        m.active = !!active.checked;
+      }, { recordHistory:false });
+    });
+    const activeLbl = document.createElement("span");
+    activeLbl.className = "small";
+    activeLbl.textContent = "active";
+    activeWrap.appendChild(active);
+    activeWrap.appendChild(activeLbl);
+
+    const nameField = document.createElement("div");
+    nameField.className = "field";
+    nameField.style.flex = "1 1 180px";
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.value = member.name || "";
+    nameInput.placeholder = "Name";
+    nameInput.addEventListener("input", () => {
+      updateState(st => {
+        OMJN.ensureHouseBandQueues(st);
+        const list = st.houseBandQueues?.[catKey] || [];
+        const m = list.find(x => x.id === member.id);
+        if(!m) return;
+        m.name = OMJN.sanitizeText(nameInput.value);
+      }, { recordHistory:false });
+    });
+    nameField.appendChild(nameInput);
+
+    const instField = document.createElement("div");
+    instField.className = "field";
+    instField.style.width = "200px";
+    const instSelect = document.createElement("select");
+    fillHBInstrumentSelect(instSelect);
+    instSelect.value = member.instrumentId || "guitar";
+    instSelect.addEventListener("change", () => {
+      const nextInst = instSelect.value;
+      updateState(st => {
+        OMJN.ensureHouseBandQueues(st);
+        // Find + remove from current category
+        const curList = st.houseBandQueues?.[catKey] || [];
+        const idx = curList.findIndex(x => x.id === member.id);
+        if(idx < 0) return;
+        const [m] = curList.splice(idx, 1);
+        m.instrumentId = nextInst;
+        if(nextInst !== "custom") m.customInstrument = "";
+        const nextCat = OMJN.houseBandCategoryKeyForMember(m);
+        if(!st.houseBandQueues[nextCat]) st.houseBandQueues[nextCat] = [];
+        st.houseBandQueues[nextCat].push(m);
+      }, { recordHistory:false });
+    });
+    instField.appendChild(instSelect);
+
+    const customField = document.createElement("div");
+    customField.className = "field";
+    customField.style.flex = "1 1 180px";
+    const customInput = document.createElement("input");
+    customInput.type = "text";
+    customInput.placeholder = "Custom instrument";
+    customInput.value = member.customInstrument || "";
+    customField.style.display = (member.instrumentId === "custom") ? "" : "none";
+    customInput.addEventListener("input", () => {
+      updateState(st => {
+        OMJN.ensureHouseBandQueues(st);
+        const list = st.houseBandQueues?.[catKey] || [];
+        const m = list.find(x => x.id === member.id);
+        if(!m) return;
+        m.customInstrument = OMJN.sanitizeText(customInput.value);
+      }, { recordHistory:false });
+    });
+    customField.appendChild(customInput);
+
+    instSelect.addEventListener("change", () => {
+      // Best-effort: toggle custom field visibility immediately
+      customField.style.display = (instSelect.value === "custom") ? "" : "none";
+    });
+
+    const tagsField = document.createElement("div");
+    tagsField.className = "field";
+    tagsField.style.flex = "1 1 220px";
+    const tagsInput = document.createElement("input");
+    tagsInput.type = "text";
+    tagsInput.placeholder = "tags (comma)";
+    tagsInput.value = Array.isArray(member.skillTags) ? member.skillTags.join(", ") : "";
+    tagsInput.addEventListener("input", () => {
+      updateState(st => {
+        OMJN.ensureHouseBandQueues(st);
+        const list = st.houseBandQueues?.[catKey] || [];
+        const m = list.find(x => x.id === member.id);
+        if(!m) return;
+        m.skillTags = parseTagsInput(tagsInput.value);
+      }, { recordHistory:false });
+    });
+    tagsField.appendChild(tagsInput);
+
+    const btnRotate = document.createElement("button");
+    btnRotate.className = "btn tiny hbSmallBtn";
+    btnRotate.textContent = "Rotate";
+    btnRotate.title = "Move to end of this category";
+    btnRotate.addEventListener("click", (e) => {
+      e.stopPropagation();
+      updateState(st => OMJN.rotateHouseBandMemberToEnd(st, member.id));
+    });
+
+    const btnRemove = document.createElement("button");
+    btnRemove.className = "btn tiny danger hbSmallBtn";
+    btnRemove.textContent = "✕";
+    btnRemove.title = "Remove";
+    btnRemove.addEventListener("click", (e) => {
+      e.stopPropagation();
+      updateState(st => OMJN.removeHouseBandMember(st, member.id));
+    });
+
+    main.appendChild(activeWrap);
+    main.appendChild(nameField);
+    main.appendChild(instField);
+    main.appendChild(customField);
+    main.appendChild(tagsField);
+    main.appendChild(btnRotate);
+    main.appendChild(btnRemove);
+
+    div.appendChild(handle);
+    div.appendChild(main);
+    return div;
+  }
+
+  function renderHouseBandCategories(){
+    OMJN.ensureHouseBandQueues(state);
+    const cats = OMJN.houseBandCategories();
+    for(const cat of cats){
+      const listEl = document.getElementById(`hbCat_${cat.key}`);
+      if(!listEl) continue;
+      listEl.innerHTML = "";
+      const members = state.houseBandQueues?.[cat.key] || [];
+      if(!members.length){
+        const empty = document.createElement("div");
+        empty.className = "small";
+        empty.textContent = "—";
+        listEl.appendChild(empty);
+        continue;
+      }
+      for(const m of members){
+        listEl.appendChild(hbItem(m, cat.key));
+      }
+    }
+  }
+
 function renderKPIs(){
     const current = OMJN.computeCurrent(state);
     const [next] = OMJN.computeNextTwo(state);
+
     els.statusLine.textContent = state.phase;
     els.kpiCurrent.textContent = current ? current.displayName : "—";
     els.kpiNext.textContent = next ? next.displayName : "—";
+
+    // Performers left = current (if LIVE/PAUSED) + queued
+    const queued = (state.queue || []).filter(x => x && x.status === "QUEUED");
+    const hasCurrent = !!current && (state.phase === "LIVE" || state.phase === "PAUSED");
+    const left = queued.length + (hasCurrent ? 1 : 0);
+    if(els.kpiLeft) els.kpiLeft.textContent = String(left);
+
+    // Estimated end time based on remaining LIVE time + queued slots
+    if(els.kpiEstEnd){
+      try{
+        let totalMs = 0;
+        if(hasCurrent){
+          const t = OMJN.computeTimer(state);
+          totalMs += Math.max(t.remainingMs || 0, 0);
+        }
+        for(const s of queued){
+          OMJN.normalizeSlot(s);
+          totalMs += (OMJN.effectiveMinutes(state, s) * 60 * 1000);
+        }
+        if(totalMs <= 0){
+          els.kpiEstEnd.textContent = "—";
+        }else{
+          const end = new Date(Date.now() + totalMs);
+          els.kpiEstEnd.textContent = end.toLocaleTimeString([], { hour:"numeric", minute:"2-digit" });
+        }
+      }catch(_){
+        els.kpiEstEnd.textContent = "—";
+      }
+    }
   }
 
   function renderTimerLine(){
@@ -846,207 +1148,7 @@ function renderKPIs(){
   }
 
 
-  function parseSkillTags(raw){
-    return String(raw ?? "")
-      .split(",")
-      .map(x => OMJN.sanitizeText(x))
-      .filter(Boolean)
-      .slice(0, 10);
-  }
-
-  function renderHouseBand(){
-    if(!els.houseBandList) return;
-    els.houseBandList.innerHTML = "";
-
-    const members = Array.isArray(state.houseBand) ? state.houseBand : [];
-    if(!members.length){
-      const empty = document.createElement("div");
-      empty.className = "small";
-      empty.textContent = "No house band members yet.";
-      els.houseBandList.appendChild(empty);
-      return;
-    }
-
-    const instruments = OMJN.houseBandInstrumentOptions();
-
-    members.forEach((m, idx) => {
-      OMJN.normalizeHouseBandMember(m);
-
-      const wrap = document.createElement("div");
-      wrap.className = "hbRow";
-
-      // Row 1: active, name, instrument, cooldown length
-      const row1 = document.createElement("div");
-      row1.className = "row wrap";
-      row1.style.gap = "10px";
-
-      const activeField = document.createElement("label");
-      activeField.className = "pill";
-      activeField.style.cursor = "pointer";
-      activeField.title = "Show/hide this member on the viewer";
-      activeField.innerHTML = `
-        Active
-        <span style="display:inline-flex; align-items:center; gap:8px; margin-left:8px;">
-          <input type="checkbox" ${m.active ? "checked" : ""} />
-        </span>
-      `;
-      const activeChk = activeField.querySelector("input");
-      activeChk.addEventListener("change", () => {
-        updateState(s => {
-          const mm = s.houseBand?.[idx];
-          if(!mm) return;
-          mm.active = !!activeChk.checked;
-          OMJN.normalizeHouseBandMember(mm);
-        });
-      });
-
-      const nameField = document.createElement("div");
-      nameField.className = "field";
-      nameField.style.flex = "1 1 200px";
-      nameField.innerHTML = `<label>Name</label><input type="text" value="${(m.name||"").replaceAll('"','&quot;')}" placeholder="Name" />`;
-      const nameInput = nameField.querySelector("input");
-      nameInput.addEventListener("input", () => {
-        const v = OMJN.sanitizeText(nameInput.value);
-        updateState(s => {
-          const mm = s.houseBand?.[idx];
-          if(!mm) return;
-          mm.name = v;
-          OMJN.normalizeHouseBandMember(mm);
-        });
-      });
-
-      const instField = document.createElement("div");
-      instField.className = "field";
-      instField.style.flex = "1 1 200px";
-      instField.innerHTML = `<label>Instrument</label><select></select>`;
-      const instSel = instField.querySelector("select");
-      for(const opt of instruments){
-        const o = document.createElement("option");
-        o.value = opt.id;
-        o.textContent = opt.label;
-        instSel.appendChild(o);
-      }
-      instSel.value = m.instrumentId || "guitar";
-      instSel.addEventListener("change", () => {
-        updateState(s => {
-          const mm = s.houseBand?.[idx];
-          if(!mm) return;
-          mm.instrumentId = instSel.value;
-          if(mm.instrumentId !== "custom") mm.customInstrument = "";
-          OMJN.normalizeHouseBandMember(mm);
-        });
-      });
-
-      const cdLenField = document.createElement("div");
-      cdLenField.className = "field";
-      cdLenField.style.width = "150px";
-      cdLenField.innerHTML = `<label>Cooldown (performers)</label><input type="number" min="0" step="1" value="${m.cooldownLength}" />`;
-      const cdLenInput = cdLenField.querySelector("input");
-      cdLenInput.addEventListener("input", () => {
-        const v = Math.max(0, Math.floor(Number(cdLenInput.value || 0)));
-        updateState(s => {
-          const mm = s.houseBand?.[idx];
-          if(!mm) return;
-          mm.cooldownLength = v;
-          // clamp remaining so it never exceeds length
-          mm.cooldownRemaining = Math.min(mm.cooldownRemaining || 0, v);
-          OMJN.normalizeHouseBandMember(mm);
-        });
-      });
-
-      row1.appendChild(activeField);
-      row1.appendChild(nameField);
-      row1.appendChild(instField);
-      row1.appendChild(cdLenField);
-
-      wrap.appendChild(row1);
-
-      // Row 2: custom instrument + skill tags + controls
-      const row2 = document.createElement("div");
-      row2.className = "row wrap";
-      row2.style.marginTop = "10px";
-      row2.style.gap = "10px";
-
-      const customField = document.createElement("div");
-      customField.className = "field";
-      customField.style.flex = "1 1 220px";
-      customField.innerHTML = `<label>Custom instrument</label><input type="text" placeholder="e.g., Sax, Fiddle" value="${(m.customInstrument||"").replaceAll('"','&quot;')}" />`;
-      const customInput = customField.querySelector("input");
-      customInput.addEventListener("input", () => {
-        const v = OMJN.sanitizeText(customInput.value);
-        updateState(s => {
-          const mm = s.houseBand?.[idx];
-          if(!mm) return;
-          mm.customInstrument = v;
-          mm.instrumentId = "custom";
-          OMJN.normalizeHouseBandMember(mm);
-        });
-      });
-      customField.style.display = (m.instrumentId === "custom") ? "block" : "none";
-
-      const tagsField = document.createElement("div");
-      tagsField.className = "field";
-      tagsField.style.flex = "1 1 260px";
-      tagsField.innerHTML = `<label>Skill tags (comma-separated)</label><input type="text" placeholder="e.g., blues, jazz, harmony" value="${(m.skillTags||[]).join(', ').replaceAll('"','&quot;')}" />`;
-      const tagsInput = tagsField.querySelector("input");
-      tagsInput.addEventListener("change", () => {
-        const tags = parseSkillTags(tagsInput.value);
-        updateState(s => {
-          const mm = s.houseBand?.[idx];
-          if(!mm) return;
-          mm.skillTags = tags;
-          OMJN.normalizeHouseBandMember(mm);
-        });
-      });
-
-      const meta = document.createElement("div");
-      meta.className = "pill";
-      meta.title = "Cooldown remaining (in performers)";
-      meta.innerHTML = `Remaining: <strong class="mono">${m.cooldownRemaining}</strong>`;
-
-      const btnPlayed = document.createElement("button");
-      btnPlayed.className = "btn tiny";
-      btnPlayed.type = "button";
-      btnPlayed.textContent = "Mark Played";
-      btnPlayed.addEventListener("click", () => {
-        updateState(s => {
-          OMJN.markHouseBandMemberPlayed(s, m.id);
-        });
-      });
-
-      const btnClear = document.createElement("button");
-      btnClear.className = "btn tiny";
-      btnClear.type = "button";
-      btnClear.textContent = "Clear Cooldown";
-      btnClear.addEventListener("click", () => {
-        updateState(s => {
-          OMJN.clearHouseBandCooldown(s, m.id);
-        });
-      });
-
-      const btnRemove = document.createElement("button");
-      btnRemove.className = "btn tiny danger";
-      btnRemove.type = "button";
-      btnRemove.textContent = "Remove";
-      btnRemove.addEventListener("click", () => {
-        updateState(s => {
-          s.houseBand = (s.houseBand || []).filter(x => x.id !== m.id);
-        });
-      });
-
-      row2.appendChild(customField);
-      row2.appendChild(tagsField);
-      row2.appendChild(meta);
-      row2.appendChild(btnPlayed);
-      row2.appendChild(btnClear);
-      row2.appendChild(btnRemove);
-
-      wrap.appendChild(row2);
-
-      els.houseBandList.appendChild(wrap);
-    });
-  }
-
+  
   function render(){
     // sync header inputs
     els.showTitle.value = state.showTitle || "";
@@ -1056,6 +1158,9 @@ function renderKPIs(){
     els.startGuard.checked = !!state.operatorPrefs?.startGuard;
     els.endGuard.checked = !!state.operatorPrefs?.endGuard;
     els.hotkeysEnabled.checked = (state.operatorPrefs?.hotkeysEnabled !== false);
+
+    if(els.toggleHBFooter) els.toggleHBFooter.checked = (state.viewerPrefs?.showHouseBandFooter !== false);
+    if(els.hbFooterFormat) els.hbFooterFormat.value = (state.viewerPrefs?.hbFooterFormat || "categoryFirst");
 
     // Editor collapse
     if(els.editCard) els.editCard.open = !state.operatorPrefs?.editCollapsed;
@@ -1083,12 +1188,18 @@ function renderKPIs(){
     fillTypeSelect(els.addType);
     fillTypeSelect(els.editType);
     toggleCustomAddFields();
+    // House Band add controls
+    if(els.hbAddInstrument){
+      fillHBInstrumentSelect(els.hbAddInstrument);
+      toggleHBCustomField();
+    }
+
 
     renderQueue();
     renderKPIs();
     renderTimerLine();
     renderEditor();
-    renderHouseBand();
+    renderHouseBandCategories();
   }
 
   // ---- Actions ----
@@ -1253,8 +1364,7 @@ function start(){
       }
       const cur = s.queue.find(x=>x.id===s.currentSlotId);
       if(cur) cur.status = "DONE";
-      // Queue-based House Band cooldowns: one performer has passed
-      OMJN.decrementHouseBandCooldowns(s, 1);
+      // House Band is independent; no automatic rotation happens here.
       s.currentSlotId = null;
       s.phase = "SPLASH";
       s.timer.running = false;
@@ -1276,8 +1386,7 @@ function start(){
       const minMs = 60 * 1000;
       if(next < minMs) next = minMs;
       s.timer.baseDurationMs = next;
-      const effective = Math.round((s.timer.baseDurationMs / 60000));
-      cur.minutesOverride = effective;
+      // Live timer adjustment only — don\'t mutate slot minutesOverride here.
     });
   }
 
@@ -1288,8 +1397,7 @@ function start(){
       if(!slot) return;
       slot.status = "SKIPPED";
       if(s.currentSlotId === slot.id){
-        // Queue-based House Band cooldowns: one performer has passed (skip)
-        OMJN.decrementHouseBandCooldowns(s, 1);
+        // House Band is independent; skipping a performer doesn't rotate House Band.
         s.currentSlotId = null;
         s.phase = "SPLASH";
         s.timer.running = false;
@@ -1308,8 +1416,8 @@ function start(){
     const ok = confirm("Start a new show? This clears the queue (images stay in local storage unless you clear browser data).");
     if(!ok) return;
     const fresh = OMJN.defaultState();
-    // preserve house band lineup
-    fresh.houseBand = (state.houseBand ? JSON.parse(JSON.stringify(state.houseBand)) : []);
+    // preserve House Band lineup queues
+    fresh.houseBandQueues = JSON.parse(JSON.stringify(state.houseBandQueues || fresh.houseBandQueues));
     // preserve splash path if user changed it
     fresh.splash.backgroundAssetPath = state.splash?.backgroundAssetPath || fresh.splash.backgroundAssetPath;
     setState(fresh);
@@ -1398,7 +1506,7 @@ function start(){
         imported.version = imported.version ?? 1;
         imported.features = imported.features ?? {};
         imported.splash = imported.splash ?? { backgroundAssetPath:"./assets/splash_BG.jpg", showNextTwo:true };
-        imported.viewerPrefs = imported.viewerPrefs ?? { warnAtSec:120, finalAtSec:30, showOvertime:true, showProgressBar:true };
+        imported.viewerPrefs = imported.viewerPrefs ?? { warnAtSec:120, finalAtSec:30, showOvertime:true, showProgressBar:true, showHouseBandFooter:true };
         imported.assetsIndex = imported.assetsIndex ?? {};
         // Drop legacy Jam mode data (Lineup-only)
         if(Array.isArray(imported.slotTypes)) imported.slotTypes = imported.slotTypes.filter(t => t?.id !== "jam");
@@ -1583,17 +1691,77 @@ function bind(){
     });
     els.btnAdd.addEventListener("click", addPerformer);
 
-    // Operator prefs
-    els.startGuard.addEventListener("change", () => {
-      updateState(s => { s.operatorPrefs.startGuard = !!els.startGuard.checked; }, { recordHistory:false });
-    });
-    els.endGuard.addEventListener("change", () => {
-      updateState(s => { s.operatorPrefs.endGuard = !!els.endGuard.checked; }, { recordHistory:false });
-    });
-    els.hotkeysEnabled.addEventListener("change", () => {
-      updateState(s => { s.operatorPrefs.hotkeysEnabled = !!els.hotkeysEnabled.checked; }, { recordHistory:false });
-    });
+    // Tabs
+    function setActiveTab(which){
+      const isHB = (which === "hb");
+      if(els.tabBtnPerformers) els.tabBtnPerformers.classList.toggle("active", !isHB);
+      if(els.tabBtnHouseBand) els.tabBtnHouseBand.classList.toggle("active", isHB);
+      if(els.tabPerformers) els.tabPerformers.hidden = isHB;
+      if(els.tabHouseBand) els.tabHouseBand.hidden = !isHB;
+    }
+    if(els.tabBtnPerformers) els.tabBtnPerformers.addEventListener("click", () => setActiveTab("perf"));
+    if(els.tabBtnHouseBand) els.tabBtnHouseBand.addEventListener("click", () => setActiveTab("hb"));
 
+    // Viewer footer toggle + formatting
+    if(els.toggleHBFooter){
+      els.toggleHBFooter.checked = (state.viewerPrefs?.showHouseBandFooter !== false);
+      els.toggleHBFooter.addEventListener("change", () => {
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.showHouseBandFooter = !!els.toggleHBFooter.checked;
+        });
+      });
+    }
+    if(els.hbFooterFormat){
+      const fmt = (state.viewerPrefs?.hbFooterFormat || "categoryFirst");
+      els.hbFooterFormat.value = fmt;
+      els.hbFooterFormat.addEventListener("change", () => {
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.hbFooterFormat = String(els.hbFooterFormat.value || "categoryFirst");
+        });
+      });
+    }
+
+    // House Band add
+    if(els.hbAddName){
+      els.hbAddName.addEventListener("keydown", (e) => {
+        if(e.key === "Enter"){ e.preventDefault(); addHouseBandMember(); }
+      });
+    }
+    if(els.btnAddHBQ) els.btnAddHBQ.addEventListener("click", addHouseBandMember);
+    if(els.hbAddInstrument) els.hbAddInstrument.addEventListener("change", toggleHBCustomField);
+
+    // House Band drag/drop (within each category)
+    const hbLists = [...document.querySelectorAll(".hbCatList")];
+    for(const listEl of hbLists){
+      listEl.addEventListener("dragover", (e) => e.preventDefault());
+      listEl.addEventListener("drop", (e) => {
+        e.preventDefault();
+        const payload = e.dataTransfer.getData("text/plain");
+        const [srcCat, draggedId] = String(payload || "").split(":");
+        const dstCat = listEl.dataset.hbcat;
+        if(!draggedId || !srcCat || !dstCat) return;
+        // Keep it simple: reorder within the same category only
+        if(srcCat !== dstCat) return;
+
+        const afterElement = getDragAfterElement(listEl, e.clientY);
+        updateState(s => {
+          OMJN.ensureHouseBandQueues(s);
+          const list = s.houseBandQueues?.[dstCat] || [];
+          const idxFrom = list.findIndex(x=>x.id===draggedId);
+          if(idxFrom < 0) return;
+          const [moved] = list.splice(idxFrom, 1);
+          const children = [...listEl.querySelectorAll(".queueItem:not(.dragging)")];
+          const idxTo = afterElement ? children.indexOf(afterElement) : children.length;
+          list.splice(Math.max(0, idxTo), 0, moved);
+          s.houseBandQueues[dstCat] = list;
+        });
+      });
+    }
+
+
+    // Operator prefs are bound in bindSettings(); avoid duplicate listeners here.
 els.showTitle.addEventListener("input", () => {
       const v = OMJN.sanitizeText(els.showTitle.value);
       updateState(s => { s.showTitle = v || "Open Mic & Jam Night"; });
@@ -1607,6 +1775,60 @@ els.showTitle.addEventListener("input", () => {
     els.btnStart.addEventListener("click", guardedStart);
     els.btnUndo.addEventListener("click", undo);
     els.btnRedo.addEventListener("click", redo);
+
+    // Export/Import state
+    if(els.btnExportState){
+      els.btnExportState.addEventListener("click", () => {
+        try{
+          const stamp = new Date();
+          const yyyy = String(stamp.getFullYear());
+          const mm = String(stamp.getMonth()+1).padStart(2,"0");
+          const dd = String(stamp.getDate()).padStart(2,"0");
+          const hh = String(stamp.getHours()).padStart(2,"0");
+          const mi = String(stamp.getMinutes()).padStart(2,"0");
+          const filename = `omjn_state_${yyyy}${mm}${dd}_${hh}${mi}.json`;
+
+          const data = JSON.stringify(state, null, 2);
+          const blob = new Blob([data], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }catch(err){
+          alert("Export failed.\n\n" + (err?.message || String(err)));
+        }
+      });
+    }
+
+    if(els.btnImportState && els.importStateFile){
+      els.btnImportState.addEventListener("click", () => els.importStateFile.click());
+      els.importStateFile.addEventListener("change", async () => {
+        const file = els.importStateFile.files && els.importStateFile.files[0];
+        els.importStateFile.value = "";
+        if(!file) return;
+        try{
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          if(!parsed || typeof parsed !== "object") throw new Error("Invalid JSON.");
+          if(!Array.isArray(parsed.queue)) parsed.queue = [];
+          if(!parsed.viewerPrefs) parsed.viewerPrefs = {};
+          if(!parsed.operatorPrefs) parsed.operatorPrefs = parsed.operatorPrefs || {};
+          // Apply and clear undo/redo history (import is a new baseline)
+          undoStack = [];
+          redoStack = [];
+          saveHistory();
+          setState(parsed);
+          OMJN.saveState(parsed);
+          OMJN.publish(parsed);
+        }catch(err){
+          alert("Import failed.\n\n" + (err?.message || String(err)));
+        }
+      });
+    }
     els.btnPause.addEventListener("click", pause);
     els.btnResume.addEventListener("click", resume);
     els.btnEnd.addEventListener("click", guardedEnd);
@@ -1614,13 +1836,15 @@ els.showTitle.addEventListener("input", () => {
     els.btnMinus5.addEventListener("click", () => addMinutes(-5));
     els.btnPlus1.addEventListener("click", () => addMinutes(1));
     els.btnPlus5.addEventListener("click", () => addMinutes(5));
+    els.btnMinus30.addEventListener("click", () => addSeconds(-30));
+    els.btnPlus30.addEventListener("click", () => addSeconds(30));
     els.btnResetTime.addEventListener("click", resetTimer);
 
     // House Band
     if(els.btnAddHB){
       els.btnAddHB.addEventListener("click", () => {
         updateState(s => {
-          ensureHouseBandShape(s);
+          OMJN.ensureHouseBandQueues(s);
           s.houseBand.push({
             id: OMJN.uid("hb"),
             name: "",
@@ -1734,6 +1958,16 @@ bindEditor();
       }
 
       const k = e.key.toLowerCase();
+      // House Band rotation shortcuts (Alt+1..7)
+      if(e.altKey && !mod && !e.shiftKey && !isTypingContext()){
+        const map = { "1":"drums", "2":"vocals", "3":"keys", "4":"guitar", "5":"bass", "6":"percussion", "7":"other" };
+        const cat = map[k];
+        if(cat){
+          e.preventDefault();
+          rotateHouseBandTop(cat);
+          return;
+        }
+      }
       if(k === " "){
         e.preventDefault();
         if(state.phase === "SPLASH") guardedStart();

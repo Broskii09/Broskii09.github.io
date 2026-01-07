@@ -34,22 +34,6 @@
                     </div>
                 </div>
 
-                <div class="tabs" style="margin-bottom:12px;">
-                    <button class="tabBtn active" id="tabBtnPerformers" type="button">Performers</button>
-                    <button class="tabBtn" id="tabBtnHouseBand" type="button">House Band</button>
-                    <span class="tabsSpacer"></span>
-                    <label class="small" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-                        <input type="checkbox" id="toggleHBFooter" />
-                        <span>HB Footer</span>
-                    </label>
-                    <select id="hbFooterFormat" title="HB Footer format" style="width:auto; padding:6px 10px; border-radius:999px; font-weight:900; font-size:12px;">
-                        <option value="categoryFirst">Drums: Mike</option>
-                        <option value="nameFirst">Mike (Drums)</option>
-                    </select>
-                </div>
-
-                <div class="tabPanel" id="tabPerformers">
-
                 <div class="row">
                     <div class="field" style="flex:1 1 240px;">
                         <label>Quick Add Performer</label>
@@ -72,7 +56,8 @@
                         <input id="addCustomMinutes" type="number" min="1" step="1" placeholder="15" />
                     </div>
 
-	                    <button class="btn good" id="btnAdd">Add</button>
+                    <button class="btn good" id="btnAdd">Add</button></label>
+                    </span>
                 </div>
 
                 <hr class="sep" />
@@ -84,76 +69,6 @@
 
 
                 <div class="queue" id="queue"></div>
-                </div>
-
-                <div class="tabPanel" id="tabHouseBand" hidden>
-                    <div class="row" style="margin-bottom:10px;">
-                        <div class="field" style="flex:1 1 260px;">
-                            <label>Quick Add House Band</label>
-                            <input id="hbAddName" type="text" placeholder="Name and press Enter" autocomplete="off" />
-                        </div>
-
-                        <div class="field" style="width:210px;">
-                            <label>Instrument</label>
-                            <select id="hbAddInstrument"></select>
-                        </div>
-
-                        <div class="field" id="hbAddCustomWrap" style="flex:1 1 240px; display:none;">
-                            <label>Custom Instrument</label>
-                            <input id="hbAddCustomInstrument" type="text" placeholder="e.g., Sax, Violin" autocomplete="off" />
-                        </div>
-                    </div>
-
-                    <div class="row" style="margin-bottom:10px;">
-                        <div class="field" style="flex:1 1 420px;">
-                            <label>Skill Tags (optional)</label>
-                            <input id="hbAddTags" type="text" placeholder="comma-separated (e.g., jazz, harmony, keys)" autocomplete="off" />
-                        </div>
-                        <div class="field" style="width:160px;">
-                            <label>&nbsp;</label>
-                            <button class="btn" id="btnAddHBQ" type="button">Add</button>
-                        </div>
-                    </div>
-
-                    <hr class="sep" />
-
-                    <div class="small" style="margin-bottom:10px;">
-                        House Band is its own lineup queue by instrument category. Drag to reorder within each category.
-                        The <strong>Rotate</strong> button moves that person to the end of their category queue.
-                    </div>
-
-                    <div class="hbCats" id="hbCats">
-                        <div class="hbCat">
-                            <div class="hbCatHeader">Drums</div>
-                            <div class="queue hbCatList" id="hbCat_drums" data-hbcat="drums"></div>
-                        </div>
-                        <div class="hbCat">
-                            <div class="hbCatHeader">Vocals</div>
-                            <div class="queue hbCatList" id="hbCat_vocals" data-hbcat="vocals"></div>
-                        </div>
-                        <div class="hbCat">
-                            <div class="hbCatHeader">Keys</div>
-                            <div class="queue hbCatList" id="hbCat_keys" data-hbcat="keys"></div>
-                        </div>
-                        <div class="hbCat">
-                            <div class="hbCatHeader">Guitar</div>
-                            <div class="queue hbCatList" id="hbCat_guitar" data-hbcat="guitar"></div>
-                        </div>
-                        <div class="hbCat">
-                            <div class="hbCatHeader">Bass</div>
-                            <div class="queue hbCatList" id="hbCat_bass" data-hbcat="bass"></div>
-                        </div>
-                        <div class="hbCat">
-                            <div class="hbCatHeader">Percussion</div>
-                            <div class="queue hbCatList" id="hbCat_percussion" data-hbcat="percussion"></div>
-                        </div>
-                        <div class="hbCat">
-                            <div class="hbCatHeader">Other</div>
-                            <div class="queue hbCatList" id="hbCat_other" data-hbcat="other"></div>
-                        </div>
-                    </div>
-                </div>
-
             </div>
         </div>
 
@@ -175,14 +90,6 @@
                             <div class="label">Next</div>
                             <div class="value" id="kpiNext">—</div>
                         </div>
-                        <div>
-                            <div class="label">Left</div>
-                            <div class="value" id="kpiLeft">—</div>
-                        </div>
-                        <div>
-                            <div class="label">Est End</div>
-                            <div class="value" id="kpiEstEnd">—</div>
-                        </div>
                     </div>
 
                     <hr class="sep" />
@@ -194,16 +101,10 @@
                         <button class="btn danger" id="btnEnd">End → Splash</button>
                         <button class="btn" id="btnUndo" title="Undo (Ctrl+Z)">Undo</button>
                         <button class="btn" id="btnRedo" title="Redo (Ctrl+Shift+Z)">Redo</button>
-                        <button class="btn" id="btnExportState" title="Export show state (JSON)">Export</button>
-                        <button class="btn" id="btnImportState" title="Import show state (JSON)">Import</button>
-                        <input type="file" id="importStateFile" accept="application/json" style="display:none;" />
                     </div>
 
-                    <hr class="sep">
-
-                    <div class="row" style="margin-top:10px; justify-content:flex-start;">
-                        <button class="btn tiny" id="btnMinus30">-:30</button>
-                        <button class="btn tiny" id="btnPlus30">+:30</button>
+                    <div class="row" style="margin-top:10px;">
+                        <div class="spacer"></div>
                         <button class="btn tiny" id="btnMinus1">-1m</button>
                         <button class="btn tiny" id="btnMinus5">-5m</button>
                         <button class="btn tiny" id="btnPlus1">+1m</button>
@@ -288,7 +189,21 @@
                 </div>
             </details>
 
-            
+            <div class="card">
+                <div class="cardHeader">
+                    <h2>House Band</h2>
+                    <div class="row">
+                        <button class="btn small" id="btnAddHB" type="button">Add Member</button>
+                    </div>
+                </div>
+                <div class="cardBody">
+                    <div class="small" style="margin-bottom:10px;">
+                        Cooldowns are counted in <strong>performers</strong> (not minutes). When you end/skip a performer, all cooldowns tick down by 1.
+                    </div>
+                    <div id="houseBandList" class="hbList"></div>
+                </div>
+            </div>
+
         </div>
     </div>
 
