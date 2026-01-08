@@ -1374,15 +1374,20 @@ details.hbAcc .hbCatList{
 .sbLoad{ font-size:12px; color:var(--muted); }
 .sbEnable {
     position: sticky;
-    top: 12px; /* distance from top inside the scroll container */
-    inset: 0;
+    top: 12px;
+    z-index: 30;
+    /* make it a normal header strip, not a full overlay */
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    background: rgba(0,0,0,.55);
+    padding: 12px 0;
+    margin-bottom: 12px;
+    /* optional: keep a subtle backdrop so it stands out */
+    background: rgba(0,0,0,.35);
     backdrop-filter: blur(6px);
-    z-index: 10;
+    border-radius: 18px;
 }
+
 .sbEnableCard{
   padding:18px 18px;
   border-radius:18px;
