@@ -1,0 +1,22 @@
+{
+  "categories": [
+    {
+      "label": "Stingers",
+      "sounds": [
+        {
+          "name": "Air Horn",
+          "url": "./sounds/airhorn.mp3"
+        }
+      ]
+    },
+    {
+      "label": "SFX",
+      "sounds": [
+        {
+          "name": "Applause",
+          "url": "./sounds/applause.mp3"
+        }
+      ]
+    }
+  ]
+}
