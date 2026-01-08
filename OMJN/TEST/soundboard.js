@@ -389,7 +389,12 @@
   }
 
 // ---- Drive config persistence ----
-  const CFG_KEY = "omjn_soundboard_drive_cfg_v1";
+    // ---- Baked-in Drive config (public folder) ----
+  // NOTE: In a static site this key is visible in source; restrict it by HTTP referrer + Drive API only.
+  const DEFAULT_DRIVE_API_KEY = "AIzaSyCMdXo_5usjx4UcQkeDwbY1zl73HLO0AhA";
+  const DEFAULT_DRIVE_FOLDER = "1S3MJnnsvpMKmE5pNKqdw2PxoYQeCEF54";
+
+const CFG_KEY = "omjn_soundboard_drive_cfg_v1";
   function loadCfg(){
     try{ return JSON.parse(localStorage.getItem(CFG_KEY) || "{}"); }catch(_){ return {}; }
   }
@@ -407,12 +412,27 @@
   if(cfg.folder) els.folder.value = cfg.folder;
   if(cfg.preload !== undefined) els.preload.checked = !!cfg.preload;
 
+  // If user hasn't configured Drive yet, use baked-in defaults.
+  if(!String(els.apiKey.value||"").trim()) els.apiKey.value = DEFAULT_DRIVE_API_KEY;
+  if(!String(els.folder.value||"").trim()) els.folder.value = DEFAULT_DRIVE_FOLDER;
+  saveCfg(); // persist defaults locally so you don't have to re-enter them
+
+
   els.apiKey.addEventListener("change", saveCfg);
   els.folder.addEventListener("change", saveCfg);
   els.preload.addEventListener("change", saveCfg);
 
   // Try local manifest first (optional), then user can refresh from Drive.
-  loadLocalManifest();
+  // Try local manifest first (optional). Then auto-refresh from Drive using baked defaults.
+  (async () => {
+    try{ await loadLocalManifest(); }catch(_){}
+    // Auto-populate from Drive once on load
+    try{
+      const hasKey = !!String(els.apiKey.value||"").trim();
+      const hasFolder = !!String(els.folder.value||"").trim();
+      if(hasKey && hasFolder) els.refresh.click();
+    }catch(_){}
+  })();
 
 
   // ---- Refresh sounds ----
