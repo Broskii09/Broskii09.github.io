@@ -83,7 +83,24 @@
 
 
 
-                <div class="queue" id="queue"></div>
+                                <div class="row" style="margin:10px 0 0;">
+                    <button class="tabBtn active" id="btnActiveTab" type="button">Active</button>
+                    <button class="tabBtn" id="btnCompletedTab" type="button">Completed</button>
+                    <div class="tabsSpacer"></div>
+                </div>
+
+                <div class="subTabPanel" id="panelActive">
+                    <div class="queue" id="queue"></div>
+                </div>
+
+                <div class="subTabPanel" id="panelCompleted" hidden>
+                    <details class="doneDetails" id="doneDetails">
+                        <summary>
+                            Completed (<span class="mono" id="doneCount">0</span>)
+                        </summary>
+                        <div class="queue doneQueue" id="queueDone"></div>
+                    </details>
+                </div>
                 </div>
 
                 <div class="tabPanel" id="tabHouseBand" hidden>

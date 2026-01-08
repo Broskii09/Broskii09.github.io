@@ -6,6 +6,13 @@
   OMJN.ensureHouseBandQueues(state);
   const els = {
     queue: document.getElementById("queue"),
+    queueDone: document.getElementById("queueDone"),
+    doneCount: document.getElementById("doneCount"),
+    doneDetails: document.getElementById("doneDetails"),
+    btnActiveTab: document.getElementById("btnActiveTab"),
+    btnCompletedTab: document.getElementById("btnCompletedTab"),
+    panelActive: document.getElementById("panelActive"),
+    panelCompleted: document.getElementById("panelCompleted"),
     addName: document.getElementById("addName"),
     addType: document.getElementById("addType"),
     btnAdd: document.getElementById("btnAdd"),
@@ -115,6 +122,7 @@
   };
 
   let selectedId = null;
+  let performerQueueTab = "ACTIVE";
 
   // ---- Undo/Redo (operator-only) ----
   const HISTORY_KEY = "OMJN_HISTORY_V1";
@@ -275,11 +283,38 @@
     ensureProfilesShape(s);
     OMJN.ensureHouseBandQueues(s);
     mutator(s);
+    normalizePerformerQueue(s);
     setState(s);
   }
 
   
-  function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+  
+  function normalizePerformerQueue(s){
+    if(!Array.isArray(s.queue)) s.queue = [];
+    const isDone = (x) => x && (x.status === "DONE" || x.status === "SKIPPED");
+    const active = s.queue.filter(x => !isDone(x));
+    const done = s.queue.filter(isDone).slice()
+      .sort((a,b) => (a.completedAt || 0) - (b.completedAt || 0));
+
+    // Keep the currently-live slot pinned to top (Operator clarity)
+    if(s.currentSlotId){
+      const liveIdx = active.findIndex(x => x.id === s.currentSlotId);
+      if(liveIdx > 0){
+        const [live] = active.splice(liveIdx, 1);
+        active.unshift(live);
+      }
+    }
+
+    s.queue = [...active, ...done];
+
+    // Keep selectedNextId valid
+    if(s.selectedNextId){
+      const ok = s.queue.some(x => x.id === s.selectedNextId && x.status === "QUEUED" && x.id !== s.currentSlotId);
+      if(!ok) s.selectedNextId = null;
+    }
+  }
+
+function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
 
   function renderSlotTypesEditor(){
     if(!els.slotTypesEditor) return;
@@ -626,11 +661,22 @@ function fillTypeSelect(selectEl){
   function queueRow(slot){
     const { t, mins, icons, typeLabel } = slotBadge(slot);
     const div = document.createElement("div");
+
+    // Visual roles (LIVE / NEXT / ON DECK / DONE) for clarity during busy nights
+    const [n1, n2] = OMJN.computeNextTwo(state);
+    const isLive = (slot.id === state.currentSlotId);
+    const isDone = (slot.status === "DONE" || slot.status === "SKIPPED");
+    const isNext = (!isLive && !isDone && n1 && slot.id === n1.id);
+    const isDeck = (!isLive && !isDone && n2 && slot.id === n2.id);
+
     div.className = "queueItem";
-    if(slot.id === state.currentSlotId) div.classList.add("livePinned");
-    if(slot.id === state.selectedNextId) div.classList.add("isNext");
+    if(isLive) div.classList.add("livePinned");
+    if(isNext) div.classList.add("isNext");
+    if(isDeck) div.classList.add("isDeck");
+    if(isDone) div.classList.add("isDone");
     if(slot.status !== "QUEUED") div.classList.add("notQueued");
-    div.draggable = (slot.status === "QUEUED") && (slot.id !== state.currentSlotId);
+
+    div.draggable = (slot.status === "QUEUED") && !isLive && !isDone;
     div.dataset.id = slot.id;
     if(t?.color) div.style.borderLeft = `6px solid ${t.color}`;
 
@@ -666,17 +712,29 @@ function fillTypeSelect(selectEl){
     top.appendChild(bType);
     top.appendChild(bMins);
 
-    if(slot.id === state.currentSlotId){
+    if(isLive){
       const live = document.createElement("span");
-      live.className = "badge gold";
+      live.className = "badge badgeLive";
       live.textContent = "LIVE";
       top.appendChild(live);
     }
-    if(slot.id === state.selectedNextId && !state.currentSlotId){
+    if(isNext){
       const nx = document.createElement("span");
-      nx.className = "badge gold";
+      nx.className = "badge badgeNext";
       nx.textContent = "NEXT";
       top.appendChild(nx);
+    }
+    if(isDeck){
+      const dk = document.createElement("span");
+      dk.className = "badge badgeDeck";
+      dk.textContent = "ON DECK";
+      top.appendChild(dk);
+    }
+    if(isDone){
+      const dn = document.createElement("span");
+      dn.className = "badge badgeDone";
+      dn.textContent = (slot.status === "SKIPPED") ? "NO-SHOW" : "DONE";
+      top.appendChild(dn);
     }
 
     const meta = document.createElement("div");
@@ -752,22 +810,46 @@ function fillTypeSelect(selectEl){
   }
 
   function renderQueue(){
-    els.queue.innerHTML = "";
-    const list = state.queue;
-    if(!list.length){
-      const empty = document.createElement("div");
-      empty.className = "small";
-      empty.textContent = "No signups yet. Add a performer above.";
-      els.queue.appendChild(empty);
-      return;
+    // ACTIVE (Live + Queued)
+    if(els.queue){
+      els.queue.innerHTML = "";
+      const active = state.queue.filter(x => x.status !== "DONE" && x.status !== "SKIPPED");
+      if(!active.length){
+        const empty = document.createElement("div");
+        empty.className = "small";
+        empty.textContent = "No active signups yet. Add a performer above.";
+        els.queue.appendChild(empty);
+      } else {
+        for(const slot of active){
+          els.queue.appendChild(queueRow(slot));
+        }
+      }
     }
 
-    for(const slot of list){
-els.queue.appendChild(queueRow(slot));
+    // COMPLETED (Done + No-show), ordered by completion time (oldest → newest)
+    if(els.queueDone){
+      els.queueDone.innerHTML = "";
+      const done = state.queue
+        .filter(x => x.status === "DONE" || x.status === "SKIPPED")
+        .slice()
+        .sort((a,b) => (a.completedAt || 0) - (b.completedAt || 0));
+
+      if(els.doneCount) els.doneCount.textContent = String(done.length);
+
+      if(!done.length){
+        const empty = document.createElement("div");
+        empty.className = "small";
+        empty.textContent = "No completed performers yet.";
+        els.queueDone.appendChild(empty);
+      } else {
+        for(const slot of done){
+          els.queueDone.appendChild(queueRow(slot));
+        }
+      }
     }
   }
 
-  function getDragAfterElement(container, y){
+function getDragAfterElement(container, y){
     const els = [...container.querySelectorAll('.queueItem:not(.dragging)')];
     return els.reduce((closest, child) => {
       const box = child.getBoundingClientRect();
@@ -784,12 +866,23 @@ els.queue.appendChild(queueRow(slot));
     updateState(s => {
       const idx = s.queue.findIndex(x=>x.id===slotId);
       if(idx < 0) return;
-      const liveIdx = s.currentSlotId ? s.queue.findIndex(x=>x.id===s.currentSlotId) : -1;
-      const minIdx = (liveIdx >= 0) ? liveIdx + 1 : 0;
+
+      const slot = s.queue[idx];
+      if(!slot) return;
+      if(slot.status === "DONE" || slot.status === "SKIPPED") return; // completed lives in Completed tab
+
       // do not move the live slot
       if(slotId === s.currentSlotId) return;
-      const idx2 = Math.max(minIdx, Math.min(s.queue.length-1, idx + delta));
+
+      const liveIdx = s.currentSlotId ? s.queue.findIndex(x=>x.id===s.currentSlotId) : -1;
+      const minIdx = (liveIdx >= 0) ? liveIdx + 1 : 0;
+
+      const doneStart = s.queue.findIndex(x => x.status === "DONE" || x.status === "SKIPPED");
+      const maxIdx = (doneStart >= 0) ? Math.max(minIdx, doneStart - 1) : (s.queue.length - 1);
+
+      const idx2 = Math.max(minIdx, Math.min(maxIdx, idx + delta));
       if(idx2 === idx) return;
+
       const [it] = s.queue.splice(idx, 1);
       s.queue.splice(idx2, 0, it);
     });
@@ -1240,6 +1333,7 @@ function renderKPIs(){
       const customMinutes = (isCustom && customMinutesRaw !== "") ? Math.max(1, Math.round(Number(customMinutesRaw))) : null;
       const slot = {
         id: OMJN.uid("slot"),
+        createdAt: Date.now(),
         displayName: name,
         slotTypeId,
         minutesOverride: customMinutes,
@@ -1388,7 +1482,7 @@ function start(){
         return;
       }
       const cur = s.queue.find(x=>x.id===s.currentSlotId);
-      if(cur) cur.status = "DONE";
+      if(cur){ cur.status = "DONE"; cur.completedAt = Date.now(); }
       // House Band is independent; no automatic rotation happens here.
       s.currentSlotId = null;
       s.phase = "SPLASH";
@@ -1421,6 +1515,7 @@ function start(){
       const slot = s.queue.find(x=>x.id===selectedId);
       if(!slot) return;
       slot.status = "SKIPPED";
+      slot.completedAt = Date.now();
       if(s.currentSlotId === slot.id){
         // House Band is independent; skipping a performer doesn't rotate House Band.
         s.currentSlotId = null;
@@ -1736,7 +1831,20 @@ function bind(){
     if(els.tabBtnPerformers) els.tabBtnPerformers.addEventListener("click", () => setActiveTab("perf"));
     if(els.tabBtnHouseBand) els.tabBtnHouseBand.addEventListener("click", () => setActiveTab("hb"));
 
-    // Viewer footer toggle + formatting
+    
+    // Performer queue sub-tabs (Active / Completed)
+    function setPerformerQueueTabUI(which){
+      performerQueueTab = which;
+      if(els.btnActiveTab) els.btnActiveTab.classList.toggle("active", which === "ACTIVE");
+      if(els.btnCompletedTab) els.btnCompletedTab.classList.toggle("active", which === "COMPLETED");
+      if(els.panelActive) els.panelActive.hidden = (which !== "ACTIVE");
+      if(els.panelCompleted) els.panelCompleted.hidden = (which !== "COMPLETED");
+    }
+    if(els.btnActiveTab) els.btnActiveTab.addEventListener("click", () => setPerformerQueueTabUI("ACTIVE"));
+    if(els.btnCompletedTab) els.btnCompletedTab.addEventListener("click", () => setPerformerQueueTabUI("COMPLETED"));
+    setPerformerQueueTabUI(performerQueueTab);
+
+// Viewer footer toggle + formatting
     if(els.toggleHBFooter){
       els.toggleHBFooter.checked = (state.viewerPrefs?.showHouseBandFooter !== false);
       els.toggleHBFooter.addEventListener("change", () => {
@@ -1950,26 +2058,29 @@ els.showTitle.addEventListener("input", () => {
       updateState(s => {
         const idxFrom = s.queue.findIndex(x=>x.id===draggedId);
         if(idxFrom < 0) return;
+
+        const movedCandidate = s.queue[idxFrom];
+        if(!movedCandidate) return;
+        if(movedCandidate.status === "DONE" || movedCandidate.status === "SKIPPED") return;
+
         const [moved] = s.queue.splice(idxFrom, 1);
+
         const liveIdx = s.currentSlotId ? s.queue.findIndex(x=>x.id===s.currentSlotId) : -1;
         const minIdx = (liveIdx >= 0) ? liveIdx + 1 : 0;
 
+        const doneStart = s.queue.findIndex(x => x.status === "DONE" || x.status === "SKIPPED");
+        const activeEnd = (doneStart >= 0) ? doneStart : s.queue.length;
+
         if(!afterElement){
-          // drop at end
-          s.queue.push(moved);
+          // drop at end of ACTIVE (before Completed section)
+          const insertAt = Math.max(minIdx, activeEnd);
+          s.queue.splice(insertAt, 0, moved);
         }else{
           let idxTo = s.queue.findIndex(x=>x.id===afterElement.dataset.id);
-          if(idxTo < 0) idxTo = s.queue.length;
-          // never insert above the live slot
-          idxTo = Math.max(idxTo, minIdx);
+          if(idxTo < 0) idxTo = activeEnd;
+          // never insert above the live slot and never insert into Completed
+          idxTo = Math.max(minIdx, Math.min(activeEnd, idxTo));
           s.queue.splice(idxTo, 0, moved);
-        }
-
-        // if dropped above minIdx, ensure it snaps below live
-        const idxMoved = s.queue.findIndex(x=>x.id===moved.id);
-        if(idxMoved < minIdx){
-          s.queue.splice(idxMoved, 1);
-          s.queue.splice(minIdx, 0, moved);
         }
       });
     });
