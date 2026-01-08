@@ -14,6 +14,7 @@
                 <h2>Operator — Queue</h2>
                 <div class="row">
                     <a class="btn small" href="./viewer.html" target="_blank" rel="noopener">Open Viewer</a>
+                    <a class="btn small" href="./soundboard.html" target="_blank" rel="noopener">Soundboard</a>
                     <button class="btn small" id="btnExport">Export JSON</button>
                     <label class="btn small" for="importFile" style="cursor:pointer;">Import JSON</label>
                     <input id="importFile" type="file" accept="application/json" hidden />
@@ -83,7 +84,24 @@
 
 
 
-                <div class="queue" id="queue"></div>
+                                <div class="row" style="margin:10px 0 0;">
+                    <button class="tabBtn active" id="btnActiveTab" type="button">Active</button>
+                    <button class="tabBtn" id="btnCompletedTab" type="button">Completed</button>
+                    <div class="tabsSpacer"></div>
+                </div>
+
+                <div class="subTabPanel" id="panelActive">
+                    <div class="queue" id="queue"></div>
+                </div>
+
+                <div class="subTabPanel" id="panelCompleted" hidden>
+                    <details class="doneDetails" id="doneDetails">
+                        <summary>
+                            Completed (<span class="mono" id="doneCount">0</span>)
+                        </summary>
+                        <div class="queue doneQueue" id="queueDone"></div>
+                    </details>
+                </div>
                 </div>
 
                 <div class="tabPanel" id="tabHouseBand" hidden>
