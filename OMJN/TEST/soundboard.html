@@ -79,8 +79,18 @@
 
           <div class="sbPadsArea">
             <div class="sbPadsHeader">
-              <div class="sbPadsTitle" id="sbPadsTitle">All</div>
-              <div class="small">Tip: press 1–9/0 to trigger the first 10 pads in the current view (when not typing).</div>
+              <div class="sbPadsHeaderTop">
+                <div class="sbPadsTitle" id="sbPadsTitle">All</div>
+
+                <div class="sbSearchWrap">
+                  <input type="text" id="sbSearch" class="sbSearch" placeholder="Search sounds… (Ctrl+K)" autocomplete="off" spellcheck="false"/>
+                  <button type="button" class="sbSearchClear" id="sbSearchClear" aria-label="Clear search">×</button>
+                </div>
+              </div>
+
+              <div class="sbHintRow">
+                <div class="small" id="sbResultMeta">Tip: type anywhere to search • Enter plays the selected result • 1–9/0 triggers the first 10 pads (when not typing).</div>
+              </div>
             </div>
             <div class="sbPads" id="sbPads"></div>
           </div>

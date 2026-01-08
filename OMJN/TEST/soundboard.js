@@ -29,6 +29,9 @@
     cats: document.getElementById("sbCats"),
     pads: document.getElementById("sbPads"),
     padsTitle: document.getElementById("sbPadsTitle"),
+    search: document.getElementById("sbSearch"),
+    searchClear: document.getElementById("sbSearchClear"),
+    resultMeta: document.getElementById("sbResultMeta"),
 
     enableOverlay: document.getElementById("sbEnable"),
     enableBtn: document.getElementById("sbEnableBtn"),
@@ -171,6 +174,108 @@
   let categories = []; // [{id,label, sounds:[{id,name,downloadUrl,modifiedTime,mimeType}]}]
   let activeCategoryId = "__all";
 
+  // ---- Search / filter state ----
+  let searchQuery = "";
+  let selectedIdx = 0;
+  let lastRendered = []; // sound objects in current view order
+
+  // Normalization helpers (fast fuzzy search)
+  const HAS_UNICODE = (() => {
+    try{ new RegExp("[^\\p{L}\\p{N}\\s]","u"); return true; }catch(_){ return false; }
+  })();
+
+  function norm(s){
+    const raw = String(s || "").toLowerCase();
+    const base = raw.replace(/[_\-]+/g, " ");
+    if(HAS_UNICODE){
+      return base
+        .replace(/[^\p{L}\p{N}\s]/gu, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+    return base
+      .replace(/[^a-z0-9\s]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function isSubsequence(q, t){
+    let i = 0, j = 0;
+    while(i < q.length && j < t.length){
+      if(q[i] === t[j]) i++;
+      j++;
+    }
+    return i === q.length;
+  }
+
+  function scoreSound(qNorm, qTokens, s){
+    if(!qNorm) return 0;
+    const n = s._nameNorm || "";
+    if(!n) return 0;
+    if(n === qNorm) return 1000;
+
+    let score = 0;
+    if(n.startsWith(qNorm)) score += 700;
+    if(n.includes(qNorm)) score += 450;
+
+    // token presence (order-independent)
+    let hits = 0;
+    for(const qt of qTokens){
+      if(!qt) continue;
+      if(n.includes(qt)) hits++;
+    }
+    if(hits === qTokens.length) score += 350 + hits * 20;
+    else score += hits * 45;
+
+    const ac = s._acronym || "";
+    if(ac.startsWith(qNorm)) score += 220;
+    else if(qNorm.length >= 2 && isSubsequence(qNorm, ac)) score += 140;
+
+    if(qNorm.length >= 3 && isSubsequence(qNorm, n)) score += 90;
+
+    // small preference for shorter names when tied
+    score += Math.max(0, 30 - Math.min(30, n.length)) * 0.5;
+    return score;
+  }
+
+  function escapeRegExp(s){
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function highlightName(displayName, qTokens){
+    // highlight direct token matches only (keeps it readable)
+    let out = escapeHtml(displayName);
+    const tokens = (qTokens || []).map(t => String(t||"").trim()).filter(t => t.length >= 2);
+    if(!tokens.length) return out;
+
+    // Replace longer tokens first to reduce nested marks
+    tokens.sort((a,b) => b.length - a.length);
+    for(const tok of tokens){
+      const re = new RegExp(`(${escapeRegExp(tok)})`, "ig");
+      out = out.replace(re, `<mark class="sbMark">$1</mark>`);
+    }
+    return out;
+  }
+
+  function indexSounds(){
+    for(const c of categories){
+      for(const s of c.sounds){
+        s._catLabel = c.label;
+        s._catId = c.id;
+        s._displayName = stripExt(s.name);
+        s._nameNorm = norm(s._displayName);
+        s._tokens = s._nameNorm.split(" ").filter(Boolean);
+        s._acronym = s._tokens.map(t => t[0]).join("");
+      }
+    }
+  }
+
+  function setSearchQuery(q){
+    searchQuery = String(q || "");
+    if(els.search && els.search.value !== searchQuery) els.search.value = searchQuery;
+    if(els.searchClear) els.searchClear.style.display = searchQuery.trim() ? "block" : "none";
+  }
+
   // ---- UI rendering ----
   function renderCategories(){
     els.cats.innerHTML = "";
@@ -192,19 +297,47 @@
 
   function renderPads(){
     els.pads.innerHTML = "";
-    const soundsToShow = (activeCategoryId==="__all")
-      ? categories.flatMap(c => c.sounds.map(s => ({...s, _cat:c.label})))
-      : (categories.find(c=>c.id===activeCategoryId)?.sounds || []).map(s => ({...s, _cat:null}));
+    const q = String(searchQuery || "").trim();
+    const qNorm = norm(q);
+    const qTokens = qNorm ? qNorm.split(" ").filter(Boolean) : [];
 
-    els.padsTitle.textContent = (activeCategoryId==="__all")
-      ? "All"
-      : (categories.find(c=>c.id===activeCategoryId)?.label || "—");
+    let soundsToShow = [];
+    if(qNorm){
+      // Global fuzzy search across all categories (fast, keyboard-first)
+      const allSounds = categories.flatMap(c => c.sounds);
+      const scored = [];
+      for(const s of allSounds){
+        const sc = scoreSound(qNorm, qTokens, s);
+        if(sc > 0) scored.push({ s, sc });
+      }
+      scored.sort((a,b) => (b.sc - a.sc) || String(a.s._displayName||"").localeCompare(String(b.s._displayName||"")));
+      soundsToShow = scored.map(x => x.s);
+      els.padsTitle.textContent = "Results";
+      if(els.resultMeta) els.resultMeta.textContent = soundsToShow.length
+        ? `${soundsToShow.length} match(es) for “${q}” • Enter plays the selected result • 1–9/0 triggers the first 10 pads (when not typing).`
+        : `No matches for “${q}”.`;
+    }else{
+      // Category view
+      soundsToShow = (activeCategoryId === "__all")
+        ? categories.flatMap(c => c.sounds)
+        : (categories.find(c => c.id === activeCategoryId)?.sounds || []);
+
+      els.padsTitle.textContent = (activeCategoryId === "__all")
+        ? "All"
+        : (categories.find(c => c.id === activeCategoryId)?.label || "—");
+      if(els.resultMeta) els.resultMeta.textContent = "Tip: type anywhere to search • Enter plays the selected result • 1–9/0 triggers the first 10 pads (when not typing).";
+    }
+
+    lastRendered = soundsToShow;
+    if(selectedIdx >= lastRendered.length) selectedIdx = 0;
 
     if(!soundsToShow.length){
       const empty = document.createElement("div");
       empty.className = "small";
       empty.style.opacity = ".9";
-      empty.textContent = "No sounds found. Add files to your Drive folder and hit Refresh.";
+      empty.textContent = qNorm
+        ? "No results. Try a different search."
+        : "No sounds found. Add files to your Drive folder and hit Refresh.";
       els.pads.appendChild(empty);
       return;
     }
@@ -222,16 +355,20 @@
       const hk = (i < 10) ? (i===9 ? "0" : String(i+1)) : "";
       pad.innerHTML = `
         <div class="sbPadTop">
-          <div class="sbPadName">${escapeHtml(stripExt(s.name))}</div>
+          <div class="sbPadName">${qNorm ? highlightName(s._displayName || stripExt(s.name), qTokens) : escapeHtml(s._displayName || stripExt(s.name))}</div>
           ${hk ? `<div class="sbHotkey">${hk}</div>` : ``}
         </div>
         <div class="sbPadMeta">
-          ${s._cat ? `<span class="sbPill">${escapeHtml(s._cat)}</span>` : ``}
+          ${(qNorm || activeCategoryId === "__all") ? `<span class="sbPill">${escapeHtml(s._catLabel || "General")}</span>` : ``}
           <span class="sbLoad" id="load_${s.id}">—</span>
         </div>
       `;
 
-      pad.addEventListener("click", () => playSound(s));
+      pad.addEventListener("click", () => {
+        selectedIdx = i;
+        updateSelected(false);
+        playSound(s);
+      });
       wrap.appendChild(pad);
 
       const controls = document.createElement("div");
@@ -259,9 +396,34 @@
 
       els.pads.appendChild(wrap);
 
+      // selected state
+      if(i === selectedIdx) wrap.classList.add("selected");
+
       // update load label
       updateLoadLabel(s.id);
     });
+
+    updateSelected(false);
+  }
+
+  function updateSelected(doScroll){
+    const wraps = [...document.querySelectorAll(".sbPadWrap")];
+    wraps.forEach((w, idx) => w.classList.toggle("selected", idx === selectedIdx));
+    if(doScroll){
+      const sel = wraps[selectedIdx];
+      if(sel) sel.scrollIntoView({ block:"nearest", behavior:"smooth" });
+    }
+  }
+
+  function clampSelected(delta){
+    if(!lastRendered.length) return;
+    selectedIdx = Math.max(0, Math.min(lastRendered.length - 1, selectedIdx + delta));
+    updateSelected(true);
+  }
+
+  function playSelected(){
+    const s = lastRendered[selectedIdx];
+    if(s) playSound(s);
   }
 
   function updateLoadLabel(soundId){
@@ -379,22 +541,113 @@
     }
   }
 
-  // ---- Keyboard hotkeys (1-9/0) ----
+  // ---- Search + keyboard-first controls ----
+  let searchDebounce = null;
+  function scheduleSearchRender(){
+    if(searchDebounce) clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+      selectedIdx = 0;
+      renderPads();
+    }, 90);
+  }
+
+  if(els.search){
+    els.search.addEventListener("input", () => {
+      setSearchQuery(els.search.value);
+      scheduleSearchRender();
+    });
+
+    els.search.addEventListener("keydown", (e) => {
+      // result navigation while focus remains in the input
+      if(e.key === "ArrowDown"){ e.preventDefault(); clampSelected(+1); return; }
+      if(e.key === "ArrowUp"){ e.preventDefault(); clampSelected(-1); return; }
+      if(e.key === "Enter"){ e.preventDefault(); playSelected(); return; }
+      if(e.key === "Escape"){
+        if(String(searchQuery||"").trim()){
+          e.preventDefault();
+          setSearchQuery("");
+          selectedIdx = 0;
+          renderPads();
+        }
+      }
+    });
+  }
+
+  if(els.searchClear){
+    els.searchClear.addEventListener("click", (e) => {
+      e.preventDefault();
+      setSearchQuery("");
+      selectedIdx = 0;
+      renderPads();
+      els.search?.focus();
+    });
+  }
+
   window.addEventListener("keydown", (e) => {
-    if(e.altKey || e.ctrlKey || e.metaKey) return;
     const tag = (document.activeElement && document.activeElement.tagName) ? document.activeElement.tagName.toLowerCase() : "";
-    if(tag === "input" || tag === "textarea" || tag === "select") return;
+    const isTypingField = (tag === "input" || tag === "textarea" || tag === "select");
 
-    const key = e.key;
-    let idx = -1;
-    if(key >= "1" && key <= "9") idx = (parseInt(key, 10) - 1);
-    if(key === "0") idx = 9;
-    if(idx < 0) return;
+    // Cmd/Ctrl+K focuses search
+    if((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "k")){
+      e.preventDefault();
+      els.search?.focus();
+      try{ els.search?.select(); }catch(_){ }
+      return;
+    }
 
-    const pads = [...document.querySelectorAll(".sbPad")];
-    const pad = pads[idx];
-    if(!pad) return;
-    pad.click();
+    // Escape clears search (when not typing in an input, or when input is search itself)
+    if(e.key === "Escape" && String(searchQuery||"").trim()){
+      if(!isTypingField || document.activeElement === els.search){
+        e.preventDefault();
+        setSearchQuery("");
+        selectedIdx = 0;
+        renderPads();
+      }
+      return;
+    }
+
+    // If a typing field is focused, do not steal other hotkeys (except the search input handler above)
+    if(isTypingField) return;
+
+    const qActive = !!String(searchQuery||"").trim();
+
+    // Hotkeys 1–9/0 trigger the first 10 pads *when not searching*
+    if(!e.altKey && !e.ctrlKey && !e.metaKey && !qActive){
+      const key = e.key;
+      let idx = -1;
+      if(key >= "1" && key <= "9") idx = (parseInt(key, 10) - 1);
+      if(key === "0") idx = 9;
+      if(idx >= 0){
+        const pads = [...document.querySelectorAll(".sbPad")];
+        const pad = pads[idx];
+        if(pad){ pad.click(); }
+        return;
+      }
+    }
+
+    // Arrow navigation + Enter to play selected (when search is active)
+    if(qActive){
+      if(e.key === "ArrowDown"){ e.preventDefault(); clampSelected(+1); return; }
+      if(e.key === "ArrowUp"){ e.preventDefault(); clampSelected(-1); return; }
+      if(e.key === "Enter"){ e.preventDefault(); playSelected(); return; }
+      if(e.key === "Backspace"){
+        e.preventDefault();
+        const next = String(searchQuery || "").slice(0, -1);
+        setSearchQuery(next);
+        scheduleSearchRender();
+        return;
+      }
+    }
+
+    // Type-anywhere to search (best UX for live ops)
+    if(!e.altKey && !e.ctrlKey && !e.metaKey && e.key && e.key.length === 1){
+      // prevent browser scroll / quickfind behavior (spacebar especially)
+      e.preventDefault();
+      els.search?.focus();
+      const next = String(searchQuery || "") + e.key;
+      setSearchQuery(next);
+      scheduleSearchRender();
+    }
   });
 
   // ---- Category selection ----
@@ -402,6 +655,9 @@
     const btn = e.target.closest(".sbCat");
     if(!btn) return;
     activeCategoryId = btn.dataset.cat || "__all";
+    // switching categories is a deliberate navigation: clear search so it doesn't feel "stuck"
+    if(String(searchQuery||"").trim()) setSearchQuery("");
+    selectedIdx = 0;
     renderCategories();
     renderPads();
   });
@@ -426,6 +682,8 @@
           downloadUrl: s.url,
         })) : []
       })).filter(c => c.sounds.length);
+
+      indexSounds();
 
       activeCategoryId = "__all";
       renderCategories();
@@ -565,7 +823,10 @@ const cfg = loadCfg();
       }
 
       categories = cats;
+      indexSounds();
       activeCategoryId = "__all";
+      setSearchQuery("");
+      selectedIdx = 0;
       renderCategories();
       renderPads();
 

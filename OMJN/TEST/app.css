@@ -1231,7 +1231,61 @@ details.hbAcc .hbCatList{
   gap:6px;
   margin-bottom:10px;
 }
+.sbPadsHeaderTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
 .sbPadsTitle{ font-size:18px; font-weight:950; }
+.sbSearchWrap{
+  position:relative;
+  flex: 0 1 420px;
+  min-width: 220px;
+}
+.sbSearch{
+  width:100%;
+  padding:10px 36px 10px 12px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(0,0,0,.16);
+  color:var(--text);
+  font-weight:900;
+}
+.sbSearch:focus{
+  outline:none;
+  border-color: rgba(var(--cueRGB), .55);
+  box-shadow: 0 0 0 2px rgba(var(--cueRGB), .18), 0 0 22px rgba(var(--cueRGB), .20);
+}
+.sbSearchClear{
+  position:absolute;
+  right:8px;
+  top:50%;
+  transform: translateY(-50%);
+  width:26px;
+  height:26px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.06);
+  color:var(--text);
+  font-weight:950;
+  cursor:pointer;
+  display:none;
+}
+.sbSearchClear:hover{ background:rgba(255,255,255,.10); }
+.sbHintRow{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+
+.sbPadWrap.selected .sbPad{
+  border-color: rgba(var(--cueRGB), .85);
+  box-shadow: 0 0 0 2px rgba(var(--cueRGB), .24), 0 0 46px rgba(var(--cueRGB), .30);
+}
+
+.sbMark{
+  background: rgba(var(--cueRGB), .24);
+  border:1px solid rgba(var(--cueRGB), .18);
+  border-radius:6px;
+  padding: 0 2px;
+}
 .sbPads{
   display:grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
