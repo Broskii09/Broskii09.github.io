@@ -1178,11 +1178,12 @@ details.hbAcc .hbCatList{
   border:1px solid rgba(255,255,255,.10);
   background:rgba(0,0,0,.14);
 }
-.sbMain{
-  display:grid;
-  grid-template-columns: 220px 1fr;
-  gap:14px;
-  min-height: 420px;
+.sbMain {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 14px;
+    min-height: 420px;
+    overflow: auto;
 }
 .sbCats{
   display:flex;
