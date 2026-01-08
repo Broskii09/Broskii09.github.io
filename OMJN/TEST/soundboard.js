@@ -605,7 +605,23 @@
       }
       return;
     }
+      // ---- STOP HOTKEYS ----
+      // SPACE = Stop All (panic stop)
+      if (!isTypingField && e.code === "Space") {
+          e.preventDefault();
+          stopAll();
+          return;
+      }
 
+      // SHIFT+S = Stop selected sound (falls back to Stop All if none)
+      if (!isTypingField && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "s") {
+          e.preventDefault();
+          const sel = lastRendered[selectedIdx];
+          if (sel) stopSound(sel.id);
+          else stopAll();
+          return;
+      }
+ 
     // If a typing field is focused, do not steal other hotkeys (except the search input handler above)
     if(isTypingField) return;
 
