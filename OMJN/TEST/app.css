@@ -1237,6 +1237,38 @@ details.hbAcc .hbCatList{
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap:12px;
 }
+.sbPadWrap{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-width:0;
+}
+.sbPadWrap .sbPad{
+  width:100%;
+}
+.sbPadControls{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.sbMiniBtn{
+  flex:1 1 auto;
+  padding:8px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.06);
+  color:var(--text);
+  font-weight:900;
+  font-size:12px;
+  cursor:pointer;
+}
+.sbMiniBtn:hover{ background:rgba(255,255,255,.10); }
+.sbMiniBtn:active{ transform: translateY(1px); }
+.sbMiniBtn.on{
+  border-color: rgba(var(--cueRGB), .55);
+  box-shadow: 0 0 0 2px rgba(var(--cueRGB), .18), 0 0 22px rgba(var(--cueRGB), .25);
+}
+
 .sbPad{
   padding:14px 14px;
   border-radius:18px;

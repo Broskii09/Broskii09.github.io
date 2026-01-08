@@ -42,7 +42,7 @@
   // fileId -> { meta, buffer, loading:boolean }
   const soundCache = new Map();
   // soundKey -> current source node (for stop)
-  const playing = new Map();
+  const playing = new Map(); // soundId -> Set<AudioBufferSourceNode>
 
   function showEnableOverlay(show){
     els.enableOverlay.style.display = show ? "flex" : "none";
@@ -66,9 +66,23 @@
     els.status.style.color = isErr ? "var(--danger,#ff6b6b)" : "";
   }
 
-  function stopAll(){
-    for(const [k, src] of playing.entries()){
+  function stopSound(soundId){
+    const set = playing.get(soundId);
+    if(!set || !set.size) return;
+    // stop all currently playing instances of this sound
+    for(const src of Array.from(set)){
       try{ src.stop(0); }catch(_){}
+    }
+    playing.delete(soundId);
+    const padEl = document.querySelector(`.sbPad[data-sound-id="${CSS.escape(soundId)}"]`);
+    if(padEl) padEl.classList.remove("playing");
+  }
+
+  function stopAll(){
+    for(const [k, set] of playing.entries()){
+      for(const src of Array.from(set)){
+        try{ src.stop(0); }catch(_){ }
+      }
     }
     playing.clear();
     // remove active state from pads
@@ -196,7 +210,12 @@
     }
 
     soundsToShow.forEach((s, i) => {
+      const wrap = document.createElement("div");
+      wrap.className = "sbPadWrap";
+      wrap.dataset.soundId = s.id;
+
       const pad = document.createElement("button");
+      pad.type = "button";
       pad.className = "sbPad";
       pad.dataset.soundId = s.id;
 
@@ -213,7 +232,32 @@
       `;
 
       pad.addEventListener("click", () => playSound(s));
-      els.pads.appendChild(pad);
+      wrap.appendChild(pad);
+
+      const controls = document.createElement("div");
+      controls.className = "sbPadControls";
+      controls.innerHTML = `
+        <button type="button" class="sbMiniBtn sbStopBtn" data-sound-id="${escapeHtml(s.id)}">Stop</button>
+        <button type="button" class="sbMiniBtn sbLayerBtn ${isLayerEnabled(s.id) ? "on" : ""}" data-sound-id="${escapeHtml(s.id)}" aria-pressed="${isLayerEnabled(s.id) ? "true" : "false"}">Layer</button>
+      `;
+      wrap.appendChild(controls);
+
+      // wire control events
+      controls.querySelector(".sbStopBtn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        stopSound(s.id);
+      });
+      controls.querySelector(".sbLayerBtn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const enabled = !isLayerEnabled(s.id);
+        setLayerEnabled(s.id, enabled);
+        e.currentTarget.classList.toggle("on", enabled);
+        e.currentTarget.setAttribute("aria-pressed", enabled ? "true" : "false");
+      });
+
+      els.pads.appendChild(wrap);
 
       // update load label
       updateLoadLabel(s.id);
@@ -294,7 +338,6 @@
     }
     try{
       const padEl = document.querySelector(`.sbPad[data-sound-id="${CSS.escape(sound.id)}"]`);
-      if(padEl) padEl.classList.add("playing");
 
       const buffer = await ensureDecoded(sound);
       const src = ctx.createBufferSource();
@@ -305,15 +348,28 @@
       gain.gain.value = 1.0;
 
       src.connect(gain).connect(ctx.destination);
+      // By default, clicking a pad restarts the sound.
+      // If Layer is enabled for this sound, clicks overlap instead.
+      if(!isLayerEnabled(sound.id)){
+        stopSound(sound.id);
+      }
+      if(padEl) padEl.classList.add("playing");
 
-      // stop previous instance of same sound if still running
-      const prev = playing.get(sound.id);
-      if(prev){ try{ prev.stop(0); }catch(_){} }
-      playing.set(sound.id, src);
+      let set = playing.get(sound.id);
+      if(!set){ set = new Set(); playing.set(sound.id, set); }
+      set.add(src);
 
       src.onended = () => {
-        if(playing.get(sound.id) === src) playing.delete(sound.id);
-        if(padEl) padEl.classList.remove("playing");
+        const set = playing.get(sound.id);
+        if(set){
+          set.delete(src);
+          if(set.size === 0){
+            playing.delete(sound.id);
+            if(padEl) padEl.classList.remove("playing");
+          }
+        }else{
+          if(padEl) padEl.classList.remove("playing");
+        }
       };
 
       src.start(0);
@@ -407,7 +463,26 @@ const CFG_KEY = "omjn_soundboard_drive_cfg_v1";
     localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
   }
 
-  const cfg = loadCfg();
+  
+  // ---- Per-sound Layer (overlap) preference ----
+  const LAYER_KEY = "omjn_soundboard_layer_v1";
+  function loadLayerPrefs(){
+    try{ return JSON.parse(localStorage.getItem(LAYER_KEY) || "{}"); }catch(_){ return {}; }
+  }
+  function saveLayerPrefs(){
+    localStorage.setItem(LAYER_KEY, JSON.stringify(layerPrefs));
+  }
+  const layerPrefs = loadLayerPrefs();
+  function isLayerEnabled(soundId){
+    return !!layerPrefs[soundId];
+  }
+  function setLayerEnabled(soundId, enabled){
+    if(enabled) layerPrefs[soundId] = true;
+    else delete layerPrefs[soundId];
+    saveLayerPrefs();
+  }
+
+const cfg = loadCfg();
   if(cfg.apiKey) els.apiKey.value = cfg.apiKey;
   if(cfg.folder) els.folder.value = cfg.folder;
   if(cfg.preload !== undefined) els.preload.checked = !!cfg.preload;
