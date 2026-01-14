@@ -68,7 +68,8 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
       },
       slotTypes: [
         { id:"musician", label:"Musician", defaultMinutes:15, isJamMode:false, color:"#00c2ff", enabled:true },
-        { id:"comedian", label:"Comedian", defaultMinutes:10, isJamMode:false, color:"#2dd4bf", enabled:true },
+          { id: "comedian", label: "Comedian", defaultMinutes: 10, isJamMode: false, color: "#2dd4bf", enabled: true },
+          { id: "poetry", label: "Poetry", defaultMinutes: 10, isJamMode: false, color: "#a78bfa", enabled: true },
         { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
 ],
       // House Band: independent per-instrument queues.
