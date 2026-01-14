@@ -12,10 +12,10 @@
   let startIntroTimeout = null;
   let lastCue = null;
 
-    // Default QR image shown when a performer uses a QR layout but has no custom upload.
-    const DEFAULT_QR_SRC = "./assets/OMJN-QR.jpg";
+  // Default QR image shown when a performer uses a QR layout but has no custom upload.
+  const DEFAULT_QR_SRC = "./assets/OMJN-QR.jpg";
 
-    const bg = document.getElementById("bg");
+  const bg = document.getElementById("bg");
   const root = document.getElementById("root");
   const overlay = document.getElementById("overlay");
   const splashInfo = document.getElementById("splashInfo");
@@ -212,44 +212,43 @@ function applyCardCues(remainingMs, warnAtMs, finalAtMs){
       return;
     }
 
-      const layout = media.mediaLayout || "NONE";
-      const hasUploaded = !!media.imageAssetId;
-      const usesDefaultQr = !hasUploaded && ["QR_ONLY", "IMAGE_PLUS_QR"].includes(layout);
+    const layout = media.mediaLayout || "NONE";
+    const hasUploaded = !!media.imageAssetId;
+    const usesDefaultQr = !hasUploaded && ["QR_ONLY","IMAGE_PLUS_QR"].includes(layout);
 
-      const wantImage = ["IMAGE_ONLY", "QR_ONLY", "IMAGE_PLUS_QR"].includes(layout) && (hasUploaded || usesDefaultQr);
+    const wantImage = ["IMAGE_ONLY","QR_ONLY","IMAGE_PLUS_QR"].includes(layout) && (hasUploaded || usesDefaultQr);
 
-      if (!wantImage) {
-          mediaBox.style.display = "none";
-          mediaImg.style.display = "none";
-          mediaEmpty.style.display = "none";
-          return;
+    if(!wantImage){
+      mediaBox.style.display = "none";
+      mediaImg.style.display = "none";
+      mediaEmpty.style.display = "none";
+      return;
+    }
+
+    // If the performer is set to a QR layout but has no custom upload, show the site default QR.
+    if(usesDefaultQr){
+      mediaImg.src = DEFAULT_QR_SRC;
+      mediaImg.style.display = "block";
+      mediaEmpty.style.display = "none";
+      mediaBox.style.display = "flex";
+      return;
+    }
+
+    const blob = await OMJN.getAsset(media.imageAssetId);
+    if(!blob){
+      // If the uploaded asset can't be loaded (e.g., cleared storage), fall back to the default QR for QR layouts.
+      if(["QR_ONLY","IMAGE_PLUS_QR"].includes(layout)){
+        mediaImg.src = DEFAULT_QR_SRC;
+        mediaImg.style.display = "block";
+        mediaEmpty.style.display = "none";
+        mediaBox.style.display = "flex";
+      } else {
+        mediaBox.style.display = "none";
+        mediaImg.style.display = "none";
+        mediaEmpty.style.display = "none";
       }
-
-      // If the performer is set to a QR layout but has no custom upload, show the site default QR.
-      if (usesDefaultQr) {
-          mediaImg.src = DEFAULT_QR_SRC;
-          mediaImg.style.display = "block";
-          mediaEmpty.style.display = "none";
-          mediaBox.style.display = "flex";
-          return;
-      }
-
-      const blob = await OMJN.getAsset(media.imageAssetId);
-      if (!blob) {
-          // If the uploaded asset can't be loaded (e.g., cleared storage), fall back to the default QR for QR layouts.
-          if (["QR_ONLY", "IMAGE_PLUS_QR"].includes(layout)) {
-              mediaImg.src = DEFAULT_QR_SRC;
-              mediaImg.style.display = "block";
-              mediaEmpty.style.display = "none";
-              mediaBox.style.display = "flex";
-          } else {
-              mediaBox.style.display = "none";
-              mediaImg.style.display = "none";
-              mediaEmpty.style.display = "none";
-          }
-          return;
-      }
-
+      return;
+    }
 
     currentAssetUrl = URL.createObjectURL(blob);
     mediaImg.src = currentAssetUrl;
@@ -392,11 +391,10 @@ function applyCardCues(remainingMs, warnAtMs, finalAtMs){
     await setMedia(cur);
 
     // hide media column entirely if nothing exists (no awkward blanks)
-      const m = cur.media || {};
-      const layout = m.mediaLayout || "NONE";
-      const hasImage = (layout === "IMAGE_ONLY") ? !!m.imageAssetId : (layout === "QR_ONLY" || layout === "IMAGE_PLUS_QR");
-      const hasLink = !!m.donationUrl;
-
+    const m = cur.media || {};
+    const layout = m.mediaLayout || "NONE";
+    const hasImage = (layout === "IMAGE_ONLY") ? !!m.imageAssetId : (layout === "QR_ONLY" || layout === "IMAGE_PLUS_QR");
+    const hasLink = !!m.donationUrl;
     if(!hasImage && !hasLink){
       vMedia.style.display = "none";
       overlay.style.gridTemplateColumns = "1fr";

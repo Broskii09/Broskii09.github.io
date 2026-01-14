@@ -235,12 +235,26 @@
 
   function applyProfileDefaultsToSlot(s, slot, profile){
     if(!profile) return;
+
+    // Slot type + minutes always apply
     slot.slotTypeId = profile.defaultSlotTypeId || slot.slotTypeId;
     slot.minutesOverride = profile.defaultMinutesOverride ?? slot.minutesOverride ?? null;
+
+    // Media defaults: only apply if the profile has an explicit media preference.
+    // This lets "new performer" defaults (QR) take effect for legacy profiles that never set media.
     slot.media = slot.media || { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
-    slot.media.donationUrl = profile.media?.donationUrl ?? slot.media.donationUrl ?? null;
-    slot.media.imageAssetId = profile.media?.imageAssetId ?? slot.media.imageAssetId ?? null;
-    slot.media.mediaLayout = profile.media?.mediaLayout ?? slot.media.mediaLayout ?? "NONE";
+
+    const pm = profile.media || {};
+    const profileHasMedia =
+      (!!pm.imageAssetId) ||
+      (typeof pm.donationUrl === "string" && pm.donationUrl.trim() !== "") ||
+      (typeof pm.mediaLayout === "string" && pm.mediaLayout !== "NONE");
+
+    if(profileHasMedia){
+      slot.media.donationUrl = pm.donationUrl ?? slot.media.donationUrl ?? null;
+      slot.media.imageAssetId = pm.imageAssetId ?? slot.media.imageAssetId ?? null;
+      slot.media.mediaLayout = pm.mediaLayout ?? slot.media.mediaLayout ?? "NONE";
+    }
   }
 
 
@@ -1340,7 +1354,7 @@ function renderKPIs(){
         customTypeLabel,
         status: "QUEUED",
         notes: "",
-        media: { donationUrl: null, imageAssetId: null, mediaLayout: "NONE" }
+        media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
       };
       const prof = s.profiles?.[normNameKey(slot.displayName)] || null;
         if(prof) applyProfileDefaultsToSlot(s, slot, prof);
