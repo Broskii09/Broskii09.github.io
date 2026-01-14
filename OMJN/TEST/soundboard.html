@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>OMJN Soundboard</title>
+  <link rel="stylesheet" href="./app.css"/>
+</head>
+<body class="operatorPage soundboardPage">
+  <div class="wrap">
+    <div class="card" id="sbCard">
+      <div class="cardHeader sbHeader">
+        <div class="sbTitleWrap">
+          <h2 style="margin:0;">Soundboard</h2>
+          <div class="small" id="sbPhase">—</div>
+        </div>
+
+        <div class="sbLiveControls">
+          <button class="btn small primary" id="sbStart">Start</button>
+          <button class="btn small" id="sbPause">Pause</button>
+          <button class="btn small" id="sbResume">Resume</button>
+          <button class="btn small" id="sbEnd">End → Splash</button>
+          <span class="sbTimer mono" id="sbTimer">0:00</span>
+          <button class="btn tiny" id="sbMinus30">-:30</button>
+          <button class="btn tiny" id="sbPlus30">+:30</button>
+          <button class="btn tiny" id="sbResetTime">Reset</button>
+          <button class="btn small" id="sbStopAll">Stop All</button>
+        </div>
+
+        <div class="row">
+          <a class="btn small" href="./operator.html">Back to Operator</a>
+        </div>
+      </div>
+
+      <div class="cardBody sbBody">
+        <div class="sbTopMeta">
+          <div class="sbNowWrap">
+            <div class="small">Now</div>
+            <div class="sbNowName" id="sbNow">—</div>
+          </div>
+          <div class="sbNextWrap">
+            <div class="small">Next</div>
+            <div class="sbNextName" id="sbNext">—</div>
+          </div>
+          <div class="sbDeckWrap">
+            <div class="small">On Deck</div>
+            <div class="sbDeckName" id="sbDeck">—</div>
+          </div>
+        </div>
+
+        <details class="sbConfig">
+          <summary>Sound source</summary>
+          <div class="row wrap" style="margin-top:10px;">
+            <div style="flex:1 1 320px; min-width:240px;">
+              <div class="small">Google Drive API key (public folder)</div>
+              <input type="text" id="sbApiKey" placeholder="AIza..."/>
+            </div>
+            <div style="flex:2 1 420px; min-width:240px;">
+              <div class="small">Drive folder link or ID</div>
+              <input type="text" id="sbFolder" placeholder="https://drive.google.com/drive/folders/..."/>
+            </div>
+            <div class="row" style="align-items:flex-end;">
+              <button class="btn small" id="sbRefresh">Refresh</button>
+              <label class="row small" style="gap:8px; user-select:none;">
+                <input type="checkbox" id="sbPreload" checked/>
+                Preload (faster pads)
+              </label>
+            </div>
+          </div>
+          <div class="small" id="sbStatus" style="margin-top:10px; opacity:.9;">
+            Enter an API key + folder, then Refresh.
+          </div>
+        </details>
+
+        <div class="sbMain">
+          <div class="sbCats" id="sbCats">
+            <button class="sbCat active" data-cat="__all">All</button>
+          </div>
+
+          <div class="sbPadsArea">
+            <div class="sbPadsHeader">
+              <div class="sbPadsHeaderTop">
+                <div class="sbPadsTitle" id="sbPadsTitle">All</div>
+
+                <div class="sbSearchWrap">
+                  <input type="text" id="sbSearch" class="sbSearch" placeholder="Search sounds… (Ctrl+K)" autocomplete="off" spellcheck="false"/>
+                  <button type="button" class="sbSearchClear" id="sbSearchClear" aria-label="Clear search">×</button>
+                </div>
+              </div>
+
+              <div class="sbHintRow">
+                <div class="small" id="sbResultMeta">Tip: type anywhere to search • Enter plays the selected result • 1–9/0 triggers the first 10 pads (when not typing).</div>
+              </div>
+            </div>
+            <div class="sbPads" id="sbPads"></div>
+          </div>
+        </div>
+
+        <div class="sbEnable" id="sbEnable">
+          <div class="sbEnableCard">
+            <div style="font-size:18px; font-weight:900;">Enable Audio</div>
+            <div class="small" style="margin-top:6px;">Browsers require a click before audio can play.</div>
+            <button class="btn primary" id="sbEnableBtn" style="margin-top:12px;">Enable</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./shared.js"></script>
+  <script src="./soundboard.js"></script>
+</body>
+</html>
