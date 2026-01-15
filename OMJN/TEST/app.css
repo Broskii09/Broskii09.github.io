@@ -242,6 +242,20 @@ hr.sep{
   background-position:center;
   background-size:cover;
   filter:saturate(1.05);
+  transform:scale(1);
+  transition:filter 280ms ease, transform 280ms ease;
+}
+
+/* Darken + blur the splash background during LIVE so vCard/vMedia stand out */
+.viewerRoot.isLive .viewerBg{
+  filter:saturate(1.05) brightness(.45) blur(6px);
+  transform:scale(1.06);
+}
+
+/* Slightly brighter (unblurred) on Splash */
+.viewerRoot.isSplash .viewerBg{
+  filter:saturate(1.05) brightness(.92) blur(0);
+  transform:scale(1);
 }
 
 .viewerOverlay {

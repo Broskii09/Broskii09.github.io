@@ -112,22 +112,38 @@
   if(els.masterVol){
     els.masterVol.value = String(masterVol);
     updateMasterVolUI();
+
+    function resetMasterVol(){
+      masterVol = 50;
+      localStorage.setItem(MASTER_VOL_KEY, "50");
+      els.masterVol.value = "50";
+      masterGain.gain.value = sliderToGain(masterVol);
+      updateMasterVolUI();
+    }
+
     els.masterVol.addEventListener("input", () => {
       masterVol = clamp(parseInt(els.masterVol.value, 10), 0, 100);
       localStorage.setItem(MASTER_VOL_KEY, String(masterVol));
       masterGain.gain.value = sliderToGain(masterVol);
       updateMasterVolUI();
     });
-  }
-  if(els.masterVolReset){
-    els.masterVolReset.addEventListener("click", () => {
-      masterVol = 50;
-      localStorage.setItem(MASTER_VOL_KEY, "50");
-      if(els.masterVol) els.masterVol.value = "50";
-      masterGain.gain.value = sliderToGain(masterVol);
-      updateMasterVolUI();
+
+    // Double-click: reset to default (50% / unity)
+    els.masterVol.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      resetMasterVol();
     });
+
+    // Reset button (if present)
+    if(els.masterVolReset){
+      els.masterVolReset.addEventListener("click", (e) => {
+        e.preventDefault();
+        resetMasterVol();
+      });
+    }
   }
+
 
   // fileId -> { meta, buffer, loading:boolean }
   const soundCache = new Map();
@@ -504,6 +520,18 @@
         setSoundVolPercent(id, v);
         const lbl = document.getElementById(`vol_${id}`);
         if(lbl) lbl.textContent = `${v}%`;
+        applySoundVolToPlaying(id);
+      });
+
+      // Double-click: reset to default (50% / unity)
+      volSlider?.addEventListener("dblclick", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = volSlider.dataset.soundId;
+        volSlider.value = "50";
+        setSoundVolPercent(id, 50);
+        const lbl = document.getElementById(`vol_${id}`);
+        if(lbl) lbl.textContent = `50%`;
         applySoundVolToPlaying(id);
       });
 
