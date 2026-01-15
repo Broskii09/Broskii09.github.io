@@ -5,6 +5,7 @@
   ensureProfilesShape(state);
   OMJN.ensureHouseBandQueues(state);
   const els = {
+    statusBanner: document.getElementById("statusBanner"),
     queue: document.getElementById("queue"),
     addName: document.getElementById("addName"),
     addType: document.getElementById("addType"),
@@ -42,6 +43,9 @@
     setOvertimeColor: document.getElementById("setOvertimeColor"),
     setOvertimeAlpha: document.getElementById("setOvertimeAlpha"),
     setOvertimeAlphaVal: document.getElementById("setOvertimeAlphaVal"),
+    setVizEnabled: document.getElementById("setVizEnabled"),
+    setVizSensitivity: document.getElementById("setVizSensitivity"),
+    setVizSensitivityVal: document.getElementById("setVizSensitivityVal"),
     slotTypesEditor: document.getElementById("slotTypesEditor"),
     btnExportSettings: document.getElementById("btnExportSettings"),
     importSettingsFile: document.getElementById("importSettingsFile"),
@@ -115,6 +119,8 @@
   };
 
   let selectedId = null;
+
+  const VIEWER_HEARTBEAT_KEY = "omjn.viewerHeartbeat.v1";
 
   // ---- Undo/Redo (operator-only) ----
   const HISTORY_KEY = "OMJN_HISTORY_V1";
@@ -495,6 +501,15 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
       if(els.setOvertimeAlphaVal) els.setOvertimeAlphaVal.textContent = v.toFixed(2);
     }
 
+    // Viewer extras
+    if(els.setVizEnabled) els.setVizEnabled.checked = !!state.viewerPrefs?.visualizerEnabled;
+    if(els.setVizSensitivity){
+      const v = Number(state.viewerPrefs?.visualizerSensitivity ?? 1.0);
+      const vv = Number.isFinite(v) ? Math.max(0.25, Math.min(4, v)) : 1.0;
+      els.setVizSensitivity.value = String(vv);
+      if(els.setVizSensitivityVal) els.setVizSensitivityVal.textContent = `${vv.toFixed(2)}×`;
+    }
+
     if(els.prefCollapseEditor){
       els.prefCollapseEditor.checked = !!state.operatorPrefs?.editCollapsed;
     }
@@ -599,6 +614,33 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
     }
     if(els.hotkeysEnabled){
       els.hotkeysEnabled.addEventListener("change", () => updateState(s => { s.operatorPrefs.hotkeysEnabled = !!els.hotkeysEnabled.checked; }, { recordHistory:false }));
+    }
+
+    // Viewer extras: mic visualizer
+    if(els.setVizEnabled){
+      els.setVizEnabled.addEventListener("change", () => {
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.visualizerEnabled = !!els.setVizEnabled.checked;
+        }, { recordHistory:false });
+      });
+    }
+    if(els.setVizSensitivity){
+      const onViz = () => {
+        const val = clamp(parseFloat(els.setVizSensitivity.value||"1"), 0.25, 4);
+        els.setVizSensitivity.value = String(val);
+        if(els.setVizSensitivityVal) els.setVizSensitivityVal.textContent = `${val.toFixed(2)}×`;
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.visualizerSensitivity = val;
+        }, { recordHistory:false });
+      };
+      els.setVizSensitivity.addEventListener("input", onViz);
+      els.setVizSensitivity.addEventListener("change", onViz);
+      if(els.setVizSensitivityVal) els.setVizSensitivityVal.addEventListener?.("dblclick", () => {
+        els.setVizSensitivity.value = "1";
+        onViz();
+      });
     }
 
     if(els.prefCollapseEditor){
@@ -1301,6 +1343,46 @@ function renderKPIs(){
     }
   }
 
+  function renderStatusBanner(){
+    if(!els.statusBanner) return;
+
+    let hbTs = 0;
+    try{ hbTs = Number(localStorage.getItem(VIEWER_HEARTBEAT_KEY) || 0); }catch(_){ hbTs = 0; }
+    const viewerOk = hbTs && ((Date.now() - hbTs) < 2500);
+
+    const phase = state.phase || "SPLASH";
+    const phaseDot = (phase === "LIVE") ? "good" : (phase === "PAUSED") ? "warn" : "";
+    const phaseLabel = (phase === "LIVE") ? "LIVE" : (phase === "PAUSED") ? "PAUSED" : "SPLASH";
+
+    const savedAt = state.lastSavedAt ? new Date(state.lastSavedAt) : null;
+    const savedText = savedAt
+      ? `Saved ${savedAt.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit", second:"2-digit" })}`
+      : "Not saved yet";
+
+    const doneCount = (state.queue || []).filter(x => x && (x.status === "DONE" || x.status === "SKIPPED")).length;
+    const activeCount = Math.max(0, (state.queue || []).length - doneCount);
+
+    const mk = (label, dotClass="") => {
+      const span = document.createElement("span");
+      span.className = "sbItem";
+      if(dotClass){
+        const d = document.createElement("span");
+        d.className = `sbDot ${dotClass}`;
+        span.appendChild(d);
+      }
+      const t = document.createElement("span");
+      t.textContent = label;
+      span.appendChild(t);
+      return span;
+    };
+
+    els.statusBanner.innerHTML = "";
+    els.statusBanner.appendChild(mk(`Phase: ${phaseLabel}`, phaseDot));
+    els.statusBanner.appendChild(mk(`Viewer: ${viewerOk ? "Connected" : "Not detected"}`, viewerOk ? "good" : "bad"));
+    els.statusBanner.appendChild(mk(savedText));
+    els.statusBanner.appendChild(mk(`Queue: ${activeCount} active • ${doneCount} completed`));
+  }
+
   function renderTimerLine(){
     const t = OMJN.computeTimer(state);
     els.timerLine.textContent = `${OMJN.formatMMSS(t.elapsedMs)} / ${OMJN.formatMMSS(t.remainingMs)}`;
@@ -1342,6 +1424,8 @@ function renderKPIs(){
     // sync header inputs
     els.showTitle.value = state.showTitle || "";
     els.splashPath.value = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
+
+    renderStatusBanner();
 
     // Operator prefs
     els.startGuard.checked = !!state.operatorPrefs?.startGuard;
@@ -2201,6 +2285,14 @@ bindEditor();
         else if(state.phase === "PAUSED") resume();
         return;
       }
+
+      // Enter => Go Live (or resume)
+      if(e.key === "Enter"){
+        e.preventDefault();
+        if(state.phase === "SPLASH") guardedStart();
+        else if(state.phase === "PAUSED") resume();
+        return;
+      }
       if(k === "n"){
         e.preventDefault();
         guardedEnd();
@@ -2239,6 +2331,7 @@ bindEditor();
     // live timer UI update loop
     setInterval(() => {
       renderTimerLine();
+      renderStatusBanner();
     }, 250);
   }
 

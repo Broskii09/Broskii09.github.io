@@ -91,6 +91,39 @@ select option{ background: var(--panel); color: var(--text); }
   border-color:rgba(255,255,255,.22);
 }
 .tabsSpacer{flex:1 1 auto;}
+
+/* Operator status banner */
+.statusBanner{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+  padding:10px 12px;
+  border-radius:18px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.10);
+  margin-bottom:12px;
+}
+.statusBanner .sbItem{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.10);
+  font-size:12px;
+  color:var(--text);
+}
+.statusBanner .sbDot{
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  background:rgba(255,255,255,.40);
+}
+.statusBanner .sbDot.good{ background: #2dd4bf; }
+.statusBanner .sbDot.bad{ background: #ef4444; }
+.statusBanner .sbDot.warn{ background: #f59e0b; }
 .row > * {flex: 0 0 auto;}
 .spacer{flex:1 1 auto;}
 .small{font-size:12px; color:var(--muted);}
@@ -263,6 +296,7 @@ hr.sep{
     inset: 0;
     display: grid;
     grid-template-columns: 1.25fr .75fr;
+    grid-template-rows: 1fr auto;
     gap: 20px;
     padding: 48px;
     text-align: center;
@@ -284,6 +318,31 @@ hr.sep{
 /* When the LIVE House Band footer bar is visible, reserve vertical space so it never overlaps the cards */
 .hasHbFooter .viewerOverlay{
   padding-bottom:160px;
+}
+
+/* Viewer mic visualizer (LIVE-only, below cards) */
+.vVizWrap{
+  grid-column: 1 / -1;
+  height: 120px;
+  align-self: end;
+  border-radius: 26px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.18);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.vVizWrap canvas{
+  width: 100%;
+  height: 100%;
+  display:block;
+}
+
+/* Setup button (Splash only) */
+.vMicEnable{
+  position:absolute;
+  top:18px;
+  left:18px;
+  z-index: 20;
 }
 
 /* Safety: Splash overlay should never show during LIVE */
@@ -1204,26 +1263,6 @@ details.hbAcc .hbCatList{
   font-weight:950;
 }
 
-.sbFadeRow{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:center;
-  gap:10px;
-}
-.sbFadeSel{
-  padding:8px 10px;
-  border-radius:12px;
-  border:1px solid rgba(255,255,255,.12);
-  background:rgba(0,0,0,.16);
-  color:var(--text);
-  font-weight:900;
-}
-.sbFadeSel:focus{
-  outline:none;
-  border-color: rgba(var(--cueRGB), .55);
-  box-shadow: 0 0 0 2px rgba(var(--cueRGB), .18), 0 0 22px rgba(var(--cueRGB), .20);
-}
-
 .sbTimer{
   padding:8px 10px;
   border-radius:999px;
@@ -1415,21 +1454,6 @@ details.hbAcc .hbCatList{
 .sbMiniBtn.on{
   border-color: rgba(var(--cueRGB), .55);
   box-shadow: 0 0 0 2px rgba(var(--cueRGB), .18), 0 0 22px rgba(var(--cueRGB), .25);
-}
-
-/* Favorite toggle: fixed width so Stop/Layer stay aligned */
-.sbMiniBtn.sbFavBtn{
-  flex:0 0 44px;
-  padding:8px 0;
-  text-align:center;
-  font-size:16px;
-  line-height:1;
-}
-
-.sbPill.sbFavPill{
-  border-color: rgba(var(--cueRGB), .35);
-  background: rgba(var(--cueRGB), .16);
-  color: var(--text);
 }
 
 .sbPadVolWrap{

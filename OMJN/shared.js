@@ -49,12 +49,24 @@ const OMJN = (() => {
   function defaultState(){
     return {
       version: 1,
+      // Updated automatically on every publish()
+      lastSavedAt: null,
       showTitle: "Open Mic & Jam Night",
       phase: "SPLASH", // SPLASH | LIVE | PAUSED
 operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false },
       profiles: {},
         splash: { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true },
-      viewerPrefs: { warnAtSec: 120, finalAtSec: 30, showOvertime: true, showProgressBar: true , showHouseBandFooter:true, hbFooterFormat:"categoryFirst" },
+      viewerPrefs: {
+        warnAtSec: 120,
+        finalAtSec: 30,
+        showOvertime: true,
+        showProgressBar: true,
+        showHouseBandFooter:true,
+        hbFooterFormat:"categoryFirst",
+        // Mic-based audio visualizer (Viewer)
+        visualizerEnabled: false,
+        visualizerSensitivity: 1.0,
+      },
       settings: {
         theme: {
           vars: { bg:"#0b172e", panel:"#0f2140", panel2:"#132a52", text:"#e7eefb", muted:"#a5b4d6", accent:"#00c2ff" },
@@ -100,12 +112,15 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
       const s = JSON.parse(raw);
 
       if(!s.version) s.version = 1;
+      if(s.lastSavedAt === undefined) s.lastSavedAt = null;
 if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false };
       if(s.operatorPrefs.editCollapsed === undefined) s.operatorPrefs.editCollapsed = false;
 
       if(!s.profiles) s.profiles = {};
       if (!s.splash) s.splash = { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true };
       if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
+      if(s.viewerPrefs.visualizerEnabled === undefined) s.viewerPrefs.visualizerEnabled = false;
+      if(s.viewerPrefs.visualizerSensitivity === undefined) s.viewerPrefs.visualizerSensitivity = 1.0;
       // Timer migration: normalize shape
       if(!s.timer) s.timer = { running:false, startedAt:null, pausedAt:null, elapsedMs:0, baseDurationMs:null };
       if(typeof s.timer.elapsedMs !== "number") s.timer.elapsedMs = 0;
@@ -546,6 +561,8 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
 
   function publish(state){
     try{
+      // Stamp save time (used by Operator status banner)
+      state.lastSavedAt = now();
       saveState(state);
       if(bc) bc.postMessage({ type:"STATE", payload: state });
       else {
