@@ -62,7 +62,15 @@
           <!--<div class="small" style="margin-top:8px; opacity:.8;">Tip: upload a QR image on the operator page for clean scanning.</div>-->
         </div>
       </div>
+
+      <!-- LIVE-only mic visualizer (mirrored vertical bars) -->
+      <div class="vVizWrap" id="vVizWrap" style="display:none;">
+        <canvas id="vViz" aria-label="Audio visualizer"></canvas>
+      </div>
     </div>
+
+    <!-- Setup-only button (shown on SPLASH when visualizer is enabled but mic isn't granted yet) -->
+    <button class="btn small vMicEnable" id="btnVizMic" type="button" style="display:none;">Enable Mic Visualizer</button>
 
     <!-- Splash overlay -->
     <div class="vSplashInfo" id="splashInfo">

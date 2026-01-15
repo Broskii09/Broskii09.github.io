@@ -20,6 +20,11 @@
     resetTime: document.getElementById("sbResetTime"),
     stopAll: document.getElementById("sbStopAll"),
 
+    masterVol: document.getElementById("sbMasterVol"),
+    masterVolReadout: document.getElementById("sbMasterVolReadout"),
+    masterVolReset: document.getElementById("sbMasterVolReset"),
+    fadeSel: document.getElementById("sbFade"),
+
     apiKey: document.getElementById("sbApiKey"),
     folder: document.getElementById("sbFolder"),
     refresh: document.getElementById("sbRefresh"),
@@ -42,10 +47,159 @@
   const ctx = new AudioCtx();
   let audioEnabled = false;
 
+  // ---- Volume (master + per-sound) ----
+  // Slider scale is 0–100. 50% = unity (1.0). Above 50% boosts gain.
+  const MASTER_VOL_KEY = "omjn_soundboard_master_vol_v1";
+  const SOUND_VOL_KEY  = "omjn_soundboard_sound_vol_v1";
+
+  function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+  function sliderToGain(v){
+    const n = clamp(Number(v), 0, 100);
+    if(n <= 50) return n / 50;               // 0..1
+    return 1 + ((n - 50) / 50) * 1.5;        // 1..2.5
+  }
+
+  function loadJson(key, fallback){
+    try{ return JSON.parse(localStorage.getItem(key) || ""); }catch(_){ return fallback; }
+  }
+  function saveJson(key, obj){
+    try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(_){}
+  }
+
+  // ---- Favorites + Recents ----
+  const FAV_KEY = "omjn_soundboard_favorites_v1";      // { [soundId]: true }
+  const RECENT_KEY = "omjn_soundboard_recents_v1";     // [soundId, ...] newest first
+
+  let favPrefs = loadJson(FAV_KEY, {});
+  let recentList = loadJson(RECENT_KEY, []);
+  if(!favPrefs || typeof favPrefs !== "object" || Array.isArray(favPrefs)) favPrefs = {};
+  if(!Array.isArray(recentList)) recentList = [];
+
+  function isFav(soundId){ return !!favPrefs[soundId]; }
+  function toggleFav(soundId){
+    if(isFav(soundId)) delete favPrefs[soundId];
+    else favPrefs[soundId] = true;
+    saveJson(FAV_KEY, favPrefs);
+  }
+
+  function recordRecent(soundId){
+    // newest first, unique, capped
+    recentList = recentList.filter(id => id !== soundId);
+    recentList.unshift(soundId);
+    if(recentList.length > 60) recentList = recentList.slice(0, 60);
+    saveJson(RECENT_KEY, recentList);
+  }
+
+  let masterVol = clamp(parseInt(localStorage.getItem(MASTER_VOL_KEY) || "50", 10), 0, 100);
+
+  const masterGain = ctx.createGain();
+  masterGain.gain.value = sliderToGain(masterVol);
+
+  // Simple limiter to reduce clipping if master gain is boosted.
+  const limiter = ctx.createDynamicsCompressor();
+  try{
+    limiter.threshold.value = -1;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.25;
+  }catch(_){}
+  masterGain.connect(limiter).connect(ctx.destination);
+
+  const soundVolPrefs = loadJson(SOUND_VOL_KEY, {});
+  function getSoundVolPercent(soundId){
+    const v = soundVolPrefs[soundId];
+    const n = (v === undefined) ? 50 : clamp(parseInt(v, 10), 0, 100);
+    return Number.isFinite(n) ? n : 50;
+  }
+  function setSoundVolPercent(soundId, v){
+    soundVolPrefs[soundId] = clamp(parseInt(v, 10), 0, 100);
+    saveJson(SOUND_VOL_KEY, soundVolPrefs);
+  }
+
+  function applySoundVolToPlaying(soundId){
+    const set = playing.get(soundId);
+    if(!set || !set.size) return;
+    const g = sliderToGain(getSoundVolPercent(soundId));
+    for(const inst of Array.from(set)){
+      try{ inst.gain.gain.value = g; }catch(_){}
+    }
+  }
+
+
+  function updateMasterVolUI(){
+    if(!els.masterVolReadout) return;
+    const g = sliderToGain(masterVol);
+    els.masterVolReadout.textContent = `${masterVol}% (${g.toFixed(2)}x)`;
+  }
+
+  if(els.masterVol){
+    els.masterVol.value = String(masterVol);
+    updateMasterVolUI();
+
+    function resetMasterVol(){
+      masterVol = 50;
+      localStorage.setItem(MASTER_VOL_KEY, "50");
+      els.masterVol.value = "50";
+      masterGain.gain.value = sliderToGain(masterVol);
+      updateMasterVolUI();
+    }
+
+    els.masterVol.addEventListener("input", () => {
+      masterVol = clamp(parseInt(els.masterVol.value, 10), 0, 100);
+      localStorage.setItem(MASTER_VOL_KEY, String(masterVol));
+      masterGain.gain.value = sliderToGain(masterVol);
+      updateMasterVolUI();
+    });
+
+    // Double-click: reset to default (50% / unity)
+    els.masterVol.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      resetMasterVol();
+    });
+
+    // Reset button (if present)
+    if(els.masterVolReset){
+      els.masterVolReset.addEventListener("click", (e) => {
+        e.preventDefault();
+        resetMasterVol();
+      });
+    }
+  }
+
+  // ---- Stop fade (applies to Stop buttons) ----
+  const STOP_FADE_KEY = "omjn_soundboard_stop_fade_ms_v1";
+  let stopFadeMs = clamp(parseInt(localStorage.getItem(STOP_FADE_KEY) || "250", 10), 0, 5000);
+
+  function applyFadeUI(){
+    if(!els.fadeSel) return;
+    const v = String(stopFadeMs);
+    if(els.fadeSel.value !== v) els.fadeSel.value = v;
+  }
+
+  if(els.fadeSel){
+    applyFadeUI();
+    els.fadeSel.addEventListener("change", () => {
+      stopFadeMs = clamp(parseInt(els.fadeSel.value || "0", 10), 0, 5000);
+      localStorage.setItem(STOP_FADE_KEY, String(stopFadeMs));
+      applyFadeUI();
+    });
+    // Double-click resets to default (250ms)
+    els.fadeSel.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      stopFadeMs = 250;
+      localStorage.setItem(STOP_FADE_KEY, "250");
+      applyFadeUI();
+    });
+  }
+
+
   // fileId -> { meta, buffer, loading:boolean }
   const soundCache = new Map();
-  // soundKey -> current source node (for stop)
-  const playing = new Map(); // soundId -> Set<AudioBufferSourceNode>
+  // soundId -> Set<{src:AudioBufferSourceNode, gain:GainNode}> (for stop / live volume updates)
+  const playing = new Map();
 
   function showEnableOverlay(show){
     els.enableOverlay.style.display = show ? "flex" : "none";
@@ -69,22 +223,41 @@
     els.status.style.color = isErr ? "var(--danger,#ff6b6b)" : "";
   }
 
-  function stopSound(soundId){
+  function scheduleStop(inst, fadeMs){
+    try{
+      const now = ctx.currentTime;
+      const g = inst?.gain?.gain;
+      if(!g || !fadeMs){
+        inst.src.stop(0);
+        return;
+      }
+      const fadeSec = Math.max(0, Number(fadeMs) || 0) / 1000;
+      g.cancelScheduledValues(now);
+      g.setValueAtTime(g.value, now);
+      g.linearRampToValueAtTime(0.0001, now + fadeSec);
+      inst.src.stop(now + fadeSec + 0.03);
+    }catch(_){
+      try{ inst.src.stop(0); }catch(__){}
+    }
+  }
+
+  function stopSound(soundId, opts={}){
     const set = playing.get(soundId);
     if(!set || !set.size) return;
-    // stop all currently playing instances of this sound
-    for(const src of Array.from(set)){
-      try{ src.stop(0); }catch(_){}
+    const fadeMs = opts.fade ? stopFadeMs : 0;
+    for(const inst of Array.from(set)){
+      scheduleStop(inst, fadeMs);
     }
     playing.delete(soundId);
     const padEl = document.querySelector(`.sbPad[data-sound-id="${CSS.escape(soundId)}"]`);
     if(padEl) padEl.classList.remove("playing");
   }
 
-  function stopAll(){
+  function stopAll(opts={}){
+    const fadeMs = opts.fade ? stopFadeMs : 0;
     for(const [k, set] of playing.entries()){
-      for(const src of Array.from(set)){
-        try{ src.stop(0); }catch(_){ }
+      for(const inst of Array.from(set)){
+        scheduleStop(inst, fadeMs);
       }
     }
     playing.clear();
@@ -92,7 +265,8 @@
     document.querySelectorAll(".sbPad.playing").forEach(el => el.classList.remove("playing"));
   }
 
-  els.stopAll.addEventListener("click", stopAll);
+  // Stop All button uses fade by default (spacebar panic stop stays instant)
+  els.stopAll.addEventListener("click", () => stopAll({ fade:true }));
 
   // ---- IndexedDB cache ----
   const DB_NAME = "omjn_soundboard";
@@ -173,6 +347,7 @@
   // ---- Model: categories -> sounds ----
   let categories = []; // [{id,label, sounds:[{id,name,downloadUrl,modifiedTime,mimeType}]}]
   let activeCategoryId = "__all";
+  let soundById = new Map(); // soundId -> sound object (built in indexSounds)
 
   // ---- Search / filter state ----
   let searchQuery = "";
@@ -258,6 +433,7 @@
   }
 
   function indexSounds(){
+    soundById = new Map();
     for(const c of categories){
       for(const s of c.sounds){
         s._catLabel = c.label;
@@ -266,8 +442,24 @@
         s._nameNorm = norm(s._displayName);
         s._tokens = s._nameNorm.split(" ").filter(Boolean);
         s._acronym = s._tokens.map(t => t[0]).join("");
+
+        // quick lookup for Favorites / Recents
+        soundById.set(s.id, s);
       }
     }
+
+    // prune Favorites/Recents for sounds that no longer exist
+    try{
+      const nextFav = {};
+      for(const id of Object.keys(favPrefs || {})){
+        if(soundById.has(id)) nextFav[id] = true;
+      }
+      favPrefs = nextFav;
+      saveJson(FAV_KEY, favPrefs);
+
+      recentList = (recentList || []).filter(id => soundById.has(id));
+      saveJson(RECENT_KEY, recentList);
+    }catch(_){ }
   }
 
   function setSearchQuery(q){
@@ -279,11 +471,26 @@
   // ---- UI rendering ----
   function renderCategories(){
     els.cats.innerHTML = "";
-    const btnAll = document.createElement("button");
-    btnAll.className = "sbCat" + (activeCategoryId==="__all" ? " active" : "");
-    btnAll.dataset.cat="__all";
-    btnAll.textContent = "All";
-    els.cats.appendChild(btnAll);
+
+    const totalCount = categories.reduce((n,c) => n + (c.sounds?.length || 0), 0);
+    const favCount = Object.keys(favPrefs || {}).filter(id => soundById.has(id)).length;
+    const recentCount = (recentList || []).filter(id => soundById.has(id)).length;
+
+    function addCatBtn(id, label, count){
+      const b = document.createElement("button");
+      b.className = "sbCat" + (activeCategoryId===id ? " active" : "");
+      b.dataset.cat = id;
+      if(typeof count === "number"){
+        b.innerHTML = `<span>${escapeHtml(label)}</span><span class="sbCount">${count}</span>`;
+      }else{
+        b.textContent = label;
+      }
+      els.cats.appendChild(b);
+    }
+
+    addCatBtn("__all", "All", totalCount);
+    addCatBtn("__fav", "Favorites", favCount);
+    addCatBtn("__recent", "Recents", recentCount);
 
     for(const c of categories){
       const b = document.createElement("button");
@@ -314,18 +521,26 @@
       soundsToShow = scored.map(x => x.s);
       els.padsTitle.textContent = "Results";
       if(els.resultMeta) els.resultMeta.textContent = soundsToShow.length
-        ? `${soundsToShow.length} match(es) for “${q}” • Enter plays the selected result • 1–9/0 triggers the first 10 pads (when not typing).`
+        ? `${soundsToShow.length} match(es) for “${q}” • Enter plays • Esc clears • 1–9/0 triggers the first 10 pads (when not typing).`
         : `No matches for “${q}”.`;
     }else{
       // Category view
-      soundsToShow = (activeCategoryId === "__all")
-        ? categories.flatMap(c => c.sounds)
-        : (categories.find(c => c.id === activeCategoryId)?.sounds || []);
+      if(activeCategoryId === "__all"){
+        soundsToShow = categories.flatMap(c => c.sounds);
+        els.padsTitle.textContent = "All";
+      }else if(activeCategoryId === "__fav"){
+        const all = categories.flatMap(c => c.sounds);
+        soundsToShow = all.filter(s => isFav(s.id)).sort((a,b) => String(a._displayName||"").localeCompare(String(b._displayName||"")));
+        els.padsTitle.textContent = "Favorites";
+      }else if(activeCategoryId === "__recent"){
+        soundsToShow = (recentList || []).map(id => soundById.get(id)).filter(Boolean);
+        els.padsTitle.textContent = "Recents";
+      }else{
+        soundsToShow = (categories.find(c => c.id === activeCategoryId)?.sounds || []);
+        els.padsTitle.textContent = (categories.find(c => c.id === activeCategoryId)?.label || "—");
+      }
 
-      els.padsTitle.textContent = (activeCategoryId === "__all")
-        ? "All"
-        : (categories.find(c => c.id === activeCategoryId)?.label || "—");
-      if(els.resultMeta) els.resultMeta.textContent = "Tip: type anywhere to search • Enter plays the selected result • 1–9/0 triggers the first 10 pads (when not typing).";
+      if(els.resultMeta) els.resultMeta.textContent = "Tip: type anywhere to search • Enter plays • Esc clears • 1–9/0 triggers the first 10 pads (when not typing).";
     }
 
     lastRendered = soundsToShow;
@@ -337,7 +552,11 @@
       empty.style.opacity = ".9";
       empty.textContent = qNorm
         ? "No results. Try a different search."
-        : "No sounds found. Add files to your Drive folder and hit Refresh.";
+        : (activeCategoryId === "__fav")
+          ? "No favorites yet. Click ☆ on a sound to add it to Favorites."
+          : (activeCategoryId === "__recent")
+            ? "No recents yet. Play any sound and it will show up here."
+            : "No sounds found. Add files to your Drive folder and hit Refresh.";
       els.pads.appendChild(empty);
       return;
     }
@@ -359,7 +578,8 @@
           ${hk ? `<div class="sbHotkey">${hk}</div>` : ``}
         </div>
         <div class="sbPadMeta">
-          ${(qNorm || activeCategoryId === "__all") ? `<span class="sbPill">${escapeHtml(s._catLabel || "General")}</span>` : ``}
+          ${(qNorm || activeCategoryId === "__all" || activeCategoryId === "__fav" || activeCategoryId === "__recent") ? `<span class="sbPill">${escapeHtml(s._catLabel || "General")}</span>` : ``}
+          ${isFav(s.id) ? `<span class="sbPill sbFavPill" title="Favorite">★</span>` : ``}
           <span class="sbLoad" id="load_${s.id}">—</span>
         </div>
       `;
@@ -373,9 +593,17 @@
 
       const controls = document.createElement("div");
       controls.className = "sbPadControls";
+      const volPct = getSoundVolPercent(s.id);
       controls.innerHTML = `
         <button type="button" class="sbMiniBtn sbStopBtn" data-sound-id="${escapeHtml(s.id)}">Stop</button>
         <button type="button" class="sbMiniBtn sbLayerBtn ${isLayerEnabled(s.id) ? "on" : ""}" data-sound-id="${escapeHtml(s.id)}" aria-pressed="${isLayerEnabled(s.id) ? "true" : "false"}">Layer</button>
+        <button type="button" class="sbMiniBtn sbFavBtn ${isFav(s.id) ? "on" : ""}" data-sound-id="${escapeHtml(s.id)}" title="Toggle Favorite">${isFav(s.id) ? "★" : "☆"}</button>
+
+        <div class="sbPadVolWrap" data-sound-id="${escapeHtml(s.id)}">
+          <div class="sbPadVolLabel">Vol</div>
+          <input type="range" class="sbRange sbSoundVol" min="0" max="100" step="1" value="${volPct}" data-sound-id="${escapeHtml(s.id)}" aria-label="Sound volume"/>
+          <div class="sbPadVolLabel" id="vol_${escapeHtml(s.id)}">${volPct}%</div>
+        </div>
       `;
       wrap.appendChild(controls);
 
@@ -383,7 +611,7 @@
       controls.querySelector(".sbStopBtn")?.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        stopSound(s.id);
+        stopSound(s.id, { fade:true });
       });
       controls.querySelector(".sbLayerBtn")?.addEventListener("click", (e) => {
         e.preventDefault();
@@ -392,6 +620,45 @@
         setLayerEnabled(s.id, enabled);
         e.currentTarget.classList.toggle("on", enabled);
         e.currentTarget.setAttribute("aria-pressed", enabled ? "true" : "false");
+      });
+
+      controls.querySelector(".sbFavBtn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const keepId = s.id;
+        toggleFav(s.id);
+        rerenderKeepSelection(keepId);
+      });
+
+      // per-sound volume slider
+      const volSlider = controls.querySelector(".sbSoundVol");
+      const stopProp = (ev) => { ev.stopPropagation(); };
+      ["pointerdown","mousedown","touchstart"].forEach(evt => {
+        volSlider?.addEventListener(evt, stopProp, { passive: true });
+      });
+      ["click","keydown"].forEach(evt => {
+        volSlider?.addEventListener(evt, stopProp);
+      });
+      volSlider?.addEventListener("input", (e) => {
+        e.stopPropagation();
+        const id = volSlider.dataset.soundId;
+        const v = clamp(parseInt(volSlider.value, 10), 0, 100);
+        setSoundVolPercent(id, v);
+        const lbl = document.getElementById(`vol_${id}`);
+        if(lbl) lbl.textContent = `${v}%`;
+        applySoundVolToPlaying(id);
+      });
+
+      // Double-click: reset to default (50% / unity)
+      volSlider?.addEventListener("dblclick", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = volSlider.dataset.soundId;
+        volSlider.value = "50";
+        setSoundVolPercent(id, 50);
+        const lbl = document.getElementById(`vol_${id}`);
+        if(lbl) lbl.textContent = `50%`;
+        applySoundVolToPlaying(id);
       });
 
       els.pads.appendChild(wrap);
@@ -412,6 +679,29 @@
     if(doScroll){
       const sel = wraps[selectedIdx];
       if(sel) sel.scrollIntoView({ block:"nearest", behavior:"smooth" });
+    }
+  }
+
+  function syncPlayingClasses(){
+    // ensure playing highlights survive rerenders
+    document.querySelectorAll(".sbPad.playing").forEach(el => el.classList.remove("playing"));
+    for(const [soundId, set] of playing.entries()){
+      if(!set || !set.size) continue;
+      const padEl = document.querySelector(`.sbPad[data-sound-id="${CSS.escape(soundId)}"]`);
+      if(padEl) padEl.classList.add("playing");
+    }
+  }
+
+  function rerenderKeepSelection(keepSoundId){
+    renderCategories();
+    renderPads();
+    syncPlayingClasses();
+    if(keepSoundId){
+      const idx = (lastRendered || []).findIndex(x => x?.id === keepSoundId);
+      if(idx >= 0){
+        selectedIdx = idx;
+        updateSelected(false);
+      }
     }
   }
 
@@ -505,11 +795,11 @@
       const src = ctx.createBufferSource();
       src.buffer = buffer;
 
-      // slight gain to avoid surprises
+      // Per-sound gain (50% = unity). Master gain is applied globally.
       const gain = ctx.createGain();
-      gain.gain.value = 1.0;
+      gain.gain.value = sliderToGain(getSoundVolPercent(sound.id));
 
-      src.connect(gain).connect(ctx.destination);
+      src.connect(gain).connect(masterGain);
       // By default, clicking a pad restarts the sound.
       // If Layer is enabled for this sound, clicks overlap instead.
       if(!isLayerEnabled(sound.id)){
@@ -519,22 +809,36 @@
 
       let set = playing.get(sound.id);
       if(!set){ set = new Set(); playing.set(sound.id, set); }
-      set.add(src);
+      const inst = { src, gain };
+      set.add(inst);
 
       src.onended = () => {
         const set = playing.get(sound.id);
         if(set){
-          set.delete(src);
+          set.delete(inst);
           if(set.size === 0){
             playing.delete(sound.id);
-            if(padEl) padEl.classList.remove("playing");
+            const curPad = document.querySelector(`.sbPad[data-sound-id="${CSS.escape(sound.id)}"]`);
+            if(curPad) curPad.classList.remove("playing");
           }
         }else{
-          if(padEl) padEl.classList.remove("playing");
+          const curPad = document.querySelector(`.sbPad[data-sound-id="${CSS.escape(sound.id)}"]`);
+          if(curPad) curPad.classList.remove("playing");
         }
       };
 
       src.start(0);
+
+      // Recents: record successful plays
+      recordRecent(sound.id);
+      // Update counts in the sidebar; if we're currently viewing Recents, also reorder.
+      try{
+        if(!String(searchQuery||"").trim() && activeCategoryId === "__recent"){
+          rerenderKeepSelection(sound.id);
+        }else{
+          renderCategories();
+        }
+      }catch(_){ }
     }catch(e){
       console.error(e);
       setStatus(`Could not play "${sound.name}".`, true);
@@ -617,8 +921,8 @@
       if (!isTypingField && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "s") {
           e.preventDefault();
           const sel = lastRendered[selectedIdx];
-          if (sel) stopSound(sel.id);
-          else stopAll();
+          if (sel) stopSound(sel.id, { fade:true });
+          else stopAll({ fade:true });
           return;
       }
  

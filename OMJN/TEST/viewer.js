@@ -52,9 +52,182 @@
   const hbLineup = document.getElementById("hbLineup");
   const hbLiveLineup = document.getElementById("hbLiveLineup");
 
+  // Mic visualizer
+  const vVizWrap = document.getElementById("vVizWrap");
+  const vViz = document.getElementById("vViz");
+  const btnVizMic = document.getElementById("btnVizMic");
+
+  // Operator uses this to show Viewer connection status
+  const VIEWER_HEARTBEAT_KEY = "omjn.viewerHeartbeat.v1";
+  setInterval(() => {
+    try{ localStorage.setItem(VIEWER_HEARTBEAT_KEY, String(Date.now())); }catch(_){ }
+  }, 1000);
+
   let currentAssetUrl = null;
   let lastMediaKey = null;
   let lastBgPath = null;
+
+  // --- Visualizer runtime ---
+  const viz = {
+    stream: null,
+    audioCtx: null,
+    analyser: null,
+    data: null,
+    raf: null,
+    running: false,
+    dpr: 1,
+  };
+
+  function vizEnabled(){
+    return !!(state.viewerPrefs?.visualizerEnabled);
+  }
+  function vizSensitivity(){
+    const n = Number(state.viewerPrefs?.visualizerSensitivity);
+    return Number.isFinite(n) ? Math.max(0.25, Math.min(4, n)) : 1.0;
+  }
+
+  function vizShouldRender(){
+    return state.phase === "LIVE" && vizEnabled() && !!viz.analyser && !!vVizWrap;
+  }
+
+  function resizeVizCanvas(){
+    if(!vViz) return;
+    const rect = vViz.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    viz.dpr = dpr;
+    const w = Math.max(1, Math.round(rect.width * dpr));
+    const h = Math.max(1, Math.round(rect.height * dpr));
+    if(vViz.width !== w) vViz.width = w;
+    if(vViz.height !== h) vViz.height = h;
+  }
+
+  function getAccent(){
+    const c = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+    return c || "#00c2ff";
+  }
+
+  function drawRoundedRect(ctx, x, y, w, h, r){
+    const rr = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+    if(typeof ctx.roundRect === "function"){
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, rr);
+      ctx.fill();
+      return;
+    }
+    // fallback path
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.lineTo(x + w - rr, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+    ctx.lineTo(x + w, y + h - rr);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+    ctx.lineTo(x + rr, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+    ctx.lineTo(x, y + rr);
+    ctx.quadraticCurveTo(x, y, x + rr, y);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function renderVizFrame(){
+    if(!vizShouldRender()){
+      viz.running = false;
+      viz.raf = null;
+      return;
+    }
+
+    const ctx = vViz.getContext("2d", { alpha: true });
+    if(!ctx){
+      viz.running = false;
+      viz.raf = null;
+      return;
+    }
+
+    const w = vViz.width;
+    const h = vViz.height;
+    ctx.clearRect(0, 0, w, h);
+
+    viz.analyser.getByteFrequencyData(viz.data);
+
+    const bars = 64; // TV-friendly
+    const mid = h / 2;
+    const gap = Math.max(1, Math.round(2 * viz.dpr));
+    const barW = Math.max(1, Math.floor((w - (gap * (bars - 1))) / bars));
+    const stride = Math.max(1, Math.floor(viz.data.length / bars));
+
+    const accent = getAccent();
+    ctx.fillStyle = accent;
+
+    const sens = vizSensitivity();
+    const maxHalf = Math.max(1, Math.floor(mid - 6 * viz.dpr));
+    const radius = Math.max(2, Math.round(6 * viz.dpr));
+
+    for(let i = 0; i < bars; i++){
+      const v = viz.data[i * stride] / 255; // 0..1
+      // soft curve so lows still move, highs don't peg
+      const curved = Math.pow(v, 0.65);
+      const amp = Math.min(1, curved * sens);
+      const bh = Math.max(1, Math.floor(amp * maxHalf));
+      const x = i * (barW + gap);
+
+      // draw top and bottom mirrored from center
+      drawRoundedRect(ctx, x, mid - bh, barW, bh, radius);
+      drawRoundedRect(ctx, x, mid, barW, bh, radius);
+    }
+
+    viz.raf = requestAnimationFrame(renderVizFrame);
+  }
+
+  async function enableMicForVisualizer(){
+    try{
+      if(viz.stream) return true;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      viz.stream = stream;
+
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      viz.audioCtx = new AudioCtx();
+      const src = viz.audioCtx.createMediaStreamSource(stream);
+      viz.analyser = viz.audioCtx.createAnalyser();
+      viz.analyser.fftSize = 1024;
+      viz.analyser.smoothingTimeConstant = 0.85;
+      src.connect(viz.analyser);
+      viz.data = new Uint8Array(viz.analyser.frequencyBinCount);
+
+      // canvas sizing
+      resizeVizCanvas();
+      window.addEventListener("resize", resizeVizCanvas);
+
+      // only render when LIVE
+      maybeStartViz();
+      return true;
+    }catch(err){
+      console.warn("Mic visualizer enable failed:", err);
+      return false;
+    }
+  }
+
+  function maybeStartViz(){
+    if(!vizShouldRender()){
+      if(vVizWrap) vVizWrap.style.display = "none";
+      if(viz.running && viz.raf){
+        cancelAnimationFrame(viz.raf);
+        viz.raf = null;
+      }
+      viz.running = false;
+      return;
+    }
+    if(vVizWrap) vVizWrap.style.display = "block";
+    if(!viz.running){
+      viz.running = true;
+      viz.raf = requestAnimationFrame(renderVizFrame);
+    }
+  }
+
+  function updateVizSetupButton(){
+    if(!btnVizMic) return;
+    const shouldShow = (state.phase === "SPLASH") && vizEnabled() && !viz.stream;
+    btnVizMic.style.display = shouldShow ? "inline-flex" : "none";
+  }
 
   function setBg(){
     const path = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
@@ -412,6 +585,10 @@ function applyCardCues(remainingMs, warnAtMs, finalAtMs){
     }else{
       await renderLive();
     }
+
+    // Visualizer UI (LIVE-only) + Splash setup button
+    updateVizSetupButton();
+    maybeStartViz();
   }
 
   // animate timer locally without spamming BroadcastChannel
@@ -433,6 +610,26 @@ function applyCardCues(remainingMs, warnAtMs, finalAtMs){
   });
 
   // Boot
+  // Setup mic enable button (shown only on SPLASH when needed)
+  if(btnVizMic){
+    btnVizMic.addEventListener("click", async () => {
+      const ok = await enableMicForVisualizer();
+      if(ok) updateVizSetupButton();
+    });
+  }
+
+  // If mic permission is already granted, we can enable without a click.
+  (async () => {
+    try{
+      if(!vizEnabled()) return;
+      if(!navigator.permissions?.query) return;
+      const p = await navigator.permissions.query({ name: "microphone" });
+      if(p?.state === "granted"){
+        await enableMicForVisualizer();
+      }
+    }catch(_){ }
+  })();
+
   render().catch(()=>{});
   setInterval(tick, 250);
 })();

@@ -6,8 +6,8 @@
   <title>OMJN Soundboard</title>
   <link rel="stylesheet" href="./app.css"/>
 </head>
-<body class="operatorPage soundboardPage">
-  <div class="wrap">
+<body class="soundboardPage">
+  <div class="container oneCol">
     <div class="card" id="sbCard">
       <div class="cardHeader sbHeader">
         <div class="sbTitleWrap">
@@ -25,6 +25,30 @@
           <button class="btn tiny" id="sbPlus30">+:30</button>
           <button class="btn tiny" id="sbResetTime">Reset</button>
           <button class="btn small" id="sbStopAll">Stop All</button>
+        </div>
+
+        <div class="sbVolRow">
+          <div class="sbMasterVol">
+            <div class="small">Master Volume</div>
+            <div class="sbVolControls">
+              <input type="range" id="sbMasterVol" class="sbRange" min="0" max="100" step="1" value="50" aria-label="Master volume"/>
+              <div class="sbVolReadout mono" id="sbMasterVolReadout">50%</div>
+              <button class="btn tiny" id="sbMasterVolReset" type="button" title="Reset to 50%">Reset</button>
+            </div>
+            <div class="small" style="opacity:.85;">50% = normal • above 50% boosts gain</div>
+
+            <div class="sbFadeRow">
+              <div class="small">Stop fade</div>
+              <select id="sbFade" class="sbFadeSel" aria-label="Stop fade-out time">
+                <option value="0">Instant</option>
+                <option value="150">150ms</option>
+                <option value="250" selected>250ms</option>
+                <option value="500">500ms</option>
+                <option value="1000">1s</option>
+              </select>
+              <div class="small" style="opacity:.85;">Applies to Stop buttons. (Spacebar panic stop stays instant.)</div>
+            </div>
+          </div>
         </div>
 
         <div class="row">

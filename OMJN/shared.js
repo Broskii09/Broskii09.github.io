@@ -68,8 +68,8 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
       },
       slotTypes: [
         { id:"musician", label:"Musician", defaultMinutes:15, isJamMode:false, color:"#00c2ff", enabled:true },
-          { id: "comedian", label: "Comedian", defaultMinutes: 10, isJamMode: false, color: "#2dd4bf", enabled: true },
-          { id: "poetry", label: "Poetry", defaultMinutes: 10, isJamMode: false, color: "#a78bfa", enabled: true },
+        { id:"comedian", label:"Comedian", defaultMinutes:10, isJamMode:false, color:"#2dd4bf", enabled:true },
+        { id:"poetry", label:"Poetry", defaultMinutes:10, isJamMode:false, color:"#fbbf24", enabled:true },
         { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
 ],
       // House Band: independent per-instrument queues.
@@ -198,6 +198,32 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
 
       // Drop legacy Jam type if present
       s.slotTypes = s.slotTypes.filter(t => t.id !== "jam");
+
+      // Normalize ordering so dropdowns match the default order.
+      // Prevents newly-added core types (like "poetry") from always appearing at the end
+      // when a user already has slotTypes saved in localStorage.
+      {
+        const coreOrder = (d.slotTypes || []).map(t => t.id);
+        const coreSet = new Set(coreOrder);
+
+        const byId = new Map();
+        for(const t of (s.slotTypes || [])){
+          if(t && t.id) byId.set(t.id, t);
+        }
+
+        const ordered = [];
+        for(const id of coreOrder){
+          const t = byId.get(id);
+          if(t){
+            ordered.push(t);
+            byId.delete(id);
+          }
+        }
+
+        // Keep any extra (non-core) types in their existing relative order.
+        const extras = (s.slotTypes || []).filter(t => t && t.id && !coreSet.has(t.id));
+        s.slotTypes = [...ordered, ...extras];
+      }
 
       // Ensure slotType fields exist
       for(const t of s.slotTypes){

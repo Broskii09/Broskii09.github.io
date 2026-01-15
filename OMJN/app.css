@@ -27,6 +27,9 @@ html,body{height:100%; margin:0; background:var(--bg); color:var(--text); font-f
 a{color:inherit}
 button, input, select, textarea {font-family:inherit}
 
+select{ color-scheme: dark; }
+select option{ background: var(--panel); color: var(--text); }
+
 [hidden] { display: none !important; }
 .modalOverlay[hidden] { display: none !important; }
 
@@ -37,6 +40,8 @@ button, input, select, textarea {font-family:inherit}
   gap:var(--gap);
   padding:18px;
 }
+
+.container.oneCol{ grid-template-columns: 1fr; }
 
 .card{
   background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
@@ -146,6 +151,22 @@ button, input, select, textarea {font-family:inherit}
   padding-right:6px;
 }
 
+.queueDivider{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:8px 10px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:12px;
+  background:rgba(0,0,0,.12);
+  color:var(--muted);
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+
 .queueItem{
   display:grid;
   grid-template-columns: 26px 1fr auto;
@@ -221,6 +242,20 @@ hr.sep{
   background-position:center;
   background-size:cover;
   filter:saturate(1.05);
+  transform:scale(1);
+  transition:filter 280ms ease, transform 280ms ease;
+}
+
+/* Darken + blur the splash background during LIVE so vCard/vMedia stand out */
+.viewerRoot.isLive .viewerBg{
+  filter:saturate(1.05) brightness(.45) blur(6px);
+  transform:scale(1.06);
+}
+
+/* Slightly brighter (unblurred) on Splash */
+.viewerRoot.isSplash .viewerBg{
+  filter:saturate(1.05) brightness(.92) blur(0);
+  transform:scale(1);
 }
 
 .viewerOverlay {
@@ -1119,8 +1154,10 @@ details.hbAcc .hbCatList{
    Soundboard page
    ===================== */
 
-.soundboardPage .wrap{ max-width: 1400px; }
-#sbCard{ width:100%; }
+.soundboardPage .container{ grid-template-columns: 1fr; }
+#sbCard{ width:100%;  display:flex; flex-direction:column; height:100%; }
+#sbCard > .cardBody{ flex:1 1 auto; min-height:0; overflow:auto; }
+
 .sbHeader{
   display:flex;
   flex-wrap:wrap;
@@ -1136,6 +1173,57 @@ details.hbAcc .hbCatList{
   align-items:center;
   justify-content:center;
 }
+
+.sbVolRow{
+  width:100%;
+  display:flex;
+  justify-content:center;
+}
+.sbMasterVol{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding:10px 12px;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.12);
+}
+.sbVolControls{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.sbRange{
+  width: min(360px, 60vw);
+  accent-color: var(--accent, #00c2ff);
+}
+.sbVolReadout{
+  min-width:56px;
+  text-align:right;
+  opacity:.95;
+  font-weight:950;
+}
+
+.sbFadeRow{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+}
+.sbFadeSel{
+  padding:8px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(0,0,0,.16);
+  color:var(--text);
+  font-weight:900;
+}
+.sbFadeSel:focus{
+  outline:none;
+  border-color: rgba(var(--cueRGB), .55);
+  box-shadow: 0 0 0 2px rgba(var(--cueRGB), .18), 0 0 22px rgba(var(--cueRGB), .20);
+}
+
 .sbTimer{
   padding:8px 10px;
   border-radius:999px;
@@ -1303,11 +1391,16 @@ details.hbAcc .hbCatList{
 }
 .sbPadControls{
   display:flex;
+  flex-wrap:wrap;
   gap:8px;
   align-items:center;
+  width:100%;
+  min-width:0;
 }
+
 .sbMiniBtn{
-  flex:1 1 auto;
+  flex:1 1 0;
+  min-width:0;
   padding:8px 10px;
   border-radius:12px;
   border:1px solid rgba(255,255,255,.10);
@@ -1323,6 +1416,47 @@ details.hbAcc .hbCatList{
   border-color: rgba(var(--cueRGB), .55);
   box-shadow: 0 0 0 2px rgba(var(--cueRGB), .18), 0 0 22px rgba(var(--cueRGB), .25);
 }
+
+/* Favorite toggle: fixed width so Stop/Layer stay aligned */
+.sbMiniBtn.sbFavBtn{
+  flex:0 0 44px;
+  padding:8px 0;
+  text-align:center;
+  font-size:16px;
+  line-height:1;
+}
+
+.sbPill.sbFavPill{
+  border-color: rgba(var(--cueRGB), .35);
+  background: rgba(var(--cueRGB), .16);
+  color: var(--text);
+}
+
+.sbPadVolWrap{
+  display:flex;
+  min-width:0;
+  align-items:center;
+  gap:10px;
+  flex: 1 1 100%;
+  padding:6px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.04);
+}
+.sbPadVolWrap .sbRange{
+  width: 100%;
+  min-width: 0;
+}
+
+.sbPadVolLabel{
+  font-size:12px;
+  font-weight:950;
+  color:var(--muted);
+  flex: 0 0 auto;
+  min-width: 34px;
+  text-align:right;
+}
+
 
 .sbPad{
   padding:14px 14px;
