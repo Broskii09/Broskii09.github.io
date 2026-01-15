@@ -1136,6 +1136,37 @@ details.hbAcc .hbCatList{
   align-items:center;
   justify-content:center;
 }
+
+.sbVolRow{
+  width:100%;
+  display:flex;
+  justify-content:center;
+}
+.sbMasterVol{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding:10px 12px;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.12);
+}
+.sbVolControls{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.sbRange{
+  width: min(360px, 60vw);
+  accent-color: var(--accent, #00c2ff);
+}
+.sbVolReadout{
+  min-width:56px;
+  text-align:right;
+  opacity:.95;
+  font-weight:950;
+}
+
 .sbTimer{
   padding:8px 10px;
   border-radius:999px;
@@ -1303,6 +1334,7 @@ details.hbAcc .hbCatList{
 }
 .sbPadControls{
   display:flex;
+  flex-wrap:wrap;
   gap:8px;
   align-items:center;
 }
@@ -1323,6 +1355,30 @@ details.hbAcc .hbCatList{
   border-color: rgba(var(--cueRGB), .55);
   box-shadow: 0 0 0 2px rgba(var(--cueRGB), .18), 0 0 22px rgba(var(--cueRGB), .25);
 }
+
+.sbPadVolWrap{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex: 1 1 100%;
+  padding:6px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.04);
+}
+.sbPadVolWrap .sbRange{
+  width: 100%;
+  min-width: 140px;
+}
+.sbPadVolLabel{
+  font-size:12px;
+  font-weight:950;
+  color:var(--muted);
+  flex: 0 0 auto;
+  min-width: 34px;
+  text-align:right;
+}
+
 
 .sbPad{
   padding:14px 14px;

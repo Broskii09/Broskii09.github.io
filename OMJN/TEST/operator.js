@@ -268,6 +268,35 @@
     if(!selectedId && state.queue.length) selectedId = state.queue.find(s=>s.status==="QUEUED")?.id ?? state.queue[0].id;
   }
 
+  // Select a performer in the queue, and apply sensible defaults for legacy/empty media settings.
+  // If a slot has no uploaded image, no URL, and no explicit layout, default it to QR_ONLY so the
+  // Viewer shows the default QR image (assets/OMJN-QR.jpg) without extra operator clicks.
+  function selectSlot(slotId){
+    selectedId = slotId;
+
+    const slot = state.queue.find(x => x.id === slotId) || null;
+    const donationUrl = slot?.media?.donationUrl;
+    const hasUrl = (typeof donationUrl === "string") && donationUrl.trim() !== "";
+    const hasUpload = !!slot?.media?.imageAssetId;
+    const layout = slot?.media?.mediaLayout;
+
+    const needsDefault = !!slot && !hasUrl && !hasUpload && (!layout || layout === "NONE");
+
+    if(needsDefault){
+      updateState(s => {
+        const sl = s.queue.find(x => x.id === slotId);
+        if(!sl) return;
+        if(!sl.media) sl.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
+        if(!sl.media.mediaLayout || sl.media.mediaLayout === "NONE"){
+          sl.media.mediaLayout = "QR_ONLY";
+        }
+      }, { recordHistory:false });
+    }else{
+      render();
+    }
+  }
+
+
   function publish(){
     OMJN.publish(state);
   }
@@ -773,8 +802,7 @@ function fillTypeSelect(selectEl){
     btnSel.textContent = (selectedId === slot.id) ? "Selected" : "Select";
     btnSel.addEventListener("click", (e) => {
       e.stopPropagation();
-      selectedId = slot.id;
-      render();
+      selectSlot(slot.id);
     });
 
     const btnUp = document.createElement("button");
@@ -816,8 +844,7 @@ function fillTypeSelect(selectEl){
     div.appendChild(actions);
 
     div.addEventListener("click", () => {
-      selectedId = slot.id;
-      render();
+      selectSlot(slot.id);
     });
 
     return div;

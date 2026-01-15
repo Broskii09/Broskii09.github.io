@@ -20,6 +20,10 @@
     resetTime: document.getElementById("sbResetTime"),
     stopAll: document.getElementById("sbStopAll"),
 
+    masterVol: document.getElementById("sbMasterVol"),
+    masterVolReadout: document.getElementById("sbMasterVolReadout"),
+    masterVolReset: document.getElementById("sbMasterVolReset"),
+
     apiKey: document.getElementById("sbApiKey"),
     folder: document.getElementById("sbFolder"),
     refresh: document.getElementById("sbRefresh"),
@@ -42,10 +46,93 @@
   const ctx = new AudioCtx();
   let audioEnabled = false;
 
+  // ---- Volume (master + per-sound) ----
+  // Slider scale is 0–100. 50% = unity (1.0). Above 50% boosts gain.
+  const MASTER_VOL_KEY = "omjn_soundboard_master_vol_v1";
+  const SOUND_VOL_KEY  = "omjn_soundboard_sound_vol_v1";
+
+  function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+  function sliderToGain(v){
+    const n = clamp(Number(v), 0, 100);
+    if(n <= 50) return n / 50;               // 0..1
+    return 1 + ((n - 50) / 50) * 1.5;        // 1..2.5
+  }
+
+  function loadJson(key, fallback){
+    try{ return JSON.parse(localStorage.getItem(key) || ""); }catch(_){ return fallback; }
+  }
+  function saveJson(key, obj){
+    try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(_){}
+  }
+
+  let masterVol = clamp(parseInt(localStorage.getItem(MASTER_VOL_KEY) || "50", 10), 0, 100);
+
+  const masterGain = ctx.createGain();
+  masterGain.gain.value = sliderToGain(masterVol);
+
+  // Simple limiter to reduce clipping if master gain is boosted.
+  const limiter = ctx.createDynamicsCompressor();
+  try{
+    limiter.threshold.value = -1;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.25;
+  }catch(_){}
+  masterGain.connect(limiter).connect(ctx.destination);
+
+  const soundVolPrefs = loadJson(SOUND_VOL_KEY, {});
+  function getSoundVolPercent(soundId){
+    const v = soundVolPrefs[soundId];
+    const n = (v === undefined) ? 50 : clamp(parseInt(v, 10), 0, 100);
+    return Number.isFinite(n) ? n : 50;
+  }
+  function setSoundVolPercent(soundId, v){
+    soundVolPrefs[soundId] = clamp(parseInt(v, 10), 0, 100);
+    saveJson(SOUND_VOL_KEY, soundVolPrefs);
+  }
+
+  function applySoundVolToPlaying(soundId){
+    const set = playing.get(soundId);
+    if(!set || !set.size) return;
+    const g = sliderToGain(getSoundVolPercent(soundId));
+    for(const inst of Array.from(set)){
+      try{ inst.gain.gain.value = g; }catch(_){}
+    }
+  }
+
+
+  function updateMasterVolUI(){
+    if(!els.masterVolReadout) return;
+    const g = sliderToGain(masterVol);
+    els.masterVolReadout.textContent = `${masterVol}% (${g.toFixed(2)}x)`;
+  }
+
+  if(els.masterVol){
+    els.masterVol.value = String(masterVol);
+    updateMasterVolUI();
+    els.masterVol.addEventListener("input", () => {
+      masterVol = clamp(parseInt(els.masterVol.value, 10), 0, 100);
+      localStorage.setItem(MASTER_VOL_KEY, String(masterVol));
+      masterGain.gain.value = sliderToGain(masterVol);
+      updateMasterVolUI();
+    });
+  }
+  if(els.masterVolReset){
+    els.masterVolReset.addEventListener("click", () => {
+      masterVol = 50;
+      localStorage.setItem(MASTER_VOL_KEY, "50");
+      if(els.masterVol) els.masterVol.value = "50";
+      masterGain.gain.value = sliderToGain(masterVol);
+      updateMasterVolUI();
+    });
+  }
+
   // fileId -> { meta, buffer, loading:boolean }
   const soundCache = new Map();
-  // soundKey -> current source node (for stop)
-  const playing = new Map(); // soundId -> Set<AudioBufferSourceNode>
+  // soundId -> Set<{src:AudioBufferSourceNode, gain:GainNode}> (for stop / live volume updates)
+  const playing = new Map();
 
   function showEnableOverlay(show){
     els.enableOverlay.style.display = show ? "flex" : "none";
@@ -73,8 +160,8 @@
     const set = playing.get(soundId);
     if(!set || !set.size) return;
     // stop all currently playing instances of this sound
-    for(const src of Array.from(set)){
-      try{ src.stop(0); }catch(_){}
+    for(const inst of Array.from(set)){
+      try{ inst.src.stop(0); }catch(_){}
     }
     playing.delete(soundId);
     const padEl = document.querySelector(`.sbPad[data-sound-id="${CSS.escape(soundId)}"]`);
@@ -83,8 +170,8 @@
 
   function stopAll(){
     for(const [k, set] of playing.entries()){
-      for(const src of Array.from(set)){
-        try{ src.stop(0); }catch(_){ }
+      for(const inst of Array.from(set)){
+        try{ inst.src.stop(0); }catch(_){ }
       }
     }
     playing.clear();
@@ -373,9 +460,16 @@
 
       const controls = document.createElement("div");
       controls.className = "sbPadControls";
+      const volPct = getSoundVolPercent(s.id);
       controls.innerHTML = `
         <button type="button" class="sbMiniBtn sbStopBtn" data-sound-id="${escapeHtml(s.id)}">Stop</button>
         <button type="button" class="sbMiniBtn sbLayerBtn ${isLayerEnabled(s.id) ? "on" : ""}" data-sound-id="${escapeHtml(s.id)}" aria-pressed="${isLayerEnabled(s.id) ? "true" : "false"}">Layer</button>
+
+        <div class="sbPadVolWrap" data-sound-id="${escapeHtml(s.id)}">
+          <div class="sbPadVolLabel">Vol</div>
+          <input type="range" class="sbRange sbSoundVol" min="0" max="100" step="1" value="${volPct}" data-sound-id="${escapeHtml(s.id)}" aria-label="Sound volume"/>
+          <div class="sbPadVolLabel" id="vol_${escapeHtml(s.id)}">${volPct}%</div>
+        </div>
       `;
       wrap.appendChild(controls);
 
@@ -392,6 +486,25 @@
         setLayerEnabled(s.id, enabled);
         e.currentTarget.classList.toggle("on", enabled);
         e.currentTarget.setAttribute("aria-pressed", enabled ? "true" : "false");
+      });
+
+      // per-sound volume slider
+      const volSlider = controls.querySelector(".sbSoundVol");
+      const stopProp = (ev) => { ev.stopPropagation(); };
+      ["pointerdown","mousedown","touchstart"].forEach(evt => {
+        volSlider?.addEventListener(evt, stopProp, { passive: true });
+      });
+      ["click","keydown"].forEach(evt => {
+        volSlider?.addEventListener(evt, stopProp);
+      });
+      volSlider?.addEventListener("input", (e) => {
+        e.stopPropagation();
+        const id = volSlider.dataset.soundId;
+        const v = clamp(parseInt(volSlider.value, 10), 0, 100);
+        setSoundVolPercent(id, v);
+        const lbl = document.getElementById(`vol_${id}`);
+        if(lbl) lbl.textContent = `${v}%`;
+        applySoundVolToPlaying(id);
       });
 
       els.pads.appendChild(wrap);
@@ -505,11 +618,11 @@
       const src = ctx.createBufferSource();
       src.buffer = buffer;
 
-      // slight gain to avoid surprises
+      // Per-sound gain (50% = unity). Master gain is applied globally.
       const gain = ctx.createGain();
-      gain.gain.value = 1.0;
+      gain.gain.value = sliderToGain(getSoundVolPercent(sound.id));
 
-      src.connect(gain).connect(ctx.destination);
+      src.connect(gain).connect(masterGain);
       // By default, clicking a pad restarts the sound.
       // If Layer is enabled for this sound, clicks overlap instead.
       if(!isLayerEnabled(sound.id)){
@@ -519,12 +632,13 @@
 
       let set = playing.get(sound.id);
       if(!set){ set = new Set(); playing.set(sound.id, set); }
-      set.add(src);
+      const inst = { src, gain };
+      set.add(inst);
 
       src.onended = () => {
         const set = playing.get(sound.id);
         if(set){
-          set.delete(src);
+          set.delete(inst);
           if(set.size === 0){
             playing.delete(sound.id);
             if(padEl) padEl.classList.remove("playing");

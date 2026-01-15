@@ -27,6 +27,18 @@
           <button class="btn small" id="sbStopAll">Stop All</button>
         </div>
 
+        <div class="sbVolRow">
+          <div class="sbMasterVol">
+            <div class="small">Master Volume</div>
+            <div class="sbVolControls">
+              <input type="range" id="sbMasterVol" class="sbRange" min="0" max="100" step="1" value="50" aria-label="Master volume"/>
+              <div class="sbVolReadout mono" id="sbMasterVolReadout">50%</div>
+              <button class="btn tiny" id="sbMasterVolReset" type="button" title="Reset to 50%">Reset</button>
+            </div>
+            <div class="small" style="opacity:.85;">50% = normal • above 50% boosts gain</div>
+          </div>
+        </div>
+
         <div class="row">
           <a class="btn small" href="./operator.html">Back to Operator</a>
         </div>
