@@ -27,6 +27,9 @@ html,body{height:100%; margin:0; background:var(--bg); color:var(--text); font-f
 a{color:inherit}
 button, input, select, textarea {font-family:inherit}
 
+select{ color-scheme: dark; }
+select option{ background: var(--panel); color: var(--text); }
+
 [hidden] { display: none !important; }
 .modalOverlay[hidden] { display: none !important; }
 
@@ -37,6 +40,8 @@ button, input, select, textarea {font-family:inherit}
   gap:var(--gap);
   padding:18px;
 }
+
+.container.oneCol{ grid-template-columns: 1fr; }
 
 .card{
   background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
@@ -144,6 +149,22 @@ button, input, select, textarea {font-family:inherit}
   max-height: calc(100vh - 210px);
   overflow:auto;
   padding-right:6px;
+}
+
+.queueDivider{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:8px 10px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:12px;
+  background:rgba(0,0,0,.12);
+  color:var(--muted);
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.08em;
 }
 
 .queueItem{
@@ -1119,8 +1140,10 @@ details.hbAcc .hbCatList{
    Soundboard page
    ===================== */
 
-.soundboardPage .wrap{ max-width: 1400px; }
-#sbCard{ width:100%; }
+.soundboardPage .container{ grid-template-columns: 1fr; }
+#sbCard{ width:100%;  display:flex; flex-direction:column; height:100%; }
+#sbCard > .cardBody{ flex:1 1 auto; min-height:0; overflow:auto; }
+
 .sbHeader{
   display:flex;
   flex-wrap:wrap;
@@ -1337,9 +1360,13 @@ details.hbAcc .hbCatList{
   flex-wrap:wrap;
   gap:8px;
   align-items:center;
+  width:100%;
+  min-width:0;
 }
+
 .sbMiniBtn{
-  flex:1 1 auto;
+  flex:1 1 0;
+  min-width:0;
   padding:8px 10px;
   border-radius:12px;
   border:1px solid rgba(255,255,255,.10);
@@ -1358,6 +1385,7 @@ details.hbAcc .hbCatList{
 
 .sbPadVolWrap{
   display:flex;
+  min-width:0;
   align-items:center;
   gap:10px;
   flex: 1 1 100%;
@@ -1368,8 +1396,9 @@ details.hbAcc .hbCatList{
 }
 .sbPadVolWrap .sbRange{
   width: 100%;
-  min-width: 140px;
+  min-width: 0;
 }
+
 .sbPadVolLabel{
   font-size:12px;
   font-weight:950;

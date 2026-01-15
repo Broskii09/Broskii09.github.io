@@ -6,13 +6,6 @@
   OMJN.ensureHouseBandQueues(state);
   const els = {
     queue: document.getElementById("queue"),
-    queueDone: document.getElementById("queueDone"),
-    doneCount: document.getElementById("doneCount"),
-    doneDetails: document.getElementById("doneDetails"),
-    btnActiveTab: document.getElementById("btnActiveTab"),
-    btnCompletedTab: document.getElementById("btnCompletedTab"),
-    panelActive: document.getElementById("panelActive"),
-    panelCompleted: document.getElementById("panelCompleted"),
     addName: document.getElementById("addName"),
     addType: document.getElementById("addType"),
     btnAdd: document.getElementById("btnAdd"),
@@ -122,7 +115,6 @@
   };
 
   let selectedId = null;
-  let performerQueueTab = "ACTIVE";
 
   // ---- Undo/Redo (operator-only) ----
   const HISTORY_KEY = "OMJN_HISTORY_V1";
@@ -362,7 +354,7 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
   function renderSlotTypesEditor(){
     if(!els.slotTypesEditor) return;
     els.slotTypesEditor.innerHTML = "";
-    const order = ["musician","comedian","custom"];
+    const order = ["musician","comedian","poetry","custom"];
     const types = [...(state.slotTypes||[])].sort((a,b)=>{
       const ia = order.indexOf(a.id); const ib = order.indexOf(b.id);
       if(ia===-1 && ib===-1) return String(a.label).localeCompare(String(b.label));
@@ -795,49 +787,62 @@ function fillTypeSelect(selectEl){
     main.appendChild(top);
     main.appendChild(meta);
 
-    const actions = document.createElement("div");
-    actions.className = "qActions";
-    const btnSel = document.createElement("button");
-    btnSel.className = "btn tiny";
-    btnSel.textContent = (selectedId === slot.id) ? "Selected" : "Select";
-    btnSel.addEventListener("click", (e) => {
-      e.stopPropagation();
-      selectSlot(slot.id);
-    });
+const actions = document.createElement("div");
+actions.className = "qActions";
 
-    const btnUp = document.createElement("button");
-    btnUp.className = "btn tiny";
-    btnUp.textContent = "↑";
-    btnUp.title = "Move up";
-    btnUp.disabled = slot.status !== "QUEUED";
-    btnUp.addEventListener("click", (e) => {
-      e.stopPropagation();
-      moveSlot(slot.id, -1);
-    });
+const btnSel = document.createElement("button");
+btnSel.className = "btn tiny";
+btnSel.textContent = (selectedId === slot.id) ? "Selected" : "Select";
+btnSel.addEventListener("click", (e) => {
+  e.stopPropagation();
+  selectSlot(slot.id);
+});
+actions.appendChild(btnSel);
 
-    const btnDn = document.createElement("button");
-    btnDn.className = "btn tiny";
-    btnDn.textContent = "↓";
-    btnDn.title = "Move down";
-    btnDn.disabled = slot.status !== "QUEUED";
-    btnDn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      moveSlot(slot.id, +1);
-    });
+if(isDone){
+  const btnRq = document.createElement("button");
+  btnRq.className = "btn tiny";
+  btnRq.textContent = "Re-queue";
+  btnRq.title = "Move back to Active queue";
+  btnRq.addEventListener("click", (e) => {
+    e.stopPropagation();
+    requeueSlot(slot.id);
+  });
+  actions.appendChild(btnRq);
+}else{
+  const btnUp = document.createElement("button");
+  btnUp.className = "btn tiny";
+  btnUp.textContent = "↑";
+  btnUp.title = "Move up";
+  btnUp.disabled = (slot.status !== "QUEUED") || isLive;
+  btnUp.addEventListener("click", (e) => {
+    e.stopPropagation();
+    moveSlot(slot.id, -1);
+  });
 
-    actions.appendChild(btnSel);
-    actions.appendChild(btnUp);
-    actions.appendChild(btnDn);
+  const btnDn = document.createElement("button");
+  btnDn.className = "btn tiny";
+  btnDn.textContent = "↓";
+  btnDn.title = "Move down";
+  btnDn.disabled = (slot.status !== "QUEUED") || isLive;
+  btnDn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    moveSlot(slot.id, +1);
+  });
 
-    const btnDel = document.createElement("button");
-    btnDel.className = "btn tiny danger";
-    btnDel.textContent = "✕";
-    btnDel.title = "Remove from queue";
-    btnDel.addEventListener("click", (e) => {
-      e.stopPropagation();
-      removeSlot(slot.id);
-    });
-    actions.appendChild(btnDel);
+  actions.appendChild(btnUp);
+  actions.appendChild(btnDn);
+}
+
+const btnDel = document.createElement("button");
+btnDel.className = "btn tiny danger";
+btnDel.textContent = "✕";
+btnDel.title = "Remove from queue";
+btnDel.addEventListener("click", (e) => {
+  e.stopPropagation();
+  removeSlot(slot.id);
+});
+actions.appendChild(btnDel);
 
     div.appendChild(handle);
     div.appendChild(main);
@@ -851,41 +856,41 @@ function fillTypeSelect(selectEl){
   }
 
   function renderQueue(){
-    // ACTIVE (Live + Queued)
-    if(els.queue){
-      els.queue.innerHTML = "";
-      const active = state.queue.filter(x => x.status !== "DONE" && x.status !== "SKIPPED");
-      if(!active.length){
-        const empty = document.createElement("div");
-        empty.className = "small";
-        empty.textContent = "No active signups yet. Add a performer above.";
-        els.queue.appendChild(empty);
-      } else {
-        for(const slot of active){
-          els.queue.appendChild(queueRow(slot));
-        }
+    if(!els.queue) return;
+
+    els.queue.innerHTML = "";
+
+    const isDone = (x) => x && (x.status === "DONE" || x.status === "SKIPPED");
+    const active = (state.queue || []).filter(x => !isDone(x));
+    const done = (state.queue || []).filter(isDone);
+
+    if(!active.length){
+      const empty = document.createElement("div");
+      empty.className = "small";
+      empty.textContent = done.length
+        ? "No active performers. Completed performers are below."
+        : "No active signups yet. Add a performer above.";
+      els.queue.appendChild(empty);
+    } else {
+      for(const slot of active){
+        els.queue.appendChild(queueRow(slot));
       }
     }
 
-    // COMPLETED (Done + No-show), ordered by completion time (oldest → newest)
-    if(els.queueDone){
-      els.queueDone.innerHTML = "";
-      const done = state.queue
-        .filter(x => x.status === "DONE" || x.status === "SKIPPED")
-        .slice()
-        .sort((a,b) => (a.completedAt || 0) - (b.completedAt || 0));
+    if(done.length){
+      const divider = document.createElement("div");
+      divider.className = "queueDivider";
+      const left = document.createElement("div");
+      left.textContent = "Completed";
+      const right = document.createElement("div");
+      right.className = "mono";
+      right.textContent = String(done.length);
+      divider.appendChild(left);
+      divider.appendChild(right);
+      els.queue.appendChild(divider);
 
-      if(els.doneCount) els.doneCount.textContent = String(done.length);
-
-      if(!done.length){
-        const empty = document.createElement("div");
-        empty.className = "small";
-        empty.textContent = "No completed performers yet.";
-        els.queueDone.appendChild(empty);
-      } else {
-        for(const slot of done){
-          els.queueDone.appendChild(queueRow(slot));
-        }
+      for(const slot of done){
+        els.queue.appendChild(queueRow(slot));
       }
     }
   }
@@ -926,6 +931,31 @@ function getDragAfterElement(container, y){
 
       const [it] = s.queue.splice(idx, 1);
       s.queue.splice(idx2, 0, it);
+    });
+  }
+
+
+  function requeueSlot(slotId){
+    updateState(s => {
+      const idx = s.queue.findIndex(x=>x.id===slotId);
+      if(idx < 0) return;
+
+      const slot = s.queue[idx];
+      if(!slot) return;
+      if(slot.status !== "DONE" && slot.status !== "SKIPPED") return;
+
+      slot.status = "QUEUED";
+      slot.completedAt = null;
+
+      // move to bottom of Active (before first completed)
+      const [moved] = s.queue.splice(idx, 1);
+      const doneStart = s.queue.findIndex(x => x.status === "DONE" || x.status === "SKIPPED");
+      const insertAt = (doneStart >= 0) ? doneStart : s.queue.length;
+      s.queue.splice(insertAt, 0, moved);
+
+      if(!s.currentSlotId && !s.selectedNextId){
+        s.selectedNextId = moved.id;
+      }
     });
   }
 
@@ -1871,20 +1901,6 @@ function bind(){
     }
     if(els.tabBtnPerformers) els.tabBtnPerformers.addEventListener("click", () => setActiveTab("perf"));
     if(els.tabBtnHouseBand) els.tabBtnHouseBand.addEventListener("click", () => setActiveTab("hb"));
-
-    
-    // Performer queue sub-tabs (Active / Completed)
-    function setPerformerQueueTabUI(which){
-      performerQueueTab = which;
-      if(els.btnActiveTab) els.btnActiveTab.classList.toggle("active", which === "ACTIVE");
-      if(els.btnCompletedTab) els.btnCompletedTab.classList.toggle("active", which === "COMPLETED");
-      if(els.panelActive) els.panelActive.hidden = (which !== "ACTIVE");
-      if(els.panelCompleted) els.panelCompleted.hidden = (which !== "COMPLETED");
-    }
-    if(els.btnActiveTab) els.btnActiveTab.addEventListener("click", () => setPerformerQueueTabUI("ACTIVE"));
-    if(els.btnCompletedTab) els.btnCompletedTab.addEventListener("click", () => setPerformerQueueTabUI("COMPLETED"));
-    setPerformerQueueTabUI(performerQueueTab);
-
 // Viewer footer toggle + formatting
     if(els.toggleHBFooter){
       els.toggleHBFooter.checked = (state.viewerPrefs?.showHouseBandFooter !== false);
