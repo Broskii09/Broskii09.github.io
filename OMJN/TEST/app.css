@@ -1204,6 +1204,26 @@ details.hbAcc .hbCatList{
   font-weight:950;
 }
 
+.sbFadeRow{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+}
+.sbFadeSel{
+  padding:8px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(0,0,0,.16);
+  color:var(--text);
+  font-weight:900;
+}
+.sbFadeSel:focus{
+  outline:none;
+  border-color: rgba(var(--cueRGB), .55);
+  box-shadow: 0 0 0 2px rgba(var(--cueRGB), .18), 0 0 22px rgba(var(--cueRGB), .20);
+}
+
 .sbTimer{
   padding:8px 10px;
   border-radius:999px;
@@ -1395,6 +1415,21 @@ details.hbAcc .hbCatList{
 .sbMiniBtn.on{
   border-color: rgba(var(--cueRGB), .55);
   box-shadow: 0 0 0 2px rgba(var(--cueRGB), .18), 0 0 22px rgba(var(--cueRGB), .25);
+}
+
+/* Favorite toggle: fixed width so Stop/Layer stay aligned */
+.sbMiniBtn.sbFavBtn{
+  flex:0 0 44px;
+  padding:8px 0;
+  text-align:center;
+  font-size:16px;
+  line-height:1;
+}
+
+.sbPill.sbFavPill{
+  border-color: rgba(var(--cueRGB), .35);
+  background: rgba(var(--cueRGB), .16);
+  color: var(--text);
 }
 
 .sbPadVolWrap{
