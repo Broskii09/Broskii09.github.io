@@ -66,6 +66,18 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         // Mic-based audio visualizer (Viewer)
         visualizerEnabled: false,
         visualizerSensitivity: 1.0,
+
+        sponsorBug: {
+          enabled: false,
+          showLiveOnly: true,
+          sourceType: "upload", // upload | url
+          uploadAssetId: null,
+          url: "",
+          position: "TR", // TL | TR | BL | BR
+          scale: 1.0,
+          opacity: 1.0,
+          safeMargin: 16,
+        },
       },
       settings: {
         theme: {
@@ -121,6 +133,14 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
       if(s.viewerPrefs.visualizerEnabled === undefined) s.viewerPrefs.visualizerEnabled = false;
       if(s.viewerPrefs.visualizerSensitivity === undefined) s.viewerPrefs.visualizerSensitivity = 1.0;
+      if(!s.viewerPrefs.sponsorBug) s.viewerPrefs.sponsorBug = d.viewerPrefs.sponsorBug;
+      else {
+        const b = s.viewerPrefs.sponsorBug;
+        const bd = d.viewerPrefs.sponsorBug;
+        for(const k of Object.keys(bd)){
+          if(b[k] === undefined) b[k] = bd[k];
+        }
+      }
       // Timer migration: normalize shape
       if(!s.timer) s.timer = { running:false, startedAt:null, pausedAt:null, elapsedMs:0, baseDurationMs:null };
       if(typeof s.timer.elapsedMs !== "number") s.timer.elapsedMs = 0;

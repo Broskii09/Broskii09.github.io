@@ -46,6 +46,23 @@
     setVizEnabled: document.getElementById("setVizEnabled"),
     setVizSensitivity: document.getElementById("setVizSensitivity"),
     setVizSensitivityVal: document.getElementById("setVizSensitivityVal"),
+
+    // Sponsor Bug
+    setSponsorEnabled: document.getElementById("setSponsorEnabled"),
+    setSponsorLiveOnly: document.getElementById("setSponsorLiveOnly"),
+    setSponsorSourceType: document.getElementById("setSponsorSourceType"),
+    setSponsorUrl: document.getElementById("setSponsorUrl"),
+    setSponsorUploadFile: document.getElementById("setSponsorUploadFile"),
+    btnClearSponsorUpload: document.getElementById("btnClearSponsorUpload"),
+    sponsorBugPreview: document.getElementById("sponsorBugPreview"),
+    sponsorBugStatus: document.getElementById("sponsorBugStatus"),
+    setSponsorPosition: document.getElementById("setSponsorPosition"),
+    setSponsorScale: document.getElementById("setSponsorScale"),
+    setSponsorScaleVal: document.getElementById("setSponsorScaleVal"),
+    setSponsorOpacity: document.getElementById("setSponsorOpacity"),
+    setSponsorOpacityVal: document.getElementById("setSponsorOpacityVal"),
+    setSponsorSafeMargin: document.getElementById("setSponsorSafeMargin"),
+    setSponsorSafeMarginVal: document.getElementById("setSponsorSafeMarginVal"),
     slotTypesEditor: document.getElementById("slotTypesEditor"),
     btnExportSettings: document.getElementById("btnExportSettings"),
     importSettingsFile: document.getElementById("importSettingsFile"),
@@ -462,6 +479,127 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
     }
   }
 
+  // ---- Sponsor Bug (Operator settings) ----
+  const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
+  let sponsorPreviewObjectUrl = null;
+  let lastSponsorPreviewKey = null;
+
+  function setSponsorStatus(msg, isErr=false){
+    if(!els.sponsorBugStatus) return;
+    els.sponsorBugStatus.textContent = msg || "—";
+    els.sponsorBugStatus.style.color = isErr ? "var(--danger,#ff6b6b)" : "";
+  }
+
+  function clearSponsorPreview(){
+    if(sponsorPreviewObjectUrl){
+      try{ URL.revokeObjectURL(sponsorPreviewObjectUrl); }catch(_){}
+      sponsorPreviewObjectUrl = null;
+    }
+    if(els.sponsorBugPreview) els.sponsorBugPreview.src = "";
+  }
+
+  function clampNum(n, min, max){
+    const v = Number(n);
+    if(!Number.isFinite(v)) return min;
+    return Math.max(min, Math.min(max, v));
+  }
+
+  function getSponsorCfg(s=state){
+    const d = OMJN.defaultState();
+    const cfg = (s.viewerPrefs && s.viewerPrefs.sponsorBug) ? s.viewerPrefs.sponsorBug : (d.viewerPrefs && d.viewerPrefs.sponsorBug) || {};
+    return cfg;
+  }
+
+  function testImageUrl(url){
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = url;
+    });
+  }
+
+  async function updateSponsorPreviewAndStatus(){
+    const cfg = getSponsorCfg(state);
+    const key = JSON.stringify({
+      enabled: !!cfg.enabled,
+      liveOnly: !!cfg.showLiveOnly,
+      sourceType: cfg.sourceType || "upload",
+      uploadAssetId: cfg.uploadAssetId || null,
+      url: String(cfg.url || "").trim(),
+      position: cfg.position || "TR",
+      scale: cfg.scale,
+      opacity: cfg.opacity,
+      safeMargin: cfg.safeMargin,
+    });
+    if(key === lastSponsorPreviewKey) return;
+    lastSponsorPreviewKey = key;
+
+    if(!cfg.enabled){
+      clearSponsorPreview();
+      setSponsorStatus("Disabled");
+      return;
+    }
+
+    const url = String(cfg.url || "").trim();
+    const hasUrl = !!url;
+    const hasUpload = !!cfg.uploadAssetId;
+
+    const order = (cfg.sourceType === "url") ? ["url", "upload"] : ["upload", "url"];
+    let ok = false;
+    let used = null;
+    let err = null;
+
+    for(const mode of order){
+      if(mode === "upload" && hasUpload){
+        try{
+          const blob = await OMJN.getAsset(cfg.uploadAssetId);
+          if(blob){
+            clearSponsorPreview();
+            sponsorPreviewObjectUrl = URL.createObjectURL(blob);
+            if(els.sponsorBugPreview) els.sponsorBugPreview.src = sponsorPreviewObjectUrl;
+            ok = true; used = "upload";
+            break;
+          }
+        }catch(e){ err = e; }
+      }
+      if(mode === "url" && hasUrl){
+        const works = await testImageUrl(url);
+        if(works){
+          clearSponsorPreview();
+          if(els.sponsorBugPreview) els.sponsorBugPreview.src = url;
+          ok = true; used = "url";
+          break;
+        }
+      }
+    }
+    if(!ok){
+      clearSponsorPreview();
+      if(hasUpload && !hasUrl){
+        setSponsorStatus("Upload missing", true);
+      }else if(hasUrl && !hasUpload){
+        setSponsorStatus("Bad URL/path", true);
+      }else{
+        setSponsorStatus("Missing source", true);
+      }
+      return;
+    }
+
+    let msg = (used === cfg.sourceType) ? (used == "upload" ? "Upload OK" : "URL OK") : (used == "upload" ? "Fallback: Upload OK" : "Fallback: URL OK");
+    // If Viewer reported an error, surface it subtly
+    try{
+      const raw = localStorage.getItem(SPONSOR_VIEWER_STATUS_KEY);
+      if(raw){
+        const v = JSON.parse(raw);
+        if(v && v.ok === false){
+          msg = msg + " · Viewer: error";
+        }
+      }
+    }catch(_){}
+    setSponsorStatus(msg);
+  }
+
+
   function renderSettings(){
     const st = state.settings || {};
     const vars = st.theme?.vars || {};
@@ -510,7 +648,32 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
       if(els.setVizSensitivityVal) els.setVizSensitivityVal.textContent = `${vv.toFixed(2)}×`;
     }
 
-    if(els.prefCollapseEditor){
+    
+
+    // Sponsor Bug UI
+    const sb = state.viewerPrefs?.sponsorBug || OMJN.defaultState().viewerPrefs.sponsorBug;
+    if(els.setSponsorEnabled) els.setSponsorEnabled.checked = !!sb.enabled;
+    if(els.setSponsorLiveOnly) els.setSponsorLiveOnly.checked = (sb.showLiveOnly !== false);
+    if(els.setSponsorSourceType) els.setSponsorSourceType.value = sb.sourceType || "upload";
+    if(els.setSponsorUrl) els.setSponsorUrl.value = sb.url || "";
+    if(els.setSponsorPosition) els.setSponsorPosition.value = sb.position || "TR";
+    if(els.setSponsorScale){
+      const v = clampNum(sb.scale ?? 1.0, 0.25, 2.0);
+      els.setSponsorScale.value = String(v);
+      if(els.setSponsorScaleVal) els.setSponsorScaleVal.textContent = `${v.toFixed(2)}×`;
+    }
+    if(els.setSponsorOpacity){
+      const v = clampNum(sb.opacity ?? 1.0, 0, 1);
+      els.setSponsorOpacity.value = String(v);
+      if(els.setSponsorOpacityVal) els.setSponsorOpacityVal.textContent = v.toFixed(2);
+    }
+    if(els.setSponsorSafeMargin){
+      const v = clampNum(sb.safeMargin ?? 16, 0, 200);
+      els.setSponsorSafeMargin.value = String(v);
+      if(els.setSponsorSafeMarginVal) els.setSponsorSafeMarginVal.textContent = `${Math.round(v)}px`;
+    }
+    updateSponsorPreviewAndStatus().catch(() => {});
+if(els.prefCollapseEditor){
       els.prefCollapseEditor.checked = !!state.operatorPrefs?.editCollapsed;
     }
 
@@ -643,7 +806,133 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
       });
     }
 
-    if(els.prefCollapseEditor){
+    
+
+    // Sponsor Bug controls
+    function ensureSponsorBugDefaults(s){
+      s.viewerPrefs = s.viewerPrefs || {};
+      const d = OMJN.defaultState();
+      if(!s.viewerPrefs.sponsorBug) s.viewerPrefs.sponsorBug = JSON.parse(JSON.stringify(d.viewerPrefs.sponsorBug));
+      else{
+        const bd = d.viewerPrefs.sponsorBug;
+        const b = s.viewerPrefs.sponsorBug;
+        for(const k of Object.keys(bd)){ if(b[k] === undefined) b[k] = bd[k]; }
+      }
+    }
+
+    async function handleSponsorUpload(file){
+      if(!file) return;
+      // Compress and store using existing asset system
+      const { blob, meta } = await OMJN.compressImageFile(file, { maxEdge: 1400, quality: 0.86, mime: "image/webp" });
+      if(!blob) return;
+      const assetId = OMJN.uid("sponsor");
+      await OMJN.putAsset(assetId, blob);
+      updateState(s => {
+        ensureSponsorBugDefaults(s);
+        const sb = s.viewerPrefs.sponsorBug;
+        // Best-effort cleanup of prior upload
+        if(sb.uploadAssetId && sb.uploadAssetId !== assetId){
+          const old = sb.uploadAssetId;
+          delete s.assetsIndex[old];
+          OMJN.deleteAsset(old).catch(() => {});
+        }
+        s.assetsIndex[assetId] = meta;
+        sb.uploadAssetId = assetId;
+        sb.sourceType = "upload";
+        sb.enabled = true;
+      }, { recordHistory:false });
+      updateSponsorPreviewAndStatus().catch(() => {});
+    }
+
+    if(els.setSponsorEnabled){
+      els.setSponsorEnabled.addEventListener("change", () => {
+        updateState(s => { ensureSponsorBugDefaults(s); s.viewerPrefs.sponsorBug.enabled = !!els.setSponsorEnabled.checked; }, { recordHistory:false });
+        updateSponsorPreviewAndStatus().catch(() => {});
+      });
+    }
+    if(els.setSponsorLiveOnly){
+      els.setSponsorLiveOnly.addEventListener("change", () => {
+        updateState(s => { ensureSponsorBugDefaults(s); s.viewerPrefs.sponsorBug.showLiveOnly = !!els.setSponsorLiveOnly.checked; }, { recordHistory:false });
+        updateSponsorPreviewAndStatus().catch(() => {});
+      });
+    }
+    if(els.setSponsorSourceType){
+      els.setSponsorSourceType.addEventListener("change", () => {
+        updateState(s => { ensureSponsorBugDefaults(s); s.viewerPrefs.sponsorBug.sourceType = els.setSponsorSourceType.value; }, { recordHistory:false });
+        updateSponsorPreviewAndStatus().catch(() => {});
+      });
+    }
+    if(els.setSponsorUrl){
+      const onUrl = () => {
+        const v = String(els.setSponsorUrl.value || "").trim();
+        updateState(s => { ensureSponsorBugDefaults(s); s.viewerPrefs.sponsorBug.url = v; }, { recordHistory:false });
+        updateSponsorPreviewAndStatus().catch(() => {});
+      };
+      els.setSponsorUrl.addEventListener("change", onUrl);
+      els.setSponsorUrl.addEventListener("blur", onUrl);
+    }
+    if(els.setSponsorUploadFile){
+      els.setSponsorUploadFile.addEventListener("change", async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if(!file) return;
+        try{ await handleSponsorUpload(file); }catch(err){ alert("Sponsor upload failed: " + err.message); }
+        finally{ els.setSponsorUploadFile.value = ""; }
+      });
+    }
+    if(els.btnClearSponsorUpload){
+      els.btnClearSponsorUpload.addEventListener("click", () => {
+        updateState(s => {
+          ensureSponsorBugDefaults(s);
+          const sb = s.viewerPrefs.sponsorBug;
+          if(sb.uploadAssetId){
+            const old = sb.uploadAssetId;
+            sb.uploadAssetId = null;
+            delete s.assetsIndex[old];
+            OMJN.deleteAsset(old).catch(() => {});
+          }
+        }, { recordHistory:false });
+        updateSponsorPreviewAndStatus().catch(() => {});
+      });
+    }
+    if(els.setSponsorPosition){
+      els.setSponsorPosition.addEventListener("change", () => {
+        updateState(s => { ensureSponsorBugDefaults(s); s.viewerPrefs.sponsorBug.position = els.setSponsorPosition.value; }, { recordHistory:false });
+      });
+    }
+    if(els.setSponsorScale){
+      const onScale = () => {
+        const v = clamp(parseFloat(els.setSponsorScale.value || "1"), 0.25, 2);
+        els.setSponsorScale.value = String(v);
+        if(els.setSponsorScaleVal) els.setSponsorScaleVal.textContent = `${v.toFixed(2)}×`;
+        updateState(s => { ensureSponsorBugDefaults(s); s.viewerPrefs.sponsorBug.scale = v; }, { recordHistory:false });
+      };
+      els.setSponsorScale.addEventListener("input", onScale);
+      els.setSponsorScale.addEventListener("change", onScale);
+      els.setSponsorScaleVal?.addEventListener?.("dblclick", () => { els.setSponsorScale.value = "1"; onScale(); });
+    }
+    if(els.setSponsorOpacity){
+      const onOp = () => {
+        const v = clamp(parseFloat(els.setSponsorOpacity.value || "1"), 0, 1);
+        els.setSponsorOpacity.value = String(v);
+        if(els.setSponsorOpacityVal) els.setSponsorOpacityVal.textContent = v.toFixed(2);
+        updateState(s => { ensureSponsorBugDefaults(s); s.viewerPrefs.sponsorBug.opacity = v; }, { recordHistory:false });
+      };
+      els.setSponsorOpacity.addEventListener("input", onOp);
+      els.setSponsorOpacity.addEventListener("change", onOp);
+      els.setSponsorOpacityVal?.addEventListener?.("dblclick", () => { els.setSponsorOpacity.value = "1"; onOp(); });
+    }
+    if(els.setSponsorSafeMargin){
+      const onSm = () => {
+        const v = clamp(parseInt(els.setSponsorSafeMargin.value || "16", 10) || 0, 0, 200);
+        els.setSponsorSafeMargin.value = String(v);
+        if(els.setSponsorSafeMarginVal) els.setSponsorSafeMarginVal.textContent = `${v}px`;
+        updateState(s => { ensureSponsorBugDefaults(s); s.viewerPrefs.sponsorBug.safeMargin = v; }, { recordHistory:false });
+      };
+      els.setSponsorSafeMargin.addEventListener("input", onSm);
+      els.setSponsorSafeMargin.addEventListener("change", onSm);
+      els.setSponsorSafeMarginVal?.addEventListener?.("dblclick", () => { els.setSponsorSafeMargin.value = "16"; onSm(); });
+    }
+if(els.prefCollapseEditor){
       els.prefCollapseEditor.addEventListener("change", () => {
         const collapsed = !!els.prefCollapseEditor.checked;
         updateState(s => { s.operatorPrefs.editCollapsed = collapsed; }, { recordHistory:false });
