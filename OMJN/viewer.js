@@ -21,6 +21,13 @@
   const splashInfo = document.getElementById("splashInfo");
   const liveFooterBar = document.getElementById("liveFooterBar");
 
+  // Sponsor bug overlay
+  const sponsorLayer = document.getElementById("sponsorLayer");
+  const sponsorBug = document.getElementById("sponsorBug");
+  const sponsorImg = document.getElementById("sponsorImg");
+  const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
+
+
   const vMainCard = document.getElementById("vMainCard");
   const nowName = document.getElementById("nowName");
   const timerEl = document.getElementById("timer");
@@ -66,6 +73,11 @@
   let currentAssetUrl = null;
   let lastMediaKey = null;
   let lastBgPath = null;
+
+  // Sponsor bug runtime
+  let currentSponsorObjectUrl = null;
+  let lastSponsorKey = null;
+  let sponsorLoadToken = 0;
 
   // --- Visualizer runtime ---
   const viz = {
@@ -430,6 +442,163 @@ function applyCardCues(remainingMs, warnAtMs, finalAtMs){
     mediaBox.style.display = "flex";
   }
 
+  // --- Sponsor bug ---
+  const SPONSOR_BASE_PAD = 48; // match viewerOverlay padding
+  const SPONSOR_CAP_PX = 240; // maximum displayed size cap
+
+  function getSponsorCfg(){
+    const d = OMJN.defaultState();
+    return state.viewerPrefs?.sponsorBug || d.viewerPrefs.sponsorBug;
+  }
+
+  function writeSponsorStatus(payload){
+    try{
+      const obj = Object.assign({ at: Date.now() }, payload || {});
+      localStorage.setItem(SPONSOR_VIEWER_STATUS_KEY, JSON.stringify(obj));
+    }catch(_){ }
+  }
+
+  function hideSponsor(reason){
+    if(sponsorLayer) sponsorLayer.style.display = "none";
+    if(currentSponsorObjectUrl){
+      try{ URL.revokeObjectURL(currentSponsorObjectUrl); }catch(_){ }
+      currentSponsorObjectUrl = null;
+    }
+    if(sponsorImg) sponsorImg.src = "";
+    writeSponsorStatus({ ok: true, hidden: true, reason: reason || "hidden" });
+  }
+
+  async function setSponsorBug(){
+    if(!sponsorLayer || !sponsorBug || !sponsorImg) return;
+
+    const cfg = getSponsorCfg() || {};
+    const url = String(cfg.url || "").trim();
+    const footerVisible = !!(liveFooterBar && liveFooterBar.style.display !== "none" && !liveFooterBar.hidden);
+
+    const key = JSON.stringify({
+      enabled: !!cfg.enabled,
+      liveOnly: !!cfg.showLiveOnly,
+      phase: state.phase,
+      sourceType: cfg.sourceType || "upload",
+      uploadAssetId: cfg.uploadAssetId || null,
+      url,
+      position: cfg.position || "TR",
+      scale: cfg.scale,
+      opacity: cfg.opacity,
+      safeMargin: cfg.safeMargin,
+      footerVisible
+    });
+    if(key === lastSponsorKey) return;
+    lastSponsorKey = key;
+
+    const shouldShow = !!cfg.enabled && (!cfg.showLiveOnly || state.phase === "LIVE");
+    if(!shouldShow){
+      hideSponsor(cfg.enabled ? "not-live" : "disabled");
+      return;
+    }
+
+    // Layout
+    const pos = String(cfg.position || "TR").toUpperCase();
+    const safe = Math.max(0, Math.min(200, parseInt(cfg.safeMargin ?? 16, 10) || 0));
+    const pad = SPONSOR_BASE_PAD + safe;
+
+    let bottomExtra = 0;
+    if(footerVisible && (pos === "BL" || pos === "BR")){
+      try{
+        const r = liveFooterBar.getBoundingClientRect();
+        bottomExtra = Math.round(r.height + 18);
+      }catch(_){ }
+    }
+
+    sponsorBug.classList.remove("posTL","posTR","posBL","posBR");
+    sponsorBug.classList.add("pos" + (pos === "TL" || pos === "TR" || pos === "BL" || pos === "BR" ? pos : "TR"));
+
+    sponsorBug.style.top = "";
+    sponsorBug.style.right = "";
+    sponsorBug.style.bottom = "";
+    sponsorBug.style.left = "";
+
+    if(pos === "TL"){
+      sponsorBug.style.top = pad + "px";
+      sponsorBug.style.left = pad + "px";
+    }else if(pos === "TR"){
+      sponsorBug.style.top = pad + "px";
+      sponsorBug.style.right = pad + "px";
+    }else if(pos === "BL"){
+      sponsorBug.style.bottom = (pad + bottomExtra) + "px";
+      sponsorBug.style.left = pad + "px";
+    }else{
+      sponsorBug.style.bottom = (pad + bottomExtra) + "px";
+      sponsorBug.style.right = pad + "px";
+    }
+
+    const scale = Math.max(0.25, Math.min(2, Number(cfg.scale ?? 1)));
+    const opacity = Math.max(0, Math.min(1, Number(cfg.opacity ?? 1)));
+    sponsorBug.style.setProperty("--sponsorScale", String(scale));
+    sponsorBug.style.setProperty("--sponsorCap", SPONSOR_CAP_PX + "px");
+    sponsorBug.style.opacity = String(opacity);
+
+    // Pick source (chosen type, then fallback)
+    const prefer = (cfg.sourceType === "url") ? ["url","upload"] : ["upload","url"];
+
+    let used = null;
+    let blob = null;
+    for(const m of prefer){
+      if(m === "upload" && cfg.uploadAssetId){
+        try{ blob = await OMJN.getAsset(cfg.uploadAssetId); }catch(_){ blob = null; }
+        if(blob){ used = "upload"; break; }
+      }
+      if(m === "url" && url){
+        used = "url";
+        break;
+      }
+    }
+
+    if(!used){
+      hideSponsor("missing-source");
+      writeSponsorStatus({ ok:false, hidden:true, error:"missing-source" });
+      return;
+    }
+
+    // Clear prior object url if switching away from upload
+    if(used !== "upload" && currentSponsorObjectUrl){
+      try{ URL.revokeObjectURL(currentSponsorObjectUrl); }catch(_){ }
+      currentSponsorObjectUrl = null;
+    }
+
+    if(used === "upload"){
+      if(currentSponsorObjectUrl){
+        try{ URL.revokeObjectURL(currentSponsorObjectUrl); }catch(_){ }
+      }
+      currentSponsorObjectUrl = URL.createObjectURL(blob);
+      sponsorImg.onload = null;
+      sponsorImg.onerror = null;
+      sponsorImg.src = currentSponsorObjectUrl;
+      sponsorLayer.style.display = "block";
+      writeSponsorStatus({ ok:true, hidden:false, source:"upload" });
+      return;
+    }
+
+    // URL source: validate load
+    const tok = ++sponsorLoadToken;
+    const loaded = await new Promise(resolve => {
+      sponsorImg.onload = () => resolve(true);
+      sponsorImg.onerror = () => resolve(false);
+      sponsorImg.src = url;
+    });
+    if(tok != sponsorLoadToken) return; // stale update
+
+    if(loaded){
+      sponsorLayer.style.display = "block";
+      writeSponsorStatus({ ok:true, hidden:false, source:"url" });
+    }else{
+      sponsorLayer.style.display = "none";
+      sponsorImg.src = "";
+      writeSponsorStatus({ ok:false, hidden:true, source:"url", error:"bad-url" });
+    }
+  }
+
+
   function renderSplash(){
     overlay.style.display = "none";
     splashInfo.style.display = "grid";
@@ -589,6 +758,9 @@ function applyCardCues(remainingMs, warnAtMs, finalAtMs){
     // Visualizer UI (LIVE-only) + Splash setup button
     updateVizSetupButton();
     maybeStartViz();
+
+    // Sponsor bug overlay
+    await setSponsorBug();
   }
 
   // animate timer locally without spamming BroadcastChannel

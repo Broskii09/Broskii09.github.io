@@ -345,6 +345,32 @@ hr.sep{
   z-index: 20;
 }
 
+
+/* Sponsor bug overlay */
+.vSponsorLayer{
+  position:absolute;
+  inset:0;
+  z-index:15;
+  pointer-events:none;
+}
+.vSponsorBug{
+  position:absolute;
+  display:flex;
+  align-items:flex-start;
+  justify-content:flex-start;
+  --sponsorBase: 180px;
+  --sponsorCap: 240px;
+  --sponsorScale: 1;
+}
+.vSponsorBug img{
+  width: calc(var(--sponsorBase) * var(--sponsorScale));
+  max-width: var(--sponsorCap);
+  max-height: var(--sponsorCap);
+  height:auto;
+  object-fit:contain;
+  filter: drop-shadow(0 10px 24px rgba(0,0,0,.45));
+}
+
 /* Safety: Splash overlay should never show during LIVE */
 .isLive #splashInfo{ display:none !important; }
 
@@ -1233,6 +1259,34 @@ details.hbAcc .hbCatList{
   justify-content:center;
 }
 
+.sbFadeWrap{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 12px;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.12);
+}
+.sbSelect{
+  padding:8px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.06);
+  color:var(--text);
+  font-weight:800;
+  font-size:12px;
+}
+.sbToggle{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 12px;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.12);
+}
+
 .sbVolRow{
   width:100%;
   display:flex;
@@ -1320,6 +1374,12 @@ details.hbAcc .hbCatList{
   overflow:auto;
   max-height: calc(100vh - 380px);
 }
+
+.sbCatSep{
+  height:1px;
+  margin:6px 4px;
+  background:rgba(255,255,255,.12);
+}
 .sbCat{
   display:flex;
   justify-content:space-between;
@@ -1403,6 +1463,45 @@ details.hbAcc .hbCatList{
 .sbSearchClear:hover{ background:rgba(255,255,255,.10); }
 .sbHintRow{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
 
+.sbHotkeysRow{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+  padding:10px 0 0;
+}
+.sbHotkeyChip{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 8px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.06);
+  min-width:0;
+}
+.sbHotkeyChip.pinned{
+  border-color: rgba(var(--cueRGB), .55);
+  box-shadow: 0 0 0 2px rgba(var(--cueRGB), .14);
+}
+.sbHotkeyKey{
+  font-weight:950;
+  font-size:12px;
+  padding:2px 6px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.20);
+}
+.sbHotkeyName{
+  font-size:12px;
+  font-weight:900;
+  opacity:.92;
+  max-width: 200px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
 .sbPadWrap.selected .sbPad{
   border-color: rgba(var(--cueRGB), .85);
   box-shadow: 0 0 0 2px rgba(var(--cueRGB), .24), 0 0 46px rgba(var(--cueRGB), .30);
@@ -1456,6 +1555,30 @@ details.hbAcc .hbCatList{
   box-shadow: 0 0 0 2px rgba(var(--cueRGB), .18), 0 0 22px rgba(var(--cueRGB), .25);
 }
 
+
+.sbMiniBtn.sbFavMini{
+  flex: 0 0 auto;
+  width: 36px;
+  padding:8px;
+  text-align:center;
+}
+.sbMiniBtn.sbFavMini.on{
+  border-color: rgba(255,215,0,.55);
+  box-shadow: 0 0 0 2px rgba(255,215,0,.18), 0 0 22px rgba(255,215,0,.18);
+}
+.sbPinSelect{
+  flex: 0 0 auto;
+  padding:8px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.06);
+  color:var(--text);
+  font-weight:900;
+  font-size:12px;
+  max-width:78px;
+}
+
+
 .sbPadVolWrap{
   display:flex;
   min-width:0;
@@ -1479,6 +1602,16 @@ details.hbAcc .hbCatList{
   flex: 0 0 auto;
   min-width: 34px;
   text-align:right;
+}
+
+
+.sbPadVolPct{
+  font-size:12px;
+  font-weight:950;
+  color:var(--muted);
+  flex: 0 0 auto;
+  min-width: 52px;
+  text-align:left;
 }
 
 
