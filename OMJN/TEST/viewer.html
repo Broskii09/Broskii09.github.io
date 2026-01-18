@@ -9,6 +9,7 @@
 <body style="margin:0;">
   <div class="viewerRoot" id="root">
     <div class="viewerBg" id="bg"></div>
+
     <!-- Start transition banner (Splash → LIVE) -->
     <div class="vStartBanner" id="startBanner" aria-hidden="true">
       <div class="vStartBannerInner">
@@ -24,39 +25,42 @@
       </div>
     </div>
 
+    <!-- Crowd Prompts full-screen overlay (text-only interstitial) -->
+    <div class="vCrowdLayer" id="crowdLayer" aria-hidden="true">
+      <div class="vCrowdPanel">
+        <div class="vCrowdTitle" id="crowdTitle">CROWD PROMPT</div>
+        <div class="vCrowdLines" id="crowdLines"></div>
+        <div class="vCrowdFooter" id="crowdFooter"></div>
+      </div>
+    </div>
+
     <div class="viewerOverlay" id="overlay" style="display:none;">
-        <div class="vCard" id="vMainCard">
-            <div class="small" id="nowLabel">NOW PERFORMING</div>
-            <h1 class="vNowName" id="nowName">—</h1>
+      <div class="vCard" id="vMainCard">
+        <div class="small" id="nowLabel">NOW PERFORMING</div>
+        <h1 class="vNowName" id="nowName">—</h1>
 
-            <div class="vTimer mono" id="timer">0:00</div>
+        <div class="vTimer mono" id="timer">0:00</div>
 
-            <div class="vStateRow">
-                <span class="vChip good" id="chipState">LIVE</span>
-                <span class="vChip" id="chipType">Standard</span>
-                <span class="vChip" id="chipOver" style="display:none;">Overtime +0:00</span>
-                <span class="vChip warn" id="chipWarn" style="display:none;">Wrap it up</span>
-                <span class="vChip final" id="chipFinal" style="display:none;">Final 30 sec</span>
-            </div>
-
-            <!-- Next/On Deck (LIVE only) -->
-            <div class="vNextDeckRow" id="liveNextDeck">
-              <div class="vNextDeckCell">
-                <div class="small">Next Up</div>
-                <div class="vNextDeckName" id="liveNextUp">—</div>
-              </div>
-              <div class="vNextDeckCell right">
-                <div class="small">On Deck</div>
-                <div class="vNextDeckName" id="liveOnDeck">—</div>
-              </div>
-            </div>
-
-
-
-            
-
-
+        <div class="vStateRow">
+          <span class="vChip good" id="chipState">LIVE</span>
+          <span class="vChip" id="chipType">Standard</span>
+          <span class="vChip" id="chipOver" style="display:none;">Overtime +0:00</span>
+          <span class="vChip warn" id="chipWarn" style="display:none;">Wrap it up</span>
+          <span class="vChip final" id="chipFinal" style="display:none;">Final 30 sec</span>
         </div>
+
+        <!-- Next/On Deck (LIVE only) -->
+        <div class="vNextDeckRow" id="liveNextDeck">
+          <div class="vNextDeckCell">
+            <div class="small">Next Up</div>
+            <div class="vNextDeckName" id="liveNextUp">—</div>
+          </div>
+          <div class="vNextDeckCell right">
+            <div class="small">On Deck</div>
+            <div class="vNextDeckName" id="liveOnDeck">—</div>
+          </div>
+        </div>
+      </div>
 
       <div class="vMedia" id="vMedia">
         <div class="vMediaBox" id="mediaBox">
@@ -66,7 +70,6 @@
         <div class="vCard" id="donationCard" style="padding:18px 20px;">
           <div class="small">Website / Socials</div>
           <div style="font-size:22px; font-weight:850; word-break:break-word;" id="donationText">—</div>
-          <!--<div class="small" style="margin-top:8px; opacity:.8;">Tip: upload a QR image on the operator page for clean scanning.</div>-->
         </div>
       </div>
 

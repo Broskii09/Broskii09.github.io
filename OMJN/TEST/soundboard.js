@@ -36,7 +36,6 @@
     search: document.getElementById("sbSearch"),
     searchClear: document.getElementById("sbSearchClear"),
     resultMeta: document.getElementById("sbResultMeta"),
-    hotkeysRow: document.getElementById("sbHotkeysRow"),
     stopFade: document.getElementById("sbStopFade"),
     freezeHotkeys: document.getElementById("sbFreezeHotkeys"),
 
@@ -545,23 +544,6 @@
     if(freezeHotkeys && (opts.updateSnapshot || !hasSnapshot)){
       snapshot = { ...out };
       saveJson(SNAPSHOT_KEY, snapshot);
-    }
-
-    renderHotkeysRow();
-  }
-
-  function renderHotkeysRow(){
-    if(!els.hotkeysRow) return;
-    els.hotkeysRow.innerHTML = "";
-    for(const key of HOTKEY_KEYS){
-      const id = hotkeyAssign[key];
-      const s = id ? soundById.get(id) : null;
-      const name = s ? (s._displayName || stripExt(s.name)) : "—";
-      const chip = document.createElement("div");
-      const isPinned = pinned[key] && pinned[key] === id;
-      chip.className = "sbHotkeyChip" + (isPinned ? " pinned" : "");
-      chip.innerHTML = `<span class="sbHotkeyKey">${escapeHtml(key)}</span><span class="sbHotkeyName">${escapeHtml(name)}</span>`;
-      els.hotkeysRow.appendChild(chip);
     }
   }
 

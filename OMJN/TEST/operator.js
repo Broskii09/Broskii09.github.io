@@ -47,6 +47,21 @@
     setVizSensitivity: document.getElementById("setVizSensitivity"),
     setVizSensitivityVal: document.getElementById("setVizSensitivityVal"),
 
+    // Crowd Prompts
+    setCrowdEnabled: document.getElementById("setCrowdEnabled"),
+    setCrowdPreset: document.getElementById("setCrowdPreset"),
+    btnCrowdShowNow: document.getElementById("btnCrowdShowNow"),
+    btnCrowdHide: document.getElementById("btnCrowdHide"),
+    crowdPresetName: document.getElementById("crowdPresetName"),
+    crowdTitle: document.getElementById("crowdTitle"),
+    crowdLines: document.getElementById("crowdLines"),
+    crowdFooter: document.getElementById("crowdFooter"),
+    crowdAutoHide: document.getElementById("crowdAutoHide"),
+    btnCrowdSave: document.getElementById("btnCrowdSave"),
+    btnCrowdAdd: document.getElementById("btnCrowdAdd"),
+    btnCrowdDuplicate: document.getElementById("btnCrowdDuplicate"),
+    btnCrowdDelete: document.getElementById("btnCrowdDelete"),
+
     // Sponsor Bug
     setSponsorEnabled: document.getElementById("setSponsorEnabled"),
     setSponsorLiveOnly: document.getElementById("setSponsorLiveOnly"),
@@ -59,6 +74,8 @@
     setSponsorPosition: document.getElementById("setSponsorPosition"),
     setSponsorScale: document.getElementById("setSponsorScale"),
     setSponsorScaleVal: document.getElementById("setSponsorScaleVal"),
+    setSponsorMaxPct: document.getElementById("setSponsorMaxPct"),
+    setSponsorMaxPctVal: document.getElementById("setSponsorMaxPctVal"),
     setSponsorOpacity: document.getElementById("setSponsorOpacity"),
     setSponsorOpacityVal: document.getElementById("setSponsorOpacityVal"),
     setSponsorSafeMargin: document.getElementById("setSponsorSafeMargin"),
@@ -73,6 +90,9 @@
     btnReset: document.getElementById("btnReset"),
 
     btnSettings: document.getElementById("btnSettings"),
+    btnCrowdPrev: document.getElementById("btnCrowdPrev"),
+    btnCrowdToggle: document.getElementById("btnCrowdToggle"),
+    btnCrowdNext: document.getElementById("btnCrowdNext"),
     settingsModal: document.getElementById("settingsModal"),
     btnCloseSettings: document.getElementById("btnCloseSettings"),
 
@@ -479,6 +499,113 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
     }
   }
 
+
+
+  // ---- Crowd Prompts (Operator settings + quick controls) ----
+  let crowdAutoHideTimeout = null;
+  let lastCrowdEditorKey = null;
+  let lastCrowdAutoKey = null;
+
+  function ensureCrowdDefaults(s){
+    s.viewerPrefs = s.viewerPrefs || {};
+    const d = OMJN.defaultState();
+    if(!s.viewerPrefs.crowdPrompts) s.viewerPrefs.crowdPrompts = JSON.parse(JSON.stringify(d.viewerPrefs.crowdPrompts));
+    else {
+      const c = s.viewerPrefs.crowdPrompts;
+      const cd = d.viewerPrefs.crowdPrompts;
+      for(const k of Object.keys(cd)){ if(c[k] === undefined) c[k] = cd[k]; }
+      if(!Array.isArray(c.presets) || !c.presets.length) c.presets = JSON.parse(JSON.stringify(cd.presets));
+      // Ensure preset shapes (merge defaults by id)
+      const byId = new Map((cd.presets || []).map(p => [p.id, p]));
+      c.presets = (c.presets || []).map(p => Object.assign({}, byId.get(p.id) || {}, p || {}));
+    }
+    const c = s.viewerPrefs.crowdPrompts;
+    if(!Array.isArray(c.presets) || !c.presets.length){
+      c.presets = JSON.parse(JSON.stringify(OMJN.defaultState().viewerPrefs.crowdPrompts.presets));
+    }
+    if(!c.activePresetId || !c.presets.some(p => p.id === c.activePresetId)){
+      c.activePresetId = c.presets[0]?.id || OMJN.defaultState().viewerPrefs.crowdPrompts.activePresetId;
+    }
+  }
+
+  function getCrowdCfg(s=state){
+    const d = OMJN.defaultState();
+    return (s.viewerPrefs && s.viewerPrefs.crowdPrompts) ? s.viewerPrefs.crowdPrompts : d.viewerPrefs.crowdPrompts;
+  }
+
+  function getActiveCrowdPreset(cfg){
+    const presets = cfg?.presets || [];
+    const id = cfg?.activePresetId;
+    return presets.find(p => p.id === id) || presets[0] || null;
+  }
+
+  function clearCrowdAutoHide(){
+    if(crowdAutoHideTimeout){
+      clearTimeout(crowdAutoHideTimeout);
+      crowdAutoHideTimeout = null;
+    }
+  }
+
+  function scheduleCrowdAutoHide(){
+    clearCrowdAutoHide();
+    const cfg = getCrowdCfg(state);
+    if(!cfg?.enabled) return;
+    const p = getActiveCrowdPreset(cfg);
+    const sec = clamp(parseInt(String(p?.autoHideSeconds ?? 0), 10) || 0, 0, 60);
+    if(sec <= 0) return;
+    crowdAutoHideTimeout = setTimeout(() => {
+      updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.enabled = false; }, { recordHistory:false });
+    }, sec * 1000);
+  }
+
+  function syncCrowdAutoHide(){
+    const cfg = getCrowdCfg(state);
+    const p = getActiveCrowdPreset(cfg);
+    const key = JSON.stringify({
+      enabled: !!cfg.enabled,
+      presetId: cfg.activePresetId,
+      autoHideSeconds: p?.autoHideSeconds
+    });
+    if(key == lastCrowdAutoKey) return;
+    lastCrowdAutoKey = key;
+    if(!cfg.enabled){
+      clearCrowdAutoHide();
+      return;
+    }
+    scheduleCrowdAutoHide();
+  }
+
+  function cycleCrowdPreset(dir){
+    const cfg = getCrowdCfg(state);
+    const presets = cfg?.presets || [];
+    if(presets.length < 2) return;
+    const idx = Math.max(0, presets.findIndex(p => p.id === cfg.activePresetId));
+    const next = (idx + (dir > 0 ? 1 : -1) + presets.length) % presets.length;
+    const nextId = presets[next].id;
+    updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.activePresetId = nextId; }, { recordHistory:false });
+    // If currently showing, restart timer on preset swap
+    scheduleCrowdAutoHide();
+  }
+
+  function setCrowdEnabled(on){
+    updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.enabled = !!on; }, { recordHistory:false });
+    scheduleCrowdAutoHide();
+  }
+
+  function updateCrowdQuickButtons(){
+    if(!els.btnCrowdToggle) return;
+    const cfg = getCrowdCfg(state);
+    const p = getActiveCrowdPreset(cfg);
+    const name = (p?.name || p?.title || "Prompt").trim();
+    if(cfg.enabled){
+      els.btnCrowdToggle.textContent = `Crowd: ${name}`;
+      els.btnCrowdToggle.classList.add("good");
+    } else {
+      els.btnCrowdToggle.textContent = "Crowd: Off";
+      els.btnCrowdToggle.classList.remove("good");
+    }
+  }
+
   // ---- Sponsor Bug (Operator settings) ----
   const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
   let sponsorPreviewObjectUrl = null;
@@ -650,6 +777,37 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
 
     
 
+    
+
+    // Crowd Prompts UI
+    const cp = state.viewerPrefs?.crowdPrompts || OMJN.defaultState().viewerPrefs.crowdPrompts;
+    const presets = Array.isArray(cp.presets) ? cp.presets : [];
+    const activeId = presets.some(p=>p.id===cp.activePresetId) ? cp.activePresetId : (presets[0]?.id || "");
+
+    if(els.setCrowdEnabled) els.setCrowdEnabled.checked = !!cp.enabled;
+
+    if(els.setCrowdPreset){
+      const opts = presets.map(p => ({ id: p.id, label: (p.name || p.title || p.id) }));
+      els.setCrowdPreset.innerHTML = opts.map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join("");
+      els.setCrowdPreset.value = activeId;
+    }
+
+    // Only sync editor fields when preset changes (so typing isn't overwritten)
+    const editorKey = JSON.stringify({ activeId, count: presets.length, names: presets.map(p=>p.name||"").join("|") });
+    if(editorKey !== lastCrowdEditorKey){
+      lastCrowdEditorKey = editorKey;
+      const ap = presets.find(p=>p.id===activeId) || presets[0] || {};
+      if(els.crowdPresetName) els.crowdPresetName.value = ap.name || "";
+      if(els.crowdTitle) els.crowdTitle.value = ap.title || "";
+      if(els.crowdLines) els.crowdLines.value = Array.isArray(ap.lines) ? ap.lines.join("\n") : "";
+      if(els.crowdFooter) els.crowdFooter.value = ap.footer || "";
+      if(els.crowdAutoHide) els.crowdAutoHide.value = String(clamp(parseInt(String(ap.autoHideSeconds ?? 0),10) || 0, 0, 60));
+    }
+
+    updateCrowdQuickButtons();
+    syncCrowdAutoHide();
+
+
     // Sponsor Bug UI
     const sb = state.viewerPrefs?.sponsorBug || OMJN.defaultState().viewerPrefs.sponsorBug;
     if(els.setSponsorEnabled) els.setSponsorEnabled.checked = !!sb.enabled;
@@ -661,6 +819,11 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
       const v = clampNum(sb.scale ?? 1.0, 0.25, 2.0);
       els.setSponsorScale.value = String(v);
       if(els.setSponsorScaleVal) els.setSponsorScaleVal.textContent = `${v.toFixed(2)}×`;
+    }
+    if(els.setSponsorMaxPct){
+      const v = clampNum(sb.maxSizePct ?? 18, 5, 25);
+      els.setSponsorMaxPct.value = String(Math.round(v));
+      if(els.setSponsorMaxPctVal) els.setSponsorMaxPctVal.textContent = `${Math.round(v)}%`;
     }
     if(els.setSponsorOpacity){
       const v = clampNum(sb.opacity ?? 1.0, 0, 1);
@@ -808,6 +971,89 @@ if(els.prefCollapseEditor){
 
     
 
+    // Crowd Prompts controls
+    function readCrowdEditor(){
+      const name = (els.crowdPresetName?.value || "").trim();
+      const title = (els.crowdTitle?.value || "").trim();
+      const footer = (els.crowdFooter?.value || "").trim();
+      const autoHideSeconds = clamp(parseInt(String(els.crowdAutoHide?.value || "0"), 10) || 0, 0, 60);
+      const linesRaw = (els.crowdLines?.value || "");
+      const lines = linesRaw.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+      return { name, title, footer, autoHideSeconds, lines };
+    }
+
+    function saveCrowdPreset(){
+      const data = readCrowdEditor();
+      updateState(s => {
+        ensureCrowdDefaults(s);
+        const cfg = s.viewerPrefs.crowdPrompts;
+        const idx = cfg.presets.findIndex(p => p.id === cfg.activePresetId);
+        if(idx >= 0){
+          cfg.presets[idx] = Object.assign({}, cfg.presets[idx], data);
+        }
+      }, { recordHistory:false });
+      scheduleCrowdAutoHide();
+    }
+
+    function addCrowdPreset(fromPreset=null){
+      const base = fromPreset || { name: "New Prompt", title: "CROWD PROMPT", lines: [], footer: "", autoHideSeconds: 0 };
+      const id = OMJN.uid("cp");
+      const preset = {
+        id,
+        name: (base.name || "New Prompt") + (fromPreset ? " Copy" : ""),
+        title: base.title || "CROWD PROMPT",
+        lines: Array.isArray(base.lines) ? base.lines.slice() : [],
+        footer: base.footer || "",
+        autoHideSeconds: clamp(parseInt(String(base.autoHideSeconds ?? 0), 10) || 0, 0, 60)
+      };
+      updateState(s => {
+        ensureCrowdDefaults(s);
+        const cfg = s.viewerPrefs.crowdPrompts;
+        cfg.presets.push(preset);
+        cfg.activePresetId = id;
+      }, { recordHistory:false });
+    }
+
+    function deleteCrowdPreset(){
+      updateState(s => {
+        ensureCrowdDefaults(s);
+        const cfg = s.viewerPrefs.crowdPrompts;
+        if(cfg.presets.length <= 1) return;
+        const idx = cfg.presets.findIndex(p => p.id === cfg.activePresetId);
+        if(idx >= 0) cfg.presets.splice(idx, 1);
+        const newIdx = Math.min(idx, cfg.presets.length - 1);
+        cfg.activePresetId = cfg.presets[newIdx].id;
+      }, { recordHistory:false });
+      scheduleCrowdAutoHide();
+    }
+
+    if(els.setCrowdEnabled){
+      els.setCrowdEnabled.addEventListener("change", () => setCrowdEnabled(!!els.setCrowdEnabled.checked));
+    }
+    if(els.btnCrowdShowNow){
+      els.btnCrowdShowNow.addEventListener("click", () => setCrowdEnabled(true));
+    }
+    if(els.btnCrowdHide){
+      els.btnCrowdHide.addEventListener("click", () => setCrowdEnabled(false));
+    }
+    if(els.setCrowdPreset){
+      els.setCrowdPreset.addEventListener("change", () => {
+        const id = String(els.setCrowdPreset.value || "");
+        updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.activePresetId = id; }, { recordHistory:false });
+        scheduleCrowdAutoHide();
+      });
+    }
+    if(els.btnCrowdSave) els.btnCrowdSave.addEventListener("click", saveCrowdPreset);
+    if(els.btnCrowdAdd) els.btnCrowdAdd.addEventListener("click", () => addCrowdPreset(null));
+    if(els.btnCrowdDuplicate) els.btnCrowdDuplicate.addEventListener("click", () => {
+      const cfg = getCrowdCfg(state);
+      const p = getActiveCrowdPreset(cfg);
+      if(!p) return;
+      addCrowdPreset(p);
+    });
+    if(els.btnCrowdDelete) els.btnCrowdDelete.addEventListener("click", deleteCrowdPreset);
+
+
     // Sponsor Bug controls
     function ensureSponsorBugDefaults(s){
       s.viewerPrefs = s.viewerPrefs || {};
@@ -909,6 +1155,17 @@ if(els.prefCollapseEditor){
       els.setSponsorScale.addEventListener("input", onScale);
       els.setSponsorScale.addEventListener("change", onScale);
       els.setSponsorScaleVal?.addEventListener?.("dblclick", () => { els.setSponsorScale.value = "1"; onScale(); });
+    }
+    if(els.setSponsorMaxPct){
+      const onCap = () => {
+        const v = clamp(parseInt(els.setSponsorMaxPct.value || "18", 10) || 18, 5, 25);
+        els.setSponsorMaxPct.value = String(v);
+        if(els.setSponsorMaxPctVal) els.setSponsorMaxPctVal.textContent = `${v}%`;
+        updateState(s => { ensureSponsorBugDefaults(s); s.viewerPrefs.sponsorBug.maxSizePct = v; }, { recordHistory:false });
+      };
+      els.setSponsorMaxPct.addEventListener("input", onCap);
+      els.setSponsorMaxPct.addEventListener("change", onCap);
+      els.setSponsorMaxPctVal?.addEventListener?.("dblclick", () => { els.setSponsorMaxPct.value = "18"; onCap(); });
     }
     if(els.setSponsorOpacity){
       const onOp = () => {
@@ -2582,6 +2839,15 @@ bindEditor();
         else if(state.phase === "PAUSED") resume();
         return;
       }
+
+      // H => toggle Crowd Prompts slide
+      if(k === "h"){
+        e.preventDefault();
+        const on = !!(state.viewerPrefs?.crowdPrompts?.enabled);
+        setCrowdEnabled(!on);
+        return;
+      }
+
       if(k === "n"){
         e.preventDefault();
         guardedEnd();

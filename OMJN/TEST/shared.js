@@ -75,8 +75,62 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
           url: "",
           position: "TR", // TL | TR | BL | BR
           scale: 1.0,
+          maxSizePct: 18,
           opacity: 1.0,
           safeMargin: 16,
+        },
+
+        // Full-screen Crowd Prompts slides (House Rules + hype prompts)
+        crowdPrompts: {
+          enabled: false,
+          activePresetId: "house_rules",
+          presets: [
+            {
+              id: "house_rules",
+              name: "House Rules",
+              title: "HOUSE RULES",
+              lines: [
+                "Be respectful — cheer for everyone.",
+                "Keep it moving — set up fast.",
+                "No hate speech or harassment.",
+                "Tip your host & bartenders."
+              ],
+              footer: "Thanks for being here!",
+              autoHideSeconds: 0
+            },
+            {
+              id: "cheer",
+              name: "Cheer",
+              title: "CHEER!",
+              lines: ["Make some noise for the next performer!"],
+              footer: "",
+              autoHideSeconds: 5
+            },
+            {
+              id: "applause",
+              name: "Applause",
+              title: "APPLAUSE",
+              lines: ["Give it up!"],
+              footer: "",
+              autoHideSeconds: 4
+            },
+            {
+              id: "noise",
+              name: "Make Some Noise",
+              title: "MAKE SOME NOISE",
+              lines: [],
+              footer: "",
+              autoHideSeconds: 4
+            },
+            {
+              id: "custom",
+              name: "Custom",
+              title: "CUSTOM PROMPT",
+              lines: [""],
+              footer: "",
+              autoHideSeconds: 0
+            }
+          ]
         },
       },
       settings: {
@@ -139,6 +193,22 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
         const bd = d.viewerPrefs.sponsorBug;
         for(const k of Object.keys(bd)){
           if(b[k] === undefined) b[k] = bd[k];
+        }
+      }
+      // Crowd Prompts migration
+      if(!s.viewerPrefs.crowdPrompts) s.viewerPrefs.crowdPrompts = d.viewerPrefs.crowdPrompts;
+      else {
+        const c = s.viewerPrefs.crowdPrompts;
+        const cd = d.viewerPrefs.crowdPrompts;
+        for(const k of Object.keys(cd)){
+          if(c[k] === undefined) c[k] = cd[k];
+        }
+        if(!Array.isArray(c.presets) || !c.presets.length) c.presets = cd.presets;
+        // Ensure preset shapes (merge defaults by id)
+        const byId = new Map((cd.presets || []).map(p => [p.id, p]));
+        c.presets = (c.presets || []).map(p => Object.assign({}, byId.get(p.id) || {}, p || {}));
+        if(!c.activePresetId || !c.presets.some(p => p.id === c.activePresetId)){
+          c.activePresetId = (c.presets[0] && c.presets[0].id) ? c.presets[0].id : cd.activePresetId;
         }
       }
       // Timer migration: normalize shape

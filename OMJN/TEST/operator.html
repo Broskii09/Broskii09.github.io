@@ -15,6 +15,9 @@
                 <div class="row">
                     <a class="btn small" href="./viewer.html" target="_blank" rel="noopener">Open Viewer</a>
                     <a class="btn small" href="./soundboard.html" target="_blank" rel="noopener">Soundboard</a>
+                    <button class="btn small" id="btnCrowdPrev" title="Previous crowd prompt">◀</button>
+                    <button class="btn small" id="btnCrowdToggle" title="Toggle crowd prompt">Crowd: Off</button>
+                    <button class="btn small" id="btnCrowdNext" title="Next crowd prompt">▶</button>
                     <button class="btn small" id="btnExport">Export JSON</button>
                     <label class="btn small" for="importFile" style="cursor:pointer;">Import JSON</label>
                     <input id="importFile" type="file" accept="application/json" hidden />
@@ -553,8 +556,59 @@
 
                     <hr class="sep" />
 
+                    <h3 class="subhead">Crowd Prompts</h3>
+                    <div class="small" style="margin-bottom:8px; opacity:.85;">Full-screen interstitial slides (House Rules + hype prompts). Doesn’t resize your Viewer layout.</div>
+
+                    <div class="row wrap" style="align-items:flex-end;">
+                        <label class="small" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer; margin-right:12px;">
+                            <input type="checkbox" id="setCrowdEnabled" />
+                            <span>Show</span>
+                        </label>
+
+                        <div class="field" style="flex:1 1 280px; min-width:220px;">
+                            <label>Preset</label>
+                            <select id="setCrowdPreset"></select>
+                        </div>
+
+                        <button class="btn small" id="btnCrowdShowNow" type="button">Show Now</button>
+                        <button class="btn small" id="btnCrowdHide" type="button">Hide</button>
+                    </div>
+
+                    <div class="row wrap">
+                        <div class="field" style="flex:1 1 240px;">
+                            <label>Preset name (operator only)</label>
+                            <input id="crowdPresetName" type="text" autocomplete="off" />
+                        </div>
+                        <div class="field" style="flex:1 1 240px;">
+                            <label>Title</label>
+                            <input id="crowdTitle" type="text" autocomplete="off" />
+                        </div>
+                        <div class="field" style="width:170px;">
+                            <label>Auto-hide (sec)</label>
+                            <input id="crowdAutoHide" type="number" min="0" max="60" step="1" />
+                            <div class="small" style="opacity:.8;">0 = off</div>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label>Lines (one per line)</label>
+                        <textarea id="crowdLines" rows="5" placeholder="One line per rule / prompt"></textarea>
+                    </div>
+
+                    <div class="row wrap" style="align-items:flex-end;">
+                        <div class="field" style="flex:1 1 320px;">
+                            <label>Footer (optional)</label>
+                            <input id="crowdFooter" type="text" autocomplete="off" />
+                        </div>
+                        <div class="spacer"></div>
+                        <button class="btn small" id="btnCrowdSave" type="button">Save</button>
+                        <button class="btn small" id="btnCrowdAdd" type="button">Add</button>
+                        <button class="btn small" id="btnCrowdDuplicate" type="button">Duplicate</button>
+                        <button class="btn small danger" id="btnCrowdDelete" type="button">Delete</button>
+                    </div>
+
                     <h3 class="subhead">Sponsor Bug</h3>
-                    <div class="small" style="margin-bottom:8px; opacity:.85;">Overlay logo/watermark. Max size is capped (~240px) to keep layouts safe.</div>
+                    <div class="small" style="margin-bottom:8px; opacity:.85;">Overlay logo/watermark. Max size is capped by % of the Viewer viewport (tight) to keep layouts safe.</div>
 
                     <div class="row wrap" style="align-items:flex-end; margin-bottom:10px;">
                         <span class="pill" title="Toggle sponsor bug overlay">
@@ -618,9 +672,15 @@
                         </div>
 
                         <div class="field" style="flex:1 1 240px;">
-                            <label>Scale (capped)</label>
+                            <label>Scale</label>
                             <input id="setSponsorScale" type="range" min="0.25" max="2" step="0.05" />
                             <div class="small mono" id="setSponsorScaleVal">1.00×</div>
+                        </div>
+
+                        <div class="field" style="flex:1 1 240px;">
+                            <label>Max size (% of viewport)</label>
+                            <input id="setSponsorMaxPct" type="range" min="5" max="25" step="1" />
+                            <div class="small mono" id="setSponsorMaxPctVal">18%</div>
                         </div>
 
                         <div class="field" style="flex:1 1 240px;">
