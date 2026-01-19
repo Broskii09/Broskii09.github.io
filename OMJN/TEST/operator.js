@@ -787,8 +787,15 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
     if(els.setCrowdEnabled) els.setCrowdEnabled.checked = !!cp.enabled;
 
     if(els.setCrowdPreset){
+      // Build options using DOM APIs (avoid innerHTML + avoid relying on an external escapeHtml helper).
       const opts = presets.map(p => ({ id: p.id, label: (p.name || p.title || p.id) }));
-      els.setCrowdPreset.innerHTML = opts.map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join("");
+      els.setCrowdPreset.innerHTML = "";
+      for(const o of opts){
+        const opt = document.createElement("option");
+        opt.value = String(o.id);
+        opt.textContent = String(o.label);
+        els.setCrowdPreset.appendChild(opt);
+      }
       els.setCrowdPreset.value = activeId;
     }
 
