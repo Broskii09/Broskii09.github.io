@@ -25,20 +25,6 @@
           <button class="btn tiny" id="sbPlus30">+:30</button>
           <button class="btn tiny" id="sbResetTime">Reset</button>
           <button class="btn small" id="sbStopAll">Stop All</button>
-          <div class="sbFadeWrap" title="Fade-out duration when stopping sounds (Spacebar panic stop stays instant)">
-            <span class="small">Stop Fade</span>
-            <select id="sbStopFade" class="sbSelect" aria-label="Stop fade">
-              <option value="0">Instant</option>
-              <option value="150">150ms</option>
-              <option value="250">250ms</option>
-              <option value="500">500ms</option>
-              <option value="1000">1s</option>
-            </select>
-          </div>
-          <label class="sbFreezeWrap small" title="Prevent learning hotkeys from reshuffling while enabled" style="display:inline-flex; align-items:center; gap:8px; user-select:none;">
-            <input type="checkbox" id="sbFreezeHotkeys" />
-            Freeze Hotkeys
-          </label>
         </div>
 
         <div class="sbVolRow">
@@ -50,6 +36,18 @@
               <button class="btn tiny" id="sbMasterVolReset" type="button" title="Reset to 50%">Reset</button>
             </div>
             <div class="small" style="opacity:.85;">50% = normal • above 50% boosts gain</div>
+
+            <div class="sbFadeRow">
+              <div class="small">Stop fade</div>
+              <select id="sbFade" class="sbFadeSel" aria-label="Stop fade-out time">
+                <option value="0">Instant</option>
+                <option value="150">150ms</option>
+                <option value="250" selected>250ms</option>
+                <option value="500">500ms</option>
+                <option value="1000">1s</option>
+              </select>
+              <div class="small" style="opacity:.85;">Applies to Stop buttons. (Spacebar panic stop stays instant.)</div>
+            </div>
           </div>
         </div>
 
@@ -115,7 +113,7 @@
               </div>
 
               <div class="sbHintRow">
-                <div class="small" id="sbResultMeta">Tip: type anywhere to search • Up/Down selects • Enter plays • 1–9/0 triggers your Learning Hotkeys (when not typing).</div>
+                <div class="small" id="sbResultMeta">Tip: type anywhere to search • Enter plays the selected result • 1–9/0 triggers the first 10 pads (when not typing).</div>
               </div>
             </div>
             <div class="sbPads" id="sbPads"></div>

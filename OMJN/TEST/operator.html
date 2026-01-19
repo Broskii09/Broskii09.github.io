@@ -15,9 +15,6 @@
                 <div class="row">
                     <a class="btn small" href="./viewer.html" target="_blank" rel="noopener">Open Viewer</a>
                     <a class="btn small" href="./soundboard.html" target="_blank" rel="noopener">Soundboard</a>
-                    <button class="btn small" id="btnCrowdPrev" title="Previous crowd prompt">◀</button>
-                    <button class="btn small" id="btnCrowdToggle" title="Toggle crowd prompt">Crowd: Off</button>
-                    <button class="btn small" id="btnCrowdNext" title="Next crowd prompt">▶</button>
                     <button class="btn small" id="btnExport">Export JSON</button>
                     <label class="btn small" for="importFile" style="cursor:pointer;">Import JSON</label>
                     <input id="importFile" type="file" accept="application/json" hidden />
@@ -37,9 +34,6 @@
                         <input id="splashPath" type="text" placeholder="Paste URL here." autocomplete="off" />
                     </div>
                 </div>
-
-                <!-- Always-visible status banner -->
-                <div class="statusBanner" id="statusBanner"></div>
 
                 <div class="tabs" style="margin-bottom:12px;">
                     <button class="tabBtn active" id="tabBtnPerformers" type="button">Performers</button>
@@ -79,7 +73,7 @@
                         <input id="addCustomMinutes" type="number" min="1" step="1" placeholder="15" />
                     </div>
 
-	                    <button class="btn good" id="btnAdd" type="button">Add</button>
+	                    <button class="btn good" id="btnAdd">Add</button>
                 </div>
 
                 <hr class="sep" />
@@ -534,168 +528,6 @@
                         <input id="setOvertimeAlpha" type="range" min="0" max="1" step="0.01" />
                         <div class="small mono" id="setOvertimeAlphaVal">0.85</div>
                     </div>
-
-                    <hr class="sep" />
-
-                    <h3 class="subhead">Viewer extras</h3>
-                    <div class="row wrap">
-                        <span class="pill" title="Mic-based visualizer shown during LIVE only">
-                            Audio visualizer
-                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-                                <input type="checkbox" id="setVizEnabled" />
-                                <span class="small">on</span>
-                            </label>
-                        </span>
-                        <div class="field" style="flex:1 1 320px;">
-                            <label>Sensitivity (start at 1.0×)</label>
-                            <input id="setVizSensitivity" type="range" min="0.25" max="4" step="0.05" />
-                            <div class="small mono" id="setVizSensitivityVal">1.00×</div>
-                        </div>
-                        <div class="small" style="opacity:.85;">Tip: open the Viewer once before showtime and click “Enable Mic Visualizer” if your browser asks.</div>
-                    </div>
-
-                    <hr class="sep" />
-
-                    <h3 class="subhead">Crowd Prompts</h3>
-                    <div class="small" style="margin-bottom:8px; opacity:.85;">Full-screen interstitial slides (House Rules + hype prompts). Doesn’t resize your Viewer layout.</div>
-
-                    <div class="row wrap" style="align-items:flex-end;">
-                        <label class="small" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer; margin-right:12px;">
-                            <input type="checkbox" id="setCrowdEnabled" />
-                            <span>Show</span>
-                        </label>
-
-                        <div class="field" style="flex:1 1 280px; min-width:220px;">
-                            <label>Preset</label>
-                            <select id="setCrowdPreset"></select>
-                        </div>
-
-                        <button class="btn small" id="btnCrowdShowNow" type="button">Show Now</button>
-                        <button class="btn small" id="btnCrowdHide" type="button">Hide</button>
-                    </div>
-
-                    <div class="row wrap">
-                        <div class="field" style="flex:1 1 240px;">
-                            <label>Preset name (operator only)</label>
-                            <input id="crowdPresetName" type="text" autocomplete="off" />
-                        </div>
-                        <div class="field" style="flex:1 1 240px;">
-                            <label>Title</label>
-                            <input id="crowdTitle" type="text" autocomplete="off" />
-                        </div>
-                        <div class="field" style="width:170px;">
-                            <label>Auto-hide (sec)</label>
-                            <input id="crowdAutoHide" type="number" min="0" max="60" step="1" />
-                            <div class="small" style="opacity:.8;">0 = off</div>
-                        </div>
-                    </div>
-
-                    <div class="field">
-                        <label>Lines (one per line)</label>
-                        <textarea id="crowdLines" rows="5" placeholder="One line per rule / prompt"></textarea>
-                    </div>
-
-                    <div class="row wrap" style="align-items:flex-end;">
-                        <div class="field" style="flex:1 1 320px;">
-                            <label>Footer (optional)</label>
-                            <input id="crowdFooter" type="text" autocomplete="off" />
-                        </div>
-                        <div class="spacer"></div>
-                        <button class="btn small" id="btnCrowdSave" type="button">Save</button>
-                        <button class="btn small" id="btnCrowdAdd" type="button">Add</button>
-                        <button class="btn small" id="btnCrowdDuplicate" type="button">Duplicate</button>
-                        <button class="btn small danger" id="btnCrowdDelete" type="button">Delete</button>
-                    </div>
-
-                    <h3 class="subhead">Sponsor Bug</h3>
-                    <div class="small" style="margin-bottom:8px; opacity:.85;">Overlay logo/watermark. Max size is capped by % of the Viewer viewport (tight) to keep layouts safe.</div>
-
-                    <div class="row wrap" style="align-items:flex-end; margin-bottom:10px;">
-                        <span class="pill" title="Toggle sponsor bug overlay">
-                            Enabled
-                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-                                <input type="checkbox" id="setSponsorEnabled" />
-                                <span class="small">on</span>
-                            </label>
-                        </span>
-
-                        <span class="pill" title="Show sponsor bug only during LIVE (default ON)">
-                            LIVE only
-                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-                                <input type="checkbox" id="setSponsorLiveOnly" />
-                                <span class="small">on</span>
-                            </label>
-                        </span>
-
-                        <div class="field" style="width:220px;">
-                            <label>Source</label>
-                            <select id="setSponsorSourceType">
-                                <option value="upload">Upload image</option>
-                                <option value="url">URL / Path</option>
-                            </select>
-                        </div>
-
-                        <div class="spacer"></div>
-                        <div class="small mono" id="sponsorBugStatus" style="opacity:.85;">—</div>
-                    </div>
-
-                    <div class="row wrap" style="margin-bottom:10px;">
-                        <div class="field" style="flex:1 1 320px;">
-                            <label>URL / Path (supports ./assets/logo.png)</label>
-                            <input id="setSponsorUrl" type="text" placeholder="./assets/sponsor.png or https://..." autocomplete="off" />
-                        </div>
-
-                        <div class="field" style="width:260px;">
-                            <label>Upload</label>
-                            <div class="row" style="gap:8px;">
-                                <label class="btn small" for="setSponsorUploadFile" style="cursor:pointer; flex:0 0 auto;">Choose</label>
-                                <input id="setSponsorUploadFile" type="file" accept="image/*" hidden />
-                                <button class="btn small" id="btnClearSponsorUpload" type="button">Clear</button>
-                            </div>
-                        </div>
-
-                        <div class="field" style="width:180px;">
-                            <label>Preview</label>
-                            <img id="sponsorBugPreview" alt="" style="width:100%; height:70px; object-fit:contain; border-radius:16px; border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.20);" />
-                        </div>
-                    </div>
-
-                    <div class="row wrap">
-                        <div class="field" style="width:170px;">
-                            <label>Position</label>
-                            <select id="setSponsorPosition">
-                                <option value="TL">Top Left</option>
-                                <option value="TR">Top Right</option>
-                                <option value="BL">Bottom Left</option>
-                                <option value="BR">Bottom Right</option>
-                            </select>
-                        </div>
-
-                        <div class="field" style="flex:1 1 240px;">
-                            <label>Scale</label>
-                            <input id="setSponsorScale" type="range" min="0.25" max="2" step="0.05" />
-                            <div class="small mono" id="setSponsorScaleVal">1.00×</div>
-                        </div>
-
-                        <div class="field" style="flex:1 1 240px;">
-                            <label>Max size (% of viewport)</label>
-                            <input id="setSponsorMaxPct" type="range" min="5" max="25" step="1" />
-                            <div class="small mono" id="setSponsorMaxPctVal">18%</div>
-                        </div>
-
-                        <div class="field" style="flex:1 1 240px;">
-                            <label>Opacity</label>
-                            <input id="setSponsorOpacity" type="range" min="0" max="1" step="0.01" />
-                            <div class="small mono" id="setSponsorOpacityVal">1.00</div>
-                        </div>
-
-                        <div class="field" style="flex:1 1 240px;">
-                            <label>Safe margin (px)</label>
-                            <input id="setSponsorSafeMargin" type="range" min="0" max="200" step="1" />
-                            <div class="small mono" id="setSponsorSafeMarginVal">16px</div>
-                        </div>
-                    </div>
-
 
                     <div class="readyStrip" id="readyStrip">
                         <div class="readyCol">
