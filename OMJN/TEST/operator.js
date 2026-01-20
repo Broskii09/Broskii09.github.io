@@ -1064,11 +1064,18 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
 
     if(els.setCrowdEnabled) els.setCrowdEnabled.checked = !!cp.enabled;
 
-    if(els.setCrowdPreset){
-      const opts = presets.map(p => ({ id: p.id, label: (p.name || p.title || p.id) }));
-      els.setCrowdPreset.innerHTML = opts.map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join("");
-      els.setCrowdPreset.value = activeId;
-    }
+      if (els.setCrowdPreset) {
+          // Build options safely without needing escapeHtml()
+          els.setCrowdPreset.innerHTML = "";
+          for (const p of presets) {
+              const opt = document.createElement("option");
+              opt.value = p.id;
+              opt.textContent = (p.name || p.title || p.id);
+              els.setCrowdPreset.appendChild(opt);
+          }
+          els.setCrowdPreset.value = activeId || (presets[0]?.id || "");
+      }
+
 
     // Only sync editor fields when preset changes (so typing isn't overwritten)
     const editorKey = JSON.stringify({ activeId, count: presets.length, names: presets.map(p=>p.name||"").join("|") });
