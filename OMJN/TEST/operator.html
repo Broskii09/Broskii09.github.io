@@ -57,30 +57,31 @@
 
                 <div class="tabPanel" id="tabPerformers">
 
-                <div class="row">
-                    <div class="field" style="flex:1 1 240px;">
-                        <label>Quick Add Performer</label>
-                        <input id="addName" type="text" placeholder="Type name and press Enter" autocomplete="off" list="profileNames" />
-                        <datalist id="profileNames"></datalist>
-                    </div>
+                    <div class="row">
+                        <div class="field" style="flex:1 1 240px;">
+                            <label>Quick Add Performer</label>
+                            <input id="addName" type="text" placeholder="Type name and press Enter" autocomplete="off" list="profileNames" />
+                            <datalist id="profileNames"></datalist>
+                        </div>
 
-                    <div class="field" style="width:200px;">
-                        <label>Slot Type</label>
-                        <select id="addType"></select>
-                    </div>
+                        <div class="field" style="width:200px;">
+                            <label>Slot Type</label>
+                            <select id="addType"></select>
+                        </div>
 
-                    <div class="field" id="addCustomWrap" style="flex:1 1 240px; display:none;">
-                        <label>Custom Slot Label</label>
-                        <input id="addCustomLabel" type="text" placeholder="e.g., Trivia, Host Break, Raffle" />
-                    </div>
+                        <div class="field" id="addCustomWrap" style="flex:1 1 240px; display:none;">
+                            <label>Custom Slot Label</label>
+                            <input id="addCustomLabel" type="text" placeholder="e.g., Trivia, Host Break, Raffle" />
+                        </div>
 
-                    <div class="field" id="addCustomMinutesWrap" style="width:140px; display:none;">
-                        <label>Minutes</label>
-                        <input id="addCustomMinutes" type="number" min="1" step="1" placeholder="15" />
-                    </div>
+                        <div class="field" id="addCustomMinutesWrap" style="width:140px; display:none;">
+                            <label>Minutes</label>
+                            <input id="addCustomMinutes" type="number" min="1" step="1" placeholder="15" />
+                        </div>
 
-	                    <button class="btn good" id="btnAdd">Add</button>
-                </div>
+                        <button class="btn good" id="btnAdd" type="button">Add</button>
+
+                    </div>
 
                 <hr class="sep" />
 

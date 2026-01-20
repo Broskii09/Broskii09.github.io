@@ -1302,6 +1302,11 @@ details.hbAcc .hbCatList{
   color: rgba(255,120,120,1);
   background: rgba(255,60,60,.10);
 }
+.badgePaused {
+    border-color: rgba(255,196,0,.45);
+    color: rgba(255,225,140,1);
+    background: rgba(255,196,0,.10);
+}
 .badgeNext{
   border-color: rgba(0,255,160,.45);
   color: rgba(140,255,210,1);
