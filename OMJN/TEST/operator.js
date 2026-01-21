@@ -636,6 +636,8 @@
     const s = cloneState(state);
     ensureProfilesShape(s);
     OMJN.ensureHouseBandQueues(s);
+    // Ensure performer queue exists so mutators can push safely
+    if(!Array.isArray(s.queue)) s.queue = [];
     mutator(s);
     normalizePerformerQueue(s);
     setState(s);
@@ -663,6 +665,16 @@
   }
 
 function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+// HTML-escape helper used by renderSettings()
+function escapeHtml(s){
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
   function renderSlotTypesEditor(){
     if(!els.slotTypesEditor) return;
@@ -2826,7 +2838,7 @@ function bind(){
     }
     if(els.tabBtnPerformers) els.tabBtnPerformers.addEventListener("click", () => setActiveTab("perf"));
     if(els.tabBtnHouseBand) els.tabBtnHouseBand.addEventListener("click", () => setActiveTab("hb"));
-// Viewer footer toggle + formatting
+    // Viewer footer toggle + formatting
     if(els.toggleHBFooter){
       els.toggleHBFooter.checked = (state.viewerPrefs?.showHouseBandFooter !== false);
       els.toggleHBFooter.addEventListener("change", () => {
@@ -3025,164 +3037,6 @@ els.showTitle.addEventListener("input", () => {
     document.addEventListener("keydown", (e) => {
       if(e.key === "Escape" && !els.settingsModal.hidden) closeSettingsModal();
     });
-
-
-    
-    // Queue drag/drop (bind once)
-    els.queue.addEventListener("dragover", (e) => {
-      e.preventDefault();
-    });
-    els.queue.addEventListener("drop", (e) => {
-      e.preventDefault();
-      const draggedId = e.dataTransfer.getData("text/plain");
-      if(!draggedId) return;
-      const afterElement = getDragAfterElement(els.queue, e.clientY);
-      updateState(s => {
-        const idxFrom = s.queue.findIndex(x=>x.id===draggedId);
-        if(idxFrom < 0) return;
-
-        const movedCandidate = s.queue[idxFrom];
-        if(!movedCandidate) return;
-        if(movedCandidate.status === "DONE" || movedCandidate.status === "SKIPPED") return;
-
-        const [moved] = s.queue.splice(idxFrom, 1);
-
-        const liveIdx = s.currentSlotId ? s.queue.findIndex(x=>x.id===s.currentSlotId) : -1;
-        const minIdx = (liveIdx >= 0) ? liveIdx + 1 : 0;
-
-        const doneStart = s.queue.findIndex(x => x.status === "DONE" || x.status === "SKIPPED");
-        const activeEnd = (doneStart >= 0) ? doneStart : s.queue.length;
-
-        if(!afterElement){
-          // drop at end of ACTIVE (before Completed section)
-          const insertAt = Math.max(minIdx, activeEnd);
-          s.queue.splice(insertAt, 0, moved);
-        }else{
-          let idxTo = s.queue.findIndex(x=>x.id===afterElement.dataset.id);
-          if(idxTo < 0) idxTo = activeEnd;
-          // never insert above the live slot and never insert into Completed
-          idxTo = Math.max(minIdx, Math.min(activeEnd, idxTo));
-          s.queue.splice(idxTo, 0, moved);
-        }
-      });
-    });
-
-bindEditor();
-
-    // Hotkeys (operator)
-    function isTypingContext(){
-      const a = document.activeElement;
-      if(!a) return false;
-      const tag = (a.tagName || "").toLowerCase();
-      if(tag === "input" || tag === "textarea" || tag === "select") return true;
-      if(a.isContentEditable) return true;
-      return false;
-    }
-
-    function handleHotkeys(e){
-      // disable shortcuts while Settings modal is open
-      if(els.settingsModal && !els.settingsModal.hidden) return;
-      if(state.operatorPrefs?.hotkeysEnabled === false) return;
-
-      const isMac = navigator.platform.toLowerCase().includes("mac");
-      const mod = isMac ? e.metaKey : e.ctrlKey;
-
-      // Undo/Redo
-      if(mod && e.key.toLowerCase() === "z"){
-        e.preventDefault();
-        if(e.shiftKey) redo(); else undo();
-        return;
-      }
-      if(mod && e.key.toLowerCase() === "y"){
-        e.preventDefault();
-        redo();
-        return;
-      }
-
-      // If typing in fields, allow only special case: Enter on addName
-      if(isTypingContext()){
-        if(document.activeElement === els.addName && e.key === "Enter"){
-          e.preventDefault();
-          addPerformer();
-        }
-        return;
-      }
-
-      const k = e.key.toLowerCase();
-      // House Band rotation shortcuts (Alt+1..7)
-      if(e.altKey && !mod && !e.shiftKey && !isTypingContext()){
-        const map = { "1":"drums", "2":"vocals", "3":"keys", "4":"guitar", "5":"bass", "6":"percussion", "7":"other" };
-        const cat = map[k];
-        if(cat){
-          e.preventDefault();
-          rotateHouseBandTop(cat);
-          return;
-        }
-      }
-      if(k === " "){
-        e.preventDefault();
-        if(state.phase === "SPLASH") guardedStart();
-        else if(state.phase === "LIVE") pause();
-        else if(state.phase === "PAUSED") resume();
-        return;
-      }
-
-      // Enter => Go Live (or resume)
-      if(e.key === "Enter"){
-        e.preventDefault();
-        if(state.phase === "SPLASH") guardedStart();
-        else if(state.phase === "PAUSED") resume();
-        return;
-      }
-
-      // H => toggle Crowd Prompts slide
-      if(k === "h"){
-        e.preventDefault();
-        const on = !!(state.viewerPrefs?.crowdPrompts?.enabled);
-        setCrowdEnabled(!on);
-        return;
-      }
-
-      if(k === "n"){
-        e.preventDefault();
-        guardedEnd();
-        return;
-      }
-      if(k === "j"){
-        return;
-      }
-      if(e.key === "Delete" || e.key === "Backspace"){
-        if(selectedId){
-          e.preventDefault();
-          removeSlot(selectedId);
-        }
-        return;
-      }
-      if(k === "arrowup"){
-        if(selectedId){
-          e.preventDefault();
-          moveSlot(selectedId, -1);
-        }
-        return;
-      }
-      if(k === "arrowdown"){
-        if(selectedId){
-          e.preventDefault();
-          moveSlot(selectedId, 1);
-        }
-        return;
-      }
-    }
-
-    document.addEventListener("keydown", handleHotkeys);
-
-
-
-    // live timer UI update loop
-    setInterval(() => {
-      renderTimerLine();
-      renderStatusBanner();
-    }, 250);
   }
 
   // Subscribe to changes from other tabs (in case operator is duplicated)
