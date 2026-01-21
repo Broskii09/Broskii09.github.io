@@ -1175,44 +1175,17 @@
   
   // ---- Local manifest fallback ----
   async function loadLocalManifest(){
-    try{
-      const r = await fetch("./soundboard_manifest.json", { cache: "no-cache" });
-      if(!r.ok) return false;
-      const j = await r.json();
-      if(!j || !Array.isArray(j.categories)) return false;
-
-      categories = j.categories.map((c, ci) => ({
-        id: `local_${ci}`,
-        label: c.label || `Category ${ci+1}`,
-        sounds: Array.isArray(c.sounds) ? c.sounds.map((s, si) => ({
-          id: `local_${ci}_${si}`,
-          name: s.name || `Sound ${si+1}`,
-          mimeType: s.mimeType || "",
-          modifiedTime: "local",
-          downloadUrl: s.url,
-        })) : []
-      })).filter(c => c.sounds.length);
-
-      indexSounds();
-
-      activeCategoryId = "__all";
-      renderCategories();
-      renderPads();
-
-      const total = categories.reduce((n,c)=>n + c.sounds.length, 0);
-      if(total){
-        setStatus(`Loaded ${total} sound(s) from local soundboard_manifest.json.`, false);
-      }
-      if(els.preload.checked){
-        preloadAllVisible();
-      }
-      return total > 0;
-    }catch(_){
-      return false;
-    }
+    return fetch('./soundboard_manifest.json').then(r=>{
+      if(!r.ok) throw new Error('no manifest');
+      return r.json();
+    }).catch(()=>{
+      return fetch('./soundboard_manifest.example.json').then(r=>{
+        if(!r.ok) throw new Error('no manifest fallback');
+        return r.json();
+      });
+    });
   }
-
-// ---- Drive config persistence ----
+  // ---- Drive config persistence ----
     // ---- Baked-in Drive config (public folder) ----
   // NOTE: In a static site this key is visible in source; restrict it by HTTP referrer + Drive API only.
   const DEFAULT_DRIVE_API_KEY = "AIzaSyCMdXo_5usjx4UcQkeDwbY1zl73HLO0AhA";

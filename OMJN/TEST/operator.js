@@ -466,6 +466,7 @@
     function markNoShow(slotId) {
         const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
         if (hasCurrent && slotId === state.currentSlotId) return;
+    const slot = state.queue.find(x => x.id === slotId);
     if(!slot || slot.status !== "QUEUED") return;
     const ok = confirm(`Mark "${slot.displayName}" as NO-SHOW and move to Completed?`);
     if(!ok) return;
@@ -2024,7 +2025,7 @@ function getDragAfterElement(container, y){
         const stillUsed = s.queue.some(x => x?.media?.imageAssetId === assetId);
         if(!stillUsed){
           delete s.assetsIndex[assetId];
-          OMJN.deleteAsset(assetId).catch(()=>{});
+          OMJN.deleteAsset(assetId).catch(() => {});
         }
       }
     });
@@ -2725,7 +2726,7 @@ function start(){
 
             delete s.assetsIndex[assetId];
             OMJN.deleteAsset(assetId).catch(() => { });
-        });
+    });
     }
 
 
@@ -2980,7 +2981,7 @@ function bind(){
     }
     if(els.tabBtnPerformers) els.tabBtnPerformers.addEventListener("click", () => setActiveTab("perf"));
     if(els.tabBtnHouseBand) els.tabBtnHouseBand.addEventListener("click", () => setActiveTab("hb"));
-// Viewer footer toggle + formatting
+    // Viewer footer toggle + formatting
     if(els.toggleHBFooter){
       els.toggleHBFooter.checked = (state.viewerPrefs?.showHouseBandFooter !== false);
       els.toggleHBFooter.addEventListener("change", () => {
