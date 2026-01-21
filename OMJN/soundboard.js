@@ -36,7 +36,6 @@
     search: document.getElementById("sbSearch"),
     searchClear: document.getElementById("sbSearchClear"),
     resultMeta: document.getElementById("sbResultMeta"),
-    hotkeysRow: document.getElementById("sbHotkeysRow"),
     stopFade: document.getElementById("sbStopFade"),
     freezeHotkeys: document.getElementById("sbFreezeHotkeys"),
 
@@ -545,23 +544,6 @@
     if(freezeHotkeys && (opts.updateSnapshot || !hasSnapshot)){
       snapshot = { ...out };
       saveJson(SNAPSHOT_KEY, snapshot);
-    }
-
-    renderHotkeysRow();
-  }
-
-  function renderHotkeysRow(){
-    if(!els.hotkeysRow) return;
-    els.hotkeysRow.innerHTML = "";
-    for(const key of HOTKEY_KEYS){
-      const id = hotkeyAssign[key];
-      const s = id ? soundById.get(id) : null;
-      const name = s ? (s._displayName || stripExt(s.name)) : "—";
-      const chip = document.createElement("div");
-      const isPinned = pinned[key] && pinned[key] === id;
-      chip.className = "sbHotkeyChip" + (isPinned ? " pinned" : "");
-      chip.innerHTML = `<span class="sbHotkeyKey">${escapeHtml(key)}</span><span class="sbHotkeyName">${escapeHtml(name)}</span>`;
-      els.hotkeysRow.appendChild(chip);
     }
   }
 
@@ -1401,7 +1383,7 @@ const cfg = loadCfg();
   function start(){
     updateState(s => {
       const eligible = (x) => x.status === "QUEUED";
-      const pick = s.queue.find(x => x.id === s.selectedNextId && eligible(x)) || s.queue.find(eligible);
+      const pick = s.queue.find(eligible);
       if(!pick) return;
 
       const idx = s.queue.findIndex(x=>x.id===pick.id);
@@ -1416,9 +1398,6 @@ const cfg = loadCfg();
       s.timer.startedAt = Date.now();
       s.timer.elapsedMs = 0;
       s.timer.baseDurationMs = OMJN.effectiveMinutes(s, pick) * 60 * 1000;
-
-      const next = s.queue.find(x => x.id !== pick.id && eligible(x));
-      s.selectedNextId = next ? next.id : null;
     });
   }
 
@@ -1450,14 +1429,17 @@ const cfg = loadCfg();
       }
       const cur = s.queue.find(x=>x.id===s.currentSlotId);
       if(cur){ cur.status = "DONE"; cur.completedAt = Date.now(); }
+      const idx = s.queue.findIndex(x=>x.id===cur.id);
+      if(idx >= 0){
+        const [moved] = s.queue.splice(idx, 1);
+        s.queue.push(moved);
+      }
       s.currentSlotId = null;
       s.phase = "SPLASH";
       s.timer.running = false;
       s.timer.startedAt = null;
       s.timer.elapsedMs = 0;
       s.timer.baseDurationMs = null;
-      const next = s.queue.find(x=>x.status==="QUEUED");
-      s.selectedNextId = next ? next.id : null;
     });
   }
 

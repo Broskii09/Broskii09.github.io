@@ -75,8 +75,62 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
           url: "",
           position: "TR", // TL | TR | BL | BR
           scale: 1.0,
+          maxSizePct: 18,
           opacity: 1.0,
           safeMargin: 16,
+        },
+
+        // Full-screen Crowd Prompts slides (House Rules + hype prompts)
+        crowdPrompts: {
+          enabled: false,
+          activePresetId: "house_rules",
+          presets: [
+            {
+              id: "house_rules",
+              name: "House Rules",
+              title: "HOUSE RULES",
+              lines: [
+                "Be respectful — cheer for everyone.",
+                "Keep it moving — set up fast.",
+                "No hate speech or harassment.",
+                "Tip your host & bartenders."
+              ],
+              footer: "Thanks for being here!",
+              autoHideSeconds: 0
+            },
+            {
+              id: "cheer",
+              name: "Cheer",
+              title: "CHEER!",
+              lines: ["Make some noise for the next performer!"],
+              footer: "",
+              autoHideSeconds: 5
+            },
+            {
+              id: "applause",
+              name: "Applause",
+              title: "APPLAUSE",
+              lines: ["Give it up!"],
+              footer: "",
+              autoHideSeconds: 4
+            },
+            {
+              id: "noise",
+              name: "Make Some Noise",
+              title: "MAKE SOME NOISE",
+              lines: [],
+              footer: "",
+              autoHideSeconds: 4
+            },
+            {
+              id: "custom",
+              name: "Custom",
+              title: "CUSTOM PROMPT",
+              lines: [""],
+              footer: "",
+              autoHideSeconds: 0
+            }
+          ]
         },
       },
       settings: {
@@ -109,7 +163,6 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
       },
       queue: [],
       currentSlotId: null,
-      selectedNextId: null,
       timer: { running:false, startedAt:null, pausedAt:null, elapsedMs:0, baseDurationMs:null },
       assetsIndex: {} // assetId -> { mime, w, h, bytes, createdAt }
     };
@@ -141,6 +194,22 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
           if(b[k] === undefined) b[k] = bd[k];
         }
       }
+      // Crowd Prompts migration
+      if(!s.viewerPrefs.crowdPrompts) s.viewerPrefs.crowdPrompts = d.viewerPrefs.crowdPrompts;
+      else {
+        const c = s.viewerPrefs.crowdPrompts;
+        const cd = d.viewerPrefs.crowdPrompts;
+        for(const k of Object.keys(cd)){
+          if(c[k] === undefined) c[k] = cd[k];
+        }
+        if(!Array.isArray(c.presets) || !c.presets.length) c.presets = cd.presets;
+        // Ensure preset shapes (merge defaults by id)
+        const byId = new Map((cd.presets || []).map(p => [p.id, p]));
+        c.presets = (c.presets || []).map(p => Object.assign({}, byId.get(p.id) || {}, p || {}));
+        if(!c.activePresetId || !c.presets.some(p => p.id === c.activePresetId)){
+          c.activePresetId = (c.presets[0] && c.presets[0].id) ? c.presets[0].id : cd.activePresetId;
+        }
+      }
       // Timer migration: normalize shape
       if(!s.timer) s.timer = { running:false, startedAt:null, pausedAt:null, elapsedMs:0, baseDurationMs:null };
       if(typeof s.timer.elapsedMs !== "number") s.timer.elapsedMs = 0;
@@ -155,8 +224,7 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(!s.timer) s.timer = { running:false, startedAt:0, pausedAt:0, accumulatedPauseMs:0, baseDurationMs:0 };
       if(!s.phase) s.phase = "SPLASH";
       if(s.currentSlotId === undefined) s.currentSlotId = null;
-      if(s.selectedNextId === undefined) s.selectedNextId = null;
-      if(!s.history) s.history = { undo:[], redo:[] };
+if(!s.history) s.history = { undo:[], redo:[] };
 
       // House Band migration (Step 4)
       // New schema: houseBandQueues (fixed categories, each with its own queue).
@@ -280,12 +348,7 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
           slot.slotTypeId = "musician";
         }
       }
-
-      if(s.selectedNextId === null && !s.currentSlotId){
-        s.selectedNextId = (s.queue.find(x=>x.status==="QUEUED")?.id ?? null);
-      }
-
-      return s;
+return s;
     }catch(e){
       console.warn("Failed to load state, resetting:", e);
       return defaultState();
@@ -475,13 +538,17 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
     return out;
   }
   function computeNextTwo(state){
-    const eligible = (s) => s && s.status === "QUEUED" && s.id !== state.currentSlotId;
-    const queued = state.queue.filter(eligible);
-
-    const next1 = queued.find(x => x.id === state.selectedNextId) || queued[0] || null;
-    const next2 = next1 ? (queued.find(x => x.id !== next1.id) || null) : null;
-
-    return [next1, next2];
+    const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
+    const q = Array.isArray(state.queue) ? state.queue : [];
+    if(hasCurrent){
+      const idx = q.findIndex(s => s && s.id === state.currentSlotId);
+      const tail = (idx >= 0 ? q.slice(idx+1) : q).filter(s => s && s.status === "QUEUED");
+      const next1 = tail[0] || null;
+      const next2 = tail[1] || null;
+      return [next1, next2];
+    }
+    const head = q.filter(s => s && s.status === "QUEUED");
+    return [head[0] || null, head[1] || null];
   }
 
   function computeCurrent(state){

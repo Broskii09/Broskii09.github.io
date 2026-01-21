@@ -27,6 +27,12 @@
   const sponsorImg = document.getElementById("sponsorImg");
   const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
 
+ // Crowd Prompts overlay (full-screen text slide)
+  const crowdLayer = document.getElementById("crowdLayer");
+  const crowdTitleEl = document.getElementById("crowdTitle");
+  const crowdLinesEl = document.getElementById("crowdLines");
+  const crowdFooterEl = document.getElementById("crowdFooter");
+
 
   const vMainCard = document.getElementById("vMainCard");
   const nowName = document.getElementById("nowName");
@@ -444,7 +450,6 @@ function applyCardCues(remainingMs, warnAtMs, finalAtMs){
 
   // --- Sponsor bug ---
   const SPONSOR_BASE_PAD = 48; // match viewerOverlay padding
-  const SPONSOR_CAP_PX = 240; // maximum displayed size cap
 
   function getSponsorCfg(){
     const d = OMJN.defaultState();
@@ -475,6 +480,19 @@ function applyCardCues(remainingMs, warnAtMs, finalAtMs){
     const url = String(cfg.url || "").trim();
     const footerVisible = !!(liveFooterBar && liveFooterBar.style.display !== "none" && !liveFooterBar.hidden);
 
+    // Hide sponsor bug during Crowd Prompts slides (clean interstitial)
+    const crowdOn = !!(state.viewerPrefs?.crowdPrompts?.enabled);
+    if(crowdOn){
+      hideSponsor("crowd-prompts");
+      return;
+    }
+
+    // Max size cap: % of current viewport (vmin)
+    const maxPctRaw = Number(cfg.maxSizePct ?? 18);
+    const maxPct = Number.isFinite(maxPctRaw) ? Math.max(5, Math.min(25, maxPctRaw)) : 18;
+    const vmin = Math.max(1, Math.min(window.innerWidth || 1, window.innerHeight || 1));
+    const sponsorCapPx = Math.max(1, Math.round(vmin * (maxPct / 100)));
+
     const key = JSON.stringify({
       enabled: !!cfg.enabled,
       liveOnly: !!cfg.showLiveOnly,
@@ -484,6 +502,8 @@ function applyCardCues(remainingMs, warnAtMs, finalAtMs){
       url,
       position: cfg.position || "TR",
       scale: cfg.scale,
+      maxSizePct: cfg.maxSizePct,
+      sponsorCapPx,
       opacity: cfg.opacity,
       safeMargin: cfg.safeMargin,
       footerVisible
@@ -535,7 +555,7 @@ function applyCardCues(remainingMs, warnAtMs, finalAtMs){
     const scale = Math.max(0.25, Math.min(2, Number(cfg.scale ?? 1)));
     const opacity = Math.max(0, Math.min(1, Number(cfg.opacity ?? 1)));
     sponsorBug.style.setProperty("--sponsorScale", String(scale));
-    sponsorBug.style.setProperty("--sponsorCap", SPONSOR_CAP_PX + "px");
+    sponsorBug.style.setProperty("--sponsorCap", sponsorCapPx + "px");
     sponsorBug.style.opacity = String(opacity);
 
     // Pick source (chosen type, then fallback)
@@ -598,6 +618,65 @@ function applyCardCues(remainingMs, warnAtMs, finalAtMs){
     }
   }
 
+
+
+  // --- Crowd Prompts (Viewer) ---
+  function getCrowdCfg(){
+    const d = OMJN.defaultState();
+    return state.viewerPrefs?.crowdPrompts || d.viewerPrefs.crowdPrompts;
+  }
+
+  function getActiveCrowdPreset(cfg){
+    if(!cfg) return null;
+    const presets = Array.isArray(cfg.presets) ? cfg.presets : [];
+    const id = String(cfg.activePresetId || "");
+    return presets.find(p => p && String(p.id) === id) || presets[0] || null;
+  }
+
+  function renderCrowdPrompts(){
+    if(!root || !crowdLayer) return;
+
+    const cfg = getCrowdCfg() || {};
+    const enabled = !!cfg.enabled;
+
+    root.classList.toggle("isCrowd", enabled);
+    crowdLayer.setAttribute("aria-hidden", enabled ? "false" : "true");
+
+    if(!enabled) return;
+
+    const p = getActiveCrowdPreset(cfg) || {};
+    let title = String(p.title || "").trim();
+    const footer = String(p.footer || "").trim();
+    const rawLines = Array.isArray(p.lines) ? p.lines : [];
+    const lines = rawLines.map(v => String(v || "").trim()).filter(v => v.length);
+
+    if(!title && !lines.length && !footer){
+      title = "CROWD PROMPT";
+      lines.push("Configure prompts in Operator Settings.");
+    }
+
+    if(crowdTitleEl) crowdTitleEl.textContent = title || "CROWD PROMPT";
+
+    if(crowdFooterEl){
+      crowdFooterEl.textContent = footer;
+      crowdFooterEl.style.display = footer ? "" : "none";
+    }
+
+    if(crowdLinesEl){
+      crowdLinesEl.replaceChildren();
+      if(lines.length){
+        crowdLinesEl.style.display = "flex";
+        for(const t of lines){
+          const div = document.createElement("div");
+          div.className = "vCrowdLine";
+          div.textContent = t;
+          crowdLinesEl.appendChild(div);
+        }
+      }else{
+        crowdLinesEl.style.display = "none";
+      }
+    }
+  }
 
   function renderSplash(){
     overlay.style.display = "none";
@@ -754,6 +833,9 @@ function applyCardCues(remainingMs, warnAtMs, finalAtMs){
     }else{
       await renderLive();
     }
+
+    // Crowd Prompts overlay (can show during any phase)
+    renderCrowdPrompts();
 
     // Visualizer UI (LIVE-only) + Splash setup button
     updateVizSetupButton();
