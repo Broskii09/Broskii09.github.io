@@ -537,15 +537,17 @@ return s;
     }
     return out;
   }
-  function computeNextTwo(state){
-    const eligible = (s) => s && s.status === "QUEUED" && s.id !== state.currentSlotId;
-    const queued = state.queue.filter(eligible);
+    function computeNextTwo(state) {
+        const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
+        const eligible = (s) => s && s.status === "QUEUED" && (!hasCurrent || s.id !== state.currentSlotId);
+        const queued = state.queue.filter(eligible);
 
-    const next1 = queued[0] || null;
-    const next2 = next1 ? (queued.find(x => x.id !== next1.id) || null) : null;
+        const next1 = queued[0] || null;
+        const next2 = next1 ? (queued.find(x => x.id !== next1.id) || null) : null;
 
-    return [next1, next2];
-  }
+        return [next1, next2];
+    }
+
 
   function computeCurrent(state){
     return state.queue.find(s=>s.id===state.currentSlotId) || null;

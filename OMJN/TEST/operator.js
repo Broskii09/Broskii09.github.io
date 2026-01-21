@@ -366,12 +366,18 @@
     editingId = slotId;
     const slot = state.queue.find(x => x.id === slotId) || null;
     const media = slot?.media || { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
-    editDraft = {
-      displayName: slot?.displayName || "",
-      notes: slot?.notes || "",
-      donationUrl: (media.donationUrl || ""),
-      mediaLayout: media.mediaLayout || "NONE",
-    };
+      editDraft = {
+          displayName: slot?.displayName || "",
+          notes: slot?.notes || "",
+          donationUrl: (media.donationUrl || ""),
+          mediaLayout: media.mediaLayout || "NONE",
+
+          // slot fields
+          slotTypeId: slot?.slotTypeId || "musician",
+          customTypeLabel: slot?.customTypeLabel || "",
+          minutesOverride: (slot?.minutesOverride ?? null),
+      };
+
   }
 
   function closeInlineEdit(){
@@ -391,16 +397,26 @@
 
   function saveInlineEdit(slotId){
     if(!editDraft) return;
-    const name = OMJN.sanitizeText(editDraft.displayName || "");
-    const notes = String(editDraft.notes || "");
-    const url = OMJN.sanitizeText(editDraft.donationUrl || "");
-    const layout = String(editDraft.mediaLayout || "NONE");
+      const name = OMJN.sanitizeText(editDraft.displayName || "");
+      const notes = String(editDraft.notes || "");
+      const url = OMJN.sanitizeText(editDraft.donationUrl || "");
+      const layout = String(editDraft.mediaLayout || "NONE");
+
+      // slot fields
+      const slotTypeId = String(editDraft.slotTypeId || "musician");
+      const customTypeLabel = OMJN.sanitizeText(editDraft.customTypeLabel || "");
+      const rawMins = editDraft.minutesOverride;
+      const minutesOverride = (rawMins === "" || rawMins === null || rawMins === undefined) ? null : Math.max(1, Math.round(Number(rawMins)));
+
 
     updateState(s => {
       const slot = s.queue.find(x => x.id === slotId);
       if(!slot) return;
       slot.displayName = name;
-      slot.notes = notes;
+        slot.notes = notes;
+        slot.slotTypeId = slotTypeId;
+        slot.customTypeLabel = (slotTypeId === "custom") ? customTypeLabel : "";
+        slot.minutesOverride = (Number.isFinite(minutesOverride) ? minutesOverride : null);
       if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
       slot.media.donationUrl = url || null;
       slot.media.mediaLayout = layout;
@@ -427,23 +443,29 @@
     render();
   }
 
-  function firstLineOfNotes(txt){
-    const s = String(txt || "").trim();
-    if(!s) return "";
-    // Avoid newline escape issues across environments
-    const parts = s.split(String.fromCharCode(10));
-    return (parts[0] || "").trim();
-  }
+    function firstLineOfNotes(txt) {
+        const s = String(txt || "");
+        if (!s.trim()) return "";
+        const parts = s.split(/\r?\n/);
+        for (const p of parts) {
+            const t = String(p || "").trim();
+            if (t) return t; // first non-empty line
+        }
+        return "";
+    }
 
-  function skipSwapDown(slotId){
-    if(slotId === state.currentSlotId) return;
-    // swap down one spot (clamped); uses existing queue constraints
-    moveSlot(slotId, +1);
-  }
 
-  function markNoShow(slotId){
-    if(slotId === state.currentSlotId) return;
-    const slot = state.queue.find(x => x.id === slotId);
+    function skipSwapDown(slotId) {
+        const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
+        if (hasCurrent && slotId === state.currentSlotId) return;
+        // swap down one spot (clamped); uses existing queue constraints
+        moveSlot(slotId, +1);
+    }
+
+
+    function markNoShow(slotId) {
+        const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
+        if (hasCurrent && slotId === state.currentSlotId) return;
     if(!slot || slot.status !== "QUEUED") return;
     const ok = confirm(`Mark "${slot.displayName}" as NO-SHOW and move to Completed?`);
     if(!ok) return;
@@ -468,8 +490,13 @@
 
 
   function buildInlineExpander(slot){
-    const wrap = document.createElement("div");
-    wrap.className = "qExpander";
+      const wrap = document.createElement("div");
+      wrap.className = "qExpander";
+
+      // IMPORTANT: prevent queue row click handler from firing when interacting with inputs
+      wrap.addEventListener("mousedown", (e) => e.stopPropagation());
+      wrap.addEventListener("click", (e) => e.stopPropagation());
+
 
     const grid = document.createElement("div");
     grid.className = "qExpGrid";
@@ -490,6 +517,79 @@
       if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); }
     });
     fName.appendChild(lName); fName.appendChild(iName);
+      // Slot Type + Custom label + Minutes
+      const rowSlots = document.createElement("div");
+      rowSlots.className = "row";
+      rowSlots.style.gap = "10px";
+      rowSlots.style.alignItems = "flex-end";
+
+      // Slot Type
+      const fType = document.createElement("div");
+      fType.className = "field";
+      fType.style.flex = "1 1 220px";
+      const lType = document.createElement("label");
+      lType.textContent = "Slot Type";
+      const selType = document.createElement("select");
+
+      // Use enabled slot types (same logic as elsewhere)
+      const types = (state.slotTypes || []).filter(t => t && (t.enabled !== false));
+      for (const t of types) {
+          const o = document.createElement("option");
+          o.value = t.id;
+          o.textContent = t.label || t.id;
+          selType.appendChild(o);
+      }
+      selType.value = editDraft?.slotTypeId ?? (slot.slotTypeId || "musician");
+      selType.addEventListener("change", () => {
+          if (editDraft) editDraft.slotTypeId = selType.value;
+          // show/hide custom label
+          customWrap.style.display = (selType.value === "custom") ? "" : "none";
+      });
+
+      fType.appendChild(lType);
+      fType.appendChild(selType);
+
+      // Custom Label (only if slotTypeId === custom)
+      const customWrap = document.createElement("div");
+      customWrap.className = "field";
+      customWrap.style.flex = "1 1 220px";
+      const lCustom = document.createElement("label");
+      lCustom.textContent = "Custom Slot Label";
+      const iCustom = document.createElement("input");
+      iCustom.type = "text";
+      iCustom.placeholder = "Custom";
+      iCustom.value = editDraft?.customTypeLabel ?? (slot.customTypeLabel || "");
+      iCustom.addEventListener("input", () => { if (editDraft) editDraft.customTypeLabel = iCustom.value; });
+      customWrap.appendChild(lCustom);
+      customWrap.appendChild(iCustom);
+      customWrap.style.display = ((selType.value || editDraft?.slotTypeId) === "custom") ? "" : "none";
+
+      // Minutes override
+      const fMins = document.createElement("div");
+      fMins.className = "field";
+      fMins.style.width = "140px";
+      const lMins = document.createElement("label");
+      lMins.textContent = "Minutes (override)";
+      const iMins = document.createElement("input");
+      iMins.type = "number";
+      iMins.min = "1";
+      iMins.step = "1";
+      iMins.placeholder = "—";
+      iMins.value = (editDraft?.minutesOverride ?? slot.minutesOverride ?? "") === null ? "" : String(editDraft?.minutesOverride ?? slot.minutesOverride ?? "");
+      iMins.addEventListener("input", () => {
+          if (!editDraft) return;
+          editDraft.minutesOverride = (iMins.value === "") ? null : Number(iMins.value);
+      });
+      fMins.appendChild(lMins);
+      fMins.appendChild(iMins);
+
+      // Assemble row
+      rowSlots.appendChild(fType);
+      rowSlots.appendChild(customWrap);
+      rowSlots.appendChild(fMins);
+
+      // Insert into left column
+      left.appendChild(rowSlots);
 
     const fUrl = document.createElement("div");
     fUrl.className = "field";
@@ -658,14 +758,16 @@
     const done = s.queue.filter(isDone).slice()
       .sort((a,b) => (a.completedAt || 0) - (b.completedAt || 0));
 
-    // Keep the currently-live slot pinned to top (Operator clarity)
-    if(s.currentSlotId){
-      const liveIdx = active.findIndex(x => x.id === s.currentSlotId);
-      if(liveIdx > 0){
-        const [live] = active.splice(liveIdx, 1);
-        active.unshift(live);
+      // Keep the currently-performing slot pinned to top (Operator clarity)
+      const hasCurrent = !!s.currentSlotId && (s.phase === "LIVE" || s.phase === "PAUSED");
+      if (hasCurrent) {
+          const liveIdx = active.findIndex(x => x.id === s.currentSlotId);
+          if (liveIdx > 0) {
+              const [live] = active.splice(liveIdx, 1);
+              active.unshift(live);
+          }
       }
-    }
+
 
     s.queue = [...active, ...done];
   }
@@ -1848,11 +1950,13 @@ function getDragAfterElement(container, y){
       if(!slot) return;
       if(slot.status === "DONE" || slot.status === "SKIPPED") return; // completed lives in Completed tab
 
-      // do not move the live slot
-      if(slotId === s.currentSlotId) return;
+        // do not move the currently-performing slot (but allow moving the last performer after show ends)
+        const hasCurrent = !!s.currentSlotId && (s.phase === "LIVE" || s.phase === "PAUSED");
+        if (hasCurrent && slotId === s.currentSlotId) return;
 
-      const liveIdx = s.currentSlotId ? s.queue.findIndex(x=>x.id===s.currentSlotId) : -1;
-      const minIdx = (liveIdx >= 0) ? liveIdx + 1 : 0;
+        const liveIdx = hasCurrent ? s.queue.findIndex(x => x.id === s.currentSlotId) : -1;
+        const minIdx = (liveIdx >= 0) ? liveIdx + 1 : 0;
+
 
       const doneStart = s.queue.findIndex(x => x.status === "DONE" || x.status === "SKIPPED");
       const maxIdx = (doneStart >= 0) ? Math.max(minIdx, doneStart - 1) : (s.queue.length - 1);
@@ -1889,7 +1993,13 @@ function getDragAfterElement(container, y){
   }
 
   
-  function removeSlot(slotId){
+    function removeSlot(slotId) {
+        const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
+        if (hasCurrent && slotId === state.currentSlotId) {
+            alert("Can't remove the current performer while LIVE/PAUSED. End or stop first.");
+            return;
+        }
+
     const slot = state.queue.find(x=>x.id===slotId);
     if(!slot) return;
     const ok = confirm(`Remove "${slot.displayName}" from the queue entirely?`);
