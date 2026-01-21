@@ -537,17 +537,19 @@ return s;
     }
     return out;
   }
-    function computeNextTwo(state) {
-        const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
-        const eligible = (s) => s && s.status === "QUEUED" && (!hasCurrent || s.id !== state.currentSlotId);
-        const queued = state.queue.filter(eligible);
-
-        const next1 = queued[0] || null;
-        const next2 = next1 ? (queued.find(x => x.id !== next1.id) || null) : null;
-
-        return [next1, next2];
+  function computeNextTwo(state){
+    const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
+    const q = Array.isArray(state.queue) ? state.queue : [];
+    if(hasCurrent){
+      const idx = q.findIndex(s => s && s.id === state.currentSlotId);
+      const tail = (idx >= 0 ? q.slice(idx+1) : q).filter(s => s && s.status === "QUEUED");
+      const next1 = tail[0] || null;
+      const next2 = tail[1] || null;
+      return [next1, next2];
     }
-
+    const head = q.filter(s => s && s.status === "QUEUED");
+    return [head[0] || null, head[1] || null];
+  }
 
   function computeCurrent(state){
     return state.queue.find(s=>s.id===state.currentSlotId) || null;

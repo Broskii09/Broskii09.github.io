@@ -31,14 +31,5 @@
       </div>
     </div>
   </div>
-  <!-- ensure audio elements are playsinline for iOS/Safari autoplay/resume behavior -->
-  <script>
-  document.addEventListener('DOMContentLoaded', function(){
-    document.querySelectorAll('audio').forEach(function(a){
-      a.setAttribute('playsinline','');
-      a.setAttribute('webkit-playsinline','');
-    });
-  });
-  </script>
 </body>
 </html>

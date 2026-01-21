@@ -93,6 +93,8 @@
     btnCrowdPrev: document.getElementById("btnCrowdPrev"),
     btnCrowdToggle: document.getElementById("btnCrowdToggle"),
     btnCrowdNext: document.getElementById("btnCrowdNext"),
+    crowdPromptStatus: document.getElementById("crowdPromptStatus"),
+    btnSettingsCrowd: document.getElementById("btnSettingsCrowd"),
     settingsModal: document.getElementById("settingsModal"),
     btnCloseSettings: document.getElementById("btnCloseSettings"),
 
@@ -233,30 +235,10 @@
     }
 
   // ---- Performer profiles (stored in state) ----
-    function ensureProfilesShape(s) {
-        // Minimum core shape so ANY action (Quick Add, etc.) can't crash on missing state
-        const d = OMJN.defaultState();
-
-        if (!Array.isArray(s.queue)) s.queue = [];
-
-        // slotTypes is required by fillTypeSelect/slotBadge
-        if (!Array.isArray(s.slotTypes) || !s.slotTypes.length) {
-            s.slotTypes = JSON.parse(JSON.stringify(d.slotTypes));
-        }
-
-        // settings/theme often assumed by render/applyTheme
-        if (!s.settings) s.settings = JSON.parse(JSON.stringify(d.settings));
-
-        // viewer prefs assumed by multiple UI paths
-        if (!s.viewerPrefs) s.viewerPrefs = JSON.parse(JSON.stringify(d.viewerPrefs));
-
-        // assetsIndex used by uploads/sponsor bug
-        if (!s.assetsIndex) s.assetsIndex = {};
-
-        if (!s.profiles) s.profiles = {};
-        if (!s.operatorPrefs) s.operatorPrefs = { startGuard: true, endGuard: true, hotkeysEnabled: true };
-    }
-
+  function ensureProfilesShape(s){
+    if(!s.profiles) s.profiles = {};
+    if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true };
+  }
 
   // ---- House Band shape ----
   
@@ -354,10 +336,10 @@
   }
 
   // ---- Inline performer editor (Stage 2) ----
-  function isTypingContext(el){
+  function isTypingContext(el = document.activeElement){
     if(!el) return false;
     const tag = (el.tagName||"").toLowerCase();
-    return tag === "input" || tag === "textarea" || el.isContentEditable;
+    return tag === "input" || tag === "textarea" || tag === "select" || !!el.isContentEditable;
   }
 
   function openInlineEdit(slotId){
@@ -366,18 +348,12 @@
     editingId = slotId;
     const slot = state.queue.find(x => x.id === slotId) || null;
     const media = slot?.media || { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
-      editDraft = {
-          displayName: slot?.displayName || "",
-          notes: slot?.notes || "",
-          donationUrl: (media.donationUrl || ""),
-          mediaLayout: media.mediaLayout || "NONE",
-
-          // slot fields
-          slotTypeId: slot?.slotTypeId || "musician",
-          customTypeLabel: slot?.customTypeLabel || "",
-          minutesOverride: (slot?.minutesOverride ?? null),
-      };
-
+    editDraft = {
+      displayName: slot?.displayName || "",
+      notes: slot?.notes || "",
+      donationUrl: (media.donationUrl || ""),
+      mediaLayout: media.mediaLayout || "NONE",
+    };
   }
 
   function closeInlineEdit(){
@@ -397,26 +373,16 @@
 
   function saveInlineEdit(slotId){
     if(!editDraft) return;
-      const name = OMJN.sanitizeText(editDraft.displayName || "");
-      const notes = String(editDraft.notes || "");
-      const url = OMJN.sanitizeText(editDraft.donationUrl || "");
-      const layout = String(editDraft.mediaLayout || "NONE");
-
-      // slot fields
-      const slotTypeId = String(editDraft.slotTypeId || "musician");
-      const customTypeLabel = OMJN.sanitizeText(editDraft.customTypeLabel || "");
-      const rawMins = editDraft.minutesOverride;
-      const minutesOverride = (rawMins === "" || rawMins === null || rawMins === undefined) ? null : Math.max(1, Math.round(Number(rawMins)));
-
+    const name = OMJN.sanitizeText(editDraft.displayName || "");
+    const notes = String(editDraft.notes || "");
+    const url = OMJN.sanitizeText(editDraft.donationUrl || "");
+    const layout = String(editDraft.mediaLayout || "NONE");
 
     updateState(s => {
       const slot = s.queue.find(x => x.id === slotId);
       if(!slot) return;
       slot.displayName = name;
-        slot.notes = notes;
-        slot.slotTypeId = slotTypeId;
-        slot.customTypeLabel = (slotTypeId === "custom") ? customTypeLabel : "";
-        slot.minutesOverride = (Number.isFinite(minutesOverride) ? minutesOverride : null);
+      slot.notes = notes;
       if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
       slot.media.donationUrl = url || null;
       slot.media.mediaLayout = layout;
@@ -443,29 +409,22 @@
     render();
   }
 
-    function firstLineOfNotes(txt) {
-        const s = String(txt || "");
-        if (!s.trim()) return "";
-        const parts = s.split(/\r?\n/);
-        for (const p of parts) {
-            const t = String(p || "").trim();
-            if (t) return t; // first non-empty line
-        }
-        return "";
-    }
+  function firstLineOfNotes(txt){
+    const s = String(txt || "").trim();
+    if(!s) return "";
+    // Avoid newline escape issues across environments
+    const parts = s.split(String.fromCharCode(10));
+    return (parts[0] || "").trim();
+  }
 
+  function skipSwapDown(slotId){
+    if(slotId === state.currentSlotId) return;
+    // swap down one spot (clamped); uses existing queue constraints
+    moveSlot(slotId, +1);
+  }
 
-    function skipSwapDown(slotId) {
-        const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
-        if (hasCurrent && slotId === state.currentSlotId) return;
-        // swap down one spot (clamped); uses existing queue constraints
-        moveSlot(slotId, +1);
-    }
-
-
-    function markNoShow(slotId) {
-        const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
-        if (hasCurrent && slotId === state.currentSlotId) return;
+  function markNoShow(slotId){
+    if(slotId === state.currentSlotId) return;
     const slot = state.queue.find(x => x.id === slotId);
     if(!slot || slot.status !== "QUEUED") return;
     const ok = confirm(`Mark "${slot.displayName}" as NO-SHOW and move to Completed?`);
@@ -479,25 +438,30 @@
     });
   }
 
-    async function handleImageUploadForSlot(slotId, file) {
-        if (!file || !slotId) return;
-        await handleImageUpload(file, slotId);
+  async function handleImageUploadForSlot(slotId, file){
+    if(!file) return;
+    const prev = selectedId;
+    try{
+      selectedId = slotId;
+      await handleImageUpload(file);
+    }finally{
+      selectedId = prev;
     }
+  }
 
-    function clearImageForSlot(slotId) {
-        if (!slotId) return;
-        clearImage(slotId);
+  function clearImageForSlot(slotId){
+    const prev = selectedId;
+    try{
+      selectedId = slotId;
+      clearImage();
+    }finally{
+      selectedId = prev;
     }
-
+  }
 
   function buildInlineExpander(slot){
-      const wrap = document.createElement("div");
-      wrap.className = "qExpander";
-
-      // IMPORTANT: prevent queue row click handler from firing when interacting with inputs
-      wrap.addEventListener("mousedown", (e) => e.stopPropagation());
-      wrap.addEventListener("click", (e) => e.stopPropagation());
-
+    const wrap = document.createElement("div");
+    wrap.className = "qExpander";
 
     const grid = document.createElement("div");
     grid.className = "qExpGrid";
@@ -518,79 +482,6 @@
       if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); }
     });
     fName.appendChild(lName); fName.appendChild(iName);
-      // Slot Type + Custom label + Minutes
-      const rowSlots = document.createElement("div");
-      rowSlots.className = "row";
-      rowSlots.style.gap = "10px";
-      rowSlots.style.alignItems = "flex-end";
-
-      // Slot Type
-      const fType = document.createElement("div");
-      fType.className = "field";
-      fType.style.flex = "1 1 220px";
-      const lType = document.createElement("label");
-      lType.textContent = "Slot Type";
-      const selType = document.createElement("select");
-
-      // Use enabled slot types (same logic as elsewhere)
-      const types = (state.slotTypes || []).filter(t => t && (t.enabled !== false));
-      for (const t of types) {
-          const o = document.createElement("option");
-          o.value = t.id;
-          o.textContent = t.label || t.id;
-          selType.appendChild(o);
-      }
-      selType.value = editDraft?.slotTypeId ?? (slot.slotTypeId || "musician");
-      selType.addEventListener("change", () => {
-          if (editDraft) editDraft.slotTypeId = selType.value;
-          // show/hide custom label
-          customWrap.style.display = (selType.value === "custom") ? "" : "none";
-      });
-
-      fType.appendChild(lType);
-      fType.appendChild(selType);
-
-      // Custom Label (only if slotTypeId === custom)
-      const customWrap = document.createElement("div");
-      customWrap.className = "field";
-      customWrap.style.flex = "1 1 220px";
-      const lCustom = document.createElement("label");
-      lCustom.textContent = "Custom Slot Label";
-      const iCustom = document.createElement("input");
-      iCustom.type = "text";
-      iCustom.placeholder = "Custom";
-      iCustom.value = editDraft?.customTypeLabel ?? (slot.customTypeLabel || "");
-      iCustom.addEventListener("input", () => { if (editDraft) editDraft.customTypeLabel = iCustom.value; });
-      customWrap.appendChild(lCustom);
-      customWrap.appendChild(iCustom);
-      customWrap.style.display = ((selType.value || editDraft?.slotTypeId) === "custom") ? "" : "none";
-
-      // Minutes override
-      const fMins = document.createElement("div");
-      fMins.className = "field";
-      fMins.style.width = "140px";
-      const lMins = document.createElement("label");
-      lMins.textContent = "Minutes (override)";
-      const iMins = document.createElement("input");
-      iMins.type = "number";
-      iMins.min = "1";
-      iMins.step = "1";
-      iMins.placeholder = "—";
-      iMins.value = (editDraft?.minutesOverride ?? slot.minutesOverride ?? "") === null ? "" : String(editDraft?.minutesOverride ?? slot.minutesOverride ?? "");
-      iMins.addEventListener("input", () => {
-          if (!editDraft) return;
-          editDraft.minutesOverride = (iMins.value === "") ? null : Number(iMins.value);
-      });
-      fMins.appendChild(lMins);
-      fMins.appendChild(iMins);
-
-      // Assemble row
-      rowSlots.appendChild(fType);
-      rowSlots.appendChild(customWrap);
-      rowSlots.appendChild(fMins);
-
-      // Insert into left column
-      left.appendChild(rowSlots);
 
     const fUrl = document.createElement("div");
     fUrl.className = "field";
@@ -759,16 +650,14 @@
     const done = s.queue.filter(isDone).slice()
       .sort((a,b) => (a.completedAt || 0) - (b.completedAt || 0));
 
-      // Keep the currently-performing slot pinned to top (Operator clarity)
-      const hasCurrent = !!s.currentSlotId && (s.phase === "LIVE" || s.phase === "PAUSED");
-      if (hasCurrent) {
-          const liveIdx = active.findIndex(x => x.id === s.currentSlotId);
-          if (liveIdx > 0) {
-              const [live] = active.splice(liveIdx, 1);
-              active.unshift(live);
-          }
+    // Keep the currently-live slot pinned to top (Operator clarity)
+    if(s.currentSlotId){
+      const liveIdx = active.findIndex(x => x.id === s.currentSlotId);
+      if(liveIdx > 0){
+        const [live] = active.splice(liveIdx, 1);
+        active.unshift(live);
       }
-
+    }
 
     s.queue = [...active, ...done];
   }
@@ -981,9 +870,11 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
     if(cfg.enabled){
       els.btnCrowdToggle.textContent = `Crowd: ${name}`;
       els.btnCrowdToggle.classList.add("good");
+      if(els.crowdPromptStatus) els.crowdPromptStatus.textContent = `ON · ${name}`;
     } else {
       els.btnCrowdToggle.textContent = "Crowd: Off";
       els.btnCrowdToggle.classList.remove("good");
+      if(els.crowdPromptStatus) els.crowdPromptStatus.textContent = `OFF · ${name}`;
     }
   }
 
@@ -1167,18 +1058,11 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
 
     if(els.setCrowdEnabled) els.setCrowdEnabled.checked = !!cp.enabled;
 
-      if (els.setCrowdPreset) {
-          // Build options safely without needing escapeHtml()
-          els.setCrowdPreset.innerHTML = "";
-          for (const p of presets) {
-              const opt = document.createElement("option");
-              opt.value = p.id;
-              opt.textContent = (p.name || p.title || p.id);
-              els.setCrowdPreset.appendChild(opt);
-          }
-          els.setCrowdPreset.value = activeId || (presets[0]?.id || "");
-      }
-
+    if(els.setCrowdPreset){
+      const opts = presets.map(p => ({ id: p.id, label: (p.name || p.title || p.id) }));
+      els.setCrowdPreset.innerHTML = opts.map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join("");
+      els.setCrowdPreset.value = activeId;
+    }
 
     // Only sync editor fields when preset changes (so typing isn't overwritten)
     const editorKey = JSON.stringify({ activeId, count: presets.length, names: presets.map(p=>p.name||"").join("|") });
@@ -1648,6 +1532,7 @@ if(els.prefCollapseEditor){
   }
 
 function fillTypeSelect(selectEl){
+    if(!selectEl) return;
     selectEl.innerHTML = "";
     for(const t of visibleSlotTypes()){
       const opt = document.createElement("option");
@@ -1673,20 +1558,15 @@ function fillTypeSelect(selectEl){
     const { t, mins, icons, typeLabel } = slotBadge(slot);
     const div = document.createElement("div");
 
-      const [n1, n2] = OMJN.computeNextTwo(state);
-
-      const isCurrent = (slot.id === state.currentSlotId) && (state.phase === "LIVE" || state.phase === "PAUSED");
-      const isLive = isCurrent && (state.phase === "LIVE");
-      const isPaused = isCurrent && (state.phase === "PAUSED");
-
-      const isDone = (slot.status === "DONE" || slot.status === "SKIPPED");
-      const isNext = (!isCurrent && !isDone && n1 && slot.id === n1.id);
-      const isDeck = (!isCurrent && !isDone && n2 && slot.id === n2.id);
-
-
+    // Visual roles (LIVE / NEXT / ON DECK / DONE) for clarity during busy nights
+    const [n1, n2] = OMJN.computeNextTwo(state);
+    const isLive = (slot.id === state.currentSlotId);
+    const isDone = (slot.status === "DONE" || slot.status === "SKIPPED");
+    const isNext = (!isLive && !isDone && n1 && slot.id === n1.id);
+    const isDeck = (!isLive && !isDone && n2 && slot.id === n2.id);
 
     div.className = "queueItem";
- if(isCurrent) div.classList.add("livePinned");
+    if(isLive) div.classList.add("livePinned");
     if(isNext) div.classList.add("isNext");
     if(isDeck) div.classList.add("isDeck");
     if(isDone) div.classList.add("isDone");
@@ -1694,7 +1574,7 @@ function fillTypeSelect(selectEl){
     if(selectedId === slot.id) div.classList.add("isSelected");
     if(editingId === slot.id) div.classList.add("isEditing");
 
-      div.draggable = (slot.status === "QUEUED") && !isCurrent && !isDone && (editingId !== slot.id);
+    div.draggable = (slot.status === "QUEUED") && !isLive && !isDone && (editingId !== slot.id);
     div.dataset.id = slot.id;
     if(t?.color) div.style.borderLeft = `6px solid ${t.color}`;
 
@@ -1730,18 +1610,12 @@ function fillTypeSelect(selectEl){
     top.appendChild(bType);
     top.appendChild(bMins);
 
-      if (isLive) {
-          const live = document.createElement("span");
-          live.className = "badge badgeLive";
-          live.textContent = "LIVE";
-          top.appendChild(live);
-      } else if (isPaused) {
-          const p = document.createElement("span");
-          p.className = "badge badgePaused";
-          p.textContent = "PAUSED";
-          top.appendChild(p);
-      }
-
+    if(isLive){
+      const live = document.createElement("span");
+      live.className = "badge badgeLive";
+      live.textContent = "LIVE";
+      top.appendChild(live);
+    }
     if(isNext){
       const nx = document.createElement("span");
       nx.className = "badge badgeNext";
@@ -1807,7 +1681,7 @@ function fillTypeSelect(selectEl){
       btnSkip.className = "btn tiny";
       btnSkip.textContent = "Skip";
       btnSkip.title = "Swap down one spot";
-        btnSkip.disabled = (slot.status !== "QUEUED") || isCurrent;
+      btnSkip.disabled = (slot.status !== "QUEUED") || isLive;
       btnSkip.addEventListener("click", (e) => {
         e.stopPropagation();
         skipSwapDown(slot.id);
@@ -1819,7 +1693,7 @@ function fillTypeSelect(selectEl){
       btnNo.className = "btn tiny";
       btnNo.textContent = "No-show";
       btnNo.title = "Mark as no-show and move to Completed";
-        btnNo.disabled = (slot.status !== "QUEUED") || isCurrent;
+      btnNo.disabled = (slot.status !== "QUEUED") || isLive;
       btnNo.addEventListener("click", (e) => {
         e.stopPropagation();
         markNoShow(slot.id);
@@ -1842,7 +1716,7 @@ function fillTypeSelect(selectEl){
       btnUp.className = "btn tiny";
       btnUp.textContent = "↑";
       btnUp.title = "Move up";
-        btnUp.disabled = (slot.status !== "QUEUED") || isCurrent;
+      btnUp.disabled = (slot.status !== "QUEUED") || isLive;
       btnUp.addEventListener("click", (e) => {
         e.stopPropagation();
         moveSlot(slot.id, -1);
@@ -1852,7 +1726,7 @@ function fillTypeSelect(selectEl){
       btnDn.className = "btn tiny";
       btnDn.textContent = "↓";
       btnDn.title = "Move down";
-        btnDn.disabled = (slot.status !== "QUEUED") || isCurrent;
+      btnDn.disabled = (slot.status !== "QUEUED") || isLive;
       btnDn.addEventListener("click", (e) => {
         e.stopPropagation();
         moveSlot(slot.id, +1);
@@ -1951,13 +1825,11 @@ function getDragAfterElement(container, y){
       if(!slot) return;
       if(slot.status === "DONE" || slot.status === "SKIPPED") return; // completed lives in Completed tab
 
-        // do not move the currently-performing slot (but allow moving the last performer after show ends)
-        const hasCurrent = !!s.currentSlotId && (s.phase === "LIVE" || s.phase === "PAUSED");
-        if (hasCurrent && slotId === s.currentSlotId) return;
+      // do not move the live slot
+      if(slotId === s.currentSlotId) return;
 
-        const liveIdx = hasCurrent ? s.queue.findIndex(x => x.id === s.currentSlotId) : -1;
-        const minIdx = (liveIdx >= 0) ? liveIdx + 1 : 0;
-
+      const liveIdx = s.currentSlotId ? s.queue.findIndex(x=>x.id===s.currentSlotId) : -1;
+      const minIdx = (liveIdx >= 0) ? liveIdx + 1 : 0;
 
       const doneStart = s.queue.findIndex(x => x.status === "DONE" || x.status === "SKIPPED");
       const maxIdx = (doneStart >= 0) ? Math.max(minIdx, doneStart - 1) : (s.queue.length - 1);
@@ -1980,10 +1852,8 @@ function getDragAfterElement(container, y){
       if(!slot) return;
       if(slot.status !== "DONE" && slot.status !== "SKIPPED") return;
 
-        slot.status = "QUEUED";
-        slot.completedAt = null;
-        slot.noShow = false; // IMPORTANT: clear no-show flag on re-queue
-
+      slot.status = "QUEUED";
+      slot.completedAt = null;
 
       // move to bottom of Active (before first completed)
       const [moved] = s.queue.splice(idx, 1);
@@ -1994,13 +1864,7 @@ function getDragAfterElement(container, y){
   }
 
   
-    function removeSlot(slotId) {
-        const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
-        if (hasCurrent && slotId === state.currentSlotId) {
-            alert("Can't remove the current performer while LIVE/PAUSED. End or stop first.");
-            return;
-        }
-
+  function removeSlot(slotId){
     const slot = state.queue.find(x=>x.id===slotId);
     if(!slot) return;
     const ok = confirm(`Remove "${slot.displayName}" from the queue entirely?`);
@@ -2025,7 +1889,7 @@ function getDragAfterElement(container, y){
         const stillUsed = s.queue.some(x => x?.media?.imageAssetId === assetId);
         if(!stillUsed){
           delete s.assetsIndex[assetId];
-          OMJN.deleteAsset(assetId).catch(() => {});
+          OMJN.deleteAsset(assetId).catch(()=>{});
         }
       }
     });
@@ -2383,6 +2247,8 @@ function renderKPIs(){
   }
 
   function renderEditor(){
+    // Legacy right-drawer editor may not exist (inline expander is primary).
+    if(!els.selId || !els.editName || !els.editType || !els.editMinutes || !els.editNotes || !els.editUrl || !els.editLayout) return;
     ensureSelectedValid();
     const slot = state.queue.find(s=>s.id===selectedId) || null;
 
@@ -2474,9 +2340,7 @@ function renderKPIs(){
     const name = OMJN.sanitizeText(els.addName.value);
     if(!name) return;
 
-      updateState(s => {
-      if (!Array.isArray(s.queue)) s.queue = []; // safety: prevents push crashes
-
+    updateState(s => {
       const slotTypeId = els.addType.value || "musician";
       const isCustom = slotTypeId === "custom";
       const customTypeLabel = isCustom ? OMJN.sanitizeText(els.addCustomLabel.value) : "";
@@ -2665,70 +2529,67 @@ function start(){
     selectedId = null;
   }
 
-    async function handleImageUpload(file, targetSlotId = selectedId) {
-        if (!targetSlotId || !file) return;
-        const slotId = targetSlotId; // lock slotId so it can't drift during awaits
+  async function handleImageUpload(file){
+    if(!selectedId || !file) return;
 
-        // compress and store
-        const { blob, meta } = await OMJN.compressImageFile(file, { maxEdge: 1600, quality: 0.82, mime: "image/webp" });
-        if (!blob) return;
+    // compress and store
+    const { blob, meta } = await OMJN.compressImageFile(file, { maxEdge: 1600, quality: 0.82, mime: "image/webp" });
+    if(!blob) return;
 
-        const assetId = OMJN.uid("asset");
-        await OMJN.putAsset(assetId, blob);
+    const assetId = OMJN.uid("asset");
+    await OMJN.putAsset(assetId, blob);
 
-        updateState(s => {
-            s.assetsIndex[assetId] = meta;
-            const slot = s.queue.find(x => x.id === slotId);
-            if (!slot) return;
-            if (!slot.media) slot.media = { donationUrl: null, imageAssetId: null, mediaLayout: "NONE" };
-            slot.media.imageAssetId = assetId;
+    updateState(s => {
+      s.assetsIndex[assetId] = meta;
+      const slot = s.queue.find(x=>x.id===selectedId);
+      if(!slot) return;
+      if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
+      slot.media.imageAssetId = assetId;
 
-            // if layout is NONE, default to IMAGE_ONLY
-            if (!slot.media.mediaLayout || slot.media.mediaLayout === "NONE") {
-                slot.media.mediaLayout = "IMAGE_ONLY";
-            }
+      // if layout is NONE, default to IMAGE_ONLY
+      if(!slot.media.mediaLayout || slot.media.mediaLayout === "NONE"){
+        slot.media.mediaLayout = "IMAGE_ONLY";
+      }
+      // profile auto-save
+      const key = normNameKey(slot.displayName);
+      if(key){
+        s.profiles[key] = {
+          displayName: slot.displayName,
+          defaultSlotTypeId: slot.slotTypeId || "musician",
+          defaultMinutesOverride: slot.minutesOverride ?? null,
+          media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
+          updatedAt: Date.now()
+        };
+      }
 
-            // profile auto-save
-            const key = normNameKey(slot.displayName);
-            if (key) {
-                s.profiles[key] = {
-                    displayName: slot.displayName,
-                    defaultSlotTypeId: slot.slotTypeId || "musician",
-                    defaultMinutesOverride: slot.minutesOverride ?? null,
-                    media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-                    updatedAt: Date.now()
-                };
-            }
-        });
-    }
-
-    function clearImage(targetSlotId = selectedId) {
-        if (!targetSlotId) return;
-        const slotId = targetSlotId;
-
-        updateState(s => {
-            const slot = s.queue.find(x => x.id === slotId);
-            if (!slot?.media?.imageAssetId) return;
-            const assetId = slot.media.imageAssetId;
-            slot.media.imageAssetId = null;
-
-            // profile auto-save
-            const key = normNameKey(slot.displayName);
-            if (key) {
-                s.profiles[key] = {
-                    displayName: slot.displayName,
-                    defaultSlotTypeId: slot.slotTypeId || "musician",
-                    defaultMinutesOverride: slot.minutesOverride ?? null,
-                    media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-                    updatedAt: Date.now()
-                };
-            }
-
-            delete s.assetsIndex[assetId];
-            OMJN.deleteAsset(assetId).catch(() => { });
     });
-    }
+  }
 
+  function clearImage(){
+    if(!selectedId) return;
+    updateState(s => {
+      const slot = s.queue.find(x=>x.id===selectedId);
+      if(!slot?.media?.imageAssetId) return;
+      const assetId = slot.media.imageAssetId;
+      slot.media.imageAssetId = null;
+
+      // profile auto-save
+      const key = normNameKey(slot.displayName);
+      if(key){
+        s.profiles[key] = {
+          displayName: slot.displayName,
+          defaultSlotTypeId: slot.slotTypeId || "musician",
+          defaultMinutesOverride: slot.minutesOverride ?? null,
+          media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
+          updatedAt: Date.now()
+        };
+      }
+
+      delete s.assetsIndex[assetId];
+      // async delete in background (best-effort)
+      OMJN.deleteAsset(assetId).catch(()=>{});
+    });
+  }
 
   function exportJSON(){
     const blob = new Blob([JSON.stringify(state, null, 2)], { type:"application/json" });
@@ -2776,152 +2637,129 @@ function start(){
   }
 
   // ---- Editor bindings ----
-    // ---- Editor bindings ----
-    function bindEditor() {
-        // NOTE: This is the legacy right-side editor. It may be removed later.
-        // Guard every binding so missing DOM nodes never crash the Operator script.
-
-        if (els.editName) {
-            els.editName.addEventListener("input", () => {
-                const v = OMJN.sanitizeText(els.editName.value);
-                if (!selectedId) return;
-                updateState(s => {
-                    const slot = s.queue.find(x => x.id === selectedId);
-                    if (slot) {
-                        slot.displayName = v;
-                        // profile auto-save
-                        const key = normNameKey(slot.displayName);
-                        if (key) {
-                            s.profiles[key] = {
-                                displayName: slot.displayName,
-                                defaultSlotTypeId: slot.slotTypeId || "musician",
-                                defaultMinutesOverride: slot.minutesOverride ?? null,
-                                media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-                                updatedAt: Date.now()
-                            };
-                        }
-                    }
-                }, { recordHistory: false });
-            });
+  function bindEditor(){
+    els.editName.addEventListener("input", () => {
+      const v = OMJN.sanitizeText(els.editName.value);
+      if(!selectedId) return;
+      updateState(s => {
+        const slot = s.queue.find(x=>x.id===selectedId);
+        if(slot){
+          slot.displayName = v;
+          // profile auto-save
+          const key = normNameKey(slot.displayName);
+          if(key){
+            s.profiles[key] = {
+              displayName: slot.displayName,
+              defaultSlotTypeId: slot.slotTypeId || "musician",
+              defaultMinutesOverride: slot.minutesOverride ?? null,
+              media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
+              updatedAt: Date.now()
+            };
+          }
         }
+      }, { recordHistory:false });
+    });
 
-        if (els.editType) {
-            els.editType.addEventListener("change", () => {
-                if (!selectedId) return;
-                const v = els.editType.value;
-                updateState(s => {
-                    const slot = s.queue.find(x => x.id === selectedId);
-                    if (!slot) return;
-                    slot.slotTypeId = v;
-                    if (v !== "custom") slot.customTypeLabel = slot.customTypeLabel || "";
-                    const key = normNameKey(slot.displayName);
-                    if (key) {
-                        s.profiles[key] = {
-                            displayName: slot.displayName,
-                            defaultSlotTypeId: slot.slotTypeId || "musician",
-                            defaultMinutesOverride: slot.minutesOverride ?? null,
-                            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-                            updatedAt: Date.now()
-                        };
-                    }
-                }, { recordHistory: false });
-            });
+    els.editType.addEventListener("change", () => {
+      if(!selectedId) return;
+      const v = els.editType.value;
+      updateState(s => {
+        const slot = s.queue.find(x=>x.id===selectedId);
+        if(!slot) return;
+        slot.slotTypeId = v;
+        if(v !== "custom") slot.customTypeLabel = slot.customTypeLabel || "";
+        const key = normNameKey(slot.displayName);
+        if(key){
+          s.profiles[key] = {
+            displayName: slot.displayName,
+            defaultSlotTypeId: slot.slotTypeId || "musician",
+            defaultMinutesOverride: slot.minutesOverride ?? null,
+            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
+            updatedAt: Date.now()
+          };
         }
+      }, { recordHistory:false });
+    });
 
-        if (els.editMinutes) {
-            els.editMinutes.addEventListener("input", () => {
-                if (!selectedId) return;
-                const raw = els.editMinutes.value;
-                const val = raw === "" ? null : Math.max(1, Math.round(Number(raw)));
-                updateState(s => {
-                    const slot = s.queue.find(x => x.id === selectedId);
-                    if (slot) slot.minutesOverride = val;
-                }, { recordHistory: false });
-            });
+    els.editMinutes.addEventListener("input", () => {
+      if(!selectedId) return;
+      const raw = els.editMinutes.value;
+      const val = raw === "" ? null : Math.max(1, Math.round(Number(raw)));
+      updateState(s => {
+        const slot = s.queue.find(x=>x.id===selectedId);
+        if(slot) slot.minutesOverride = val;
+      });
+    });
+
+    els.editNotes.addEventListener("input", () => {
+      if(!selectedId) return;
+      const v = els.editNotes.value;
+      updateState(s => {
+        const slot = s.queue.find(x=>x.id===selectedId);
+        if(slot) slot.notes = v;
+      });
+    });
+
+    els.editUrl.addEventListener("input", () => {
+      if(!selectedId) return;
+      const v = OMJN.sanitizeText(els.editUrl.value);
+      updateState(s => {
+        const slot = s.queue.find(x=>x.id===selectedId);
+        if(!slot) return;
+        if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
+        slot.media.donationUrl = v || null;
+        const key = normNameKey(slot.displayName);
+        if(key){
+          s.profiles[key] = {
+            displayName: slot.displayName,
+            defaultSlotTypeId: slot.slotTypeId || "musician",
+            defaultMinutesOverride: slot.minutesOverride ?? null,
+            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
+            updatedAt: Date.now()
+          };
         }
+      }, { recordHistory:false });
+    });
 
-        if (els.editNotes) {
-            els.editNotes.addEventListener("input", () => {
-                if (!selectedId) return;
-                const v = els.editNotes.value;
-                updateState(s => {
-                    const slot = s.queue.find(x => x.id === selectedId);
-                    if (slot) slot.notes = v;
-                }, { recordHistory: false });
-            });
+els.editLayout.addEventListener("change", () => {
+      if(!selectedId) return;
+      const v = els.editLayout.value;
+      updateState(s => {
+        const slot = s.queue.find(x=>x.id===selectedId);
+        if(!slot) return;
+        if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
+        slot.media.mediaLayout = v;
+        const key = normNameKey(slot.displayName);
+        if(key){
+          s.profiles[key] = {
+            displayName: slot.displayName,
+            defaultSlotTypeId: slot.slotTypeId || "musician",
+            defaultMinutesOverride: slot.minutesOverride ?? null,
+            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
+            updatedAt: Date.now()
+          };
         }
+      });
+    });
 
-        if (els.editUrl) {
-            els.editUrl.addEventListener("input", () => {
-                if (!selectedId) return;
-                const v = OMJN.sanitizeText(els.editUrl.value);
-                updateState(s => {
-                    const slot = s.queue.find(x => x.id === selectedId);
-                    if (!slot) return;
-                    if (!slot.media) slot.media = { donationUrl: null, imageAssetId: null, mediaLayout: "NONE" };
-                    slot.media.donationUrl = v || null;
+    els.imgFile.addEventListener("change", async () => {
+      const file = els.imgFile.files?.[0] || null;
+      els.imgFile.value = "";
+      if(file) await handleImageUpload(file);
+    });
 
-                    const key = normNameKey(slot.displayName);
-                    if (key) {
-                        s.profiles[key] = {
-                            displayName: slot.displayName,
-                            defaultSlotTypeId: slot.slotTypeId || "musician",
-                            defaultMinutesOverride: slot.minutesOverride ?? null,
-                            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-                            updatedAt: Date.now()
-                        };
-                    }
-                }, { recordHistory: false });
-            });
-        }
+    els.btnClearImg.addEventListener("click", clearImage);
+    els.btnSkip.addEventListener("click", skipSelected);
 
-        if (els.editLayout) {
-            els.editLayout.addEventListener("change", () => {
-                if (!selectedId) return;
-                const v = els.editLayout.value;
-                updateState(s => {
-                    const slot = s.queue.find(x => x.id === selectedId);
-                    if (!slot) return;
-                    if (!slot.media) slot.media = { donationUrl: null, imageAssetId: null, mediaLayout: "NONE" };
-                    slot.media.mediaLayout = v;
-
-                    const key = normNameKey(slot.displayName);
-                    if (key) {
-                        s.profiles[key] = {
-                            displayName: slot.displayName,
-                            defaultSlotTypeId: slot.slotTypeId || "musician",
-                            defaultMinutesOverride: slot.minutesOverride ?? null,
-                            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-                            updatedAt: Date.now()
-                        };
-                    }
-                }, { recordHistory: false });
-            });
-        }
-
-        if (els.imgFile) {
-            els.imgFile.addEventListener("change", async () => {
-                const file = els.imgFile.files?.[0] || null;
-                els.imgFile.value = "";
-                if (file) await handleImageUpload(file);
-            });
-        }
-
-        if (els.btnClearImg) els.btnClearImg.addEventListener("click", clearImage);
-        if (els.btnSkip) els.btnSkip.addEventListener("click", skipSelected);
-
-        if (els.editCustomLabel) {
-            els.editCustomLabel.addEventListener("input", () => {
-                if (!selectedId) return;
-                const v = OMJN.sanitizeText(els.editCustomLabel.value);
-                updateState(s => {
-                    const slot = s.queue.find(x => x.id === selectedId);
-                    if (slot) slot.customTypeLabel = v;
-                }, { recordHistory: false });
-            });
-        }
-    }
-
+        els.editCustomLabel.addEventListener("input", () => {
+      if(!selectedId) return;
+      const v = OMJN.sanitizeText(els.editCustomLabel.value);
+      updateState(s => {
+        const slot = s.queue.find(x=>x.id===selectedId);
+        if(slot) slot.customTypeLabel = v;
+      });
+    });
+  }
 
   // ---- Wire up ----
   function toggleCustomAddFields(){
@@ -2952,24 +2790,31 @@ function bind(){
     fillTypeSelect(els.editType);
     toggleCustomAddFields();
     bindSettings();
-    els.addType.addEventListener("change", toggleCustomAddFields);
 
-    const quickAddEnter = (e) => {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            addPerformer();
-        }
-    };
-
-    els.addName?.addEventListener("keydown", quickAddEnter);
-    els.addCustomLabel?.addEventListener("keydown", quickAddEnter);
-    els.addCustomMinutes?.addEventListener("keydown", quickAddEnter);
-
-    els.btnAdd?.addEventListener("click", (e) => {
-        e.preventDefault();
-        addPerformer();
+    // Crowd prompt quick controls (now in right drawer)
+    if(els.btnCrowdPrev) els.btnCrowdPrev.addEventListener("click", (e) => { e.preventDefault(); cycleCrowdPreset(-1); renderSettings(); });
+    if(els.btnCrowdNext) els.btnCrowdNext.addEventListener("click", (e) => { e.preventDefault(); cycleCrowdPreset(+1); renderSettings(); });
+    if(els.btnCrowdToggle) els.btnCrowdToggle.addEventListener("click", (e) => {
+      e.preventDefault();
+      const cfg = getCrowdCfg(state);
+      setCrowdEnabled(!cfg.enabled);
+      renderSettings();
+    });
+    if(els.btnSettingsCrowd) els.btnSettingsCrowd.addEventListener("click", (e) => {
+      e.preventDefault();
+      openSettingsModal();
+      // scroll to Crowd section if present
+      setTimeout(() => {
+        document.getElementById("setCrowdEnabled")?.scrollIntoView?.({ behavior:"smooth", block:"start" });
+      }, 50);
     });
 
+    els.addType.addEventListener("change", toggleCustomAddFields);
+
+    els.addName.addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){ e.preventDefault(); addPerformer(); }
+    });
+    els.btnAdd.addEventListener("click", addPerformer);
 
     // Tabs
     function setActiveTab(which){
@@ -2981,7 +2826,7 @@ function bind(){
     }
     if(els.tabBtnPerformers) els.tabBtnPerformers.addEventListener("click", () => setActiveTab("perf"));
     if(els.tabBtnHouseBand) els.tabBtnHouseBand.addEventListener("click", () => setActiveTab("hb"));
-    // Viewer footer toggle + formatting
+// Viewer footer toggle + formatting
     if(els.toggleHBFooter){
       els.toggleHBFooter.checked = (state.viewerPrefs?.showHouseBandFooter !== false);
       els.toggleHBFooter.addEventListener("change", () => {
@@ -3178,8 +3023,10 @@ els.showTitle.addEventListener("input", () => {
       if(e.target === els.settingsModal) closeSettingsModal();
     });
     document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && els.settingsModal && !els.settingsModal.hidden) closeSettingsModal();
+      if(e.key === "Escape" && !els.settingsModal.hidden) closeSettingsModal();
     });
+
+
     
     // Queue drag/drop (bind once)
     els.queue.addEventListener("dragover", (e) => {
@@ -3252,8 +3099,14 @@ bindEditor();
         return;
       }
 
-        // If typing in any input/textarea, do not run global hotkeys.
-        if (isTypingContext()) return;
+      // If typing in fields, allow only special case: Enter on addName
+      if(isTypingContext()){
+        if(document.activeElement === els.addName && e.key === "Enter"){
+          e.preventDefault();
+          addPerformer();
+        }
+        return;
+      }
 
       const k = e.key.toLowerCase();
       // House Band rotation shortcuts (Alt+1..7)
@@ -3334,6 +3187,8 @@ bindEditor();
 
   // Subscribe to changes from other tabs (in case operator is duplicated)
   OMJN.subscribe((s) => {
+    ensureProfilesShape(s);
+    OMJN.ensureHouseBandQueues(s);
     state = s;
     render();
   });
@@ -3343,61 +3198,3 @@ bindEditor();
   bind();
   render();
 })();
-
-// Cross-browser AudioContext + resume-on-gesture + decodeAudioData compatibility
-var AudioContext = window.AudioContext || window.webkitAudioContext;
-window.__sharedAudio = window.__sharedAudio || {};
-
-(function(ns){
-  var _ctx = null;
-  function getAudioContext(){
-    if(!_ctx){
-      _ctx = new AudioContext();
-      // resume on first user interaction to satisfy autoplay policies
-      function tryResume(){
-        if(_ctx && _ctx.state === 'suspended'){
-          _ctx.resume().catch(function(){});
-        }
-        removeListeners();
-      }
-      function addListeners(){
-        document.addEventListener('click', tryResume, {once: true});
-        document.addEventListener('touchstart', tryResume, {once: true});
-      }
-      function removeListeners(){
-        document.removeEventListener('click', tryResume);
-        document.removeEventListener('touchstart', tryResume);
-      }
-      addListeners();
-    }
-    return _ctx;
-  }
-
-  function decodeAudioDataCompat(arrayBuffer){
-    var ctx = getAudioContext();
-    // Older Safari uses callback form (length === 1). Wrap into Promise.
-    try {
-      if (ctx.decodeAudioData.length === 1) {
-        return new Promise(function(resolve, reject){
-          ctx.decodeAudioData(arrayBuffer, resolve, function(err){ reject(err); });
-        });
-      }
-    } catch(e){}
-    return ctx.decodeAudioData(arrayBuffer);
-  }
-
-  function createBufferSourceFromUrl(url){
-    return fetch(url, {cache: 'force-cache'}).then(function(r){ return r.arrayBuffer(); })
-      .then(decodeAudioDataCompat)
-      .then(function(buffer){
-        var ctx = getAudioContext();
-        var src = ctx.createBufferSource();
-        src.buffer = buffer;
-        return { ctx: ctx, source: src, buffer: buffer };
-      });
-  }
-
-  ns.getAudioContext = getAudioContext;
-  ns.decodeAudioDataCompat = decodeAudioDataCompat;
-  ns.createBufferSourceFromUrl = createBufferSourceFromUrl;
-})(window.__sharedAudio);
