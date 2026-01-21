@@ -3343,3 +3343,61 @@ bindEditor();
   bind();
   render();
 })();
+
+// Cross-browser AudioContext + resume-on-gesture + decodeAudioData compatibility
+var AudioContext = window.AudioContext || window.webkitAudioContext;
+window.__sharedAudio = window.__sharedAudio || {};
+
+(function(ns){
+  var _ctx = null;
+  function getAudioContext(){
+    if(!_ctx){
+      _ctx = new AudioContext();
+      // resume on first user interaction to satisfy autoplay policies
+      function tryResume(){
+        if(_ctx && _ctx.state === 'suspended'){
+          _ctx.resume().catch(function(){});
+        }
+        removeListeners();
+      }
+      function addListeners(){
+        document.addEventListener('click', tryResume, {once: true});
+        document.addEventListener('touchstart', tryResume, {once: true});
+      }
+      function removeListeners(){
+        document.removeEventListener('click', tryResume);
+        document.removeEventListener('touchstart', tryResume);
+      }
+      addListeners();
+    }
+    return _ctx;
+  }
+
+  function decodeAudioDataCompat(arrayBuffer){
+    var ctx = getAudioContext();
+    // Older Safari uses callback form (length === 1). Wrap into Promise.
+    try {
+      if (ctx.decodeAudioData.length === 1) {
+        return new Promise(function(resolve, reject){
+          ctx.decodeAudioData(arrayBuffer, resolve, function(err){ reject(err); });
+        });
+      }
+    } catch(e){}
+    return ctx.decodeAudioData(arrayBuffer);
+  }
+
+  function createBufferSourceFromUrl(url){
+    return fetch(url, {cache: 'force-cache'}).then(function(r){ return r.arrayBuffer(); })
+      .then(decodeAudioDataCompat)
+      .then(function(buffer){
+        var ctx = getAudioContext();
+        var src = ctx.createBufferSource();
+        src.buffer = buffer;
+        return { ctx: ctx, source: src, buffer: buffer };
+      });
+  }
+
+  ns.getAudioContext = getAudioContext;
+  ns.decodeAudioDataCompat = decodeAudioDataCompat;
+  ns.createBufferSourceFromUrl = createBufferSourceFromUrl;
+})(window.__sharedAudio);
