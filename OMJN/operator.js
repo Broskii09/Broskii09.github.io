@@ -47,6 +47,21 @@
     setVizSensitivity: document.getElementById("setVizSensitivity"),
     setVizSensitivityVal: document.getElementById("setVizSensitivityVal"),
 
+    // Crowd Prompts
+    setCrowdEnabled: document.getElementById("setCrowdEnabled"),
+    setCrowdPreset: document.getElementById("setCrowdPreset"),
+    btnCrowdShowNow: document.getElementById("btnCrowdShowNow"),
+    btnCrowdHide: document.getElementById("btnCrowdHide"),
+    crowdPresetName: document.getElementById("crowdPresetName"),
+    crowdTitle: document.getElementById("crowdTitle"),
+    crowdLines: document.getElementById("crowdLines"),
+    crowdFooter: document.getElementById("crowdFooter"),
+    crowdAutoHide: document.getElementById("crowdAutoHide"),
+    btnCrowdSave: document.getElementById("btnCrowdSave"),
+    btnCrowdAdd: document.getElementById("btnCrowdAdd"),
+    btnCrowdDuplicate: document.getElementById("btnCrowdDuplicate"),
+    btnCrowdDelete: document.getElementById("btnCrowdDelete"),
+
     // Sponsor Bug
     setSponsorEnabled: document.getElementById("setSponsorEnabled"),
     setSponsorLiveOnly: document.getElementById("setSponsorLiveOnly"),
@@ -59,6 +74,8 @@
     setSponsorPosition: document.getElementById("setSponsorPosition"),
     setSponsorScale: document.getElementById("setSponsorScale"),
     setSponsorScaleVal: document.getElementById("setSponsorScaleVal"),
+    setSponsorMaxPct: document.getElementById("setSponsorMaxPct"),
+    setSponsorMaxPctVal: document.getElementById("setSponsorMaxPctVal"),
     setSponsorOpacity: document.getElementById("setSponsorOpacity"),
     setSponsorOpacityVal: document.getElementById("setSponsorOpacityVal"),
     setSponsorSafeMargin: document.getElementById("setSponsorSafeMargin"),
@@ -73,6 +90,11 @@
     btnReset: document.getElementById("btnReset"),
 
     btnSettings: document.getElementById("btnSettings"),
+    btnCrowdPrev: document.getElementById("btnCrowdPrev"),
+    btnCrowdToggle: document.getElementById("btnCrowdToggle"),
+    btnCrowdNext: document.getElementById("btnCrowdNext"),
+    crowdPromptStatus: document.getElementById("crowdPromptStatus"),
+    btnSettingsCrowd: document.getElementById("btnSettingsCrowd"),
     settingsModal: document.getElementById("settingsModal"),
     btnCloseSettings: document.getElementById("btnCloseSettings"),
 
@@ -113,8 +135,7 @@
     imgFile: document.getElementById("imgFile"),
     btnClearImg: document.getElementById("btnClearImg"),
     btnSkip: document.getElementById("btnSkip"),
-    btnSelectNext: document.getElementById("btnSelectNext"),
-
+    
     // Tabs
     tabBtnPerformers: document.getElementById("tabBtnPerformers"),
     tabBtnHouseBand: document.getElementById("tabBtnHouseBand"),
@@ -136,6 +157,9 @@
   };
 
   let selectedId = null;
+  // Inline per-row editor (Stage 2)
+  let editingId = null;
+  let editDraft = null;
 
   const VIEWER_HEARTBEAT_KEY = "omjn.viewerHeartbeat.v1";
 
@@ -311,6 +335,348 @@
     }
   }
 
+  // ---- Inline performer editor (Stage 2) ----
+  function isTypingContext(el = document.activeElement){
+    if(!el) return false;
+    const tag = (el.tagName||"").toLowerCase();
+    return tag === "input" || tag === "textarea" || tag === "select" || !!el.isContentEditable;
+  }
+
+  function openInlineEdit(slotId){
+    // Editing implies selection (keeps highlights consistent)
+    selectSlot(slotId);
+    editingId = slotId;
+    const slot = state.queue.find(x => x.id === slotId) || null;
+    const media = slot?.media || { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
+    editDraft = {
+      displayName: slot?.displayName || "",
+      slotTypeId: slot?.slotTypeId || "musician",
+      customTypeLabel: slot?.customTypeLabel || "",
+      minutesOverride: (slot?.minutesOverride ?? ""),
+      notes: slot?.notes || "",
+      donationUrl: (media.donationUrl || ""),
+      mediaLayout: media.mediaLayout || "NONE",
+    };
+  }
+
+  function closeInlineEdit(){
+    editingId = null;
+    editDraft = null;
+  }
+
+  function toggleInlineEdit(slotId){
+    if(editingId === slotId){
+      closeInlineEdit();
+      render();
+      return;
+    }
+    openInlineEdit(slotId);
+    render();
+  }
+
+  function saveInlineEdit(slotId){
+    if(!editDraft) return;
+    const name = OMJN.sanitizeText(editDraft.displayName || "");
+    const notes = String(editDraft.notes || "");
+    const url = OMJN.sanitizeText(editDraft.donationUrl || "");
+    const layout = String(editDraft.mediaLayout || "NONE");
+
+    const slotTypeId = String(editDraft.slotTypeId || "musician");
+    const customLabel = OMJN.sanitizeText(editDraft.customTypeLabel || "");
+    const moRaw = (editDraft.minutesOverride ?? "");
+    let minutesOverride = null;
+    if(String(moRaw).trim() !== ""){
+      const n = Math.round(Number(moRaw));
+      if(Number.isFinite(n) && n > 0) minutesOverride = n;
+    }
+
+    updateState(s => {
+      const slot = s.queue.find(x => x.id === slotId);
+      if(!slot) return;
+      slot.displayName = name;
+      slot.slotTypeId = slotTypeId;
+      slot.minutesOverride = minutesOverride;
+      slot.customTypeLabel = (slotTypeId === "custom") ? customLabel : "";
+      slot.notes = notes;
+      if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
+      slot.media.donationUrl = url || null;
+      slot.media.mediaLayout = layout;
+
+      // profile auto-save (keep existing behavior)
+      const key = normNameKey(slot.displayName);
+      if(key){
+        s.profiles[key] = {
+          displayName: slot.displayName,
+          defaultSlotTypeId: slot.slotTypeId || "musician",
+          defaultMinutesOverride: slot.minutesOverride ?? null,
+          media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
+          updatedAt: Date.now()
+        };
+      }
+    });
+
+    closeInlineEdit();
+    render();
+  }
+
+  function cancelInlineEdit(){
+    closeInlineEdit();
+    render();
+  }
+
+  function firstLineOfNotes(txt){
+    const s = String(txt || "").trim();
+    if(!s) return "";
+    // Avoid newline escape issues across environments
+    const parts = s.split(String.fromCharCode(10));
+    return (parts[0] || "").trim();
+  }
+
+  function skipSwapDown(slotId){
+    if(state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED") && slotId === state.currentSlotId) return;
+    // swap down one spot (clamped); uses existing queue constraints
+    moveSlot(slotId, +1);
+  }
+
+  function markNoShow(slotId){
+    if(state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED") && slotId === state.currentSlotId) return;
+    const slot = state.queue.find(x => x.id === slotId);
+    if(!slot || slot.status !== "QUEUED") return;
+    const ok = confirm(`Mark "${slot.displayName}" as NO-SHOW and move to Completed?`);
+    if(!ok) return;
+    updateState(s => {
+      const sl = s.queue.find(x => x.id === slotId);
+      if(!sl) return;
+      sl.status = "SKIPPED";
+      sl.noShow = true;
+      sl.completedAt = Date.now();
+    });
+  }
+
+  async function handleImageUploadForSlot(slotId, file){
+    if(!file) return;
+    await handleImageUpload(file, slotId);
+  }
+
+  function clearImageForSlot(slotId){
+    clearImage(slotId);
+  }
+
+  function buildInlineExpander(slot){
+    const wrap = document.createElement("div");
+    wrap.className = "qExpander";
+
+    // Prevent row-click selection from stealing focus while editing
+    const stopRowClick = (e) => { e.stopPropagation(); };
+    wrap.addEventListener("mousedown", stopRowClick);
+    wrap.addEventListener("click", stopRowClick);
+
+    const grid = document.createElement("div");
+    grid.className = "qExpGrid";
+
+    const left = document.createElement("div");
+    left.className = "col";
+
+    const fName = document.createElement("div");
+    fName.className = "field";
+    const lName = document.createElement("label");
+    lName.textContent = "Name";
+    const iName = document.createElement("input");
+    iName.type = "text";
+    iName.value = editDraft?.displayName ?? (slot.displayName || "");
+    iName.addEventListener("input", () => { if(editDraft) editDraft.displayName = iName.value; });
+    iName.addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){ e.preventDefault(); saveInlineEdit(slot.id); }
+      if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); }
+    });
+    fName.appendChild(lName); fName.appendChild(iName);
+
+    const fType = document.createElement("div");
+    fType.className = "field";
+    const lType = document.createElement("label");
+    lType.textContent = "Slot Type";
+    const selType = document.createElement("select");
+    fillTypeSelect(selType);
+    selType.value = editDraft?.slotTypeId ?? (slot.slotTypeId || "musician");
+    fType.appendChild(lType);
+    fType.appendChild(selType);
+
+    const fCustom = document.createElement("div");
+    fCustom.className = "field";
+    const lCustom = document.createElement("label");
+    lCustom.textContent = "Custom Slot Label";
+    const iCustom = document.createElement("input");
+    iCustom.type = "text";
+    iCustom.placeholder = "Custom";
+    iCustom.value = editDraft?.customTypeLabel ?? (slot.customTypeLabel || "");
+    iCustom.addEventListener("input", () => { if(editDraft) editDraft.customTypeLabel = iCustom.value; });
+    iCustom.addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){ e.preventDefault(); saveInlineEdit(slot.id); }
+      if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); }
+    });
+    fCustom.appendChild(lCustom); fCustom.appendChild(iCustom);
+
+    function syncCustomVisibility(){
+      const cur = String(selType.value || "musician");
+      if(editDraft) editDraft.slotTypeId = cur;
+      fCustom.style.display = (cur === "custom") ? "" : "none";
+    }
+    selType.addEventListener("change", () => {
+      syncCustomVisibility();
+    });
+    syncCustomVisibility();
+
+    const fMins = document.createElement("div");
+    fMins.className = "field";
+    const lMins = document.createElement("label");
+    lMins.textContent = "Minutes Override";
+    const iMins = document.createElement("input");
+    iMins.type = "number";
+    iMins.min = "1";
+    iMins.step = "1";
+    iMins.placeholder = "—";
+    iMins.value = String(editDraft?.minutesOverride ?? (slot.minutesOverride ?? ""));
+    iMins.addEventListener("input", () => { if(editDraft) editDraft.minutesOverride = iMins.value; });
+    iMins.addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){ e.preventDefault(); saveInlineEdit(slot.id); }
+      if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); }
+    });
+    fMins.appendChild(lMins); fMins.appendChild(iMins);
+
+    const fUrl = document.createElement("div");
+    fUrl.className = "field";
+    const lUrl = document.createElement("label");
+    lUrl.textContent = "Website / Socials";
+    const iUrl = document.createElement("input");
+    iUrl.type = "text";
+    iUrl.placeholder = "https://... or @handle";
+    iUrl.value = editDraft?.donationUrl ?? (slot.media?.donationUrl || "");
+    iUrl.addEventListener("input", () => { if(editDraft) editDraft.donationUrl = iUrl.value; });
+    iUrl.addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){ e.preventDefault(); saveInlineEdit(slot.id); }
+      if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); }
+    });
+    fUrl.appendChild(lUrl); fUrl.appendChild(iUrl);
+
+    const fNotes = document.createElement("div");
+    fNotes.className = "field";
+    const lNotes = document.createElement("label");
+    lNotes.textContent = "Operator Notes (private)";
+    const tNotes = document.createElement("textarea");
+    tNotes.rows = 3;
+    tNotes.value = editDraft?.notes ?? (slot.notes || "");
+    tNotes.addEventListener("input", () => { if(editDraft) editDraft.notes = tNotes.value; });
+    tNotes.addEventListener("keydown", (e) => {
+      if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); }
+      // Enter should create a newline in textarea (do not save)
+    });
+    fNotes.appendChild(lNotes); fNotes.appendChild(tNotes);
+
+    left.appendChild(fName);
+    left.appendChild(fType);
+    left.appendChild(fCustom);
+    left.appendChild(fMins);
+    left.appendChild(fUrl);
+    left.appendChild(fNotes);
+
+    const right = document.createElement("div");
+    right.className = "col";
+
+    const fLayout = document.createElement("div");
+    fLayout.className = "field";
+    const lLayout = document.createElement("label");
+    lLayout.textContent = "Media Layout";
+    const sel = document.createElement("select");
+    const opts = [
+      ["NONE","None"],
+      ["IMAGE_ONLY","Image only"],
+      ["QR_ONLY","QR only (upload image)"],
+      ["IMAGE_PLUS_QR","Image + QR (upload image)"]
+    ];
+    for(const [v, label] of opts){
+      const o = document.createElement("option");
+      o.value = v;
+      o.textContent = label;
+      sel.appendChild(o);
+    }
+    sel.value = editDraft?.mediaLayout ?? (slot.media?.mediaLayout || "NONE");
+    sel.addEventListener("change", () => { if(editDraft) editDraft.mediaLayout = sel.value; });
+    fLayout.appendChild(lLayout); fLayout.appendChild(sel);
+
+    const fImg = document.createElement("div");
+    fImg.className = "field";
+    const lImg = document.createElement("label");
+    lImg.textContent = "Image / QR";
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.gap = "8px";
+
+    const upLbl = document.createElement("label");
+    upLbl.className = "btn small";
+    upLbl.style.cursor = "pointer";
+    const inputId = `imgFile_${slot.id}`;
+    upLbl.setAttribute("for", inputId);
+    upLbl.textContent = "Upload";
+
+    const up = document.createElement("input");
+    up.type = "file";
+    up.accept = "image/*";
+    up.id = inputId;
+    up.hidden = true;
+    up.addEventListener("change", async () => {
+      const file = up.files?.[0] || null;
+      up.value = "";
+      if(file) await handleImageUpload(file, slot.id);
+    });
+
+    const btnClear = document.createElement("button");
+    btnClear.className = "btn small";
+    btnClear.textContent = "Clear";
+    btnClear.disabled = !slot.media?.imageAssetId;
+    btnClear.addEventListener("click", (e) => { e.preventDefault(); clearImage(slot.id); });
+
+    row.appendChild(upLbl);
+    row.appendChild(up);
+    row.appendChild(btnClear);
+
+    fImg.appendChild(lImg);
+    fImg.appendChild(row);
+
+    if(slot.media?.imageAssetId){
+      const tiny = document.createElement("div");
+      tiny.className = "small";
+      tiny.style.marginTop = "6px";
+      tiny.textContent = "Image uploaded";
+      fImg.appendChild(tiny);
+    }
+
+    right.appendChild(fLayout);
+    right.appendChild(fImg);
+
+    grid.appendChild(left);
+    grid.appendChild(right);
+    wrap.appendChild(grid);
+
+    const actions = document.createElement("div");
+    actions.className = "qExpActions";
+
+    const btnCancel = document.createElement("button");
+    btnCancel.className = "btn small";
+    btnCancel.textContent = "Cancel";
+    btnCancel.addEventListener("click", (e) => { e.preventDefault(); cancelInlineEdit(); });
+
+    const btnSave = document.createElement("button");
+    btnSave.className = "btn small";
+    btnSave.textContent = "Save";
+    btnSave.addEventListener("click", (e) => { e.preventDefault(); saveInlineEdit(slot.id); });
+
+    actions.appendChild(btnCancel);
+    actions.appendChild(btnSave);
+    wrap.appendChild(actions);
+
+    return wrap;
+  }
+
 
   function publish(){
     OMJN.publish(state);
@@ -340,6 +706,8 @@
     const s = cloneState(state);
     ensureProfilesShape(s);
     OMJN.ensureHouseBandQueues(s);
+    // Ensure performer queue exists so mutators can push safely
+    if(!Array.isArray(s.queue)) s.queue = [];
     mutator(s);
     normalizePerformerQueue(s);
     setState(s);
@@ -353,9 +721,9 @@
     const active = s.queue.filter(x => !isDone(x));
     const done = s.queue.filter(isDone).slice()
       .sort((a,b) => (a.completedAt || 0) - (b.completedAt || 0));
-
     // Keep the currently-live slot pinned to top (Operator clarity)
-    if(s.currentSlotId){
+    const lockCurrent = !!s.currentSlotId && (s.phase === "LIVE" || s.phase === "PAUSED");
+    if(lockCurrent){
       const liveIdx = active.findIndex(x => x.id === s.currentSlotId);
       if(liveIdx > 0){
         const [live] = active.splice(liveIdx, 1);
@@ -364,15 +732,19 @@
     }
 
     s.queue = [...active, ...done];
-
-    // Keep selectedNextId valid
-    if(s.selectedNextId){
-      const ok = s.queue.some(x => x.id === s.selectedNextId && x.status === "QUEUED" && x.id !== s.currentSlotId);
-      if(!ok) s.selectedNextId = null;
-    }
   }
 
 function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+// HTML-escape helper used by renderSettings()
+function escapeHtml(s){
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
   function renderSlotTypesEditor(){
     if(!els.slotTypesEditor) return;
@@ -476,6 +848,115 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
       row.appendChild(fMin);
 
       els.slotTypesEditor.appendChild(row);
+    }
+  }
+
+
+
+  // ---- Crowd Prompts (Operator settings + quick controls) ----
+  let crowdAutoHideTimeout = null;
+  let lastCrowdEditorKey = null;
+  let lastCrowdAutoKey = null;
+
+  function ensureCrowdDefaults(s){
+    s.viewerPrefs = s.viewerPrefs || {};
+    const d = OMJN.defaultState();
+    if(!s.viewerPrefs.crowdPrompts) s.viewerPrefs.crowdPrompts = JSON.parse(JSON.stringify(d.viewerPrefs.crowdPrompts));
+    else {
+      const c = s.viewerPrefs.crowdPrompts;
+      const cd = d.viewerPrefs.crowdPrompts;
+      for(const k of Object.keys(cd)){ if(c[k] === undefined) c[k] = cd[k]; }
+      if(!Array.isArray(c.presets) || !c.presets.length) c.presets = JSON.parse(JSON.stringify(cd.presets));
+      // Ensure preset shapes (merge defaults by id)
+      const byId = new Map((cd.presets || []).map(p => [p.id, p]));
+      c.presets = (c.presets || []).map(p => Object.assign({}, byId.get(p.id) || {}, p || {}));
+    }
+    const c = s.viewerPrefs.crowdPrompts;
+    if(!Array.isArray(c.presets) || !c.presets.length){
+      c.presets = JSON.parse(JSON.stringify(OMJN.defaultState().viewerPrefs.crowdPrompts.presets));
+    }
+    if(!c.activePresetId || !c.presets.some(p => p.id === c.activePresetId)){
+      c.activePresetId = c.presets[0]?.id || OMJN.defaultState().viewerPrefs.crowdPrompts.activePresetId;
+    }
+  }
+
+  function getCrowdCfg(s=state){
+    const d = OMJN.defaultState();
+    return (s.viewerPrefs && s.viewerPrefs.crowdPrompts) ? s.viewerPrefs.crowdPrompts : d.viewerPrefs.crowdPrompts;
+  }
+
+  function getActiveCrowdPreset(cfg){
+    const presets = cfg?.presets || [];
+    const id = cfg?.activePresetId;
+    return presets.find(p => p.id === id) || presets[0] || null;
+  }
+
+  function clearCrowdAutoHide(){
+    if(crowdAutoHideTimeout){
+      clearTimeout(crowdAutoHideTimeout);
+      crowdAutoHideTimeout = null;
+    }
+  }
+
+  function scheduleCrowdAutoHide(){
+    clearCrowdAutoHide();
+    const cfg = getCrowdCfg(state);
+    if(!cfg?.enabled) return;
+    const p = getActiveCrowdPreset(cfg);
+    const sec = clamp(parseInt(String(p?.autoHideSeconds ?? 0), 10) || 0, 0, 60);
+    if(sec <= 0) return;
+    crowdAutoHideTimeout = setTimeout(() => {
+      updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.enabled = false; }, { recordHistory:false });
+    }, sec * 1000);
+  }
+
+  function syncCrowdAutoHide(){
+    const cfg = getCrowdCfg(state);
+    const p = getActiveCrowdPreset(cfg);
+    const key = JSON.stringify({
+      enabled: !!cfg.enabled,
+      presetId: cfg.activePresetId,
+      autoHideSeconds: p?.autoHideSeconds
+    });
+    if(key == lastCrowdAutoKey) return;
+    lastCrowdAutoKey = key;
+    if(!cfg.enabled){
+      clearCrowdAutoHide();
+      return;
+    }
+    scheduleCrowdAutoHide();
+  }
+
+  function cycleCrowdPreset(dir){
+    const cfg = getCrowdCfg(state);
+    const presets = cfg?.presets || [];
+    if(presets.length < 2) return;
+    const idx = Math.max(0, presets.findIndex(p => p.id === cfg.activePresetId));
+    const next = (idx + (dir > 0 ? 1 : -1) + presets.length) % presets.length;
+    const nextId = presets[next].id;
+    updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.activePresetId = nextId; }, { recordHistory:false });
+    // If currently showing, restart timer on preset swap
+    scheduleCrowdAutoHide();
+  }
+
+  function setCrowdEnabled(on){
+    updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.enabled = !!on; }, { recordHistory:false });
+    scheduleCrowdAutoHide();
+  }
+
+  function updateCrowdQuickButtons(){
+    if(!els.btnCrowdToggle) return;
+    const cfg = getCrowdCfg(state);
+    const p = getActiveCrowdPreset(cfg);
+    const name = (p?.name || p?.title || "Prompt").trim();
+    if(cfg.enabled){
+      els.btnCrowdToggle.textContent = `Crowd: ${name}`;
+      els.btnCrowdToggle.classList.add("good");
+      if(els.crowdPromptStatus) els.crowdPromptStatus.textContent = `ON · ${name}`;
+    } else {
+      els.btnCrowdToggle.textContent = "Crowd: Off";
+      els.btnCrowdToggle.classList.remove("good");
+      if(els.crowdPromptStatus) els.crowdPromptStatus.textContent = `OFF · ${name}`;
     }
   }
 
@@ -650,6 +1131,37 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
 
     
 
+    
+
+    // Crowd Prompts UI
+    const cp = state.viewerPrefs?.crowdPrompts || OMJN.defaultState().viewerPrefs.crowdPrompts;
+    const presets = Array.isArray(cp.presets) ? cp.presets : [];
+    const activeId = presets.some(p=>p.id===cp.activePresetId) ? cp.activePresetId : (presets[0]?.id || "");
+
+    if(els.setCrowdEnabled) els.setCrowdEnabled.checked = !!cp.enabled;
+
+    if(els.setCrowdPreset){
+      const opts = presets.map(p => ({ id: p.id, label: (p.name || p.title || p.id) }));
+      els.setCrowdPreset.innerHTML = opts.map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join("");
+      els.setCrowdPreset.value = activeId;
+    }
+
+    // Only sync editor fields when preset changes (so typing isn't overwritten)
+    const editorKey = JSON.stringify({ activeId, count: presets.length, names: presets.map(p=>p.name||"").join("|") });
+    if(editorKey !== lastCrowdEditorKey){
+      lastCrowdEditorKey = editorKey;
+      const ap = presets.find(p=>p.id===activeId) || presets[0] || {};
+      if(els.crowdPresetName) els.crowdPresetName.value = ap.name || "";
+      if(els.crowdTitle) els.crowdTitle.value = ap.title || "";
+      if(els.crowdLines) els.crowdLines.value = Array.isArray(ap.lines) ? ap.lines.join("\n") : "";
+      if(els.crowdFooter) els.crowdFooter.value = ap.footer || "";
+      if(els.crowdAutoHide) els.crowdAutoHide.value = String(clamp(parseInt(String(ap.autoHideSeconds ?? 0),10) || 0, 0, 60));
+    }
+
+    updateCrowdQuickButtons();
+    syncCrowdAutoHide();
+
+
     // Sponsor Bug UI
     const sb = state.viewerPrefs?.sponsorBug || OMJN.defaultState().viewerPrefs.sponsorBug;
     if(els.setSponsorEnabled) els.setSponsorEnabled.checked = !!sb.enabled;
@@ -661,6 +1173,11 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
       const v = clampNum(sb.scale ?? 1.0, 0.25, 2.0);
       els.setSponsorScale.value = String(v);
       if(els.setSponsorScaleVal) els.setSponsorScaleVal.textContent = `${v.toFixed(2)}×`;
+    }
+    if(els.setSponsorMaxPct){
+      const v = clampNum(sb.maxSizePct ?? 18, 5, 25);
+      els.setSponsorMaxPct.value = String(Math.round(v));
+      if(els.setSponsorMaxPctVal) els.setSponsorMaxPctVal.textContent = `${Math.round(v)}%`;
     }
     if(els.setSponsorOpacity){
       const v = clampNum(sb.opacity ?? 1.0, 0, 1);
@@ -808,6 +1325,89 @@ if(els.prefCollapseEditor){
 
     
 
+    // Crowd Prompts controls
+    function readCrowdEditor(){
+      const name = (els.crowdPresetName?.value || "").trim();
+      const title = (els.crowdTitle?.value || "").trim();
+      const footer = (els.crowdFooter?.value || "").trim();
+      const autoHideSeconds = clamp(parseInt(String(els.crowdAutoHide?.value || "0"), 10) || 0, 0, 60);
+      const linesRaw = (els.crowdLines?.value || "");
+      const lines = linesRaw.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+      return { name, title, footer, autoHideSeconds, lines };
+    }
+
+    function saveCrowdPreset(){
+      const data = readCrowdEditor();
+      updateState(s => {
+        ensureCrowdDefaults(s);
+        const cfg = s.viewerPrefs.crowdPrompts;
+        const idx = cfg.presets.findIndex(p => p.id === cfg.activePresetId);
+        if(idx >= 0){
+          cfg.presets[idx] = Object.assign({}, cfg.presets[idx], data);
+        }
+      }, { recordHistory:false });
+      scheduleCrowdAutoHide();
+    }
+
+    function addCrowdPreset(fromPreset=null){
+      const base = fromPreset || { name: "New Prompt", title: "CROWD PROMPT", lines: [], footer: "", autoHideSeconds: 0 };
+      const id = OMJN.uid("cp");
+      const preset = {
+        id,
+        name: (base.name || "New Prompt") + (fromPreset ? " Copy" : ""),
+        title: base.title || "CROWD PROMPT",
+        lines: Array.isArray(base.lines) ? base.lines.slice() : [],
+        footer: base.footer || "",
+        autoHideSeconds: clamp(parseInt(String(base.autoHideSeconds ?? 0), 10) || 0, 0, 60)
+      };
+      updateState(s => {
+        ensureCrowdDefaults(s);
+        const cfg = s.viewerPrefs.crowdPrompts;
+        cfg.presets.push(preset);
+        cfg.activePresetId = id;
+      }, { recordHistory:false });
+    }
+
+    function deleteCrowdPreset(){
+      updateState(s => {
+        ensureCrowdDefaults(s);
+        const cfg = s.viewerPrefs.crowdPrompts;
+        if(cfg.presets.length <= 1) return;
+        const idx = cfg.presets.findIndex(p => p.id === cfg.activePresetId);
+        if(idx >= 0) cfg.presets.splice(idx, 1);
+        const newIdx = Math.min(idx, cfg.presets.length - 1);
+        cfg.activePresetId = cfg.presets[newIdx].id;
+      }, { recordHistory:false });
+      scheduleCrowdAutoHide();
+    }
+
+    if(els.setCrowdEnabled){
+      els.setCrowdEnabled.addEventListener("change", () => setCrowdEnabled(!!els.setCrowdEnabled.checked));
+    }
+    if(els.btnCrowdShowNow){
+      els.btnCrowdShowNow.addEventListener("click", () => setCrowdEnabled(true));
+    }
+    if(els.btnCrowdHide){
+      els.btnCrowdHide.addEventListener("click", () => setCrowdEnabled(false));
+    }
+    if(els.setCrowdPreset){
+      els.setCrowdPreset.addEventListener("change", () => {
+        const id = String(els.setCrowdPreset.value || "");
+        updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.activePresetId = id; }, { recordHistory:false });
+        scheduleCrowdAutoHide();
+      });
+    }
+    if(els.btnCrowdSave) els.btnCrowdSave.addEventListener("click", saveCrowdPreset);
+    if(els.btnCrowdAdd) els.btnCrowdAdd.addEventListener("click", () => addCrowdPreset(null));
+    if(els.btnCrowdDuplicate) els.btnCrowdDuplicate.addEventListener("click", () => {
+      const cfg = getCrowdCfg(state);
+      const p = getActiveCrowdPreset(cfg);
+      if(!p) return;
+      addCrowdPreset(p);
+    });
+    if(els.btnCrowdDelete) els.btnCrowdDelete.addEventListener("click", deleteCrowdPreset);
+
+
     // Sponsor Bug controls
     function ensureSponsorBugDefaults(s){
       s.viewerPrefs = s.viewerPrefs || {};
@@ -910,6 +1510,17 @@ if(els.prefCollapseEditor){
       els.setSponsorScale.addEventListener("change", onScale);
       els.setSponsorScaleVal?.addEventListener?.("dblclick", () => { els.setSponsorScale.value = "1"; onScale(); });
     }
+    if(els.setSponsorMaxPct){
+      const onCap = () => {
+        const v = clamp(parseInt(els.setSponsorMaxPct.value || "18", 10) || 18, 5, 25);
+        els.setSponsorMaxPct.value = String(v);
+        if(els.setSponsorMaxPctVal) els.setSponsorMaxPctVal.textContent = `${v}%`;
+        updateState(s => { ensureSponsorBugDefaults(s); s.viewerPrefs.sponsorBug.maxSizePct = v; }, { recordHistory:false });
+      };
+      els.setSponsorMaxPct.addEventListener("input", onCap);
+      els.setSponsorMaxPct.addEventListener("change", onCap);
+      els.setSponsorMaxPctVal?.addEventListener?.("dblclick", () => { els.setSponsorMaxPct.value = "18"; onCap(); });
+    }
     if(els.setSponsorOpacity){
       const onOp = () => {
         const v = clamp(parseFloat(els.setSponsorOpacity.value || "1"), 0, 1);
@@ -1003,6 +1614,7 @@ if(els.prefCollapseEditor){
   }
 
 function fillTypeSelect(selectEl){
+    if(!selectEl) return;
     selectEl.innerHTML = "";
     for(const t of visibleSlotTypes()){
       const opt = document.createElement("option");
@@ -1030,7 +1642,8 @@ function fillTypeSelect(selectEl){
 
     // Visual roles (LIVE / NEXT / ON DECK / DONE) for clarity during busy nights
     const [n1, n2] = OMJN.computeNextTwo(state);
-    const isLive = (slot.id === state.currentSlotId);
+    const lockCurrent = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
+    const isLive = lockCurrent && (slot.id === state.currentSlotId);
     const isDone = (slot.status === "DONE" || slot.status === "SKIPPED");
     const isNext = (!isLive && !isDone && n1 && slot.id === n1.id);
     const isDeck = (!isLive && !isDone && n2 && slot.id === n2.id);
@@ -1041,8 +1654,10 @@ function fillTypeSelect(selectEl){
     if(isDeck) div.classList.add("isDeck");
     if(isDone) div.classList.add("isDone");
     if(slot.status !== "QUEUED") div.classList.add("notQueued");
+    if(selectedId === slot.id) div.classList.add("isSelected");
+    if(editingId === slot.id) div.classList.add("isEditing");
 
-    div.draggable = (slot.status === "QUEUED") && !isLive && !isDone;
+    div.draggable = (slot.status === "QUEUED") && !isLive && !isDone && (editingId !== slot.id);
     div.dataset.id = slot.id;
     if(t?.color) div.style.borderLeft = `6px solid ${t.color}`;
 
@@ -1099,7 +1714,11 @@ function fillTypeSelect(selectEl){
     if(isDone){
       const dn = document.createElement("span");
       dn.className = "badge badgeDone";
-      dn.textContent = (slot.status === "SKIPPED") ? "NO-SHOW" : "DONE";
+      if(slot.status === "SKIPPED"){
+        dn.textContent = slot.noShow ? "NO-SHOW" : "SKIPPED";
+      }else{
+        dn.textContent = "DONE";
+      }
       top.appendChild(dn);
     }
 
@@ -1116,67 +1735,108 @@ function fillTypeSelect(selectEl){
     }
 
     main.appendChild(top);
+    const notesLine = firstLineOfNotes(slot.notes);
+    if(notesLine){
+      const sub = document.createElement("div");
+      sub.className = "qNotesSub";
+      sub.textContent = notesLine;
+      main.appendChild(sub);
+    }
     main.appendChild(meta);
 
-const actions = document.createElement("div");
-actions.className = "qActions";
+    const actions = document.createElement("div");
+    actions.className = "qActions";
 
-const btnSel = document.createElement("button");
-btnSel.className = "btn tiny";
-btnSel.textContent = (selectedId === slot.id) ? "Selected" : "Select";
-btnSel.addEventListener("click", (e) => {
-  e.stopPropagation();
-  selectSlot(slot.id);
-});
-actions.appendChild(btnSel);
+    // Edit / Close (inline expander)
+    if(!isDone){
+      const btnEdit = document.createElement("button");
+      btnEdit.className = "btn tiny";
+      const isOpen = (editingId === slot.id);
+      btnEdit.textContent = isOpen ? "Close" : "Edit";
+      btnEdit.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleInlineEdit(slot.id);
+      });
+      actions.appendChild(btnEdit);
 
-if(isDone){
-  const btnRq = document.createElement("button");
-  btnRq.className = "btn tiny";
-  btnRq.textContent = "Re-queue";
-  btnRq.title = "Move back to Active queue";
-  btnRq.addEventListener("click", (e) => {
-    e.stopPropagation();
-    requeueSlot(slot.id);
-  });
-  actions.appendChild(btnRq);
-}else{
-  const btnUp = document.createElement("button");
-  btnUp.className = "btn tiny";
-  btnUp.textContent = "↑";
-  btnUp.title = "Move up";
-  btnUp.disabled = (slot.status !== "QUEUED") || isLive;
-  btnUp.addEventListener("click", (e) => {
-    e.stopPropagation();
-    moveSlot(slot.id, -1);
-  });
+      // Skip (swap down one spot) - disabled for current performer
+      const btnSkip = document.createElement("button");
+      btnSkip.className = "btn tiny";
+      btnSkip.textContent = "Skip";
+      btnSkip.title = "Swap down one spot";
+      btnSkip.disabled = (slot.status !== "QUEUED") || isLive;
+      btnSkip.addEventListener("click", (e) => {
+        e.stopPropagation();
+        skipSwapDown(slot.id);
+      });
+      actions.appendChild(btnSkip);
 
-  const btnDn = document.createElement("button");
-  btnDn.className = "btn tiny";
-  btnDn.textContent = "↓";
-  btnDn.title = "Move down";
-  btnDn.disabled = (slot.status !== "QUEUED") || isLive;
-  btnDn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    moveSlot(slot.id, +1);
-  });
+      // No-show - disabled for current performer
+      const btnNo = document.createElement("button");
+      btnNo.className = "btn tiny";
+      btnNo.textContent = "No-show";
+      btnNo.title = "Mark as no-show and move to Completed";
+      btnNo.disabled = (slot.status !== "QUEUED") || isLive;
+      btnNo.addEventListener("click", (e) => {
+        e.stopPropagation();
+        markNoShow(slot.id);
+      });
+      actions.appendChild(btnNo);
+    }
 
-  actions.appendChild(btnUp);
-  actions.appendChild(btnDn);
-}
+    if(isDone){
+      const btnRq = document.createElement("button");
+      btnRq.className = "btn tiny";
+      btnRq.textContent = "Re-queue";
+      btnRq.title = "Move back to Active queue";
+      btnRq.addEventListener("click", (e) => {
+        e.stopPropagation();
+        requeueSlot(slot.id);
+      });
+      actions.appendChild(btnRq);
+    }else{
+      const btnUp = document.createElement("button");
+      btnUp.className = "btn tiny";
+      btnUp.textContent = "↑";
+      btnUp.title = "Move up";
+      btnUp.disabled = (slot.status !== "QUEUED") || isLive;
+      btnUp.addEventListener("click", (e) => {
+        e.stopPropagation();
+        moveSlot(slot.id, -1);
+      });
 
-const btnDel = document.createElement("button");
-btnDel.className = "btn tiny danger";
-btnDel.textContent = "✕";
-btnDel.title = "Remove from queue";
-btnDel.addEventListener("click", (e) => {
-  e.stopPropagation();
-  removeSlot(slot.id);
-});
-actions.appendChild(btnDel);
+      const btnDn = document.createElement("button");
+      btnDn.className = "btn tiny";
+      btnDn.textContent = "↓";
+      btnDn.title = "Move down";
+      btnDn.disabled = (slot.status !== "QUEUED") || isLive;
+      btnDn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        moveSlot(slot.id, +1);
+      });
+
+      actions.appendChild(btnUp);
+      actions.appendChild(btnDn);
+    }
+
+    const btnDel = document.createElement("button");
+    btnDel.className = "btn tiny danger";
+    btnDel.textContent = "✕";
+    btnDel.title = "Remove from queue";
+    btnDel.addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeSlot(slot.id);
+    });
+    actions.appendChild(btnDel);
 
     div.appendChild(handle);
     div.appendChild(main);
+    // Inline expander under row (text-only edits)
+    if(editingId === slot.id && editDraft){
+      try{
+        div.appendChild(buildInlineExpander(slot));
+      }catch(_){ /* never block queue rendering */ }
+    }
     div.appendChild(actions);
 
     div.addEventListener("click", () => {
@@ -1239,6 +1899,91 @@ function getDragAfterElement(container, y){
     }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
   }
 
+  // Performer queue drag & drop (reorder)
+  let performerDnDBound = false;
+
+  function getDragAfterElementActive(container, y){
+    const items = [...container.querySelectorAll('.queueItem:not(.dragging):not(.isDone)')];
+    return items.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if(offset < 0 && offset > closest.offset){
+        return { offset, element: child };
+      }
+      return closest;
+    }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+  }
+
+  function bindPerformerDnD(){
+    if(performerDnDBound) return;
+    if(!els.queue) return;
+    performerDnDBound = true;
+
+    els.queue.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const dragging = els.queue.querySelector('.queueItem.dragging');
+      if(!dragging) return;
+
+      const after = getDragAfterElementActive(els.queue, e.clientY);
+      const divider = els.queue.querySelector('.queueDivider');
+
+      if(after && after !== dragging){
+        els.queue.insertBefore(dragging, after);
+      }else if(divider){
+        els.queue.insertBefore(dragging, divider);
+      }else{
+        els.queue.appendChild(dragging);
+      }
+    });
+
+    els.queue.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const draggedId = e.dataTransfer.getData('text/plain');
+      if(!draggedId) return;
+
+      const activeIds = [...els.queue.querySelectorAll('.queueItem:not(.isDone)')]
+        .map(el => el.dataset.id)
+        .filter(Boolean);
+      if(!activeIds.length) return;
+
+      updateState(s => {
+        const isDone = (x) => x && (x.status === 'DONE' || x.status === 'SKIPPED');
+        const done = s.queue.filter(isDone);
+        const active = s.queue.filter(x => !isDone(x));
+        const map = new Map(active.map(x => [x.id, x]));
+
+        const next = [];
+        const seen = new Set();
+
+        for(const id of activeIds){
+          const slot = map.get(id);
+          if(slot && !seen.has(id)){
+            next.push(slot);
+            seen.add(id);
+          }
+        }
+        for(const slot of active){
+          if(slot && !seen.has(slot.id)){
+            next.push(slot);
+            seen.add(slot.id);
+          }
+        }
+
+        const lockCurrent = !!s.currentSlotId && (s.phase === 'LIVE' || s.phase === 'PAUSED');
+        if(lockCurrent){
+          const idx = next.findIndex(x => x.id === s.currentSlotId);
+          if(idx > 0){
+            const [cur] = next.splice(idx, 1);
+            next.unshift(cur);
+          }
+        }
+
+        s.queue = [...next, ...done];
+      });
+    });
+  }
+
+
   function moveSlot(slotId, delta){
     updateState(s => {
       const idx = s.queue.findIndex(x=>x.id===slotId);
@@ -1248,10 +1993,11 @@ function getDragAfterElement(container, y){
       if(!slot) return;
       if(slot.status === "DONE" || slot.status === "SKIPPED") return; // completed lives in Completed tab
 
-      // do not move the live slot
-      if(slotId === s.currentSlotId) return;
+      const lockCurrent = !!s.currentSlotId && (s.phase === "LIVE" || s.phase === "PAUSED");
+      // do not move the live slot while LIVE/PAUSED
+      if(lockCurrent && slotId === s.currentSlotId) return;
 
-      const liveIdx = s.currentSlotId ? s.queue.findIndex(x=>x.id===s.currentSlotId) : -1;
+      const liveIdx = lockCurrent ? s.queue.findIndex(x=>x.id===s.currentSlotId) : -1;
       const minIdx = (liveIdx >= 0) ? liveIdx + 1 : 0;
 
       const doneStart = s.queue.findIndex(x => x.status === "DONE" || x.status === "SKIPPED");
@@ -1277,16 +2023,13 @@ function getDragAfterElement(container, y){
 
       slot.status = "QUEUED";
       slot.completedAt = null;
+      slot.noShow = false;
 
       // move to bottom of Active (before first completed)
       const [moved] = s.queue.splice(idx, 1);
       const doneStart = s.queue.findIndex(x => x.status === "DONE" || x.status === "SKIPPED");
       const insertAt = (doneStart >= 0) ? doneStart : s.queue.length;
       s.queue.splice(insertAt, 0, moved);
-
-      if(!s.currentSlotId && !s.selectedNextId){
-        s.selectedNextId = moved.id;
-      }
     });
   }
 
@@ -1309,10 +2052,6 @@ function getDragAfterElement(container, y){
         s.timer.startedAt = null;
         s.timer.elapsedMs = 0;
         s.timer.baseDurationMs = null;
-      }
-      if(s.selectedNextId === slotId){
-        const next = s.queue.find(x=>x.status==="QUEUED" && true);
-        s.selectedNextId = next ? next.id : null;
       }
 
       const assetId = removed?.media?.imageAssetId;
@@ -1678,6 +2417,8 @@ function renderKPIs(){
   }
 
   function renderEditor(){
+    // Legacy right-drawer editor may not exist (inline expander is primary).
+    if(!els.selId || !els.editName || !els.editType || !els.editMinutes || !els.editNotes || !els.editUrl || !els.editLayout) return;
     ensureSelectedValid();
     const slot = state.queue.find(s=>s.id===selectedId) || null;
 
@@ -1727,7 +2468,11 @@ function renderKPIs(){
     // Editor collapse
     if(els.editCard) els.editCard.open = !state.operatorPrefs?.editCollapsed;
 
-    renderSettings();
+    try{
+      renderSettings();
+    }catch(err){
+      console.error("renderSettings crashed; continuing to render queue.", err);
+    }
 
     // Undo/redo buttons
     els.btnUndo.disabled = !undoStack.length;
@@ -1800,50 +2545,16 @@ function renderKPIs(){
             updatedAt: Date.now()
           };
         }
-      if(!s.selectedNextId && !s.currentSlotId){
-        s.selectedNextId = slot.id;
-      }
     });
 
     els.addName.value = "";
     els.addName.focus();
   }
 
-  function setAsNext(slotId){
-    updateState(s => {
-      const slot = s.queue.find(x=>x.id===slotId);
-      if(!slot) return;
-
-      slot.status = "QUEUED";
-
-      if(s.currentSlotId){
-        const curIdx = s.queue.findIndex(x=>x.id===s.currentSlotId);
-        const idx = s.queue.findIndex(x=>x.id===slotId);
-        if(curIdx >= 0 && idx >= 0){
-          const [moved] = s.queue.splice(idx, 1);
-          const insertAt = Math.min(curIdx + 1, s.queue.length);
-          s.queue.splice(insertAt, 0, moved);
-        }
-      } else {
-        const idx = s.queue.findIndex(x=>x.id===slotId);
-        if(idx >= 0){
-          const [moved] = s.queue.splice(idx, 1);
-          const firstQueuedIdx = s.queue.findIndex(x=>x.status==="QUEUED");
-          const insertAt = firstQueuedIdx >= 0 ? firstQueuedIdx : s.queue.length;
-          s.queue.splice(insertAt, 0, moved);
-        }
-        s.selectedNextId = slotId;
-      }
-    });
-  }
-
   
   function guardedStart(){
     // determine who would start
-    const pick = (() => {
-      const eligible = (x) => x.status==="QUEUED" && true;
-      return state.queue.find(x=>x.id===state.selectedNextId && eligible(x)) || state.queue.find(x=>eligible(x));
-    })();
+    const pick = (state.queue || []).find(x => x && x.status === "QUEUED");
 
     if(state.operatorPrefs?.startGuard){
       const name = pick?.displayName || "—";
@@ -1865,7 +2576,7 @@ function renderKPIs(){
 function start(){
     updateState(s => {
       const eligible = (x) => x.status==="QUEUED" && true;
-      const pick = s.queue.find(x=>x.id===s.selectedNextId && eligible(x)) || s.queue.find(x=>eligible(x));
+      const pick = s.queue.find(x => eligible(x));
       if(!pick) return;
 
       // Pin live slot to top of the queue for clarity
@@ -1881,10 +2592,6 @@ function start(){
       s.timer.startedAt = Date.now();
       s.timer.elapsedMs = 0;
       s.timer.baseDurationMs = OMJN.effectiveMinutes(s, pick) * 60 * 1000;
-
-      // pre-select next eligible slot
-      const next = s.queue.find(x=>x.id!==pick.id && eligible(x));
-      s.selectedNextId = next ? next.id : null;
     });
   }
 
@@ -1925,8 +2632,16 @@ function start(){
         s.phase = "SPLASH";
         return;
       }
-      const cur = s.queue.find(x=>x.id===s.currentSlotId);
+      const idx = s.queue.findIndex(x => x.id === s.currentSlotId);
+      const cur = idx >= 0 ? s.queue[idx] : null;
       if(cur){ cur.status = "DONE"; cur.completedAt = Date.now(); }
+
+      // Move completed performer to bottom so QUEUED order always drives Next/On Deck UX
+      if(idx >= 0){
+        const [moved] = s.queue.splice(idx, 1);
+        s.queue.push(moved);
+      }
+
       // House Band is independent; no automatic rotation happens here.
       s.currentSlotId = null;
       s.phase = "SPLASH";
@@ -1934,9 +2649,6 @@ function start(){
       s.timer.startedAt = null;
       s.timer.elapsedMs = 0;
       s.timer.baseDurationMs = null;
-      // auto-select next queued
-      const next = s.queue.find(x=>x.status==="QUEUED" && true);
-      s.selectedNextId = next ? next.id : null;
     });
   }
 
@@ -1956,7 +2668,7 @@ function start(){
   function skipSelected(){
     if(!selectedId) return;
     updateState(s => {
-      const slot = s.queue.find(x=>x.id===selectedId);
+      const slot = s.queue.find(x=>x.id===targetId);
       if(!slot) return;
       slot.status = "SKIPPED";
       slot.completedAt = Date.now();
@@ -1968,10 +2680,6 @@ function start(){
         s.timer.startedAt = null;
         s.timer.elapsedMs = 0;
         s.timer.baseDurationMs = null;
-      }
-      if(s.selectedNextId === slot.id){
-        const next = s.queue.find(x=>x.status==="QUEUED" && true);
-        s.selectedNextId = next ? next.id : null;
       }
     });
   }
@@ -1995,8 +2703,9 @@ function start(){
     selectedId = null;
   }
 
-  async function handleImageUpload(file){
-    if(!selectedId || !file) return;
+  async function handleImageUpload(file, slotIdOverride){
+    const targetId = slotIdOverride || selectedId;
+    if(!targetId || !file) return;
 
     // compress and store
     const { blob, meta } = await OMJN.compressImageFile(file, { maxEdge: 1600, quality: 0.82, mime: "image/webp" });
@@ -2007,7 +2716,7 @@ function start(){
 
     updateState(s => {
       s.assetsIndex[assetId] = meta;
-      const slot = s.queue.find(x=>x.id===selectedId);
+      const slot = s.queue.find(x=>x.id===targetId);
       if(!slot) return;
       if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
       slot.media.imageAssetId = assetId;
@@ -2031,10 +2740,11 @@ function start(){
     });
   }
 
-  function clearImage(){
-    if(!selectedId) return;
+  function clearImage(slotIdOverride){
+    const targetId = slotIdOverride || selectedId;
+    if(!targetId) return;
     updateState(s => {
-      const slot = s.queue.find(x=>x.id===selectedId);
+      const slot = s.queue.find(x=>x.id===targetId);
       if(!slot?.media?.imageAssetId) return;
       const assetId = slot.media.imageAssetId;
       slot.media.imageAssetId = null;
@@ -2108,7 +2818,7 @@ function start(){
       const v = OMJN.sanitizeText(els.editName.value);
       if(!selectedId) return;
       updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
+        const slot = s.queue.find(x=>x.id===targetId);
         if(slot){
           slot.displayName = v;
           // profile auto-save
@@ -2130,7 +2840,7 @@ function start(){
       if(!selectedId) return;
       const v = els.editType.value;
       updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
+        const slot = s.queue.find(x=>x.id===targetId);
         if(!slot) return;
         slot.slotTypeId = v;
         if(v !== "custom") slot.customTypeLabel = slot.customTypeLabel || "";
@@ -2152,7 +2862,7 @@ function start(){
       const raw = els.editMinutes.value;
       const val = raw === "" ? null : Math.max(1, Math.round(Number(raw)));
       updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
+        const slot = s.queue.find(x=>x.id===targetId);
         if(slot) slot.minutesOverride = val;
       });
     });
@@ -2161,7 +2871,7 @@ function start(){
       if(!selectedId) return;
       const v = els.editNotes.value;
       updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
+        const slot = s.queue.find(x=>x.id===targetId);
         if(slot) slot.notes = v;
       });
     });
@@ -2170,7 +2880,7 @@ function start(){
       if(!selectedId) return;
       const v = OMJN.sanitizeText(els.editUrl.value);
       updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
+        const slot = s.queue.find(x=>x.id===targetId);
         if(!slot) return;
         if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
         slot.media.donationUrl = v || null;
@@ -2191,7 +2901,7 @@ els.editLayout.addEventListener("change", () => {
       if(!selectedId) return;
       const v = els.editLayout.value;
       updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
+        const slot = s.queue.find(x=>x.id===targetId);
         if(!slot) return;
         if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
         slot.media.mediaLayout = v;
@@ -2216,13 +2926,12 @@ els.editLayout.addEventListener("change", () => {
 
     els.btnClearImg.addEventListener("click", clearImage);
     els.btnSkip.addEventListener("click", skipSelected);
-    els.btnSelectNext.addEventListener("click", () => selectedId && setAsNext(selectedId));
 
         els.editCustomLabel.addEventListener("input", () => {
       if(!selectedId) return;
       const v = OMJN.sanitizeText(els.editCustomLabel.value);
       updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
+        const slot = s.queue.find(x=>x.id===targetId);
         if(slot) slot.customTypeLabel = v;
       });
     });
@@ -2257,6 +2966,26 @@ function bind(){
     fillTypeSelect(els.editType);
     toggleCustomAddFields();
     bindSettings();
+    bindPerformerDnD();
+
+    // Crowd prompt quick controls (now in right drawer)
+    if(els.btnCrowdPrev) els.btnCrowdPrev.addEventListener("click", (e) => { e.preventDefault(); cycleCrowdPreset(-1); renderSettings(); });
+    if(els.btnCrowdNext) els.btnCrowdNext.addEventListener("click", (e) => { e.preventDefault(); cycleCrowdPreset(+1); renderSettings(); });
+    if(els.btnCrowdToggle) els.btnCrowdToggle.addEventListener("click", (e) => {
+      e.preventDefault();
+      const cfg = getCrowdCfg(state);
+      setCrowdEnabled(!cfg.enabled);
+      renderSettings();
+    });
+    if(els.btnSettingsCrowd) els.btnSettingsCrowd.addEventListener("click", (e) => {
+      e.preventDefault();
+      openSettingsModal();
+      // scroll to Crowd section if present
+      setTimeout(() => {
+        document.getElementById("setCrowdEnabled")?.scrollIntoView?.({ behavior:"smooth", block:"start" });
+      }, 50);
+    });
+
     els.addType.addEventListener("change", toggleCustomAddFields);
 
     els.addName.addEventListener("keydown", (e) => {
@@ -2274,7 +3003,7 @@ function bind(){
     }
     if(els.tabBtnPerformers) els.tabBtnPerformers.addEventListener("click", () => setActiveTab("perf"));
     if(els.tabBtnHouseBand) els.tabBtnHouseBand.addEventListener("click", () => setActiveTab("hb"));
-// Viewer footer toggle + formatting
+    // Viewer footer toggle + formatting
     if(els.toggleHBFooter){
       els.toggleHBFooter.checked = (state.viewerPrefs?.showHouseBandFooter !== false);
       els.toggleHBFooter.addEventListener("change", () => {
@@ -2473,159 +3202,12 @@ els.showTitle.addEventListener("input", () => {
     document.addEventListener("keydown", (e) => {
       if(e.key === "Escape" && !els.settingsModal.hidden) closeSettingsModal();
     });
-
-
-    
-    // Queue drag/drop (bind once)
-    els.queue.addEventListener("dragover", (e) => {
-      e.preventDefault();
-    });
-    els.queue.addEventListener("drop", (e) => {
-      e.preventDefault();
-      const draggedId = e.dataTransfer.getData("text/plain");
-      if(!draggedId) return;
-      const afterElement = getDragAfterElement(els.queue, e.clientY);
-      updateState(s => {
-        const idxFrom = s.queue.findIndex(x=>x.id===draggedId);
-        if(idxFrom < 0) return;
-
-        const movedCandidate = s.queue[idxFrom];
-        if(!movedCandidate) return;
-        if(movedCandidate.status === "DONE" || movedCandidate.status === "SKIPPED") return;
-
-        const [moved] = s.queue.splice(idxFrom, 1);
-
-        const liveIdx = s.currentSlotId ? s.queue.findIndex(x=>x.id===s.currentSlotId) : -1;
-        const minIdx = (liveIdx >= 0) ? liveIdx + 1 : 0;
-
-        const doneStart = s.queue.findIndex(x => x.status === "DONE" || x.status === "SKIPPED");
-        const activeEnd = (doneStart >= 0) ? doneStart : s.queue.length;
-
-        if(!afterElement){
-          // drop at end of ACTIVE (before Completed section)
-          const insertAt = Math.max(minIdx, activeEnd);
-          s.queue.splice(insertAt, 0, moved);
-        }else{
-          let idxTo = s.queue.findIndex(x=>x.id===afterElement.dataset.id);
-          if(idxTo < 0) idxTo = activeEnd;
-          // never insert above the live slot and never insert into Completed
-          idxTo = Math.max(minIdx, Math.min(activeEnd, idxTo));
-          s.queue.splice(idxTo, 0, moved);
-        }
-      });
-    });
-
-bindEditor();
-
-    // Hotkeys (operator)
-    function isTypingContext(){
-      const a = document.activeElement;
-      if(!a) return false;
-      const tag = (a.tagName || "").toLowerCase();
-      if(tag === "input" || tag === "textarea" || tag === "select") return true;
-      if(a.isContentEditable) return true;
-      return false;
-    }
-
-    function handleHotkeys(e){
-      // disable shortcuts while Settings modal is open
-      if(els.settingsModal && !els.settingsModal.hidden) return;
-      if(state.operatorPrefs?.hotkeysEnabled === false) return;
-
-      const isMac = navigator.platform.toLowerCase().includes("mac");
-      const mod = isMac ? e.metaKey : e.ctrlKey;
-
-      // Undo/Redo
-      if(mod && e.key.toLowerCase() === "z"){
-        e.preventDefault();
-        if(e.shiftKey) redo(); else undo();
-        return;
-      }
-      if(mod && e.key.toLowerCase() === "y"){
-        e.preventDefault();
-        redo();
-        return;
-      }
-
-      // If typing in fields, allow only special case: Enter on addName
-      if(isTypingContext()){
-        if(document.activeElement === els.addName && e.key === "Enter"){
-          e.preventDefault();
-          addPerformer();
-        }
-        return;
-      }
-
-      const k = e.key.toLowerCase();
-      // House Band rotation shortcuts (Alt+1..7)
-      if(e.altKey && !mod && !e.shiftKey && !isTypingContext()){
-        const map = { "1":"drums", "2":"vocals", "3":"keys", "4":"guitar", "5":"bass", "6":"percussion", "7":"other" };
-        const cat = map[k];
-        if(cat){
-          e.preventDefault();
-          rotateHouseBandTop(cat);
-          return;
-        }
-      }
-      if(k === " "){
-        e.preventDefault();
-        if(state.phase === "SPLASH") guardedStart();
-        else if(state.phase === "LIVE") pause();
-        else if(state.phase === "PAUSED") resume();
-        return;
-      }
-
-      // Enter => Go Live (or resume)
-      if(e.key === "Enter"){
-        e.preventDefault();
-        if(state.phase === "SPLASH") guardedStart();
-        else if(state.phase === "PAUSED") resume();
-        return;
-      }
-      if(k === "n"){
-        e.preventDefault();
-        guardedEnd();
-        return;
-      }
-      if(k === "j"){
-        return;
-      }
-      if(e.key === "Delete" || e.key === "Backspace"){
-        if(selectedId){
-          e.preventDefault();
-          removeSlot(selectedId);
-        }
-        return;
-      }
-      if(k === "arrowup"){
-        if(selectedId){
-          e.preventDefault();
-          moveSlot(selectedId, -1);
-        }
-        return;
-      }
-      if(k === "arrowdown"){
-        if(selectedId){
-          e.preventDefault();
-          moveSlot(selectedId, 1);
-        }
-        return;
-      }
-    }
-
-    document.addEventListener("keydown", handleHotkeys);
-
-
-
-    // live timer UI update loop
-    setInterval(() => {
-      renderTimerLine();
-      renderStatusBanner();
-    }, 250);
   }
 
   // Subscribe to changes from other tabs (in case operator is duplicated)
   OMJN.subscribe((s) => {
+    ensureProfilesShape(s);
+    OMJN.ensureHouseBandQueues(s);
     state = s;
     render();
   });

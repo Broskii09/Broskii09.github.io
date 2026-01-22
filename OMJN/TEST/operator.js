@@ -350,6 +350,9 @@
     const media = slot?.media || { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
     editDraft = {
       displayName: slot?.displayName || "",
+      slotTypeId: slot?.slotTypeId || "musician",
+      customTypeLabel: slot?.customTypeLabel || "",
+      minutesOverride: (slot?.minutesOverride ?? ""),
       notes: slot?.notes || "",
       donationUrl: (media.donationUrl || ""),
       mediaLayout: media.mediaLayout || "NONE",
@@ -378,10 +381,22 @@
     const url = OMJN.sanitizeText(editDraft.donationUrl || "");
     const layout = String(editDraft.mediaLayout || "NONE");
 
+    const slotTypeId = String(editDraft.slotTypeId || "musician");
+    const customLabel = OMJN.sanitizeText(editDraft.customTypeLabel || "");
+    const moRaw = (editDraft.minutesOverride ?? "");
+    let minutesOverride = null;
+    if(String(moRaw).trim() !== ""){
+      const n = Math.round(Number(moRaw));
+      if(Number.isFinite(n) && n > 0) minutesOverride = n;
+    }
+
     updateState(s => {
       const slot = s.queue.find(x => x.id === slotId);
       if(!slot) return;
       slot.displayName = name;
+      slot.slotTypeId = slotTypeId;
+      slot.minutesOverride = minutesOverride;
+      slot.customTypeLabel = (slotTypeId === "custom") ? customLabel : "";
       slot.notes = notes;
       if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
       slot.media.donationUrl = url || null;
@@ -418,13 +433,13 @@
   }
 
   function skipSwapDown(slotId){
-    if(slotId === state.currentSlotId) return;
+    if(state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED") && slotId === state.currentSlotId) return;
     // swap down one spot (clamped); uses existing queue constraints
     moveSlot(slotId, +1);
   }
 
   function markNoShow(slotId){
-    if(slotId === state.currentSlotId) return;
+    if(state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED") && slotId === state.currentSlotId) return;
     const slot = state.queue.find(x => x.id === slotId);
     if(!slot || slot.status !== "QUEUED") return;
     const ok = confirm(`Mark "${slot.displayName}" as NO-SHOW and move to Completed?`);
@@ -440,28 +455,21 @@
 
   async function handleImageUploadForSlot(slotId, file){
     if(!file) return;
-    const prev = selectedId;
-    try{
-      selectedId = slotId;
-      await handleImageUpload(file);
-    }finally{
-      selectedId = prev;
-    }
+    await handleImageUpload(file, slotId);
   }
 
   function clearImageForSlot(slotId){
-    const prev = selectedId;
-    try{
-      selectedId = slotId;
-      clearImage();
-    }finally{
-      selectedId = prev;
-    }
+    clearImage(slotId);
   }
 
   function buildInlineExpander(slot){
     const wrap = document.createElement("div");
     wrap.className = "qExpander";
+
+    // Prevent row-click selection from stealing focus while editing
+    const stopRowClick = (e) => { e.stopPropagation(); };
+    wrap.addEventListener("mousedown", stopRowClick);
+    wrap.addEventListener("click", stopRowClick);
 
     const grid = document.createElement("div");
     grid.className = "qExpGrid";
@@ -482,6 +490,58 @@
       if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); }
     });
     fName.appendChild(lName); fName.appendChild(iName);
+
+    const fType = document.createElement("div");
+    fType.className = "field";
+    const lType = document.createElement("label");
+    lType.textContent = "Slot Type";
+    const selType = document.createElement("select");
+    fillTypeSelect(selType);
+    selType.value = editDraft?.slotTypeId ?? (slot.slotTypeId || "musician");
+    fType.appendChild(lType);
+    fType.appendChild(selType);
+
+    const fCustom = document.createElement("div");
+    fCustom.className = "field";
+    const lCustom = document.createElement("label");
+    lCustom.textContent = "Custom Slot Label";
+    const iCustom = document.createElement("input");
+    iCustom.type = "text";
+    iCustom.placeholder = "Custom";
+    iCustom.value = editDraft?.customTypeLabel ?? (slot.customTypeLabel || "");
+    iCustom.addEventListener("input", () => { if(editDraft) editDraft.customTypeLabel = iCustom.value; });
+    iCustom.addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){ e.preventDefault(); saveInlineEdit(slot.id); }
+      if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); }
+    });
+    fCustom.appendChild(lCustom); fCustom.appendChild(iCustom);
+
+    function syncCustomVisibility(){
+      const cur = String(selType.value || "musician");
+      if(editDraft) editDraft.slotTypeId = cur;
+      fCustom.style.display = (cur === "custom") ? "" : "none";
+    }
+    selType.addEventListener("change", () => {
+      syncCustomVisibility();
+    });
+    syncCustomVisibility();
+
+    const fMins = document.createElement("div");
+    fMins.className = "field";
+    const lMins = document.createElement("label");
+    lMins.textContent = "Minutes Override";
+    const iMins = document.createElement("input");
+    iMins.type = "number";
+    iMins.min = "1";
+    iMins.step = "1";
+    iMins.placeholder = "—";
+    iMins.value = String(editDraft?.minutesOverride ?? (slot.minutesOverride ?? ""));
+    iMins.addEventListener("input", () => { if(editDraft) editDraft.minutesOverride = iMins.value; });
+    iMins.addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){ e.preventDefault(); saveInlineEdit(slot.id); }
+      if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); }
+    });
+    fMins.appendChild(lMins); fMins.appendChild(iMins);
 
     const fUrl = document.createElement("div");
     fUrl.className = "field";
@@ -513,11 +573,15 @@
     fNotes.appendChild(lNotes); fNotes.appendChild(tNotes);
 
     left.appendChild(fName);
+    left.appendChild(fType);
+    left.appendChild(fCustom);
+    left.appendChild(fMins);
     left.appendChild(fUrl);
     left.appendChild(fNotes);
 
     const right = document.createElement("div");
     right.className = "col";
+
     const fLayout = document.createElement("div");
     fLayout.className = "field";
     const lLayout = document.createElement("label");
@@ -546,12 +610,14 @@
     const row = document.createElement("div");
     row.className = "row";
     row.style.gap = "8px";
+
     const upLbl = document.createElement("label");
     upLbl.className = "btn small";
     upLbl.style.cursor = "pointer";
     const inputId = `imgFile_${slot.id}`;
     upLbl.setAttribute("for", inputId);
     upLbl.textContent = "Upload";
+
     const up = document.createElement("input");
     up.type = "file";
     up.accept = "image/*";
@@ -560,27 +626,28 @@
     up.addEventListener("change", async () => {
       const file = up.files?.[0] || null;
       up.value = "";
-      if(file) await handleImageUploadForSlot(slot.id, file);
+      if(file) await handleImageUpload(file, slot.id);
     });
+
     const btnClear = document.createElement("button");
     btnClear.className = "btn small";
     btnClear.textContent = "Clear";
     btnClear.disabled = !slot.media?.imageAssetId;
-    btnClear.addEventListener("click", (e) => { e.preventDefault(); clearImageForSlot(slot.id); });
+    btnClear.addEventListener("click", (e) => { e.preventDefault(); clearImage(slot.id); });
+
     row.appendChild(upLbl);
     row.appendChild(up);
     row.appendChild(btnClear);
+
+    fImg.appendChild(lImg);
+    fImg.appendChild(row);
+
     if(slot.media?.imageAssetId){
       const tiny = document.createElement("div");
       tiny.className = "small";
       tiny.style.marginTop = "6px";
       tiny.textContent = "Image uploaded";
-      fImg.appendChild(lImg);
-      fImg.appendChild(row);
       fImg.appendChild(tiny);
-    }else{
-      fImg.appendChild(lImg);
-      fImg.appendChild(row);
     }
 
     right.appendChild(fLayout);
@@ -592,14 +659,17 @@
 
     const actions = document.createElement("div");
     actions.className = "qExpActions";
+
     const btnCancel = document.createElement("button");
     btnCancel.className = "btn small";
     btnCancel.textContent = "Cancel";
     btnCancel.addEventListener("click", (e) => { e.preventDefault(); cancelInlineEdit(); });
+
     const btnSave = document.createElement("button");
     btnSave.className = "btn small";
     btnSave.textContent = "Save";
     btnSave.addEventListener("click", (e) => { e.preventDefault(); saveInlineEdit(slot.id); });
+
     actions.appendChild(btnCancel);
     actions.appendChild(btnSave);
     wrap.appendChild(actions);
@@ -651,9 +721,9 @@
     const active = s.queue.filter(x => !isDone(x));
     const done = s.queue.filter(isDone).slice()
       .sort((a,b) => (a.completedAt || 0) - (b.completedAt || 0));
-
     // Keep the currently-live slot pinned to top (Operator clarity)
-    if(s.currentSlotId){
+    const lockCurrent = !!s.currentSlotId && (s.phase === "LIVE" || s.phase === "PAUSED");
+    if(lockCurrent){
       const liveIdx = active.findIndex(x => x.id === s.currentSlotId);
       if(liveIdx > 0){
         const [live] = active.splice(liveIdx, 1);
@@ -1572,7 +1642,8 @@ function fillTypeSelect(selectEl){
 
     // Visual roles (LIVE / NEXT / ON DECK / DONE) for clarity during busy nights
     const [n1, n2] = OMJN.computeNextTwo(state);
-    const isLive = (slot.id === state.currentSlotId);
+    const lockCurrent = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
+    const isLive = lockCurrent && (slot.id === state.currentSlotId);
     const isDone = (slot.status === "DONE" || slot.status === "SKIPPED");
     const isNext = (!isLive && !isDone && n1 && slot.id === n1.id);
     const isDeck = (!isLive && !isDone && n2 && slot.id === n2.id);
@@ -1828,6 +1899,91 @@ function getDragAfterElement(container, y){
     }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
   }
 
+  // Performer queue drag & drop (reorder)
+  let performerDnDBound = false;
+
+  function getDragAfterElementActive(container, y){
+    const items = [...container.querySelectorAll('.queueItem:not(.dragging):not(.isDone)')];
+    return items.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if(offset < 0 && offset > closest.offset){
+        return { offset, element: child };
+      }
+      return closest;
+    }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+  }
+
+  function bindPerformerDnD(){
+    if(performerDnDBound) return;
+    if(!els.queue) return;
+    performerDnDBound = true;
+
+    els.queue.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const dragging = els.queue.querySelector('.queueItem.dragging');
+      if(!dragging) return;
+
+      const after = getDragAfterElementActive(els.queue, e.clientY);
+      const divider = els.queue.querySelector('.queueDivider');
+
+      if(after && after !== dragging){
+        els.queue.insertBefore(dragging, after);
+      }else if(divider){
+        els.queue.insertBefore(dragging, divider);
+      }else{
+        els.queue.appendChild(dragging);
+      }
+    });
+
+    els.queue.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const draggedId = e.dataTransfer.getData('text/plain');
+      if(!draggedId) return;
+
+      const activeIds = [...els.queue.querySelectorAll('.queueItem:not(.isDone)')]
+        .map(el => el.dataset.id)
+        .filter(Boolean);
+      if(!activeIds.length) return;
+
+      updateState(s => {
+        const isDone = (x) => x && (x.status === 'DONE' || x.status === 'SKIPPED');
+        const done = s.queue.filter(isDone);
+        const active = s.queue.filter(x => !isDone(x));
+        const map = new Map(active.map(x => [x.id, x]));
+
+        const next = [];
+        const seen = new Set();
+
+        for(const id of activeIds){
+          const slot = map.get(id);
+          if(slot && !seen.has(id)){
+            next.push(slot);
+            seen.add(id);
+          }
+        }
+        for(const slot of active){
+          if(slot && !seen.has(slot.id)){
+            next.push(slot);
+            seen.add(slot.id);
+          }
+        }
+
+        const lockCurrent = !!s.currentSlotId && (s.phase === 'LIVE' || s.phase === 'PAUSED');
+        if(lockCurrent){
+          const idx = next.findIndex(x => x.id === s.currentSlotId);
+          if(idx > 0){
+            const [cur] = next.splice(idx, 1);
+            next.unshift(cur);
+          }
+        }
+
+        s.queue = [...next, ...done];
+      });
+    });
+  }
+
+
   function moveSlot(slotId, delta){
     updateState(s => {
       const idx = s.queue.findIndex(x=>x.id===slotId);
@@ -1837,10 +1993,11 @@ function getDragAfterElement(container, y){
       if(!slot) return;
       if(slot.status === "DONE" || slot.status === "SKIPPED") return; // completed lives in Completed tab
 
-      // do not move the live slot
-      if(slotId === s.currentSlotId) return;
+      const lockCurrent = !!s.currentSlotId && (s.phase === "LIVE" || s.phase === "PAUSED");
+      // do not move the live slot while LIVE/PAUSED
+      if(lockCurrent && slotId === s.currentSlotId) return;
 
-      const liveIdx = s.currentSlotId ? s.queue.findIndex(x=>x.id===s.currentSlotId) : -1;
+      const liveIdx = lockCurrent ? s.queue.findIndex(x=>x.id===s.currentSlotId) : -1;
       const minIdx = (liveIdx >= 0) ? liveIdx + 1 : 0;
 
       const doneStart = s.queue.findIndex(x => x.status === "DONE" || x.status === "SKIPPED");
@@ -1866,6 +2023,7 @@ function getDragAfterElement(container, y){
 
       slot.status = "QUEUED";
       slot.completedAt = null;
+      slot.noShow = false;
 
       // move to bottom of Active (before first completed)
       const [moved] = s.queue.splice(idx, 1);
@@ -2310,7 +2468,11 @@ function renderKPIs(){
     // Editor collapse
     if(els.editCard) els.editCard.open = !state.operatorPrefs?.editCollapsed;
 
-    renderSettings();
+    try{
+      renderSettings();
+    }catch(err){
+      console.error("renderSettings crashed; continuing to render queue.", err);
+    }
 
     // Undo/redo buttons
     els.btnUndo.disabled = !undoStack.length;
@@ -2506,7 +2668,7 @@ function start(){
   function skipSelected(){
     if(!selectedId) return;
     updateState(s => {
-      const slot = s.queue.find(x=>x.id===selectedId);
+      const slot = s.queue.find(x=>x.id===targetId);
       if(!slot) return;
       slot.status = "SKIPPED";
       slot.completedAt = Date.now();
@@ -2541,8 +2703,9 @@ function start(){
     selectedId = null;
   }
 
-  async function handleImageUpload(file){
-    if(!selectedId || !file) return;
+  async function handleImageUpload(file, slotIdOverride){
+    const targetId = slotIdOverride || selectedId;
+    if(!targetId || !file) return;
 
     // compress and store
     const { blob, meta } = await OMJN.compressImageFile(file, { maxEdge: 1600, quality: 0.82, mime: "image/webp" });
@@ -2553,7 +2716,7 @@ function start(){
 
     updateState(s => {
       s.assetsIndex[assetId] = meta;
-      const slot = s.queue.find(x=>x.id===selectedId);
+      const slot = s.queue.find(x=>x.id===targetId);
       if(!slot) return;
       if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
       slot.media.imageAssetId = assetId;
@@ -2577,10 +2740,11 @@ function start(){
     });
   }
 
-  function clearImage(){
-    if(!selectedId) return;
+  function clearImage(slotIdOverride){
+    const targetId = slotIdOverride || selectedId;
+    if(!targetId) return;
     updateState(s => {
-      const slot = s.queue.find(x=>x.id===selectedId);
+      const slot = s.queue.find(x=>x.id===targetId);
       if(!slot?.media?.imageAssetId) return;
       const assetId = slot.media.imageAssetId;
       slot.media.imageAssetId = null;
@@ -2654,7 +2818,7 @@ function start(){
       const v = OMJN.sanitizeText(els.editName.value);
       if(!selectedId) return;
       updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
+        const slot = s.queue.find(x=>x.id===targetId);
         if(slot){
           slot.displayName = v;
           // profile auto-save
@@ -2676,7 +2840,7 @@ function start(){
       if(!selectedId) return;
       const v = els.editType.value;
       updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
+        const slot = s.queue.find(x=>x.id===targetId);
         if(!slot) return;
         slot.slotTypeId = v;
         if(v !== "custom") slot.customTypeLabel = slot.customTypeLabel || "";
@@ -2698,7 +2862,7 @@ function start(){
       const raw = els.editMinutes.value;
       const val = raw === "" ? null : Math.max(1, Math.round(Number(raw)));
       updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
+        const slot = s.queue.find(x=>x.id===targetId);
         if(slot) slot.minutesOverride = val;
       });
     });
@@ -2707,7 +2871,7 @@ function start(){
       if(!selectedId) return;
       const v = els.editNotes.value;
       updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
+        const slot = s.queue.find(x=>x.id===targetId);
         if(slot) slot.notes = v;
       });
     });
@@ -2716,7 +2880,7 @@ function start(){
       if(!selectedId) return;
       const v = OMJN.sanitizeText(els.editUrl.value);
       updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
+        const slot = s.queue.find(x=>x.id===targetId);
         if(!slot) return;
         if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
         slot.media.donationUrl = v || null;
@@ -2737,7 +2901,7 @@ els.editLayout.addEventListener("change", () => {
       if(!selectedId) return;
       const v = els.editLayout.value;
       updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
+        const slot = s.queue.find(x=>x.id===targetId);
         if(!slot) return;
         if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
         slot.media.mediaLayout = v;
@@ -2767,7 +2931,7 @@ els.editLayout.addEventListener("change", () => {
       if(!selectedId) return;
       const v = OMJN.sanitizeText(els.editCustomLabel.value);
       updateState(s => {
-        const slot = s.queue.find(x=>x.id===selectedId);
+        const slot = s.queue.find(x=>x.id===targetId);
         if(slot) slot.customTypeLabel = v;
       });
     });
@@ -2802,6 +2966,7 @@ function bind(){
     fillTypeSelect(els.editType);
     toggleCustomAddFields();
     bindSettings();
+    bindPerformerDnD();
 
     // Crowd prompt quick controls (now in right drawer)
     if(els.btnCrowdPrev) els.btnCrowdPrev.addEventListener("click", (e) => { e.preventDefault(); cycleCrowdPreset(-1); renderSettings(); });
