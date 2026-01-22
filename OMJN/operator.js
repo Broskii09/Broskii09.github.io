@@ -586,26 +586,279 @@
     right.appendChild(fLayout);
     right.appendChild(fImg);
 
-    grid.appendChild(left);
-    grid.appendChild(right);
-    wrap.appendChild(grid);
+function buildInlineExpander(slot){
+  const wrap = document.createElement("div");
+  wrap.className = "qExpander";
 
-    const actions = document.createElement("div");
-    actions.className = "qExpActions";
-    const btnCancel = document.createElement("button");
-    btnCancel.className = "btn small";
-    btnCancel.textContent = "Cancel";
-    btnCancel.addEventListener("click", (e) => { e.preventDefault(); cancelInlineEdit(); });
-    const btnSave = document.createElement("button");
-    btnSave.className = "btn small";
-    btnSave.textContent = "Save";
-    btnSave.addEventListener("click", (e) => { e.preventDefault(); saveInlineEdit(slot.id); });
-    actions.appendChild(btnCancel);
-    actions.appendChild(btnSave);
-    wrap.appendChild(actions);
+  // Prevent queue-row click/select from stealing focus while editing
+  wrap.addEventListener("mousedown", (e) => e.stopPropagation());
+  wrap.addEventListener("click", (e) => e.stopPropagation());
+  wrap.addEventListener("mouseup", (e) => e.stopPropagation());
 
-    return wrap;
+  const grid = document.createElement("div");
+  grid.className = "qExpGrid";
+
+  const left = document.createElement("div");
+  left.className = "col";
+
+  // --- Slot Type + Custom Label + Minutes row ---
+  const rowSlots = document.createElement("div");
+  rowSlots.className = "row";
+  rowSlots.style.gap = "10px";
+  rowSlots.style.alignItems = "flex-end";
+
+  // Slot Type
+  const fType = document.createElement("div");
+  fType.className = "field";
+  fType.style.flex = "1 1 220px";
+
+  const lType = document.createElement("label");
+  lType.textContent = "Slot Type";
+
+  const selType = document.createElement("select");
+  // Use shared helper so the list matches everywhere
+  fillTypeSelect(selType);
+
+  selType.value = editDraft?.slotTypeId ?? (slot.slotTypeId || "musician");
+
+  fType.appendChild(lType);
+  fType.appendChild(selType);
+
+  // Custom Label (only when custom)
+  const customWrap = document.createElement("div");
+  customWrap.className = "field";
+  customWrap.style.flex = "1 1 220px";
+
+  const lCustom = document.createElement("label");
+  lCustom.textContent = "Custom Slot Label";
+
+  const iCustom = document.createElement("input");
+  iCustom.type = "text";
+  iCustom.placeholder = "Custom";
+  iCustom.value = editDraft?.customTypeLabel ?? (slot.customTypeLabel || "");
+
+  customWrap.appendChild(lCustom);
+  customWrap.appendChild(iCustom);
+
+  // Minutes override
+  const fMins = document.createElement("div");
+  fMins.className = "field";
+  fMins.style.width = "160px";
+
+  const lMins = document.createElement("label");
+  lMins.textContent = "Minutes (override)";
+
+  const iMins = document.createElement("input");
+  iMins.type = "number";
+  iMins.min = "1";
+  iMins.step = "1";
+  iMins.placeholder = "—";
+
+  const curMin = (editDraft?.minutesOverride ?? slot.minutesOverride ?? null);
+  iMins.value = (curMin === null || curMin === undefined) ? "" : String(curMin);
+
+  fMins.appendChild(lMins);
+  fMins.appendChild(iMins);
+
+  const syncCustomVisibility = () => {
+    customWrap.style.display = (selType.value === "custom") ? "" : "none";
+  };
+  syncCustomVisibility();
+
+  selType.addEventListener("change", () => {
+    if(editDraft) editDraft.slotTypeId = selType.value;
+    syncCustomVisibility();
+  });
+
+  iCustom.addEventListener("input", () => {
+    if(editDraft) editDraft.customTypeLabel = iCustom.value;
+  });
+
+  iMins.addEventListener("input", () => {
+    if(!editDraft) return;
+    editDraft.minutesOverride = (iMins.value === "") ? null : Number(iMins.value);
+  });
+
+  rowSlots.appendChild(fType);
+  rowSlots.appendChild(customWrap);
+  rowSlots.appendChild(fMins);
+
+  left.appendChild(rowSlots);
+
+  // --- Name ---
+  const fName = document.createElement("div");
+  fName.className = "field";
+  const lName = document.createElement("label");
+  lName.textContent = "Name";
+  const iName = document.createElement("input");
+  iName.type = "text";
+  iName.value = editDraft?.displayName ?? (slot.displayName || "");
+  iName.addEventListener("input", () => { if(editDraft) editDraft.displayName = iName.value; });
+  fName.appendChild(lName);
+  fName.appendChild(iName);
+  left.appendChild(fName);
+
+  // --- Website/Socials ---
+  const fUrl = document.createElement("div");
+  fUrl.className = "field";
+  const lUrl = document.createElement("label");
+  lUrl.textContent = "Website / Socials";
+  const iUrl = document.createElement("input");
+  iUrl.type = "text";
+  iUrl.placeholder = "https://... or @handle";
+  iUrl.value = editDraft?.donationUrl ?? (slot.media?.donationUrl || "");
+  iUrl.addEventListener("input", () => { if(editDraft) editDraft.donationUrl = iUrl.value; });
+  fUrl.appendChild(lUrl);
+  fUrl.appendChild(iUrl);
+  left.appendChild(fUrl);
+
+  // --- Notes ---
+  const fNotes = document.createElement("div");
+  fNotes.className = "field";
+  const lNotes = document.createElement("label");
+  lNotes.textContent = "Operator Notes (private)";
+  const tNotes = document.createElement("textarea");
+  tNotes.rows = 3;
+  tNotes.value = editDraft?.notes ?? (slot.notes || "");
+  tNotes.addEventListener("input", () => { if(editDraft) editDraft.notes = tNotes.value; });
+  fNotes.appendChild(lNotes);
+  fNotes.appendChild(tNotes);
+  left.appendChild(fNotes);
+
+  // --- Right column (media) ---
+  const right = document.createElement("div");
+  right.className = "col";
+
+  const fLayout = document.createElement("div");
+  fLayout.className = "field";
+  const lLayout = document.createElement("label");
+  lLayout.textContent = "Media Layout";
+  const selLayout = document.createElement("select");
+
+  const layoutOpts = [
+    ["NONE","None"],
+    ["IMAGE_ONLY","Image only"],
+    ["QR_ONLY","QR only (upload image)"],
+    ["IMAGE_PLUS_QR","Image + QR (upload image)"]
+  ];
+  for(const [v, label] of layoutOpts){
+    const o = document.createElement("option");
+    o.value = v;
+    o.textContent = label;
+    selLayout.appendChild(o);
   }
+  selLayout.value = editDraft?.mediaLayout ?? (slot.media?.mediaLayout || "NONE");
+  selLayout.addEventListener("change", () => { if(editDraft) editDraft.mediaLayout = selLayout.value; });
+
+  fLayout.appendChild(lLayout);
+  fLayout.appendChild(selLayout);
+  right.appendChild(fLayout);
+
+  const fImg = document.createElement("div");
+  fImg.className = "field";
+  const lImg = document.createElement("label");
+  lImg.textContent = "Image / QR";
+  const rowImg = document.createElement("div");
+  rowImg.className = "row";
+  rowImg.style.gap = "8px";
+
+  const inputId = `imgFile_${slot.id}`;
+
+  const upLbl = document.createElement("label");
+  upLbl.className = "btn small";
+  upLbl.style.cursor = "pointer";
+  upLbl.setAttribute("for", inputId);
+  upLbl.textContent = "Upload";
+
+  const up = document.createElement("input");
+  up.type = "file";
+  up.accept = "image/*";
+  up.id = inputId;
+  up.hidden = true;
+  up.addEventListener("change", async () => {
+    const file = up.files?.[0] || null;
+    up.value = "";
+    if(file) await handleImageUploadForSlot(slot.id, file);
+  });
+
+  const btnClear = document.createElement("button");
+  btnClear.className = "btn small";
+  btnClear.type = "button";
+  btnClear.textContent = "Clear";
+  btnClear.disabled = !slot.media?.imageAssetId;
+  btnClear.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    clearImageForSlot(slot.id);
+  });
+
+  rowImg.appendChild(upLbl);
+  rowImg.appendChild(up);
+  rowImg.appendChild(btnClear);
+
+  fImg.appendChild(lImg);
+  fImg.appendChild(rowImg);
+
+  if(slot.media?.imageAssetId){
+    const tiny = document.createElement("div");
+    tiny.className = "small";
+    tiny.style.marginTop = "6px";
+    tiny.textContent = "Image uploaded";
+    fImg.appendChild(tiny);
+  }
+
+  right.appendChild(fImg);
+
+  // --- Assemble grid ---
+  grid.appendChild(left);
+  grid.appendChild(right);
+  wrap.appendChild(grid);
+
+  // --- Actions ---
+  const actions = document.createElement("div");
+  actions.className = "qExpActions";
+
+  const btnCancel = document.createElement("button");
+  btnCancel.className = "btn small";
+  btnCancel.type = "button";
+  btnCancel.textContent = "Cancel";
+  btnCancel.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    cancelInlineEdit();
+  });
+
+  const btnSave = document.createElement("button");
+  btnSave.className = "btn small";
+  btnSave.type = "button";
+  btnSave.textContent = "Save";
+  btnSave.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    saveInlineEdit(slot.id);
+  });
+
+  actions.appendChild(btnCancel);
+  actions.appendChild(btnSave);
+  wrap.appendChild(actions);
+
+  // Keyboard behavior
+  const bindKey = (el) => {
+    el.addEventListener("keydown", (e) => {
+      if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); }
+      if(e.key === "Enter" && el.tagName.toLowerCase() !== "textarea"){
+        e.preventDefault(); saveInlineEdit(slot.id);
+      }
+    });
+    el.addEventListener("mousedown", (e)=>e.stopPropagation());
+    el.addEventListener("click", (e)=>e.stopPropagation());
+  };
+
+  // Bind keys + stop propagation on inputs/selects
+  [selType, iCustom, iMins, iName, iUrl, tNotes, selLayout, upLbl, btnClear].forEach(bindKey);
+
+  return wrap;
+}
 
 
   function publish(){
