@@ -93,11 +93,30 @@ setBgColor: document.getElementById("setBgColor"),
     btnCrowdToggle: document.getElementById("btnCrowdToggle"),
     btnCrowdNext: document.getElementById("btnCrowdNext"),
     crowdPromptStatus: document.getElementById("crowdPromptStatus"),
-    btnSettingsCrowd: document.getElementById("btnSettingsCrowd"),
     settingsModal: document.getElementById("settingsModal"),
     btnCloseSettings: document.getElementById("btnCloseSettings"),
 
     statusLine: document.getElementById("statusLine"),
+    liveStatusBanner: document.getElementById("liveStatusBanner"),
+    livePhaseDot: document.getElementById("livePhaseDot"),
+    liveNowItem: document.getElementById("liveNowItem"),
+    liveNowName: document.getElementById("liveNowName"),
+    liveOTItem: document.getElementById("liveOTItem"),
+    liveOTVal: document.getElementById("liveOTVal"),
+    crowdEditor: document.getElementById("crowdEditor"),
+    crowdPromptPreview: document.getElementById("crowdPromptPreview"),
+    timerUpModal: document.getElementById("timerUpModal"),
+    timerUpName: document.getElementById("timerUpName"),
+    timerUpOver: document.getElementById("timerUpOver"),
+    btnTimerUpEnd: document.getElementById("btnTimerUpEnd"),
+    btnTimerUpPause: document.getElementById("btnTimerUpPause"),
+    btnTimerUpResume: document.getElementById("btnTimerUpResume"),
+    btnTimerUpSnooze: document.getElementById("btnTimerUpSnooze"),
+    btnTimerUpDismiss: document.getElementById("btnTimerUpDismiss"),
+    btnTimerUpPlus30: document.getElementById("btnTimerUpPlus30"),
+    btnTimerUpPlus1: document.getElementById("btnTimerUpPlus1"),
+    btnTimerUpPlus5: document.getElementById("btnTimerUpPlus5"),
+    btnTimerUpReset: document.getElementById("btnTimerUpReset"),
     kpiCurrent: document.getElementById("kpiCurrent"),
     kpiNext: document.getElementById("kpiNext"),
     kpiLeft: document.getElementById("kpiLeft"),
@@ -924,22 +943,31 @@ function escapeHtml(s){
   }
 
   function updateCrowdQuickButtons(){
-    if(!els.btnCrowdToggle) return;
-    const cfg = getCrowdCfg(state);
-    const p = getActiveCrowdPreset(cfg);
-    const name = (p?.name || p?.title || "Prompt").trim();
-    if(cfg.enabled){
-      els.btnCrowdToggle.textContent = `Crowd: ${name}`;
-      els.btnCrowdToggle.classList.add("good");
-      if(els.crowdPromptStatus) els.crowdPromptStatus.textContent = `ON · ${name}`;
-    } else {
-      els.btnCrowdToggle.textContent = "Crowd: Off";
-      els.btnCrowdToggle.classList.remove("good");
-      if(els.crowdPromptStatus) els.crowdPromptStatus.textContent = `OFF · ${name}`;
-    }
-  }
+      if(!els.btnCrowdToggle) return;
+      const cfg = getCrowdCfg(state);
+      const p = getActiveCrowdPreset(cfg);
+      const name = (p?.name || p?.title || "Prompt").trim();
 
-  // ---- Sponsor Bug (Operator settings) ----
+      if(cfg.enabled){
+        els.btnCrowdToggle.textContent = `Crowd: ${name}`;
+        els.btnCrowdToggle.classList.add("good");
+        if(els.crowdPromptStatus){
+          els.crowdPromptStatus.textContent = `ON · ${name}`;
+          els.crowdPromptStatus.classList.add("on");
+          els.crowdPromptStatus.classList.remove("off");
+        }
+      } else {
+        els.btnCrowdToggle.textContent = "Crowd: Off";
+        els.btnCrowdToggle.classList.remove("good");
+        if(els.crowdPromptStatus){
+          els.crowdPromptStatus.textContent = `OFF · ${name}`;
+          els.crowdPromptStatus.classList.add("off");
+          els.crowdPromptStatus.classList.remove("on");
+        }
+      }
+    }
+
+// ---- Sponsor Bug (Operator settings) ----
   const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
   let sponsorPreviewObjectUrl = null;
   let lastSponsorPreviewKey = null;
@@ -1915,7 +1943,7 @@ function getDragAfterElement(container, y){
 
     els.queue.addEventListener('drop', (e) => {
       e.preventDefault();
-      const draggedId = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text');
+      const draggedId = e.dataTransfer.getData('text/plain');
       if(!draggedId) return;
 
       const activeIds = [...els.queue.querySelectorAll('.queueItem:not(.isDone)')]
@@ -2312,7 +2340,6 @@ function renderKPIs(){
     const current = OMJN.computeCurrent(state);
     const [next, deck] = OMJN.computeNextTwo(state);
 
-    els.statusLine.textContent = state.phase;
     els.kpiCurrent.textContent = current ? current.displayName : "—";
     els.kpiNext.textContent = next ? next.displayName : "—";
     if(els.readyNext) els.readyNext.textContent = next ? next.displayName : "—";
@@ -2388,7 +2415,186 @@ function renderKPIs(){
     els.statusBanner.appendChild(mk(`Queue: ${activeCount} active • ${doneCount} completed`));
   }
 
-  function renderTimerLine(){
+  
+  function renderLiveStatusBanner(){
+    const phase = state.phase || "SPLASH";
+    if(els.statusLine) els.statusLine.textContent = phase;
+
+    if(els.livePhaseDot){
+      els.livePhaseDot.classList.remove("good","warn","bad");
+      if(phase === "LIVE") els.livePhaseDot.classList.add("good");
+      else if(phase === "PAUSED") els.livePhaseDot.classList.add("warn");
+    }
+
+    const current = OMJN.computeCurrent(state);
+    const inLive = (phase === "LIVE" || phase === "PAUSED") && !!current;
+    if(els.liveNowItem) els.liveNowItem.hidden = !inLive;
+    if(inLive && els.liveNowName) els.liveNowName.textContent = current.displayName || "—";
+
+    if(inLive){
+      const t = OMJN.computeTimer(state);
+      const showOT = (t.remainingMs === 0 && (t.overtimeMs || 0) > 0);
+      if(els.liveOTItem) els.liveOTItem.hidden = !showOT;
+      if(showOT && els.liveOTVal) els.liveOTVal.textContent = `+${OMJN.formatMMSS(t.overtimeMs)}`;
+    }else{
+      if(els.liveOTItem) els.liveOTItem.hidden = true;
+    }
+  }
+
+  function renderCrowdPromptPreview(){
+    if(!els.crowdPromptPreview) return;
+    const cfg = getCrowdCfg(state);
+    const p = getActiveCrowdPreset(cfg) || {};
+    const editorOpen = !!els.crowdEditor?.open;
+
+    let data = p;
+    if(editorOpen){
+      try{
+        const typed = readCrowdEditor();
+        data = Object.assign({}, p, typed);
+      }catch(_){}
+    }
+
+    const title = (data.title || "").trim();
+    const footer = (data.footer || "").trim();
+    const lines = Array.isArray(data.lines) ? data.lines : [];
+
+    const root = els.crowdPromptPreview;
+    root.innerHTML = "";
+
+    const wrap = document.createElement("div");
+    wrap.className = "cpPrevInner";
+
+    const h = document.createElement("div");
+    h.className = "cpPrevTitle";
+    h.textContent = title || "CROWD PROMPT";
+    wrap.appendChild(h);
+
+    const list = document.createElement("div");
+    list.className = "cpPrevLines";
+    const max = 5;
+    for(const ln of lines.slice(0, max)){
+      const item = document.createElement("div");
+      item.className = "cpPrevLine";
+      item.textContent = ln;
+      list.appendChild(item);
+    }
+    if(lines.length > max){
+      const more = document.createElement("div");
+      more.className = "cpPrevLine cpPrevMore";
+      more.textContent = `… +${lines.length - max} more`;
+      list.appendChild(more);
+    }
+    wrap.appendChild(list);
+
+    if(footer){
+      const f = document.createElement("div");
+      f.className = "cpPrevFooter";
+      f.textContent = footer;
+      wrap.appendChild(f);
+    }
+
+    const hint = document.createElement("div");
+    hint.className = "cpPrevHint";
+    hint.textContent = cfg.enabled ? "Overlay ON (viewer sponsor hidden)" : "Overlay OFF";
+    wrap.appendChild(hint);
+
+    root.appendChild(wrap);
+  }
+
+  // ---- Timer-up modal (operator reminder) ----
+  let timerUpDismissedSlotId = null;
+  let timerUpArmed = true;
+  let timerUpSnoozeForSlotId = null;
+  let timerUpSnoozeUntil = 0;
+
+  function openTimerUpModal(){
+    if(!els.timerUpModal) return;
+    const cur = OMJN.computeCurrent(state);
+    if(!cur) return;
+    const t = OMJN.computeTimer(state);
+
+    if(els.timerUpName) els.timerUpName.textContent = cur.displayName || "—";
+    if(els.timerUpOver) els.timerUpOver.textContent = `Overtime: +${OMJN.formatMMSS(t.overtimeMs || 0)}`;
+
+    els.timerUpModal.hidden = false;
+    document.body.classList.add("modalOpen");
+  }
+
+  function closeTimerUpModal(){
+    if(!els.timerUpModal) return;
+    els.timerUpModal.hidden = true;
+    if(els.settingsModal?.hidden !== false){
+      document.body.classList.remove("modalOpen");
+    }
+  }
+
+  function checkTimerUpModal(){
+    const phase = state.phase;
+    const cur = OMJN.computeCurrent(state);
+
+    if(!cur || !(phase === "LIVE" || phase === "PAUSED")){
+      if(els.timerUpModal && !els.timerUpModal.hidden) closeTimerUpModal();
+      return;
+    }
+
+    const t = OMJN.computeTimer(state);
+    const hasDuration = (t.durationMs || 0) > 0;
+
+    // Re-arm when timer is above 0 again (e.g. added time)
+    if(hasDuration && t.remainingMs > 0){
+      timerUpArmed = true;
+      timerUpDismissedSlotId = null;
+      timerUpSnoozeForSlotId = null;
+      timerUpSnoozeUntil = 0;
+      if(els.timerUpModal && !els.timerUpModal.hidden) closeTimerUpModal();
+      return;
+    }
+
+    if(!hasDuration) return;
+
+    if(t.remainingMs === 0){
+      const now = Date.now();
+
+      if(timerUpSnoozeForSlotId === cur.id && now < timerUpSnoozeUntil) return;
+      const snoozeExpired = (timerUpSnoozeForSlotId === cur.id && now >= timerUpSnoozeUntil);
+
+      if(timerUpDismissedSlotId === cur.id) return;
+
+      if(timerUpArmed || snoozeExpired){
+        timerUpArmed = false;
+        if(snoozeExpired){
+          timerUpSnoozeForSlotId = null;
+          timerUpSnoozeUntil = 0;
+        }
+        openTimerUpModal();
+      }else{
+        if(els.timerUpModal && !els.timerUpModal.hidden){
+          if(els.timerUpOver) els.timerUpOver.textContent = `Overtime: +${OMJN.formatMMSS(t.overtimeMs || 0)}`;
+        }
+      }
+    }
+  }
+
+  // Lightweight UI tick so timer + reminder work even without state changes.
+  let uiTickHandle = null;
+  function startUiTick(){
+    if(uiTickHandle) return;
+    uiTickHandle = setInterval(() => {
+      try{
+        if(els.timerLine) renderTimerLine();
+        renderLiveStatusBanner();
+        updateCrowdQuickButtons();
+        renderCrowdPromptPreview();
+        syncCrowdAutoHide();
+        checkTimerUpModal();
+      }catch(e){
+        console.error("uiTick error:", e);
+      }
+    }, 250);
+  }
+
+function renderTimerLine(){
     const t = OMJN.computeTimer(state);
     els.timerLine.textContent = `${OMJN.formatMMSS(t.elapsedMs)} / ${OMJN.formatMMSS(t.remainingMs)}`;
   }
@@ -2443,6 +2649,8 @@ toggleCustomAddFields();
 
     renderQueue();
     renderKPIs();
+    renderLiveStatusBanner();
+    renderCrowdPromptPreview();
     renderTimerLine();
 renderHouseBandCategories();
   }
@@ -2772,14 +2980,6 @@ toggleCustomAddFields();
       setCrowdEnabled(!cfg.enabled);
       renderSettings();
     });
-    if(els.btnSettingsCrowd) els.btnSettingsCrowd.addEventListener("click", (e) => {
-      e.preventDefault();
-      openSettingsModal();
-      // scroll to Crowd section if present
-      setTimeout(() => {
-        document.getElementById("setCrowdEnabled")?.scrollIntoView?.({ behavior:"smooth", block:"start" });
-      }, 50);
-    });
 
     els.addType.addEventListener("change", toggleCustomAddFields);
 
@@ -2959,6 +3159,41 @@ els.showTitle.addEventListener("input", () => {
     els.btnMinus30.addEventListener("click", () => addSeconds(-30));
     els.btnPlus30.addEventListener("click", () => addSeconds(30));
     els.btnResetTime.addEventListener("click", resetTimer);
+
+
+    // Timer-up modal bindings (operator reminder when time hits 0:00)
+    if(els.btnTimerUpEnd) els.btnTimerUpEnd.addEventListener("click", () => { closeTimerUpModal(); guardedEnd(); });
+    if(els.btnTimerUpPause) els.btnTimerUpPause.addEventListener("click", () => pause());
+    if(els.btnTimerUpResume) els.btnTimerUpResume.addEventListener("click", () => resume());
+    if(els.btnTimerUpSnooze) els.btnTimerUpSnooze.addEventListener("click", () => {
+      const cur = OMJN.computeCurrent(state);
+      if(!cur) return closeTimerUpModal();
+      timerUpSnoozeForSlotId = cur.id;
+      timerUpSnoozeUntil = Date.now() + 30 * 1000;
+      closeTimerUpModal();
+    });
+    if(els.btnTimerUpDismiss) els.btnTimerUpDismiss.addEventListener("click", () => {
+      const cur = OMJN.computeCurrent(state);
+      if(cur) timerUpDismissedSlotId = cur.id;
+      closeTimerUpModal();
+    });
+    if(els.btnTimerUpPlus30) els.btnTimerUpPlus30.addEventListener("click", () => addSeconds(30));
+    if(els.btnTimerUpPlus1) els.btnTimerUpPlus1.addEventListener("click", () => addMinutes(1));
+    if(els.btnTimerUpPlus5) els.btnTimerUpPlus5.addEventListener("click", () => addMinutes(5));
+    if(els.btnTimerUpReset) els.btnTimerUpReset.addEventListener("click", () => resetTimer());
+
+    // Crowd prompt preview updates while typing
+    const cpInputs = [els.crowdPresetName, els.crowdTitle, els.crowdAutoHide, els.crowdLines, els.crowdFooter].filter(Boolean);
+    for(const el of cpInputs){
+      el.addEventListener("input", () => renderCrowdPromptPreview());
+    }
+    if(els.crowdEditor){
+      els.crowdEditor.addEventListener("toggle", () => renderCrowdPromptPreview());
+    }
+
+    // Start lightweight UI tick (timer line + reminders)
+    startUiTick();
+
 
     // House Band
 
