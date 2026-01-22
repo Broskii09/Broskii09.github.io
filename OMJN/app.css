@@ -203,24 +203,30 @@ select option{ background: var(--panel); color: var(--text); }
 .queueItem{
   display:grid;
   grid-template-columns: 26px 1fr auto;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "handle main actions"
+    "expander expander expander";
   gap:12px;
   padding:12px;
   border-radius:16px;
   border:1px solid rgba(255,255,255,.10);
   background:rgba(0,0,0,.16);
 }
+
 .queueItem.isSelected{outline:2px solid rgba(255,255,255,.18);}
 .queueItem.isEditing{outline:2px solid rgba(212,175,55,.28);}
 .queueItem[draggable="true"]{cursor:grab}
 .queueItem.dragging{opacity:.55}
 .dragHandle{
+  grid-area: handle;
   width:26px; height:26px; border-radius:10px;
   display:flex; align-items:center; justify-content:center;
   background:rgba(255,255,255,.08);
   border:1px solid rgba(255,255,255,.10);
   user-select:none;
 }
-.qMain{display:flex; flex-direction:column; gap:6px;}
+.qMain{  grid-area: main; display:flex; flex-direction:column; gap:6px;}
 .qTop{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
 .qName{font-size:16px; font-weight:800;}
 .badge{
@@ -244,16 +250,21 @@ select option{ background: var(--panel); color: var(--text); }
   overflow:hidden;
   text-overflow:ellipsis;
 }
-.qActions{display:flex; gap:8px; align-items:center;}
+.qActions{
+  grid-area: actions;
+  display:flex; gap:8px; align-items:center;
+  justify-self:end;}
 
 /* Inline performer editor (Stage 2) */
 .qExpander{
-  margin-top:8px;
-  padding:10px;
+  grid-area: expander;
+  margin-top:0;          /* grid gap already creates spacing */
+  padding:12px;
   border-radius:14px;
   border:1px solid rgba(255,255,255,.10);
   background:rgba(0,0,0,.18);
 }
+
 .qExpGrid{display:grid; grid-template-columns: 1fr 240px; gap:10px;}
 .qExpGrid .field{margin:0;}
 .qExpActions{display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-top:10px;}

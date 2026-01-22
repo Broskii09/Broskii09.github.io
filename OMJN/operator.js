@@ -1829,15 +1829,19 @@ function fillTypeSelect(selectEl){
     });
     actions.appendChild(btnDel);
 
-    div.appendChild(handle);
-    div.appendChild(main);
-    // Inline expander under row (text-only edits)
-    if(editingId === slot.id && editDraft){
-      try{
-        div.appendChild(buildInlineExpander(slot));
-      }catch(_){ /* never block queue rendering */ }
-    }
-    div.appendChild(actions);
+// Grid layout expects: handle + main + actions on the first row,
+// then the inline editor (qExpander) spanning full width below.
+div.appendChild(handle);
+div.appendChild(main);
+div.appendChild(actions);
+
+// Inline expander under row (full-width, below qMain)
+if(editingId === slot.id && editDraft){
+  try{
+    div.appendChild(buildInlineExpander(slot));
+  }catch(_){ /* never block queue rendering */ }
+}
+
 
     div.addEventListener("click", () => {
       selectSlot(slot.id);
