@@ -1656,22 +1656,37 @@ function fillTypeSelect(selectEl){
     if(slot.status !== "QUEUED") div.classList.add("notQueued");
     if(selectedId === slot.id) div.classList.add("isSelected");
     if(editingId === slot.id) div.classList.add("isEditing");
-
-    div.draggable = (slot.status === "QUEUED") && !isLive && !isDone && (editingId !== slot.id);
+    // Drag-reorder is allowed only for active queued performers, never for the LIVE/PAUSED current slot
+    // (and never while the inline editor is open for that slot).
+    const canDrag = (slot.status === "QUEUED") && !isLive && !isDone && (editingId !== slot.id);
     div.dataset.id = slot.id;
     if(t?.color) div.style.borderLeft = `6px solid ${t.color}`;
-
-    if(div.draggable){
-      div.addEventListener("dragstart", (e) => {
-        div.classList.add("dragging");
-        e.dataTransfer.setData("text/plain", slot.id);
-      });
-      div.addEventListener("dragend", () => div.classList.remove("dragging"));
-    }
 
     const handle = document.createElement("div");
     handle.className = "dragHandle";
     handle.textContent = "≡";
+    handle.title = canDrag ? "Drag to reorder" : "";
+    // prevent row-select clicks when grabbing the handle
+    handle.addEventListener("mousedown", (e) => e.stopPropagation());
+
+    // reflect state for CSS (cursor/opacity)
+    handle.draggable = !!canDrag;
+
+    if(canDrag){
+      // Use the handle as the drag source (more reliable than making the whole row draggable)
+      handle.addEventListener("dragstart", (e) => {
+        try{
+          div.classList.add("dragging");
+          e.dataTransfer.effectAllowed = "move";
+          // set both for broader browser compatibility
+          e.dataTransfer.setData("text/plain", slot.id);
+          e.dataTransfer.setData("text", slot.id);
+        }catch(_){ }
+      });
+      handle.addEventListener("dragend", () => {
+        div.classList.remove("dragging");
+      });
+    }
 
     const main = document.createElement("div");
     main.className = "qMain";
@@ -1829,19 +1844,18 @@ function fillTypeSelect(selectEl){
     });
     actions.appendChild(btnDel);
 
-// Grid layout expects: handle + main + actions on the first row,
-// then the inline editor (qExpander) spanning full width below.
-div.appendChild(handle);
-div.appendChild(main);
-div.appendChild(actions);
+    // Grid layout expects: handle + main + actions on the first row,
+    // then the inline editor (qExpander) spanning full width below.
+    div.appendChild(handle);
+    div.appendChild(main);
+    div.appendChild(actions);
 
-// Inline expander under row (full-width, below qMain)
-if(editingId === slot.id && editDraft){
-  try{
-    div.appendChild(buildInlineExpander(slot));
-  }catch(_){ /* never block queue rendering */ }
-}
-
+    // Inline expander under row (full-width, below qMain)
+    if(editingId === slot.id && editDraft){
+      try{
+        div.appendChild(buildInlineExpander(slot));
+      }catch(_){ /* never block queue rendering */ }
+    }
 
     div.addEventListener("click", () => {
       selectSlot(slot.id);
@@ -1891,8 +1905,8 @@ if(editingId === slot.id && editDraft){
   }
 
 function getDragAfterElement(container, y){
-    const els = [...container.querySelectorAll('.queueItem:not(.dragging)')];
-    return els.reduce((closest, child) => {
+    const items = [...container.querySelectorAll('.queueItem:not(.dragging)')];
+    return items.reduce((closest, child) => {
       const box = child.getBoundingClientRect();
       const offset = y - box.top - box.height / 2;
       if(offset < 0 && offset > closest.offset){
@@ -1942,7 +1956,7 @@ function getDragAfterElement(container, y){
 
     els.queue.addEventListener('drop', (e) => {
       e.preventDefault();
-      const draggedId = e.dataTransfer.getData('text/plain');
+      const draggedId = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text');
       if(!draggedId) return;
 
       const activeIds = [...els.queue.querySelectorAll('.queueItem:not(.isDone)')]
@@ -2670,9 +2684,10 @@ function start(){
   }
 
   function skipSelected(){
-    if(!selectedId) return;
+    const id = selectedId;
+    if(!id) return;
     updateState(s => {
-      const slot = s.queue.find(x=>x.id===targetId);
+      const slot = s.queue.find(x=>x.id===id);
       if(!slot) return;
       slot.status = "SKIPPED";
       slot.completedAt = Date.now();
@@ -2817,35 +2832,45 @@ function start(){
   }
 
   // ---- Editor bindings ----
+  // Legacy drawer editor (hidden in current UX)
+  // Kept as a safe no-op when the DOM is missing, so it can be removed later without breaking JS.
   function bindEditor(){
+    // If the legacy editor isn't in the DOM, do nothing.
+    if(!els.editName || !els.editType || !els.editMinutes || !els.editNotes || !els.editUrl || !els.editLayout || !els.imgFile || !els.btnClearImg || !els.btnSkip || !els.editCustomLabel){
+      return;
+    }
+
+    const withSelected = (mut, opts) => {
+      const id = selectedId;
+      if(!id) return;
+      updateState(s => {
+        const slot = s.queue.find(x => x.id === id);
+        if(!slot) return;
+        mut(s, slot);
+      }, opts);
+    };
+
     els.editName.addEventListener("input", () => {
       const v = OMJN.sanitizeText(els.editName.value);
-      if(!selectedId) return;
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===targetId);
-        if(slot){
-          slot.displayName = v;
-          // profile auto-save
-          const key = normNameKey(slot.displayName);
-          if(key){
-            s.profiles[key] = {
-              displayName: slot.displayName,
-              defaultSlotTypeId: slot.slotTypeId || "musician",
-              defaultMinutesOverride: slot.minutesOverride ?? null,
-              media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-              updatedAt: Date.now()
-            };
-          }
+      withSelected((s, slot) => {
+        slot.displayName = v;
+        // profile auto-save
+        const key = normNameKey(slot.displayName);
+        if(key){
+          s.profiles[key] = {
+            displayName: slot.displayName,
+            defaultSlotTypeId: slot.slotTypeId || "musician",
+            defaultMinutesOverride: slot.minutesOverride ?? null,
+            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
+            updatedAt: Date.now()
+          };
         }
       }, { recordHistory:false });
     });
 
     els.editType.addEventListener("change", () => {
-      if(!selectedId) return;
       const v = els.editType.value;
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===targetId);
-        if(!slot) return;
+      withSelected((s, slot) => {
         slot.slotTypeId = v;
         if(v !== "custom") slot.customTypeLabel = slot.customTypeLabel || "";
         const key = normNameKey(slot.displayName);
@@ -2861,31 +2886,31 @@ function start(){
       }, { recordHistory:false });
     });
 
+    els.editCustomLabel.addEventListener("input", () => {
+      const v = OMJN.sanitizeText(els.editCustomLabel.value);
+      withSelected((s, slot) => {
+        slot.customTypeLabel = v;
+      }, { recordHistory:false });
+    });
+
     els.editMinutes.addEventListener("input", () => {
-      if(!selectedId) return;
       const raw = els.editMinutes.value;
       const val = raw === "" ? null : Math.max(1, Math.round(Number(raw)));
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===targetId);
-        if(slot) slot.minutesOverride = val;
+      withSelected((s, slot) => {
+        slot.minutesOverride = val;
       });
     });
 
     els.editNotes.addEventListener("input", () => {
-      if(!selectedId) return;
       const v = els.editNotes.value;
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===targetId);
-        if(slot) slot.notes = v;
+      withSelected((s, slot) => {
+        slot.notes = v;
       });
     });
 
     els.editUrl.addEventListener("input", () => {
-      if(!selectedId) return;
       const v = OMJN.sanitizeText(els.editUrl.value);
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===targetId);
-        if(!slot) return;
+      withSelected((s, slot) => {
         if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
         slot.media.donationUrl = v || null;
         const key = normNameKey(slot.displayName);
@@ -2901,12 +2926,9 @@ function start(){
       }, { recordHistory:false });
     });
 
-els.editLayout.addEventListener("change", () => {
-      if(!selectedId) return;
+    els.editLayout.addEventListener("change", () => {
       const v = els.editLayout.value;
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===targetId);
-        if(!slot) return;
+      withSelected((s, slot) => {
         if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
         slot.media.mediaLayout = v;
         const key = normNameKey(slot.displayName);
@@ -2919,26 +2941,18 @@ els.editLayout.addEventListener("change", () => {
             updatedAt: Date.now()
           };
         }
-      });
+      }, { recordHistory:false });
     });
 
     els.imgFile.addEventListener("change", async () => {
       const file = els.imgFile.files?.[0] || null;
       els.imgFile.value = "";
-      if(file) await handleImageUpload(file);
+      const id = selectedId; // capture to avoid async races
+      if(file && id) await handleImageUpload(file, id);
     });
 
-    els.btnClearImg.addEventListener("click", clearImage);
+    els.btnClearImg.addEventListener("click", () => clearImage(selectedId));
     els.btnSkip.addEventListener("click", skipSelected);
-
-        els.editCustomLabel.addEventListener("input", () => {
-      if(!selectedId) return;
-      const v = OMJN.sanitizeText(els.editCustomLabel.value);
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===targetId);
-        if(slot) slot.customTypeLabel = v;
-      });
-    });
   }
 
   // ---- Wire up ----
@@ -2970,6 +2984,7 @@ function bind(){
     fillTypeSelect(els.editType);
     toggleCustomAddFields();
     bindSettings();
+    bindEditor();
     bindPerformerDnD();
 
     // Crowd prompt quick controls (now in right drawer)
@@ -3168,27 +3183,6 @@ els.showTitle.addEventListener("input", () => {
     els.btnMinus30.addEventListener("click", () => addSeconds(-30));
     els.btnPlus30.addEventListener("click", () => addSeconds(30));
     els.btnResetTime.addEventListener("click", resetTimer);
-
-    // House Band
-    if(els.btnAddHB){
-      els.btnAddHB.addEventListener("click", () => {
-        updateState(s => {
-          OMJN.ensureHouseBandQueues(s);
-          s.houseBand.push({
-            id: OMJN.uid("hb"),
-            name: "",
-            instrumentId: "guitar",
-            customInstrument: "",
-            skillTags: [],
-            active: true,
-            cooldownLength: 0,
-            cooldownRemaining: 0
-          });
-        });
-      });
-    }
-
-
     els.btnReset.addEventListener("click", resetShow);
     els.btnExport.addEventListener("click", exportJSON);
     els.importFile.addEventListener("change", () => {
