@@ -203,10 +203,6 @@ select option{ background: var(--panel); color: var(--text); }
 .queueItem{
   display:grid;
   grid-template-columns: 26px 1fr auto;
-  grid-template-rows: auto auto;
-  grid-template-areas:
-    "handle main actions"
-    "expander expander expander";
   gap:12px;
   padding:12px;
   border-radius:16px;
@@ -217,18 +213,14 @@ select option{ background: var(--panel); color: var(--text); }
 .queueItem.isEditing{outline:2px solid rgba(212,175,55,.28);}
 .queueItem[draggable="true"]{cursor:grab}
 .queueItem.dragging{opacity:.55}
-.dragHandle[draggable="true"]{cursor:grab}
-.dragHandle[draggable="true"]:active{cursor:grabbing}
-.dragHandle[draggable="false"]{opacity:.35}
 .dragHandle{
-  grid-area: handle;
   width:26px; height:26px; border-radius:10px;
   display:flex; align-items:center; justify-content:center;
   background:rgba(255,255,255,.08);
   border:1px solid rgba(255,255,255,.10);
   user-select:none;
 }
-.qMain{grid-area: main; display:flex; flex-direction:column; gap:6px;}
+.qMain{display:flex; flex-direction:column; gap:6px;}
 .qTop{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
 .qName{font-size:16px; font-weight:800;}
 .badge{
@@ -252,13 +244,12 @@ select option{ background: var(--panel); color: var(--text); }
   overflow:hidden;
   text-overflow:ellipsis;
 }
-.qActions{grid-area: actions; display:flex; gap:8px; align-items:center; justify-self:end;}
+.qActions{display:flex; gap:8px; align-items:center;}
 
 /* Inline performer editor (Stage 2) */
 .qExpander{
-  grid-area: expander;
-  margin-top:0;
-  padding:12px;
+  margin-top:8px;
+  padding:10px;
   border-radius:14px;
   border:1px solid rgba(255,255,255,.10);
   background:rgba(0,0,0,.18);
@@ -267,8 +258,6 @@ select option{ background: var(--panel); color: var(--text); }
 .qExpGrid .field{margin:0;}
 .qExpActions{display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-top:10px;}
 
-/* Keep the legacy right-drawer editor out of the way in Stage 2 */
-.operatorPage #editCard{display:none;}
 .icon{
   width:18px; height:18px; opacity:.9;
 }

@@ -24,8 +24,7 @@
     hotkeysEnabled: document.getElementById("hotkeysEnabled"),
 
     // Settings
-    prefCollapseEditor: document.getElementById("prefCollapseEditor"),
-    setBgColor: document.getElementById("setBgColor"),
+setBgColor: document.getElementById("setBgColor"),
     setPanelColor: document.getElementById("setPanelColor"),
     setAccentColor: document.getElementById("setAccentColor"),
     setTextColor: document.getElementById("setTextColor"),
@@ -121,22 +120,7 @@
     btnPlus30: document.getElementById("btnPlus30"),
     btnResetTime: document.getElementById("btnResetTime"),
     timerLine: document.getElementById("timerLine"),
-
-    editCard: document.getElementById("editCard"),
-    selId: document.getElementById("selId"),
-    editName: document.getElementById("editName"),
-    editType: document.getElementById("editType"),
-    editCustomWrap: document.getElementById("editCustomWrap"),
-    editCustomLabel: document.getElementById("editCustomLabel"),
-    editMinutes: document.getElementById("editMinutes"),
-    editNotes: document.getElementById("editNotes"),
-    editUrl: document.getElementById("editUrl"),
-    editLayout: document.getElementById("editLayout"),
-    imgFile: document.getElementById("imgFile"),
-    btnClearImg: document.getElementById("btnClearImg"),
-    btnSkip: document.getElementById("btnSkip"),
-    
-    // Tabs
+// Tabs
     tabBtnPerformers: document.getElementById("tabBtnPerformers"),
     tabBtnHouseBand: document.getElementById("tabBtnHouseBand"),
     tabPerformers: document.getElementById("tabPerformers"),
@@ -300,11 +284,6 @@
 
   function visibleSlotTypes(){
     return state.slotTypes.filter(t => (t.enabled !== false));
-  }
-
-  function ensureSelectedValid(){
-    if(selectedId && !state.queue.some(s=>s.id===selectedId)) selectedId = null;
-    if(!selectedId && state.queue.length) selectedId = state.queue.find(s=>s.status==="QUEUED")?.id ?? state.queue[0].id;
   }
 
   // Select a performer in the queue, and apply sensible defaults for legacy/empty media settings.
@@ -1190,9 +1169,6 @@ function escapeHtml(s){
       if(els.setSponsorSafeMarginVal) els.setSponsorSafeMarginVal.textContent = `${Math.round(v)}px`;
     }
     updateSponsorPreviewAndStatus().catch(() => {});
-if(els.prefCollapseEditor){
-      els.prefCollapseEditor.checked = !!state.operatorPrefs?.editCollapsed;
-    }
 
     renderSlotTypesEditor();
   }
@@ -1543,20 +1519,6 @@ if(els.prefCollapseEditor){
       els.setSponsorSafeMargin.addEventListener("change", onSm);
       els.setSponsorSafeMarginVal?.addEventListener?.("dblclick", () => { els.setSponsorSafeMargin.value = "16"; onSm(); });
     }
-if(els.prefCollapseEditor){
-      els.prefCollapseEditor.addEventListener("change", () => {
-        const collapsed = !!els.prefCollapseEditor.checked;
-        updateState(s => { s.operatorPrefs.editCollapsed = collapsed; }, { recordHistory:false });
-        if(els.editCard) els.editCard.open = !collapsed;
-      });
-    }
-    if(els.editCard){
-      els.editCard.addEventListener("toggle", () => {
-        const collapsed = !els.editCard.open;
-        if(els.prefCollapseEditor) els.prefCollapseEditor.checked = collapsed;
-        updateState(s => { s.operatorPrefs.editCollapsed = collapsed; }, { recordHistory:false });
-      });
-    }
 
     if(els.btnExportSettings){
       els.btnExportSettings.addEventListener("click", () => {
@@ -1656,37 +1618,36 @@ function fillTypeSelect(selectEl){
     if(slot.status !== "QUEUED") div.classList.add("notQueued");
     if(selectedId === slot.id) div.classList.add("isSelected");
     if(editingId === slot.id) div.classList.add("isEditing");
-    // Drag-reorder is allowed only for active queued performers, never for the LIVE/PAUSED current slot
-    // (and never while the inline editor is open for that slot).
-    const canDrag = (slot.status === "QUEUED") && !isLive && !isDone && (editingId !== slot.id);
+
+    div.draggable = (slot.status === "QUEUED") && !isLive && !isDone && (editingId !== slot.id);
     div.dataset.id = slot.id;
     if(t?.color) div.style.borderLeft = `6px solid ${t.color}`;
 
-    const handle = document.createElement("div");
-    handle.className = "dragHandle";
-    handle.textContent = "≡";
-    handle.title = canDrag ? "Drag to reorder" : "";
-    // prevent row-select clicks when grabbing the handle
-    handle.addEventListener("mousedown", (e) => e.stopPropagation());
-
-    // reflect state for CSS (cursor/opacity)
-    handle.draggable = !!canDrag;
-
-    if(canDrag){
-      // Use the handle as the drag source (more reliable than making the whole row draggable)
-      handle.addEventListener("dragstart", (e) => {
+    if(div.draggable){
+      div.addEventListener("dragstart", (e) => {
+        // Allow full-row drag, but never start a drag from interactive controls
+        // (buttons/inputs/selects/links or the inline expander).
+        const blockSel = ".qActions, .qExpander, button, input, select, textarea, a, label";
+        const t = e.target;
+        if(t && t.closest && t.closest(blockSel)){
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        div.classList.add("dragging");
         try{
-          div.classList.add("dragging");
           e.dataTransfer.effectAllowed = "move";
           // set both for broader browser compatibility
           e.dataTransfer.setData("text/plain", slot.id);
           e.dataTransfer.setData("text", slot.id);
-        }catch(_){ }
+        }catch(_){}
       });
-      handle.addEventListener("dragend", () => {
-        div.classList.remove("dragging");
-      });
+      div.addEventListener("dragend", () => div.classList.remove("dragging"));
     }
+
+    const handle = document.createElement("div");
+    handle.className = "dragHandle";
+    handle.textContent = "≡";
 
     const main = document.createElement("div");
     main.className = "qMain";
@@ -1844,18 +1805,15 @@ function fillTypeSelect(selectEl){
     });
     actions.appendChild(btnDel);
 
-    // Grid layout expects: handle + main + actions on the first row,
-    // then the inline editor (qExpander) spanning full width below.
     div.appendChild(handle);
     div.appendChild(main);
-    div.appendChild(actions);
-
-    // Inline expander under row (full-width, below qMain)
+    // Inline expander under row (text-only edits)
     if(editingId === slot.id && editDraft){
       try{
         div.appendChild(buildInlineExpander(slot));
       }catch(_){ /* never block queue rendering */ }
     }
+    div.appendChild(actions);
 
     div.addEventListener("click", () => {
       selectSlot(slot.id);
@@ -1939,6 +1897,7 @@ function getDragAfterElement(container, y){
 
     els.queue.addEventListener('dragover', (e) => {
       e.preventDefault();
+      try{ e.dataTransfer.dropEffect = 'move'; }catch(_){ }
       const dragging = els.queue.querySelector('.queueItem.dragging');
       if(!dragging) return;
 
@@ -2434,41 +2393,8 @@ function renderKPIs(){
     els.timerLine.textContent = `${OMJN.formatMMSS(t.elapsedMs)} / ${OMJN.formatMMSS(t.remainingMs)}`;
   }
 
-  function renderEditor(){
-    // Legacy right-drawer editor may not exist (inline expander is primary).
-    if(!els.selId || !els.editName || !els.editType || !els.editMinutes || !els.editNotes || !els.editUrl || !els.editLayout) return;
-    ensureSelectedValid();
-    const slot = state.queue.find(s=>s.id===selectedId) || null;
 
-    if(slot) OMJN.normalizeSlot(slot);
-
-    els.selId.textContent = selectedId ? selectedId : "—";
-
-    if(!slot){
-      // disable editor
-      els.editName.value = "";
-      els.editNotes.value = "";
-      els.editUrl.value = "";
-      els.editMinutes.value = "";
-      return;
-    }
-
-    els.editName.value = slot.displayName || "";
-    els.editType.value = slot.slotTypeId;
-    els.editMinutes.value = (slot.minutesOverride ?? "");
-    els.editNotes.value = slot.notes || "";
-    els.editUrl.value = slot.media?.donationUrl || "";
-    els.editLayout.value = slot.media?.mediaLayout || "NONE";
-
-    const type = OMJN.getSlotType(state, slot.slotTypeId);
-    const showCustom = slot.slotTypeId === "custom";
-    els.editCustomWrap.style.display = showCustom ? "block" : "none";
-    if(showCustom) els.editCustomLabel.value = slot.customTypeLabel || "";
-  }
-
-
-  
-  function render(){
+function render(){
     // sync header inputs
     els.showTitle.value = state.showTitle || "";
     els.splashPath.value = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
@@ -2482,10 +2408,6 @@ function renderKPIs(){
 
     if(els.toggleHBFooter) els.toggleHBFooter.checked = (state.viewerPrefs?.showHouseBandFooter !== false);
     if(els.hbFooterFormat) els.hbFooterFormat.value = (state.viewerPrefs?.hbFooterFormat || "categoryFirst");
-
-    // Editor collapse
-    if(els.editCard) els.editCard.open = !state.operatorPrefs?.editCollapsed;
-
     try{
       renderSettings();
     }catch(err){
@@ -2511,8 +2433,7 @@ function renderKPIs(){
     }
 
     fillTypeSelect(els.addType);
-    fillTypeSelect(els.editType);
-    toggleCustomAddFields();
+toggleCustomAddFields();
     // House Band add controls
     if(els.hbAddInstrument){
       fillHBInstrumentSelect(els.hbAddInstrument);
@@ -2523,8 +2444,7 @@ function renderKPIs(){
     renderQueue();
     renderKPIs();
     renderTimerLine();
-    renderEditor();
-    renderHouseBandCategories();
+renderHouseBandCategories();
   }
 
   // ---- Actions ----
@@ -2683,26 +2603,6 @@ function start(){
     });
   }
 
-  function skipSelected(){
-    const id = selectedId;
-    if(!id) return;
-    updateState(s => {
-      const slot = s.queue.find(x=>x.id===id);
-      if(!slot) return;
-      slot.status = "SKIPPED";
-      slot.completedAt = Date.now();
-      if(s.currentSlotId === slot.id){
-        // House Band is independent; skipping a performer doesn't rotate House Band.
-        s.currentSlotId = null;
-        s.phase = "SPLASH";
-        s.timer.running = false;
-        s.timer.startedAt = null;
-        s.timer.elapsedMs = 0;
-        s.timer.baseDurationMs = null;
-      }
-    });
-  }
-
   function resetShow(){
     const ok = confirm("Start a new show? This clears the queue (images stay in local storage unless you clear browser data).");
     if(!ok) return;
@@ -2831,131 +2731,9 @@ function start(){
     reader.readAsText(file);
   }
 
-  // ---- Editor bindings ----
-  // Legacy drawer editor (hidden in current UX)
-  // Kept as a safe no-op when the DOM is missing, so it can be removed later without breaking JS.
-  function bindEditor(){
-    // If the legacy editor isn't in the DOM, do nothing.
-    if(!els.editName || !els.editType || !els.editMinutes || !els.editNotes || !els.editUrl || !els.editLayout || !els.imgFile || !els.btnClearImg || !els.btnSkip || !els.editCustomLabel){
-      return;
-    }
 
-    const withSelected = (mut, opts) => {
-      const id = selectedId;
-      if(!id) return;
-      updateState(s => {
-        const slot = s.queue.find(x => x.id === id);
-        if(!slot) return;
-        mut(s, slot);
-      }, opts);
-    };
 
-    els.editName.addEventListener("input", () => {
-      const v = OMJN.sanitizeText(els.editName.value);
-      withSelected((s, slot) => {
-        slot.displayName = v;
-        // profile auto-save
-        const key = normNameKey(slot.displayName);
-        if(key){
-          s.profiles[key] = {
-            displayName: slot.displayName,
-            defaultSlotTypeId: slot.slotTypeId || "musician",
-            defaultMinutesOverride: slot.minutesOverride ?? null,
-            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-            updatedAt: Date.now()
-          };
-        }
-      }, { recordHistory:false });
-    });
-
-    els.editType.addEventListener("change", () => {
-      const v = els.editType.value;
-      withSelected((s, slot) => {
-        slot.slotTypeId = v;
-        if(v !== "custom") slot.customTypeLabel = slot.customTypeLabel || "";
-        const key = normNameKey(slot.displayName);
-        if(key){
-          s.profiles[key] = {
-            displayName: slot.displayName,
-            defaultSlotTypeId: slot.slotTypeId || "musician",
-            defaultMinutesOverride: slot.minutesOverride ?? null,
-            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-            updatedAt: Date.now()
-          };
-        }
-      }, { recordHistory:false });
-    });
-
-    els.editCustomLabel.addEventListener("input", () => {
-      const v = OMJN.sanitizeText(els.editCustomLabel.value);
-      withSelected((s, slot) => {
-        slot.customTypeLabel = v;
-      }, { recordHistory:false });
-    });
-
-    els.editMinutes.addEventListener("input", () => {
-      const raw = els.editMinutes.value;
-      const val = raw === "" ? null : Math.max(1, Math.round(Number(raw)));
-      withSelected((s, slot) => {
-        slot.minutesOverride = val;
-      });
-    });
-
-    els.editNotes.addEventListener("input", () => {
-      const v = els.editNotes.value;
-      withSelected((s, slot) => {
-        slot.notes = v;
-      });
-    });
-
-    els.editUrl.addEventListener("input", () => {
-      const v = OMJN.sanitizeText(els.editUrl.value);
-      withSelected((s, slot) => {
-        if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
-        slot.media.donationUrl = v || null;
-        const key = normNameKey(slot.displayName);
-        if(key){
-          s.profiles[key] = {
-            displayName: slot.displayName,
-            defaultSlotTypeId: slot.slotTypeId || "musician",
-            defaultMinutesOverride: slot.minutesOverride ?? null,
-            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-            updatedAt: Date.now()
-          };
-        }
-      }, { recordHistory:false });
-    });
-
-    els.editLayout.addEventListener("change", () => {
-      const v = els.editLayout.value;
-      withSelected((s, slot) => {
-        if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
-        slot.media.mediaLayout = v;
-        const key = normNameKey(slot.displayName);
-        if(key){
-          s.profiles[key] = {
-            displayName: slot.displayName,
-            defaultSlotTypeId: slot.slotTypeId || "musician",
-            defaultMinutesOverride: slot.minutesOverride ?? null,
-            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-            updatedAt: Date.now()
-          };
-        }
-      }, { recordHistory:false });
-    });
-
-    els.imgFile.addEventListener("change", async () => {
-      const file = els.imgFile.files?.[0] || null;
-      els.imgFile.value = "";
-      const id = selectedId; // capture to avoid async races
-      if(file && id) await handleImageUpload(file, id);
-    });
-
-    els.btnClearImg.addEventListener("click", () => clearImage(selectedId));
-    els.btnSkip.addEventListener("click", skipSelected);
-  }
-
-  // ---- Wire up ----
+// ---- Wire up ----
   function toggleCustomAddFields(){
     const isCustom = els.addType.value === "custom";
     els.addCustomWrap.style.display = isCustom ? "flex" : "none";
@@ -2981,10 +2759,8 @@ function start(){
 function bind(){
     // initial select options
     fillTypeSelect(els.addType);
-    fillTypeSelect(els.editType);
-    toggleCustomAddFields();
+toggleCustomAddFields();
     bindSettings();
-    bindEditor();
     bindPerformerDnD();
 
     // Crowd prompt quick controls (now in right drawer)
@@ -3183,6 +2959,10 @@ els.showTitle.addEventListener("input", () => {
     els.btnMinus30.addEventListener("click", () => addSeconds(-30));
     els.btnPlus30.addEventListener("click", () => addSeconds(30));
     els.btnResetTime.addEventListener("click", resetTimer);
+
+    // House Band
+
+
     els.btnReset.addEventListener("click", resetShow);
     els.btnExport.addEventListener("click", exportJSON);
     els.importFile.addEventListener("change", () => {
