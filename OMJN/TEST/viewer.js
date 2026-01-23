@@ -652,7 +652,7 @@ function applyCardCues(remainingMs, warnAtMs, finalAtMs){
 
     if(!title && !lines.length && !footer){
       title = "CROWD PROMPT";
-      lines.push("Configure prompts in Operator Settings.");
+      lines.push("Configure prompts in Operator → Crowd Prompts.");
     }
 
     if(crowdTitleEl) crowdTitleEl.textContent = title || "CROWD PROMPT";

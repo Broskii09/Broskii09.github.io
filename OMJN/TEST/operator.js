@@ -47,10 +47,6 @@ setBgColor: document.getElementById("setBgColor"),
     setVizSensitivityVal: document.getElementById("setVizSensitivityVal"),
 
     // Crowd Prompts
-    setCrowdEnabled: document.getElementById("setCrowdEnabled"),
-    setCrowdPreset: document.getElementById("setCrowdPreset"),
-    btnCrowdShowNow: document.getElementById("btnCrowdShowNow"),
-    btnCrowdHide: document.getElementById("btnCrowdHide"),
     crowdPresetName: document.getElementById("crowdPresetName"),
     crowdTitle: document.getElementById("crowdTitle"),
     crowdLines: document.getElementById("crowdLines"),
@@ -336,8 +332,11 @@ setBgColor: document.getElementById("setBgColor"),
   // ---- Inline performer editor (Stage 2) ----
   function isTypingContext(el = document.activeElement){
     if(!el) return false;
-    const tag = (el.tagName||"").toLowerCase();
-    return tag === "input" || tag === "textarea" || tag === "select" || !!el.isContentEditable;
+    // If a child node is passed (e.g. an icon inside a button), climb to a meaningful element.
+    if(el.nodeType && el.nodeType !== 1) el = document.activeElement;
+    const target = (el && el.closest) ? el : document.activeElement;
+    const interactive = target && target.closest ? target.closest("input, textarea, select, [contenteditable=\"true\"]") : null;
+    return !!interactive;
   }
 
   function openInlineEdit(slotId){
@@ -1135,41 +1134,7 @@ function escapeHtml(s){
       els.setVizSensitivity.value = String(vv);
       if(els.setVizSensitivityVal) els.setVizSensitivityVal.textContent = `${vv.toFixed(2)}×`;
     }
-
-    
-
-    
-
-    // Crowd Prompts UI
-    const cp = state.viewerPrefs?.crowdPrompts || OMJN.defaultState().viewerPrefs.crowdPrompts;
-    const presets = Array.isArray(cp.presets) ? cp.presets : [];
-    const activeId = presets.some(p=>p.id===cp.activePresetId) ? cp.activePresetId : (presets[0]?.id || "");
-
-    if(els.setCrowdEnabled) els.setCrowdEnabled.checked = !!cp.enabled;
-
-    if(els.setCrowdPreset){
-      const opts = presets.map(p => ({ id: p.id, label: (p.name || p.title || p.id) }));
-      els.setCrowdPreset.innerHTML = opts.map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join("");
-      els.setCrowdPreset.value = activeId;
-    }
-
-    // Only sync editor fields when preset changes (so typing isn't overwritten)
-    const editorKey = JSON.stringify({ activeId, count: presets.length, names: presets.map(p=>p.name||"").join("|") });
-    if(editorKey !== lastCrowdEditorKey){
-      lastCrowdEditorKey = editorKey;
-      const ap = presets.find(p=>p.id===activeId) || presets[0] || {};
-      if(els.crowdPresetName) els.crowdPresetName.value = ap.name || "";
-      if(els.crowdTitle) els.crowdTitle.value = ap.title || "";
-      if(els.crowdLines) els.crowdLines.value = Array.isArray(ap.lines) ? ap.lines.join("\n") : "";
-      if(els.crowdFooter) els.crowdFooter.value = ap.footer || "";
-      if(els.crowdAutoHide) els.crowdAutoHide.value = String(clamp(parseInt(String(ap.autoHideSeconds ?? 0),10) || 0, 0, 60));
-    }
-
-    updateCrowdQuickButtons();
-    syncCrowdAutoHide();
-
-
-    // Sponsor Bug UI
+// Sponsor Bug UI
     const sb = state.viewerPrefs?.sponsorBug || OMJN.defaultState().viewerPrefs.sponsorBug;
     if(els.setSponsorEnabled) els.setSponsorEnabled.checked = !!sb.enabled;
     if(els.setSponsorLiveOnly) els.setSponsorLiveOnly.checked = (sb.showLiveOnly !== false);
@@ -1384,22 +1349,7 @@ function escapeHtml(s){
       }, { recordHistory:false });
       scheduleCrowdAutoHide();
     }
-
-    if(els.setCrowdEnabled){
-      els.setCrowdEnabled.addEventListener("change", () => setCrowdEnabled(!!els.setCrowdEnabled.checked));
-    }
-    if(els.btnCrowdShowNow){
-      els.btnCrowdShowNow.addEventListener("click", () => setCrowdEnabled(true));
-    }
-    if(els.btnCrowdHide){
-      els.btnCrowdHide.addEventListener("click", () => setCrowdEnabled(false));
-    }
-    if(els.setCrowdPreset){
-      els.setCrowdPreset.addEventListener("change", () => {
-        const id = String(els.setCrowdPreset.value || "");
-        updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.activePresetId = id; }, { recordHistory:false });
-        scheduleCrowdAutoHide();
-      });
+);
     }
     if(els.btnCrowdSave) els.btnCrowdSave.addEventListener("click", saveCrowdPreset);
     if(els.btnCrowdAdd) els.btnCrowdAdd.addEventListener("click", () => addCrowdPreset(null));
@@ -3213,9 +3163,70 @@ els.showTitle.addEventListener("input", () => {
       if(e.target === els.settingsModal) closeSettingsModal();
     });
     document.addEventListener("keydown", (e) => {
-      if(e.key === "Escape" && !els.settingsModal.hidden) closeSettingsModal();
-    });
-  }
+      // --- Modal shortcuts first ---
+      const timerModalOpen = els.timerUpModal && !els.timerUpModal.hidden;
+      if(timerModalOpen){
+        if(e.key === "Escape"){
+          e.preventDefault();
+          // Dismiss for this timer run (does not snooze)
+          const cur = OMJN.computeCurrent(state);
+          if(cur) timerUpDismissedSlotId = cur.id;
+          closeTimerUpModal();
+          return;
+        }
+        if(e.key === "Enter"){
+          e.preventDefault();
+          if(els.btnTimerUpEnd) els.btnTimerUpEnd.click();
+          return;
+        }
+        return; // don't run other hotkeys while modal is open
+      }
+
+      // Settings modal escape
+      if(e.key === "Escape" && els.settingsModal && !els.settingsModal.hidden){
+        e.preventDefault();
+        closeSettingsModal();
+        return;
+      }
+
+      // --- Global hotkeys ---
+      const hotkeysOn = !!state.operatorPrefs?.hotkeysEnabled;
+      if(!hotkeysOn) return;
+
+      // Ignore hotkeys while typing (or interacting with selects) to avoid accidental show control.
+      if(isTypingContext(e.target)) return;
+
+      const k = e.key;
+
+      // Undo / Redo
+      if((e.ctrlKey || e.metaKey) && (k === "z" || k === "Z")){
+        e.preventDefault();
+        if(e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if((e.ctrlKey || e.metaKey) && (k === "y" || k === "Y")){
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      // Space: Start/Pause/Resume
+      if(k === " " || k === "Spacebar"){
+        e.preventDefault();
+        if(state.phase === "SPLASH") start();
+        else if(state.phase === "LIVE") pause();
+        else if(state.phase === "PAUSED") resume();
+        return;
+      }
+
+      // N: End → Splash
+      if(k === "n" || k === "N"){
+        e.preventDefault();
+        guardedEnd();
+        return;
+      }
+    });}
 
   // Subscribe to changes from other tabs (in case operator is duplicated)
   OMJN.subscribe((s) => {

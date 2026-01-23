@@ -221,10 +221,9 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
 
       if(!s.assetsIndex) s.assetsIndex = {};
       if(!Array.isArray(s.queue)) s.queue = [];
-      // Timer already normalized above (running/startedAt/pausedAt/elapsedMs/baseDurationMs)
       if(!s.phase) s.phase = "SPLASH";
       if(s.currentSlotId === undefined) s.currentSlotId = null;
-      if(!s.history) s.history = { undo:[], redo:[] };
+if(!s.history) s.history = { undo:[], redo:[] };
 
       // House Band migration (Step 4)
       // New schema: houseBandQueues (fixed categories, each with its own queue).
