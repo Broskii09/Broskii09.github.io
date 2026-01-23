@@ -332,11 +332,8 @@ setBgColor: document.getElementById("setBgColor"),
   // ---- Inline performer editor (Stage 2) ----
   function isTypingContext(el = document.activeElement){
     if(!el) return false;
-    // If a child node is passed (e.g. an icon inside a button), climb to a meaningful element.
-    if(el.nodeType && el.nodeType !== 1) el = document.activeElement;
-    const target = (el && el.closest) ? el : document.activeElement;
-    const interactive = target && target.closest ? target.closest("input, textarea, select, [contenteditable=\"true\"]") : null;
-    return !!interactive;
+    const tag = (el.tagName||"").toLowerCase();
+    return tag === "input" || tag === "textarea" || tag === "select" || !!el.isContentEditable;
   }
 
   function openInlineEdit(slotId){
@@ -1134,7 +1131,9 @@ function escapeHtml(s){
       els.setVizSensitivity.value = String(vv);
       if(els.setVizSensitivityVal) els.setVizSensitivityVal.textContent = `${vv.toFixed(2)}×`;
     }
-// Sponsor Bug UI
+
+
+    // Sponsor Bug UI
     const sb = state.viewerPrefs?.sponsorBug || OMJN.defaultState().viewerPrefs.sponsorBug;
     if(els.setSponsorEnabled) els.setSponsorEnabled.checked = !!sb.enabled;
     if(els.setSponsorLiveOnly) els.setSponsorLiveOnly.checked = (sb.showLiveOnly !== false);
@@ -1349,7 +1348,6 @@ function escapeHtml(s){
       }, { recordHistory:false });
       scheduleCrowdAutoHide();
     }
-);
     }
     if(els.btnCrowdSave) els.btnCrowdSave.addEventListener("click", saveCrowdPreset);
     if(els.btnCrowdAdd) els.btnCrowdAdd.addEventListener("click", () => addCrowdPreset(null));
@@ -2469,7 +2467,8 @@ function renderKPIs(){
 
     els.timerUpModal.hidden = false;
     document.body.classList.add("modalOpen");
-  }
+  
+    try{ els.btnTimerUpEnd && els.btnTimerUpEnd.focus && els.btnTimerUpEnd.focus(); }catch(_){ }}
 
   function closeTimerUpModal(){
     if(!els.timerUpModal) return;
@@ -3163,70 +3162,70 @@ els.showTitle.addEventListener("input", () => {
       if(e.target === els.settingsModal) closeSettingsModal();
     });
     document.addEventListener("keydown", (e) => {
-      // --- Modal shortcuts first ---
-      const timerModalOpen = els.timerUpModal && !els.timerUpModal.hidden;
-      if(timerModalOpen){
-        if(e.key === "Escape"){
-          e.preventDefault();
-          // Dismiss for this timer run (does not snooze)
-          const cur = OMJN.computeCurrent(state);
-          if(cur) timerUpDismissedSlotId = cur.id;
-          closeTimerUpModal();
-          return;
-        }
-        if(e.key === "Enter"){
-          e.preventDefault();
-          if(els.btnTimerUpEnd) els.btnTimerUpEnd.click();
-          return;
-        }
-        return; // don't run other hotkeys while modal is open
-      }
+  const k = e.key;
 
-      // Settings modal escape
-      if(e.key === "Escape" && els.settingsModal && !els.settingsModal.hidden){
-        e.preventDefault();
-        closeSettingsModal();
+  // If Timer-up modal is open, give it priority (show-critical)
+  if(els.timerUpModal && !els.timerUpModal.hidden){
+    if(k === "Escape"){
+      e.preventDefault();
+      if(els.btnTimerUpDismiss) els.btnTimerUpDismiss.click();
+      return;
+    }
+    if(k === "Enter"){
+      const ae = document.activeElement;
+      // If a button inside the modal is focused, let Enter activate that normally
+      if(ae && ae.closest && ae.closest("#timerUpModal") && (ae.tagName||"").toLowerCase() === "button"){
         return;
       }
+      e.preventDefault();
+      if(els.btnTimerUpEnd) els.btnTimerUpEnd.click();
+      return;
+    }
+  }
 
-      // --- Global hotkeys ---
-      const hotkeysOn = !!state.operatorPrefs?.hotkeysEnabled;
-      if(!hotkeysOn) return;
+  // Settings modal close
+  if(k === "Escape" && els.settingsModal && !els.settingsModal.hidden){
+    e.preventDefault();
+    closeSettingsModal();
+    return;
+  }
 
-      // Ignore hotkeys while typing (or interacting with selects) to avoid accidental show control.
-      if(isTypingContext(e.target)) return;
+  // Operator hotkeys (guarded)
+  if(!(state.operatorPrefs?.hotkeysEnabled)) return;
+  if(isTypingContext(e.target)) return;
+  // Don't steal keys if any modal is open (except timer-up handled above)
+  if(document.body.classList.contains("modalOpen")) return;
 
-      const k = e.key;
+  const isCtrl = e.ctrlKey || e.metaKey;
 
-      // Undo / Redo
-      if((e.ctrlKey || e.metaKey) && (k === "z" || k === "Z")){
-        e.preventDefault();
-        if(e.shiftKey) redo();
-        else undo();
-        return;
-      }
-      if((e.ctrlKey || e.metaKey) && (k === "y" || k === "Y")){
-        e.preventDefault();
-        redo();
-        return;
-      }
+  // Undo/Redo
+  if(isCtrl && !e.shiftKey && (k === "z" || k === "Z")){
+    e.preventDefault();
+    undo();
+    return;
+  }
+  if(isCtrl && ((k === "y" || k === "Y") || (e.shiftKey && (k === "z" || k === "Z")))){
+    e.preventDefault();
+    redo();
+    return;
+  }
 
-      // Space: Start/Pause/Resume
-      if(k === " " || k === "Spacebar"){
-        e.preventDefault();
-        if(state.phase === "SPLASH") start();
-        else if(state.phase === "LIVE") pause();
-        else if(state.phase === "PAUSED") resume();
-        return;
-      }
+  // Space = Start/Pause/Resume
+  if(k === " " || k === "Spacebar"){
+    e.preventDefault();
+    if(state.phase === "SPLASH") guardedStart();
+    else if(state.phase === "LIVE") pause();
+    else if(state.phase === "PAUSED") resume();
+    return;
+  }
 
-      // N: End → Splash
-      if(k === "n" || k === "N"){
-        e.preventDefault();
-        guardedEnd();
-        return;
-      }
-    });}
+  // N = End → Splash
+  if(k === "n" || k === "N"){
+    e.preventDefault();
+    guardedEnd();
+    return;
+  }
+});}
 
   // Subscribe to changes from other tabs (in case operator is duplicated)
   OMJN.subscribe((s) => {

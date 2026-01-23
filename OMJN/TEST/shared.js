@@ -221,6 +221,7 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
 
       if(!s.assetsIndex) s.assetsIndex = {};
       if(!Array.isArray(s.queue)) s.queue = [];
+      // timer shape normalized above (running/startedAt/pausedAt/elapsedMs/baseDurationMs)
       if(!s.phase) s.phase = "SPLASH";
       if(s.currentSlotId === undefined) s.currentSlotId = null;
 if(!s.history) s.history = { undo:[], redo:[] };
