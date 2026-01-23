@@ -230,8 +230,7 @@
             <div class="card">
                 <div class="cardHeader">
                     <h2>Live Control</h2>
-                    <div class="small mono" id="statusLine">SPLASH</div>
-                </div>
+                    </div>
                 <div class="cardBody">
                     <div class="kpi">
                         <div>
@@ -250,6 +249,12 @@
                             <div class="label">Est End</div>
                             <div class="value" id="kpiEstEnd">—</div>
                         </div>
+                    </div>
+
+                    <div class="statusBanner liveStatusBanner" id="liveStatusBanner">
+                        <span class="sbItem"><span class="sbDot" id="livePhaseDot" aria-hidden="true"></span><span class="mono" id="statusLine">SPLASH</span></span>
+                        <span class="sbItem" id="liveNowItem" hidden>Now: <span class="mono" id="liveNowName">—</span></span>
+                        <span class="sbItem" id="liveOTItem" hidden>Overtime: <span class="mono" id="liveOTVal">+0:00</span></span>
                     </div>
 
                     <div class="readyStrip">
@@ -300,17 +305,70 @@
         <div class="card" id="crowdPromptCard">
             <div class="cardHeader">
                 <h2>Crowd Prompts</h2>
-                <div class="small mono" id="crowdPromptStatus">—</div>
+                <div class="crowdPromptStatus mono off" id="crowdPromptStatus">—</div>
             </div>
             <div class="cardBody">
                 <div class="row" style="gap:8px; justify-content:flex-start;">
                     <button class="btn tiny" id="btnCrowdPrev" title="Previous crowd prompt">◀</button>
                     <button class="btn tiny" id="btnCrowdToggle" title="Toggle crowd prompt">Crowd: Off</button>
                     <button class="btn tiny" id="btnCrowdNext" title="Next crowd prompt">▶</button>
-                    <button class="btn tiny" id="btnSettingsCrowd" type="button" title="Edit crowd prompt presets">Edit Presets</button>
                 </div>
-                <div class="small" style="margin-top:8px; opacity:.85;">
-                    Show-control interstitial slides (House Rules + hype prompts). Prompts hide the sponsor bug while active.
+
+                <div class="crowdPromptGrid">
+                    <div class="crowdPromptEditorCol">
+                        <details class="crowdEditor" id="crowdEditor">
+                            <summary class="crowdEditorSummary">Edit current preset</summary>
+                            <div class="crowdEditorBody">
+                                <div class="row wrap">
+                                    <div class="field" style="flex:1 1 240px;">
+                                        <label>Preset name (operator only)</label>
+                                        <input id="crowdPresetName" type="text" autocomplete="off" />
+                                    </div>
+                                    <div class="field" style="flex:1 1 240px;">
+                                        <label>Title</label>
+                                        <input id="crowdTitle" type="text" autocomplete="off" />
+                                    </div>
+                                    <div class="field" style="width:170px;">
+                                        <label>Auto-hide (sec)</label>
+                                        <input id="crowdAutoHide" type="number" min="0" max="60" step="1" />
+                                        <div class="small" style="opacity:.8;">0 = off</div>
+                                    </div>
+                                </div>
+
+                                <div class="field">
+                                    <label>Lines (one per line)</label>
+                                    <textarea id="crowdLines" rows="5" placeholder="One line per rule / prompt"></textarea>
+                                </div>
+
+                                <div class="row wrap" style="align-items:flex-end;">
+                                    <div class="field" style="flex:1 1 320px;">
+                                        <label>Footer (optional)</label>
+                                        <input id="crowdFooter" type="text" autocomplete="off" />
+                                    </div>
+                                    <div class="spacer"></div>
+                                    <button class="btn small primary" id="btnCrowdSave" type="button">Save</button>
+                                </div>
+
+                                <details class="crowdAdv" id="crowdAdv">
+                                    <summary class="small">Advanced</summary>
+                                    <div class="row wrap" style="align-items:flex-end; margin-top:10px;">
+                                        <button class="btn small" id="btnCrowdAdd" type="button">Add</button>
+                                        <button class="btn small" id="btnCrowdDuplicate" type="button">Duplicate</button>
+                                        <button class="btn small danger" id="btnCrowdDelete" type="button">Delete</button>
+                                    </div>
+                                </details>
+                            </div>
+                        </details>
+
+                        <div class="small crowdPromptHelp">
+                            Show-control interstitial slides (House Rules + hype prompts). Prompts hide the sponsor bug while active.
+                        </div>
+                    </div>
+
+                    <div class="crowdPromptPreviewCol">
+                        <div class="small" style="margin-bottom:6px; opacity:.85;">Viewer Preview</div>
+                        <div class="crowdPromptPreview" id="crowdPromptPreview" aria-label="Crowd prompt preview"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -359,15 +417,6 @@
                                 <span class="small">on</span>
                             </label>
                         </span>
-
-                        <span class="pill" title="Collapse or expand the editor card">
-                            Collapse Editor
-                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-                                <input type="checkbox" id="prefCollapseEditor" />
-                                <span class="small">on</span>
-                            </label>
-                        </span>
-
                         <div class="spacer"></div>
                         <div class="small">Shortcuts: Space Start/Pause/Resume · N End · Ctrl+Z Undo</div>
                     </div>
@@ -490,57 +539,6 @@
                     </div>
 
                     <hr class="sep" />
-
-                    <h3 class="subhead">Crowd Prompts</h3>
-                    <div class="small" style="margin-bottom:8px; opacity:.85;">Full-screen interstitial slides (House Rules + hype prompts). Doesn’t resize your Viewer layout.</div>
-
-                    <div class="row wrap" style="align-items:flex-end;">
-                        <label class="small" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer; margin-right:12px;">
-                            <input type="checkbox" id="setCrowdEnabled" />
-                            <span>Show</span>
-                        </label>
-
-                        <div class="field" style="flex:1 1 280px; min-width:220px;">
-                            <label>Preset</label>
-                            <select id="setCrowdPreset"></select>
-                        </div>
-
-                        <button class="btn small" id="btnCrowdShowNow" type="button">Show Now</button>
-                        <button class="btn small" id="btnCrowdHide" type="button">Hide</button>
-                    </div>
-
-                    <div class="row wrap">
-                        <div class="field" style="flex:1 1 240px;">
-                            <label>Preset name (operator only)</label>
-                            <input id="crowdPresetName" type="text" autocomplete="off" />
-                        </div>
-                        <div class="field" style="flex:1 1 240px;">
-                            <label>Title</label>
-                            <input id="crowdTitle" type="text" autocomplete="off" />
-                        </div>
-                        <div class="field" style="width:170px;">
-                            <label>Auto-hide (sec)</label>
-                            <input id="crowdAutoHide" type="number" min="0" max="60" step="1" />
-                            <div class="small" style="opacity:.8;">0 = off</div>
-                        </div>
-                    </div>
-
-                    <div class="field">
-                        <label>Lines (one per line)</label>
-                        <textarea id="crowdLines" rows="5" placeholder="One line per rule / prompt"></textarea>
-                    </div>
-
-                    <div class="row wrap" style="align-items:flex-end;">
-                        <div class="field" style="flex:1 1 320px;">
-                            <label>Footer (optional)</label>
-                            <input id="crowdFooter" type="text" autocomplete="off" />
-                        </div>
-                        <div class="spacer"></div>
-                        <button class="btn small" id="btnCrowdSave" type="button">Save</button>
-                        <button class="btn small" id="btnCrowdAdd" type="button">Add</button>
-                        <button class="btn small" id="btnCrowdDuplicate" type="button">Duplicate</button>
-                        <button class="btn small danger" id="btnCrowdDelete" type="button">Delete</button>
-                    </div>
 
                     <h3 class="subhead">Sponsor Bug</h3>
                     <div class="small" style="margin-bottom:8px; opacity:.85;">Overlay logo/watermark. Max size is capped by % of the Viewer viewport (tight) to keep layouts safe.</div>
@@ -680,5 +678,45 @@
     <script src="./shared.js"></script>
     <script src="./operator.js"></script>
 
+
+    <div class="modalOverlay" id="timerUpModal" hidden>
+        <div class="modalPanel timerUpPanel" role="dialog" aria-modal="true" aria-labelledby="timerUpTitle">
+            <div class="modalHeader timerUpHeader">
+                <div class="modalTitle">
+                    <h2 id="timerUpTitle">Time’s up</h2>
+                    <div class="small" id="timerUpSubtitle">Prompting you to transition cleanly.</div>
+                </div>
+                <div class="modalActions">
+                    <button class="btn small" id="btnTimerUpDismiss" type="button" title="Dismiss for this timer run">Dismiss</button>
+                </div>
+            </div>
+            <div class="modalBody">
+                <div class="timerUpBody">
+                    <div class="timerUpName mono" id="timerUpName">—</div>
+                    <div class="timerUpOver mono" id="timerUpOver">Overtime: +0:00</div>
+
+                    <div class="row wrap" style="gap:10px; margin-top:14px;">
+                        <button class="btn danger" id="btnTimerUpEnd" type="button">End → Splash</button>
+                        <button class="btn" id="btnTimerUpPause" type="button">Pause</button>
+                        <button class="btn" id="btnTimerUpResume" type="button">Resume</button>
+                        <button class="btn" id="btnTimerUpSnooze" type="button" title="Remind me again in 30 seconds">Snooze 30s</button>
+                    </div>
+
+                    <hr class="sep" />
+
+                    <div class="row" style="gap:8px; justify-content:flex-start;">
+                        <button class="btn tiny" id="btnTimerUpPlus30" type="button">+:30</button>
+                        <button class="btn tiny" id="btnTimerUpPlus1" type="button">+1m</button>
+                        <button class="btn tiny" id="btnTimerUpPlus5" type="button">+5m</button>
+                        <button class="btn tiny" id="btnTimerUpReset" type="button">Reset Time</button>
+                    </div>
+
+                    <div class="small" style="margin-top:10px; opacity:.85;">
+                        Tip: Use Snooze if you’re waiting for teardown. End → Splash clears the stage and sets you up for the next performer.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

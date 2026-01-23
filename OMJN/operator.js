@@ -24,8 +24,7 @@
     hotkeysEnabled: document.getElementById("hotkeysEnabled"),
 
     // Settings
-    prefCollapseEditor: document.getElementById("prefCollapseEditor"),
-    setBgColor: document.getElementById("setBgColor"),
+setBgColor: document.getElementById("setBgColor"),
     setPanelColor: document.getElementById("setPanelColor"),
     setAccentColor: document.getElementById("setAccentColor"),
     setTextColor: document.getElementById("setTextColor"),
@@ -94,11 +93,30 @@
     btnCrowdToggle: document.getElementById("btnCrowdToggle"),
     btnCrowdNext: document.getElementById("btnCrowdNext"),
     crowdPromptStatus: document.getElementById("crowdPromptStatus"),
-    btnSettingsCrowd: document.getElementById("btnSettingsCrowd"),
     settingsModal: document.getElementById("settingsModal"),
     btnCloseSettings: document.getElementById("btnCloseSettings"),
 
     statusLine: document.getElementById("statusLine"),
+    liveStatusBanner: document.getElementById("liveStatusBanner"),
+    livePhaseDot: document.getElementById("livePhaseDot"),
+    liveNowItem: document.getElementById("liveNowItem"),
+    liveNowName: document.getElementById("liveNowName"),
+    liveOTItem: document.getElementById("liveOTItem"),
+    liveOTVal: document.getElementById("liveOTVal"),
+    crowdEditor: document.getElementById("crowdEditor"),
+    crowdPromptPreview: document.getElementById("crowdPromptPreview"),
+    timerUpModal: document.getElementById("timerUpModal"),
+    timerUpName: document.getElementById("timerUpName"),
+    timerUpOver: document.getElementById("timerUpOver"),
+    btnTimerUpEnd: document.getElementById("btnTimerUpEnd"),
+    btnTimerUpPause: document.getElementById("btnTimerUpPause"),
+    btnTimerUpResume: document.getElementById("btnTimerUpResume"),
+    btnTimerUpSnooze: document.getElementById("btnTimerUpSnooze"),
+    btnTimerUpDismiss: document.getElementById("btnTimerUpDismiss"),
+    btnTimerUpPlus30: document.getElementById("btnTimerUpPlus30"),
+    btnTimerUpPlus1: document.getElementById("btnTimerUpPlus1"),
+    btnTimerUpPlus5: document.getElementById("btnTimerUpPlus5"),
+    btnTimerUpReset: document.getElementById("btnTimerUpReset"),
     kpiCurrent: document.getElementById("kpiCurrent"),
     kpiNext: document.getElementById("kpiNext"),
     kpiLeft: document.getElementById("kpiLeft"),
@@ -121,22 +139,7 @@
     btnPlus30: document.getElementById("btnPlus30"),
     btnResetTime: document.getElementById("btnResetTime"),
     timerLine: document.getElementById("timerLine"),
-
-    editCard: document.getElementById("editCard"),
-    selId: document.getElementById("selId"),
-    editName: document.getElementById("editName"),
-    editType: document.getElementById("editType"),
-    editCustomWrap: document.getElementById("editCustomWrap"),
-    editCustomLabel: document.getElementById("editCustomLabel"),
-    editMinutes: document.getElementById("editMinutes"),
-    editNotes: document.getElementById("editNotes"),
-    editUrl: document.getElementById("editUrl"),
-    editLayout: document.getElementById("editLayout"),
-    imgFile: document.getElementById("imgFile"),
-    btnClearImg: document.getElementById("btnClearImg"),
-    btnSkip: document.getElementById("btnSkip"),
-    
-    // Tabs
+// Tabs
     tabBtnPerformers: document.getElementById("tabBtnPerformers"),
     tabBtnHouseBand: document.getElementById("tabBtnHouseBand"),
     tabPerformers: document.getElementById("tabPerformers"),
@@ -300,11 +303,6 @@
 
   function visibleSlotTypes(){
     return state.slotTypes.filter(t => (t.enabled !== false));
-  }
-
-  function ensureSelectedValid(){
-    if(selectedId && !state.queue.some(s=>s.id===selectedId)) selectedId = null;
-    if(!selectedId && state.queue.length) selectedId = state.queue.find(s=>s.status==="QUEUED")?.id ?? state.queue[0].id;
   }
 
   // Select a performer in the queue, and apply sensible defaults for legacy/empty media settings.
@@ -945,22 +943,31 @@ function escapeHtml(s){
   }
 
   function updateCrowdQuickButtons(){
-    if(!els.btnCrowdToggle) return;
-    const cfg = getCrowdCfg(state);
-    const p = getActiveCrowdPreset(cfg);
-    const name = (p?.name || p?.title || "Prompt").trim();
-    if(cfg.enabled){
-      els.btnCrowdToggle.textContent = `Crowd: ${name}`;
-      els.btnCrowdToggle.classList.add("good");
-      if(els.crowdPromptStatus) els.crowdPromptStatus.textContent = `ON · ${name}`;
-    } else {
-      els.btnCrowdToggle.textContent = "Crowd: Off";
-      els.btnCrowdToggle.classList.remove("good");
-      if(els.crowdPromptStatus) els.crowdPromptStatus.textContent = `OFF · ${name}`;
-    }
-  }
+      if(!els.btnCrowdToggle) return;
+      const cfg = getCrowdCfg(state);
+      const p = getActiveCrowdPreset(cfg);
+      const name = (p?.name || p?.title || "Prompt").trim();
 
-  // ---- Sponsor Bug (Operator settings) ----
+      if(cfg.enabled){
+        els.btnCrowdToggle.textContent = `Crowd: ${name}`;
+        els.btnCrowdToggle.classList.add("good");
+        if(els.crowdPromptStatus){
+          els.crowdPromptStatus.textContent = `ON · ${name}`;
+          els.crowdPromptStatus.classList.add("on");
+          els.crowdPromptStatus.classList.remove("off");
+        }
+      } else {
+        els.btnCrowdToggle.textContent = "Crowd: Off";
+        els.btnCrowdToggle.classList.remove("good");
+        if(els.crowdPromptStatus){
+          els.crowdPromptStatus.textContent = `OFF · ${name}`;
+          els.crowdPromptStatus.classList.add("off");
+          els.crowdPromptStatus.classList.remove("on");
+        }
+      }
+    }
+
+// ---- Sponsor Bug (Operator settings) ----
   const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
   let sponsorPreviewObjectUrl = null;
   let lastSponsorPreviewKey = null;
@@ -1190,9 +1197,6 @@ function escapeHtml(s){
       if(els.setSponsorSafeMarginVal) els.setSponsorSafeMarginVal.textContent = `${Math.round(v)}px`;
     }
     updateSponsorPreviewAndStatus().catch(() => {});
-if(els.prefCollapseEditor){
-      els.prefCollapseEditor.checked = !!state.operatorPrefs?.editCollapsed;
-    }
 
     renderSlotTypesEditor();
   }
@@ -1543,20 +1547,6 @@ if(els.prefCollapseEditor){
       els.setSponsorSafeMargin.addEventListener("change", onSm);
       els.setSponsorSafeMarginVal?.addEventListener?.("dblclick", () => { els.setSponsorSafeMargin.value = "16"; onSm(); });
     }
-if(els.prefCollapseEditor){
-      els.prefCollapseEditor.addEventListener("change", () => {
-        const collapsed = !!els.prefCollapseEditor.checked;
-        updateState(s => { s.operatorPrefs.editCollapsed = collapsed; }, { recordHistory:false });
-        if(els.editCard) els.editCard.open = !collapsed;
-      });
-    }
-    if(els.editCard){
-      els.editCard.addEventListener("toggle", () => {
-        const collapsed = !els.editCard.open;
-        if(els.prefCollapseEditor) els.prefCollapseEditor.checked = collapsed;
-        updateState(s => { s.operatorPrefs.editCollapsed = collapsed; }, { recordHistory:false });
-      });
-    }
 
     if(els.btnExportSettings){
       els.btnExportSettings.addEventListener("click", () => {
@@ -1663,8 +1653,22 @@ function fillTypeSelect(selectEl){
 
     if(div.draggable){
       div.addEventListener("dragstart", (e) => {
+        // Allow full-row drag, but never start a drag from interactive controls
+        // (buttons/inputs/selects/links or the inline expander).
+        const blockSel = ".qActions, .qExpander, button, input, select, textarea, a, label";
+        const t = e.target;
+        if(t && t.closest && t.closest(blockSel)){
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
         div.classList.add("dragging");
-        e.dataTransfer.setData("text/plain", slot.id);
+        try{
+          e.dataTransfer.effectAllowed = "move";
+          // set both for broader browser compatibility
+          e.dataTransfer.setData("text/plain", slot.id);
+          e.dataTransfer.setData("text", slot.id);
+        }catch(_){}
       });
       div.addEventListener("dragend", () => div.classList.remove("dragging"));
     }
@@ -1829,19 +1833,15 @@ function fillTypeSelect(selectEl){
     });
     actions.appendChild(btnDel);
 
-// Grid layout expects: handle + main + actions on the first row,
-// then the inline editor (qExpander) spanning full width below.
-div.appendChild(handle);
-div.appendChild(main);
-div.appendChild(actions);
-
-// Inline expander under row (full-width, below qMain)
-if(editingId === slot.id && editDraft){
-  try{
-    div.appendChild(buildInlineExpander(slot));
-  }catch(_){ /* never block queue rendering */ }
-}
-
+    div.appendChild(handle);
+    div.appendChild(main);
+    // Inline expander under row (text-only edits)
+    if(editingId === slot.id && editDraft){
+      try{
+        div.appendChild(buildInlineExpander(slot));
+      }catch(_){ /* never block queue rendering */ }
+    }
+    div.appendChild(actions);
 
     div.addEventListener("click", () => {
       selectSlot(slot.id);
@@ -1891,8 +1891,8 @@ if(editingId === slot.id && editDraft){
   }
 
 function getDragAfterElement(container, y){
-    const els = [...container.querySelectorAll('.queueItem:not(.dragging)')];
-    return els.reduce((closest, child) => {
+    const items = [...container.querySelectorAll('.queueItem:not(.dragging)')];
+    return items.reduce((closest, child) => {
       const box = child.getBoundingClientRect();
       const offset = y - box.top - box.height / 2;
       if(offset < 0 && offset > closest.offset){
@@ -1925,6 +1925,7 @@ function getDragAfterElement(container, y){
 
     els.queue.addEventListener('dragover', (e) => {
       e.preventDefault();
+      try{ e.dataTransfer.dropEffect = 'move'; }catch(_){ }
       const dragging = els.queue.querySelector('.queueItem.dragging');
       if(!dragging) return;
 
@@ -2339,7 +2340,6 @@ function renderKPIs(){
     const current = OMJN.computeCurrent(state);
     const [next, deck] = OMJN.computeNextTwo(state);
 
-    els.statusLine.textContent = state.phase;
     els.kpiCurrent.textContent = current ? current.displayName : "—";
     els.kpiNext.textContent = next ? next.displayName : "—";
     if(els.readyNext) els.readyNext.textContent = next ? next.displayName : "—";
@@ -2415,46 +2415,192 @@ function renderKPIs(){
     els.statusBanner.appendChild(mk(`Queue: ${activeCount} active • ${doneCount} completed`));
   }
 
-  function renderTimerLine(){
+  
+  function renderLiveStatusBanner(){
+    const phase = state.phase || "SPLASH";
+    if(els.statusLine) els.statusLine.textContent = phase;
+
+    if(els.livePhaseDot){
+      els.livePhaseDot.classList.remove("good","warn","bad");
+      if(phase === "LIVE") els.livePhaseDot.classList.add("good");
+      else if(phase === "PAUSED") els.livePhaseDot.classList.add("warn");
+    }
+
+    const current = OMJN.computeCurrent(state);
+    const inLive = (phase === "LIVE" || phase === "PAUSED") && !!current;
+    if(els.liveNowItem) els.liveNowItem.hidden = !inLive;
+    if(inLive && els.liveNowName) els.liveNowName.textContent = current.displayName || "—";
+
+    if(inLive){
+      const t = OMJN.computeTimer(state);
+      const showOT = (t.remainingMs === 0 && (t.overtimeMs || 0) > 0);
+      if(els.liveOTItem) els.liveOTItem.hidden = !showOT;
+      if(showOT && els.liveOTVal) els.liveOTVal.textContent = `+${OMJN.formatMMSS(t.overtimeMs)}`;
+    }else{
+      if(els.liveOTItem) els.liveOTItem.hidden = true;
+    }
+  }
+
+  function renderCrowdPromptPreview(){
+    if(!els.crowdPromptPreview) return;
+    const cfg = getCrowdCfg(state);
+    const p = getActiveCrowdPreset(cfg) || {};
+    const editorOpen = !!els.crowdEditor?.open;
+
+    let data = p;
+    if(editorOpen){
+      try{
+        const typed = readCrowdEditor();
+        data = Object.assign({}, p, typed);
+      }catch(_){}
+    }
+
+    const title = (data.title || "").trim();
+    const footer = (data.footer || "").trim();
+    const lines = Array.isArray(data.lines) ? data.lines : [];
+
+    const root = els.crowdPromptPreview;
+    root.innerHTML = "";
+
+    const wrap = document.createElement("div");
+    wrap.className = "cpPrevInner";
+
+    const h = document.createElement("div");
+    h.className = "cpPrevTitle";
+    h.textContent = title || "CROWD PROMPT";
+    wrap.appendChild(h);
+
+    const list = document.createElement("div");
+    list.className = "cpPrevLines";
+    const max = 5;
+    for(const ln of lines.slice(0, max)){
+      const item = document.createElement("div");
+      item.className = "cpPrevLine";
+      item.textContent = ln;
+      list.appendChild(item);
+    }
+    if(lines.length > max){
+      const more = document.createElement("div");
+      more.className = "cpPrevLine cpPrevMore";
+      more.textContent = `… +${lines.length - max} more`;
+      list.appendChild(more);
+    }
+    wrap.appendChild(list);
+
+    if(footer){
+      const f = document.createElement("div");
+      f.className = "cpPrevFooter";
+      f.textContent = footer;
+      wrap.appendChild(f);
+    }
+
+    const hint = document.createElement("div");
+    hint.className = "cpPrevHint";
+    hint.textContent = cfg.enabled ? "Overlay ON (viewer sponsor hidden)" : "Overlay OFF";
+    wrap.appendChild(hint);
+
+    root.appendChild(wrap);
+  }
+
+  // ---- Timer-up modal (operator reminder) ----
+  let timerUpDismissedSlotId = null;
+  let timerUpArmed = true;
+  let timerUpSnoozeForSlotId = null;
+  let timerUpSnoozeUntil = 0;
+
+  function openTimerUpModal(){
+    if(!els.timerUpModal) return;
+    const cur = OMJN.computeCurrent(state);
+    if(!cur) return;
+    const t = OMJN.computeTimer(state);
+
+    if(els.timerUpName) els.timerUpName.textContent = cur.displayName || "—";
+    if(els.timerUpOver) els.timerUpOver.textContent = `Overtime: +${OMJN.formatMMSS(t.overtimeMs || 0)}`;
+
+    els.timerUpModal.hidden = false;
+    document.body.classList.add("modalOpen");
+  }
+
+  function closeTimerUpModal(){
+    if(!els.timerUpModal) return;
+    els.timerUpModal.hidden = true;
+    if(els.settingsModal?.hidden !== false){
+      document.body.classList.remove("modalOpen");
+    }
+  }
+
+  function checkTimerUpModal(){
+    const phase = state.phase;
+    const cur = OMJN.computeCurrent(state);
+
+    if(!cur || !(phase === "LIVE" || phase === "PAUSED")){
+      if(els.timerUpModal && !els.timerUpModal.hidden) closeTimerUpModal();
+      return;
+    }
+
+    const t = OMJN.computeTimer(state);
+    const hasDuration = (t.durationMs || 0) > 0;
+
+    // Re-arm when timer is above 0 again (e.g. added time)
+    if(hasDuration && t.remainingMs > 0){
+      timerUpArmed = true;
+      timerUpDismissedSlotId = null;
+      timerUpSnoozeForSlotId = null;
+      timerUpSnoozeUntil = 0;
+      if(els.timerUpModal && !els.timerUpModal.hidden) closeTimerUpModal();
+      return;
+    }
+
+    if(!hasDuration) return;
+
+    if(t.remainingMs === 0){
+      const now = Date.now();
+
+      if(timerUpSnoozeForSlotId === cur.id && now < timerUpSnoozeUntil) return;
+      const snoozeExpired = (timerUpSnoozeForSlotId === cur.id && now >= timerUpSnoozeUntil);
+
+      if(timerUpDismissedSlotId === cur.id) return;
+
+      if(timerUpArmed || snoozeExpired){
+        timerUpArmed = false;
+        if(snoozeExpired){
+          timerUpSnoozeForSlotId = null;
+          timerUpSnoozeUntil = 0;
+        }
+        openTimerUpModal();
+      }else{
+        if(els.timerUpModal && !els.timerUpModal.hidden){
+          if(els.timerUpOver) els.timerUpOver.textContent = `Overtime: +${OMJN.formatMMSS(t.overtimeMs || 0)}`;
+        }
+      }
+    }
+  }
+
+  // Lightweight UI tick so timer + reminder work even without state changes.
+  let uiTickHandle = null;
+  function startUiTick(){
+    if(uiTickHandle) return;
+    uiTickHandle = setInterval(() => {
+      try{
+        if(els.timerLine) renderTimerLine();
+        renderLiveStatusBanner();
+        updateCrowdQuickButtons();
+        renderCrowdPromptPreview();
+        syncCrowdAutoHide();
+        checkTimerUpModal();
+      }catch(e){
+        console.error("uiTick error:", e);
+      }
+    }, 250);
+  }
+
+function renderTimerLine(){
     const t = OMJN.computeTimer(state);
     els.timerLine.textContent = `${OMJN.formatMMSS(t.elapsedMs)} / ${OMJN.formatMMSS(t.remainingMs)}`;
   }
 
-  function renderEditor(){
-    // Legacy right-drawer editor may not exist (inline expander is primary).
-    if(!els.selId || !els.editName || !els.editType || !els.editMinutes || !els.editNotes || !els.editUrl || !els.editLayout) return;
-    ensureSelectedValid();
-    const slot = state.queue.find(s=>s.id===selectedId) || null;
 
-    if(slot) OMJN.normalizeSlot(slot);
-
-    els.selId.textContent = selectedId ? selectedId : "—";
-
-    if(!slot){
-      // disable editor
-      els.editName.value = "";
-      els.editNotes.value = "";
-      els.editUrl.value = "";
-      els.editMinutes.value = "";
-      return;
-    }
-
-    els.editName.value = slot.displayName || "";
-    els.editType.value = slot.slotTypeId;
-    els.editMinutes.value = (slot.minutesOverride ?? "");
-    els.editNotes.value = slot.notes || "";
-    els.editUrl.value = slot.media?.donationUrl || "";
-    els.editLayout.value = slot.media?.mediaLayout || "NONE";
-
-    const type = OMJN.getSlotType(state, slot.slotTypeId);
-    const showCustom = slot.slotTypeId === "custom";
-    els.editCustomWrap.style.display = showCustom ? "block" : "none";
-    if(showCustom) els.editCustomLabel.value = slot.customTypeLabel || "";
-  }
-
-
-  
-  function render(){
+function render(){
     // sync header inputs
     els.showTitle.value = state.showTitle || "";
     els.splashPath.value = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
@@ -2468,10 +2614,6 @@ function renderKPIs(){
 
     if(els.toggleHBFooter) els.toggleHBFooter.checked = (state.viewerPrefs?.showHouseBandFooter !== false);
     if(els.hbFooterFormat) els.hbFooterFormat.value = (state.viewerPrefs?.hbFooterFormat || "categoryFirst");
-
-    // Editor collapse
-    if(els.editCard) els.editCard.open = !state.operatorPrefs?.editCollapsed;
-
     try{
       renderSettings();
     }catch(err){
@@ -2497,8 +2639,7 @@ function renderKPIs(){
     }
 
     fillTypeSelect(els.addType);
-    fillTypeSelect(els.editType);
-    toggleCustomAddFields();
+toggleCustomAddFields();
     // House Band add controls
     if(els.hbAddInstrument){
       fillHBInstrumentSelect(els.hbAddInstrument);
@@ -2508,9 +2649,10 @@ function renderKPIs(){
 
     renderQueue();
     renderKPIs();
+    renderLiveStatusBanner();
+    renderCrowdPromptPreview();
     renderTimerLine();
-    renderEditor();
-    renderHouseBandCategories();
+renderHouseBandCategories();
   }
 
   // ---- Actions ----
@@ -2669,25 +2811,6 @@ function start(){
     });
   }
 
-  function skipSelected(){
-    if(!selectedId) return;
-    updateState(s => {
-      const slot = s.queue.find(x=>x.id===targetId);
-      if(!slot) return;
-      slot.status = "SKIPPED";
-      slot.completedAt = Date.now();
-      if(s.currentSlotId === slot.id){
-        // House Band is independent; skipping a performer doesn't rotate House Band.
-        s.currentSlotId = null;
-        s.phase = "SPLASH";
-        s.timer.running = false;
-        s.timer.startedAt = null;
-        s.timer.elapsedMs = 0;
-        s.timer.baseDurationMs = null;
-      }
-    });
-  }
-
   function resetShow(){
     const ok = confirm("Start a new show? This clears the queue (images stay in local storage unless you clear browser data).");
     if(!ok) return;
@@ -2816,132 +2939,9 @@ function start(){
     reader.readAsText(file);
   }
 
-  // ---- Editor bindings ----
-  function bindEditor(){
-    els.editName.addEventListener("input", () => {
-      const v = OMJN.sanitizeText(els.editName.value);
-      if(!selectedId) return;
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===targetId);
-        if(slot){
-          slot.displayName = v;
-          // profile auto-save
-          const key = normNameKey(slot.displayName);
-          if(key){
-            s.profiles[key] = {
-              displayName: slot.displayName,
-              defaultSlotTypeId: slot.slotTypeId || "musician",
-              defaultMinutesOverride: slot.minutesOverride ?? null,
-              media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-              updatedAt: Date.now()
-            };
-          }
-        }
-      }, { recordHistory:false });
-    });
 
-    els.editType.addEventListener("change", () => {
-      if(!selectedId) return;
-      const v = els.editType.value;
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===targetId);
-        if(!slot) return;
-        slot.slotTypeId = v;
-        if(v !== "custom") slot.customTypeLabel = slot.customTypeLabel || "";
-        const key = normNameKey(slot.displayName);
-        if(key){
-          s.profiles[key] = {
-            displayName: slot.displayName,
-            defaultSlotTypeId: slot.slotTypeId || "musician",
-            defaultMinutesOverride: slot.minutesOverride ?? null,
-            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-            updatedAt: Date.now()
-          };
-        }
-      }, { recordHistory:false });
-    });
 
-    els.editMinutes.addEventListener("input", () => {
-      if(!selectedId) return;
-      const raw = els.editMinutes.value;
-      const val = raw === "" ? null : Math.max(1, Math.round(Number(raw)));
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===targetId);
-        if(slot) slot.minutesOverride = val;
-      });
-    });
-
-    els.editNotes.addEventListener("input", () => {
-      if(!selectedId) return;
-      const v = els.editNotes.value;
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===targetId);
-        if(slot) slot.notes = v;
-      });
-    });
-
-    els.editUrl.addEventListener("input", () => {
-      if(!selectedId) return;
-      const v = OMJN.sanitizeText(els.editUrl.value);
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===targetId);
-        if(!slot) return;
-        if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
-        slot.media.donationUrl = v || null;
-        const key = normNameKey(slot.displayName);
-        if(key){
-          s.profiles[key] = {
-            displayName: slot.displayName,
-            defaultSlotTypeId: slot.slotTypeId || "musician",
-            defaultMinutesOverride: slot.minutesOverride ?? null,
-            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-            updatedAt: Date.now()
-          };
-        }
-      }, { recordHistory:false });
-    });
-
-els.editLayout.addEventListener("change", () => {
-      if(!selectedId) return;
-      const v = els.editLayout.value;
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===targetId);
-        if(!slot) return;
-        if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
-        slot.media.mediaLayout = v;
-        const key = normNameKey(slot.displayName);
-        if(key){
-          s.profiles[key] = {
-            displayName: slot.displayName,
-            defaultSlotTypeId: slot.slotTypeId || "musician",
-            defaultMinutesOverride: slot.minutesOverride ?? null,
-            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-            updatedAt: Date.now()
-          };
-        }
-      });
-    });
-
-    els.imgFile.addEventListener("change", async () => {
-      const file = els.imgFile.files?.[0] || null;
-      els.imgFile.value = "";
-      if(file) await handleImageUpload(file);
-    });
-
-    els.btnClearImg.addEventListener("click", clearImage);
-    els.btnSkip.addEventListener("click", skipSelected);
-
-        els.editCustomLabel.addEventListener("input", () => {
-      if(!selectedId) return;
-      const v = OMJN.sanitizeText(els.editCustomLabel.value);
-      updateState(s => {
-        const slot = s.queue.find(x=>x.id===targetId);
-        if(slot) slot.customTypeLabel = v;
-      });
-    });
-  }
-
-  // ---- Wire up ----
+// ---- Wire up ----
   function toggleCustomAddFields(){
     const isCustom = els.addType.value === "custom";
     els.addCustomWrap.style.display = isCustom ? "flex" : "none";
@@ -2967,8 +2967,7 @@ els.editLayout.addEventListener("change", () => {
 function bind(){
     // initial select options
     fillTypeSelect(els.addType);
-    fillTypeSelect(els.editType);
-    toggleCustomAddFields();
+toggleCustomAddFields();
     bindSettings();
     bindPerformerDnD();
 
@@ -2980,14 +2979,6 @@ function bind(){
       const cfg = getCrowdCfg(state);
       setCrowdEnabled(!cfg.enabled);
       renderSettings();
-    });
-    if(els.btnSettingsCrowd) els.btnSettingsCrowd.addEventListener("click", (e) => {
-      e.preventDefault();
-      openSettingsModal();
-      // scroll to Crowd section if present
-      setTimeout(() => {
-        document.getElementById("setCrowdEnabled")?.scrollIntoView?.({ behavior:"smooth", block:"start" });
-      }, 50);
     });
 
     els.addType.addEventListener("change", toggleCustomAddFields);
@@ -3169,24 +3160,42 @@ els.showTitle.addEventListener("input", () => {
     els.btnPlus30.addEventListener("click", () => addSeconds(30));
     els.btnResetTime.addEventListener("click", resetTimer);
 
-    // House Band
-    if(els.btnAddHB){
-      els.btnAddHB.addEventListener("click", () => {
-        updateState(s => {
-          OMJN.ensureHouseBandQueues(s);
-          s.houseBand.push({
-            id: OMJN.uid("hb"),
-            name: "",
-            instrumentId: "guitar",
-            customInstrument: "",
-            skillTags: [],
-            active: true,
-            cooldownLength: 0,
-            cooldownRemaining: 0
-          });
-        });
-      });
+
+    // Timer-up modal bindings (operator reminder when time hits 0:00)
+    if(els.btnTimerUpEnd) els.btnTimerUpEnd.addEventListener("click", () => { closeTimerUpModal(); guardedEnd(); });
+    if(els.btnTimerUpPause) els.btnTimerUpPause.addEventListener("click", () => pause());
+    if(els.btnTimerUpResume) els.btnTimerUpResume.addEventListener("click", () => resume());
+    if(els.btnTimerUpSnooze) els.btnTimerUpSnooze.addEventListener("click", () => {
+      const cur = OMJN.computeCurrent(state);
+      if(!cur) return closeTimerUpModal();
+      timerUpSnoozeForSlotId = cur.id;
+      timerUpSnoozeUntil = Date.now() + 30 * 1000;
+      closeTimerUpModal();
+    });
+    if(els.btnTimerUpDismiss) els.btnTimerUpDismiss.addEventListener("click", () => {
+      const cur = OMJN.computeCurrent(state);
+      if(cur) timerUpDismissedSlotId = cur.id;
+      closeTimerUpModal();
+    });
+    if(els.btnTimerUpPlus30) els.btnTimerUpPlus30.addEventListener("click", () => addSeconds(30));
+    if(els.btnTimerUpPlus1) els.btnTimerUpPlus1.addEventListener("click", () => addMinutes(1));
+    if(els.btnTimerUpPlus5) els.btnTimerUpPlus5.addEventListener("click", () => addMinutes(5));
+    if(els.btnTimerUpReset) els.btnTimerUpReset.addEventListener("click", () => resetTimer());
+
+    // Crowd prompt preview updates while typing
+    const cpInputs = [els.crowdPresetName, els.crowdTitle, els.crowdAutoHide, els.crowdLines, els.crowdFooter].filter(Boolean);
+    for(const el of cpInputs){
+      el.addEventListener("input", () => renderCrowdPromptPreview());
     }
+    if(els.crowdEditor){
+      els.crowdEditor.addEventListener("toggle", () => renderCrowdPromptPreview());
+    }
+
+    // Start lightweight UI tick (timer line + reminders)
+    startUiTick();
+
+
+    // House Band
 
 
     els.btnReset.addEventListener("click", resetShow);
