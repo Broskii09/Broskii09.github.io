@@ -47,6 +47,10 @@ setBgColor: document.getElementById("setBgColor"),
     setVizSensitivityVal: document.getElementById("setVizSensitivityVal"),
 
     // Crowd Prompts
+    setCrowdEnabled: document.getElementById("setCrowdEnabled"),
+    setCrowdPreset: document.getElementById("setCrowdPreset"),
+    btnCrowdShowNow: document.getElementById("btnCrowdShowNow"),
+    btnCrowdHide: document.getElementById("btnCrowdHide"),
     crowdPresetName: document.getElementById("crowdPresetName"),
     crowdTitle: document.getElementById("crowdTitle"),
     crowdLines: document.getElementById("crowdLines"),
@@ -1132,6 +1136,38 @@ function escapeHtml(s){
       if(els.setVizSensitivityVal) els.setVizSensitivityVal.textContent = `${vv.toFixed(2)}×`;
     }
 
+    
+
+    
+
+    // Crowd Prompts UI
+    const cp = state.viewerPrefs?.crowdPrompts || OMJN.defaultState().viewerPrefs.crowdPrompts;
+    const presets = Array.isArray(cp.presets) ? cp.presets : [];
+    const activeId = presets.some(p=>p.id===cp.activePresetId) ? cp.activePresetId : (presets[0]?.id || "");
+
+    if(els.setCrowdEnabled) els.setCrowdEnabled.checked = !!cp.enabled;
+
+    if(els.setCrowdPreset){
+      const opts = presets.map(p => ({ id: p.id, label: (p.name || p.title || p.id) }));
+      els.setCrowdPreset.innerHTML = opts.map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join("");
+      els.setCrowdPreset.value = activeId;
+    }
+
+    // Only sync editor fields when preset changes (so typing isn't overwritten)
+    const editorKey = JSON.stringify({ activeId, count: presets.length, names: presets.map(p=>p.name||"").join("|") });
+    if(editorKey !== lastCrowdEditorKey){
+      lastCrowdEditorKey = editorKey;
+      const ap = presets.find(p=>p.id===activeId) || presets[0] || {};
+      if(els.crowdPresetName) els.crowdPresetName.value = ap.name || "";
+      if(els.crowdTitle) els.crowdTitle.value = ap.title || "";
+      if(els.crowdLines) els.crowdLines.value = Array.isArray(ap.lines) ? ap.lines.join("\n") : "";
+      if(els.crowdFooter) els.crowdFooter.value = ap.footer || "";
+      if(els.crowdAutoHide) els.crowdAutoHide.value = String(clamp(parseInt(String(ap.autoHideSeconds ?? 0),10) || 0, 0, 60));
+    }
+
+    updateCrowdQuickButtons();
+    syncCrowdAutoHide();
+
 
     // Sponsor Bug UI
     const sb = state.viewerPrefs?.sponsorBug || OMJN.defaultState().viewerPrefs.sponsorBug;
@@ -1348,6 +1384,22 @@ function escapeHtml(s){
       }, { recordHistory:false });
       scheduleCrowdAutoHide();
     }
+
+    if(els.setCrowdEnabled){
+      els.setCrowdEnabled.addEventListener("change", () => setCrowdEnabled(!!els.setCrowdEnabled.checked));
+    }
+    if(els.btnCrowdShowNow){
+      els.btnCrowdShowNow.addEventListener("click", () => setCrowdEnabled(true));
+    }
+    if(els.btnCrowdHide){
+      els.btnCrowdHide.addEventListener("click", () => setCrowdEnabled(false));
+    }
+    if(els.setCrowdPreset){
+      els.setCrowdPreset.addEventListener("change", () => {
+        const id = String(els.setCrowdPreset.value || "");
+        updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.activePresetId = id; }, { recordHistory:false });
+        scheduleCrowdAutoHide();
+      });
     }
     if(els.btnCrowdSave) els.btnCrowdSave.addEventListener("click", saveCrowdPreset);
     if(els.btnCrowdAdd) els.btnCrowdAdd.addEventListener("click", () => addCrowdPreset(null));
@@ -2467,8 +2519,7 @@ function renderKPIs(){
 
     els.timerUpModal.hidden = false;
     document.body.classList.add("modalOpen");
-  
-    try{ els.btnTimerUpEnd && els.btnTimerUpEnd.focus && els.btnTimerUpEnd.focus(); }catch(_){ }}
+  }
 
   function closeTimerUpModal(){
     if(!els.timerUpModal) return;
@@ -3162,70 +3213,72 @@ els.showTitle.addEventListener("input", () => {
       if(e.target === els.settingsModal) closeSettingsModal();
     });
     document.addEventListener("keydown", (e) => {
-  const k = e.key;
+      const k = e.key;
 
-  // If Timer-up modal is open, give it priority (show-critical)
-  if(els.timerUpModal && !els.timerUpModal.hidden){
-    if(k === "Escape"){
-      e.preventDefault();
-      if(els.btnTimerUpDismiss) els.btnTimerUpDismiss.click();
-      return;
-    }
-    if(k === "Enter"){
-      const ae = document.activeElement;
-      // If a button inside the modal is focused, let Enter activate that normally
-      if(ae && ae.closest && ae.closest("#timerUpModal") && (ae.tagName||"").toLowerCase() === "button"){
+      // If Timer-up modal is open, give it priority (show-critical)
+      if(els.timerUpModal && !els.timerUpModal.hidden){
+        if(k === "Escape"){
+          e.preventDefault();
+          els.btnTimerUpDismiss?.click();
+          return;
+        }
+        if(k === "Enter"){
+          const ae = document.activeElement;
+          // If a button inside the modal is focused, let Enter activate that normally
+          if(ae && ae.closest && ae.closest("#timerUpModal") && (ae.tagName||"").toLowerCase() === "button"){
+            return;
+          }
+          e.preventDefault();
+          els.btnTimerUpEnd?.click();
+          return;
+        }
+      }
+
+      // Settings modal close
+      if(k === "Escape" && els.settingsModal && !els.settingsModal.hidden){
+        e.preventDefault();
+        closeSettingsModal();
         return;
       }
-      e.preventDefault();
-      if(els.btnTimerUpEnd) els.btnTimerUpEnd.click();
-      return;
-    }
-  }
 
-  // Settings modal close
-  if(k === "Escape" && els.settingsModal && !els.settingsModal.hidden){
-    e.preventDefault();
-    closeSettingsModal();
-    return;
-  }
+      // Operator hotkeys (guarded)
+      if(!(state.operatorPrefs?.hotkeysEnabled)) return;
+      if(isTypingContext(e.target)) return;
 
-  // Operator hotkeys (guarded)
-  if(!(state.operatorPrefs?.hotkeysEnabled)) return;
-  if(isTypingContext(e.target)) return;
-  // Don't steal keys if any modal is open (except timer-up handled above)
-  if(document.body.classList.contains("modalOpen")) return;
+      // Don't steal keys if any modal is open (except timer-up handled above)
+      if(document.body.classList.contains("modalOpen")) return;
 
-  const isCtrl = e.ctrlKey || e.metaKey;
+      const isCtrl = e.ctrlKey || e.metaKey;
 
-  // Undo/Redo
-  if(isCtrl && !e.shiftKey && (k === "z" || k === "Z")){
-    e.preventDefault();
-    undo();
-    return;
-  }
-  if(isCtrl && ((k === "y" || k === "Y") || (e.shiftKey && (k === "z" || k === "Z")))){
-    e.preventDefault();
-    redo();
-    return;
-  }
+      // Undo/Redo
+      if(isCtrl && !e.shiftKey && (k === "z" || k === "Z")){
+        e.preventDefault();
+        undo();
+        return;
+      }
+      if(isCtrl && ((k === "y" || k === "Y") || (e.shiftKey && (k === "z" || k === "Z")))){
+        e.preventDefault();
+        redo();
+        return;
+      }
 
-  // Space = Start/Pause/Resume
-  if(k === " " || k === "Spacebar"){
-    e.preventDefault();
-    if(state.phase === "SPLASH") guardedStart();
-    else if(state.phase === "LIVE") pause();
-    else if(state.phase === "PAUSED") resume();
-    return;
-  }
+      // Space = Start/Pause/Resume
+      if(k === " " || k === "Spacebar"){
+        e.preventDefault();
+        if(state.phase === "SPLASH") guardedStart();
+        else if(state.phase === "LIVE") pause();
+        else if(state.phase === "PAUSED") resume();
+        return;
+      }
 
-  // N = End → Splash
-  if(k === "n" || k === "N"){
-    e.preventDefault();
-    guardedEnd();
-    return;
+      // N = End → Splash
+      if(k === "n" || k === "N"){
+        e.preventDefault();
+        guardedEnd();
+        return;
+      }
+    });
   }
-});}
 
   // Subscribe to changes from other tabs (in case operator is duplicated)
   OMJN.subscribe((s) => {
