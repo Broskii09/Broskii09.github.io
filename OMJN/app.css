@@ -248,11 +248,12 @@ select option{ background: var(--panel); color: var(--text); }
 
 /* Inline performer editor (Stage 2) */
 .qExpander{
-  margin-top:8px;
-  padding:10px;
-  border-radius:14px;
-  border:1px solid rgba(255,255,255,.10);
-  background:rgba(0,0,0,.18);
+  grid-area: expander;
+  margin-top: 8px;   /* if you want extra separation beyond the grid gap */
+  padding: 10px;     /* your preferred tighter padding */
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.18);
 }
 .qExpGrid{display:grid; grid-template-columns: 1fr 240px; gap:10px;}
 .qExpGrid .field{margin:0;}
