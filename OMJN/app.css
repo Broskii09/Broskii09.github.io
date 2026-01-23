@@ -203,24 +203,30 @@ select option{ background: var(--panel); color: var(--text); }
 .queueItem{
   display:grid;
   grid-template-columns: 26px 1fr auto;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "handle main actions"
+    "expander expander expander";
   gap:12px;
   padding:12px;
   border-radius:16px;
   border:1px solid rgba(255,255,255,.10);
   background:rgba(0,0,0,.16);
 }
+
 .queueItem.isSelected{outline:2px solid rgba(255,255,255,.18);}
 .queueItem.isEditing{outline:2px solid rgba(212,175,55,.28);}
 .queueItem[draggable="true"]{cursor:grab}
 .queueItem.dragging{opacity:.55}
 .dragHandle{
+  grid-area: handle;
   width:26px; height:26px; border-radius:10px;
   display:flex; align-items:center; justify-content:center;
   background:rgba(255,255,255,.08);
   border:1px solid rgba(255,255,255,.10);
   user-select:none;
 }
-.qMain{display:flex; flex-direction:column; gap:6px;}
+.qMain{  grid-area: main; display:flex; flex-direction:column; gap:6px;}
 .qTop{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
 .qName{font-size:16px; font-weight:800;}
 .badge{
@@ -244,21 +250,27 @@ select option{ background: var(--panel); color: var(--text); }
   overflow:hidden;
   text-overflow:ellipsis;
 }
-.qActions{display:flex; gap:8px; align-items:center;}
+.qActions{
+  grid-area: actions;
+  display:flex; gap:8px; align-items:center;
+  justify-self:end;}
 
 /* Inline performer editor (Stage 2) */
 .qExpander{
   grid-area: expander;
-  margin-top: 8px;   /* if you want extra separation beyond the grid gap */
-  padding: 10px;     /* your preferred tighter padding */
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.18);
+  margin-top:0;          /* grid gap already creates spacing */
+  padding:12px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.18);
 }
+
 .qExpGrid{display:grid; grid-template-columns: 1fr 240px; gap:10px;}
 .qExpGrid .field{margin:0;}
 .qExpActions{display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-top:10px;}
 
+/* Keep the legacy right-drawer editor out of the way in Stage 2 */
+.operatorPage #editCard{display:none;}
 .icon{
   width:18px; height:18px; opacity:.9;
 }
@@ -1791,146 +1803,4 @@ details.hbAcc .hbCatList{
   .sbMain{ grid-template-columns: 1fr; }
   .sbCats{ flex-direction:row; max-height:none; overflow:auto; padding-right:0; }
   .sbCat{ min-width: 180px; }
-}
-
-
-/* =========================
-   Live Control banner (moved under KPIs)
-   ========================= */
-.liveStatusBanner{
-  margin:10px 0 12px 0;
-  padding:10px 12px;
-}
-.liveStatusBanner .sbItem{
-  font-size:12px;
-}
-#statusLine{
-  font-weight:900;
-  letter-spacing:.4px;
-}
-
-/* =========================
-   Crowd Prompt drawer editor + preview
-   ========================= */
-.crowdPromptStatus{
-  display:inline-flex;
-  align-items:center;
-  padding:6px 10px;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,.14);
-  background:rgba(255,255,255,.06);
-  font-size:12px;
-  font-weight:900;
-  letter-spacing:.3px;
-}
-.crowdPromptStatus.on{
-  background:rgba(45, 212, 191, .12);
-  border-color:rgba(45, 212, 191, .28);
-}
-.crowdPromptStatus.off{
-  background:rgba(255,255,255,.05);
-}
-
-.crowdPromptGrid{
-  display:grid;
-  grid-template-columns: 1fr;
-  gap:12px;
-  margin-top:12px;
-}
-@media (min-width: 980px){
-  .crowdPromptGrid{
-    grid-template-columns: 1fr 320px;
-    align-items:start;
-  }
-}
-.crowdEditor{
-  border:1px solid rgba(255,255,255,.10);
-  border-radius:16px;
-  background:rgba(255,255,255,.03);
-}
-.crowdEditorSummary{
-  list-style:none;
-  cursor:pointer;
-  padding:10px 12px;
-  font-weight:850;
-  letter-spacing:.2px;
-}
-.crowdEditorSummary::-webkit-details-marker{ display:none; }
-.crowdEditorBody{
-  padding:10px 12px 12px 12px;
-}
-.crowdAdv{
-  margin-top:10px;
-  padding-top:10px;
-  border-top:1px solid rgba(255,255,255,.08);
-}
-.crowdPromptHelp{
-  margin-top:10px;
-  opacity:.85;
-}
-.crowdPromptPreview{
-  border:1px solid rgba(255,255,255,.10);
-  border-radius:18px;
-  background:rgba(0,0,0,.18);
-  padding:12px;
-  min-height:150px;
-}
-.crowdPromptPreview .cpPrevInner{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-.crowdPromptPreview .cpPrevTitle{
-  font-weight:1000;
-  letter-spacing:1px;
-  text-transform:uppercase;
-  font-size:14px;
-}
-.crowdPromptPreview .cpPrevLines{
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-  opacity:.95;
-}
-.crowdPromptPreview .cpPrevLine{
-  padding:6px 8px;
-  border-radius:12px;
-  background:rgba(255,255,255,.05);
-  border:1px solid rgba(255,255,255,.08);
-  font-size:12px;
-}
-.crowdPromptPreview .cpPrevMore{
-  opacity:.75;
-}
-.crowdPromptPreview .cpPrevFooter{
-  font-size:11px;
-  opacity:.85;
-}
-.crowdPromptPreview .cpPrevHint{
-  margin-top:4px;
-  font-size:11px;
-  opacity:.70;
-}
-
-/* =========================
-   Timer-up modal
-   ========================= */
-.timerUpPanel{
-  width:min(760px, 96vw);
-}
-.timerUpHeader{
-  border-bottom:1px solid rgba(255,255,255,.12);
-}
-.timerUpBody{
-  padding:4px 2px 10px 2px;
-}
-.timerUpName{
-  font-size:22px;
-  font-weight:1000;
-  letter-spacing:.4px;
-}
-.timerUpOver{
-  margin-top:6px;
-  font-size:14px;
-  opacity:.9;
 }
