@@ -226,6 +226,10 @@ select option{ background: var(--panel); color: var(--text); }
   border:1px solid rgba(255,255,255,.10);
   user-select:none;
 }
+.queueItem[draggable="true"] .dragHandle{cursor:grab;}
+.queueItem.dragging .dragHandle{cursor:grabbing;}
+.dragHandle.locked{opacity:.35; cursor:not-allowed;}
+
 .qMain{  grid-area: main; display:flex; flex-direction:column; gap:6px;}
 .qTop{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
 .qName{font-size:16px; font-weight:800;}
@@ -1804,116 +1808,3 @@ details.hbAcc .hbCatList{
   .sbCats{ flex-direction:row; max-height:none; overflow:auto; padding-right:0; }
   .sbCat{ min-width: 180px; }
 }
-
-
-
-/* ===========================
-   Operator: Crowd Prompts card
-   =========================== */
-
-.pill.tiny{ padding:3px 8px; font-size:11px; }
-
-.crowdPromptStatus{
-  display:inline-flex; align-items:center; justify-content:center;
-  padding:6px 10px; border-radius:999px;
-  font-size:12px; letter-spacing:.02em;
-  border:1px solid rgba(255,255,255,.16);
-  background:rgba(255,255,255,.08);
-  min-width:56px;
-}
-.crowdPromptStatus.on{
-  background:rgba(72,187,120,.16);
-  border-color:rgba(72,187,120,.30);
-}
-.crowdPromptStatus.off{
-  background:rgba(255,255,255,.08);
-  border-color:rgba(255,255,255,.16);
-  opacity:.85;
-}
-
-#crowdPromptCard .crowdCardBody{ display:flex; flex-direction:column; gap:10px; }
-
-.crowdCurrentRow{
-  display:flex; gap:12px; align-items:center; justify-content:space-between;
-  padding:10px 12px;
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:14px;
-  background:rgba(0,0,0,.18);
-}
-.crowdCurrentLeft{
-  display:flex; align-items:center; gap:10px;
-  min-width:0;
-}
-.crowdCurrentName{
-  font-weight:700;
-  font-size:14px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  max-width:100%;
-}
-.crowdCurrentRight{
-  display:flex; flex-direction:column; gap:2px;
-  align-items:flex-end;
-  text-align:right;
-}
-.crowdDirty{
-  color:var(--warn, #ffcc66);
-  font-weight:700;
-}
-
-.crowdPromptPreviewWrap{ margin-top:2px; }
-.crowdPromptPreview{
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:16px;
-  padding:12px;
-  background:rgba(0,0,0,.26);
-  min-height:140px;
-}
-
-/* Preview mock */
-.cpPrevWrap{
-  border-radius:14px;
-  padding:12px;
-  background:rgba(0,0,0,.35);
-  border:1px solid rgba(255,255,255,.10);
-}
-.cpPrevTitle{
-  font-weight:800;
-  letter-spacing:.08em;
-  font-size:12px;
-  text-transform:uppercase;
-  opacity:.95;
-}
-.cpPrevList{ margin-top:8px; display:flex; flex-direction:column; gap:6px; }
-.cpPrevLine{
-  padding:6px 8px;
-  border-radius:10px;
-  background:rgba(255,255,255,.06);
-  border:1px solid rgba(255,255,255,.08);
-  font-size:12px;
-}
-.cpPrevMore{
-  background:transparent;
-  border:none;
-  opacity:.7;
-  padding:2px 2px;
-}
-.cpPrevFooter{
-  margin-top:10px;
-  font-size:12px;
-  opacity:.85;
-}
-.cpPrevHint{
-  margin-top:10px;
-  font-size:11px;
-  opacity:.65;
-}
-
-/* Editor panel */
-.crowdEditorPanel{
-  margin-top:2px;
-  padding:12px;
-  border-radius:16px;
-  border:1px solid rgba(255,255,255,.12);
-  background:rgba(0,0,0,.22);
-}
-.crowdEditorPanel .crowdPromptHelp{ margin-top:10px; opacity:.85; }
