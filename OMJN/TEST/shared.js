@@ -3,9 +3,23 @@
  * Static site friendly: BroadcastChannel for live sync, localStorage for state, IndexedDB for images.
  */
 const OMJN = (() => {
-  const CHANNEL_NAME = "omjn_channel_v1";
-  const STORAGE_KEY = "omjn.showState.v1";
-  const ASSET_DB = { name: "omjn_assets_v1", store: "assets" };
+  const LEGACY_STORAGE_KEY = "omjn.showState.v1";
+
+// Scope storage by path so /OMJN and /OMJN/TEST don't share state.
+// GitHub Pages uses a single origin (broskii09.github.io), and Web Storage + IndexedDB + BroadcastChannel
+// are origin-scoped (not directory-scoped), so we namespace keys by environment.
+const APP_SCOPE = (() => {
+  try{
+    const parts = (location.pathname || "").split("/").filter(Boolean).map(s => s.toLowerCase());
+    return parts.includes("test") ? "test" : "prod";
+  }catch(_){
+    return "prod";
+  }
+})();
+
+const CHANNEL_NAME = `omjn_${APP_SCOPE}_channel_v1`;
+const STORAGE_KEY = `omjn.${APP_SCOPE}.showState.v1`;
+const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
 
   // ---- House Band ----
   // Default instrument list (intentionally excludes fiddle/violin and horns).
@@ -169,12 +183,26 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
   }
 
   function loadState(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const d = defaultState();
-      if(!raw) return d;
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const d = defaultState();
 
-      const s = JSON.parse(raw);
+    // One-time migration: PROD picks up legacy unscoped key, then deletes it.
+    let effectiveRaw = raw;
+    if(!effectiveRaw && APP_SCOPE === "prod"){
+      const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if(legacy){
+        effectiveRaw = legacy;
+        try{
+          localStorage.setItem(STORAGE_KEY, legacy);
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
+        }catch(_){}
+      }
+    }
+
+    if(!effectiveRaw) return d;
+
+    const s = JSON.parse(effectiveRaw);
 
       if(!s.version) s.version = 1;
       if(s.lastSavedAt === undefined) s.lastSavedAt = null;
@@ -221,7 +249,7 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
 
       if(!s.assetsIndex) s.assetsIndex = {};
       if(!Array.isArray(s.queue)) s.queue = [];
-      // timer shape normalized above (running/startedAt/pausedAt/elapsedMs/baseDurationMs)
+      if(!s.timer) s.timer = { running:false, startedAt:0, pausedAt:0, accumulatedPauseMs:0, baseDurationMs:0 };
       if(!s.phase) s.phase = "SPLASH";
       if(s.currentSlotId === undefined) s.currentSlotId = null;
 if(!s.history) s.history = { undo:[], redo:[] };
