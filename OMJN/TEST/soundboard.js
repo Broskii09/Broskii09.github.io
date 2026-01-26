@@ -1604,11 +1604,6 @@ function loadEmbedPaneWidth(){
   setEmbedPaneWidth(Number.isFinite(v) ? v : 420);
 }
 
-(){
-    const raw = localStorage.getItem(EMBED_WIDTH_KEY);
-    const v = parseInt(raw || "", 10);
-    setEmbedPaneWidth(Number.isFinite(v) ? v : 420);
-  }
 
 function renderEmbedSelect(model){
   if(!els.embedSelect) return;
