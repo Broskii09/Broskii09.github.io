@@ -2438,3 +2438,43 @@ details.hbAcc .hbCatList{
   transform: translateY(10px);
   transition: opacity 280ms ease, transform 280ms ease, visibility 0s linear 280ms;
 }
+
+/* =============================
+   Viewer hero refinements (UIFIX6)
+   - Restore performer name visibility (paired with viewer.js trim)
+   - Make QR/promos prominent and never clipped
+   - Reduce vertical waste in Next/Deck row
+   ============================= */
+
+/* Slightly tighten vertical rhythm so the media area has room */
+.viewerRoot #vMainCard{ padding: 26px 28px; }
+.viewerRoot .vNowName{ margin-top: 8px; }
+.viewerRoot .vTimer{ margin-top: 14px; font-size: clamp(64px, 9vw, 112px); }
+
+.viewerRoot .vNextDeckRow{ margin-top: 16px; gap: 12px; }
+.viewerRoot .vNextDeckCell{ padding: 10px 12px; }
+.viewerRoot .vNextDeckName{ margin-top: 4px; font-size: clamp(18px, 2.2vw, 24px); }
+
+/* Media block inside hero card: size the box so images can fit (no % height ambiguity) */
+.viewerRoot .vMedia{ margin-top: 14px; gap: 12px; align-items: start; }
+.viewerRoot .vMediaBox{ padding: 14px; overflow: hidden; }
+
+/* Layout-specific sizing (viewer.js toggles .mediaQR / .mediaImage) */
+.viewerRoot.mediaQR .vMediaBox{
+  height: clamp(260px, 34vh, 520px);
+  aspect-ratio: 1 / 1;
+}
+.viewerRoot.mediaImage .vMediaBox{
+  height: clamp(220px, 30vh, 420px);
+  aspect-ratio: 16 / 9;
+}
+.viewerRoot:not(.mediaQR):not(.mediaImage) .vMediaBox{
+  height: clamp(240px, 32vh, 460px);
+  aspect-ratio: 4 / 3;
+}
+
+.viewerRoot .vMediaBox img{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}

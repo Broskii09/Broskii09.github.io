@@ -108,6 +108,11 @@
   let lastMediaKey = null;
   let mediaToken = 0;
 
+  function cleanName(v) {
+    const s = String(v ?? "").trim();
+    return s || "—";
+  }
+
   // Sponsor bug runtime
   const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
   let currentSponsorObjectUrl = null;
@@ -884,14 +889,14 @@
     const [n1, n2] = OMJN.computeNextTwo(state);
     const key = JSON.stringify({
       cur: state.currentSlotId || null,
-      n1: n1 ? { id: n1.id, n: n1.displayName } : null,
-      n2: n2 ? { id: n2.id, n: n2.displayName } : null,
+      n1: n1 ? { id: n1.id, n: String(n1.displayName || "").trim() } : null,
+      n2: n2 ? { id: n2.id, n: String(n2.displayName || "").trim() } : null,
     });
     if (key === lastNextDeckKey) return;
     lastNextDeckKey = key;
 
-    if (el.liveNextUp) el.liveNextUp.textContent = n1?.displayName || "—";
-    if (el.liveOnDeck) el.liveOnDeck.textContent = n2?.displayName || "—";
+    if (el.liveNextUp) el.liveNextUp.textContent = cleanName(n1?.displayName);
+    if (el.liveOnDeck) el.liveOnDeck.textContent = cleanName(n2?.displayName);
   }
 
   function renderLiveStatic() {
@@ -918,7 +923,7 @@
     const mediaLayout = media.mediaLayout || "NONE";
     const staticKey = JSON.stringify({
       id: cur.id,
-      name: cur.displayName || "",
+      name: String(cur.displayName || "").trim(),
       type: OMJN.displaySlotTypeLabel(state, cur),
       donationUrl,
       mediaLayout,
@@ -928,11 +933,11 @@
     if (staticKey !== lastSlotStaticKey) {
       lastSlotStaticKey = staticKey;
 
-      if (el.nowName) el.nowName.textContent = cur.displayName || "—";
+      if (el.nowName) el.nowName.textContent = cleanName(cur.displayName);
       if (el.chipType) el.chipType.textContent = OMJN.displaySlotTypeLabel(state, cur);
 
       if (startIntroPending) {
-        triggerStartIntro(cur.displayName || "—");
+        triggerStartIntro(cleanName(cur.displayName));
         startIntroPending = false;
       }
 
@@ -952,6 +957,14 @@
       const hasImage = mediaLayout === "IMAGE_ONLY" ? !!media.imageAssetId : mediaLayout === "QR_ONLY" || mediaLayout === "IMAGE_PLUS_QR";
       const hasLink = !!donationUrl;
       const showMedia = hasImage || hasLink;
+
+      // Media layout hint classes (used by CSS to size the media box correctly)
+      const isQrLayout = mediaLayout === "QR_ONLY" || mediaLayout === "IMAGE_PLUS_QR";
+      const isImageOnly = mediaLayout === "IMAGE_ONLY";
+      if (el.root) {
+        el.root.classList.toggle("mediaQR", isQrLayout);
+        el.root.classList.toggle("mediaImage", isImageOnly);
+      }
 
       const layoutKey = JSON.stringify({ showMedia });
       if (layoutKey !== lastLayoutKey) {
