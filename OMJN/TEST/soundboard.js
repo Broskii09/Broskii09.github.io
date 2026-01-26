@@ -1456,93 +1456,92 @@ const cfg = loadCfg();
   els.folder.addEventListener("change", saveCfg);
   els.preload.addEventListener("change", saveCfg);
 
-  // Try local manifest first (optional), then user can refresh from Drive.
-  // Try local manifest first (optional). Then auto-refresh from Drive using baked defaults.
-  (async () => {
-    try{ await loadLocalManifest(); }catch(_){}
-    // Auto-populate from Drive once on load
-    try{
-      const hasKey = !!String(els.apiKey.value||"").trim();
-      const hasFolder = !!String(els.folder.value||"").trim();
-      if(hasKey && hasFolder) els.refresh.click();
-    }catch(_){}
-  })();
+// ---- Refresh sounds ----
+async function refreshFromDrive(){
+  saveCfg();
+  const apiKey = String(els.apiKey.value||"").trim();
+  const folderId = parseFolderId(els.folder.value);
+  if(!apiKey || !folderId){
+    setStatus("Please enter an API key and Drive folder.", true);
+    return;
+  }
+  setStatus("Loading sounds from Drive…", false);
+  try{
+    const rootChildren = await driveList(apiKey, folderId);
+    const subfolders = rootChildren.filter(isFolder);
 
+    const rootSounds = rootChildren.filter(f => !isFolder(f) && isAudio(f));
+    const cats = [];
 
-  // ---- Refresh sounds ----
-  els.refresh.addEventListener("click", async () => {
-    saveCfg();
-    const apiKey = String(els.apiKey.value||"").trim();
-    const folderId = parseFolderId(els.folder.value);
-    if(!apiKey || !folderId){
-      setStatus("Please enter an API key and Drive folder.", true);
-      return;
+    if(rootSounds.length){
+      cats.push({
+        id: "general",
+        label: "General",
+        sounds: rootSounds.map(f => ({
+          id: f.id,
+          name: f.name,
+          mimeType: f.mimeType,
+          modifiedTime: f.modifiedTime,
+          downloadUrl: driveDownloadUrl(apiKey, f.id),
+        }))
+      });
     }
-    setStatus("Loading sounds from Drive…", false);
-    try{
-      const rootChildren = await driveList(apiKey, folderId);
-      const subfolders = rootChildren.filter(isFolder);
 
-      const rootSounds = rootChildren.filter(f => !isFolder(f) && isAudio(f));
-      const cats = [];
-
-      if(rootSounds.length){
-        cats.push({
-          id: "general",
-          label: "General",
-          sounds: rootSounds.map(f => ({
-            id: f.id,
-            name: f.name,
-            mimeType: f.mimeType,
-            modifiedTime: f.modifiedTime,
-            downloadUrl: driveDownloadUrl(apiKey, f.id),
-          }))
-        });
+    // Load each subfolder as a category
+    for(const sf of subfolders){
+      let files = [];
+      try{
+        files = await driveList(apiKey, sf.id);
+      }catch(e){
+        console.warn("Subfolder list failed:", sf.name, e);
       }
-
-      // Load each subfolder as a category
-      for(const sf of subfolders){
-        let files = [];
-        try{
-          files = await driveList(apiKey, sf.id);
-        }catch(e){
-          console.warn("Subfolder list failed:", sf.name, e);
-        }
-        const aud = files.filter(f => !isFolder(f) && isAudio(f));
-        if(!aud.length) continue;
-        cats.push({
-          id: sf.id,
-          label: sf.name,
-          sounds: aud.map(f => ({
-            id: f.id,
-            name: f.name,
-            mimeType: f.mimeType,
-            modifiedTime: f.modifiedTime,
-            downloadUrl: driveDownloadUrl(apiKey, f.id),
-          }))
-        });
-      }
-
-      categories = cats;
-      indexSounds();
-      activeCategoryId = "__all";
-      setSearchQuery("");
-      selectedIdx = 0;
-      renderCategories();
-      renderPads();
-
-      const total = categories.reduce((n,c) => n + c.sounds.length, 0);
-      setStatus(`Loaded ${total} sound(s) across ${categories.length} category(ies).`, false);
-
-      // Optional preload
-      if(els.preload.checked){
-        preloadAllVisible();
-      }
-    }catch(e){
-      console.error(e);
-      setStatus("Could not load Drive folder. Check API key, sharing, and folder ID.", true);
+      const aud = files.filter(f => !isFolder(f) && isAudio(f));
+      if(!aud.length) continue;
+      cats.push({
+        id: sf.id,
+        label: sf.name,
+        sounds: aud.map(f => ({
+          id: f.id,
+          name: f.name,
+          mimeType: f.mimeType,
+          modifiedTime: f.modifiedTime,
+          downloadUrl: driveDownloadUrl(apiKey, f.id),
+        }))
+      });
     }
-  });
+
+    categories = cats;
+    indexSounds();
+    activeCategoryId = "__all";
+    setSearchQuery("");
+    selectedIdx = 0;
+    renderCategories();
+    renderPads();
+
+    const total = categories.reduce((n,c) => n + c.sounds.length, 0);
+    setStatus(`Loaded ${total} sound(s) across ${categories.length} category(ies).`, false);
+
+    // Optional preload
+    if(els.preload.checked){
+      preloadAllVisible();
+    }
+  }catch(e){
+    console.error(e);
+    setStatus("Could not load Drive folder. Check API key, sharing, and folder ID.", true);
+  }
+}
+
+els.refresh.addEventListener("click", refreshFromDrive);
+
+// Try local manifest first (optional). Then auto-refresh from Drive using baked defaults.
+(async () => {
+  try{ await loadLocalManifest(); }catch(_){ }
+  try{
+    const hasKey = !!String(els.apiKey.value||"").trim();
+    const hasFolder = !!String(els.folder.value||"").trim();
+    if(hasKey && hasFolder) await refreshFromDrive();
+  }catch(_){ }
+})();
 
   async function preloadAllVisible(){
     const sounds = categories.flatMap(c => c.sounds);
@@ -1980,34 +1979,47 @@ initEmbeds();
   });
 })();
 
+
 // ---- Meta render ----
   function renderMeta(){
-    els.phase.textContent = ph;
-const ph = state.phase || "—";
+    // Phase
+    const ph = (state && state.phase) ? state.phase : "—";
+    if(els.phase) els.phase.textContent = ph;
 
-// Phase dot styling
-if(els.phaseDot){
-  els.phaseDot.classList.remove("good","warn","bad");
-  if(ph === "LIVE") els.phaseDot.classList.add("good");
-  else if(ph === "PAUSED") els.phaseDot.classList.add("warn");
-}
+    // Phase dot styling
+    if(els.phaseDot){
+      els.phaseDot.classList.remove("good","warn","bad");
+      if(ph === "LIVE") els.phaseDot.classList.add("good");
+      else if(ph === "PAUSED") els.phaseDot.classList.add("warn");
+    }
 
-// State-aware transport buttons (reduce mis-clicks)
-els.start.disabled = (ph !== "SPLASH");
-els.pause.disabled = (ph !== "LIVE");
-els.resume.disabled = (ph !== "PAUSED");
-els.end.disabled = !(ph === "LIVE" || ph === "PAUSED");
-    const cur = state.queue.find(x=>x.id===state.currentSlotId) || null;
-    els.now.textContent = cur?.displayName || "—";
-    const [n1, n2] = OMJN.computeNextTwo(state);
-    els.next.textContent = n1?.displayName || "—";
-    els.deck.textContent = n2?.displayName || "—";
+    // State-aware transport buttons (reduce mis-clicks)
+    if(els.start)  els.start.disabled  = (ph !== "SPLASH");
+    if(els.pause)  els.pause.disabled  = (ph !== "LIVE");
+    if(els.resume) els.resume.disabled = (ph !== "PAUSED");
+    if(els.end)    els.end.disabled    = !(ph === "LIVE" || ph === "PAUSED");
 
-    const t = OMJN.computeTimer(state);
-    els.timer.textContent = OMJN.formatMMSS(t.remainingMs || 0);
+    // Now / Next / Deck
+    const q = (state && Array.isArray(state.queue)) ? state.queue : [];
+    const cur = q.find(x => x && x.id === state.currentSlotId) || null;
+    if(els.now)  els.now.textContent  = (cur && cur.displayName) ? cur.displayName : "—";
+
+    const pair = (typeof OMJN !== "undefined" && OMJN && typeof OMJN.computeNextTwo === "function")
+      ? OMJN.computeNextTwo(state)
+      : [null, null];
+    const n1 = pair[0], n2 = pair[1];
+    if(els.next) els.next.textContent = (n1 && n1.displayName) ? n1.displayName : "—";
+    if(els.deck) els.deck.textContent = (n2 && n2.displayName) ? n2.displayName : "—";
+
+    // Timer
+    if(els.timer && typeof OMJN !== "undefined" && OMJN && typeof OMJN.computeTimer === "function" && typeof OMJN.formatMMSS === "function"){
+      const t = OMJN.computeTimer(state) || {};
+      els.timer.textContent = OMJN.formatMMSS(t.remainingMs || 0);
+    }
   }
 
   // Tick timer display
+
   setInterval(renderMeta, 250);
   renderMeta();
 
