@@ -1805,7 +1805,172 @@ details.hbAcc .hbCatList{
   .sbCat{ min-width: 180px; }
 }
 
+/* =========================
+   Operator: Crowd Prompts card UX
+   ========================= */
+#crowdPromptCard .crowdPromptGrid{
+  display:grid;
+  grid-template-columns: 1.15fr .85fr;
+  gap:12px;
+  margin-top:10px;
+  align-items:start;
+}
+#crowdPromptCard .crowdPromptEditorCol{ min-width:0; }
+#crowdPromptCard .crowdPromptPreviewCol{ min-width:0; }
+@media (max-width: 980px){
+  #crowdPromptCard .crowdPromptGrid{ grid-template-columns: 1fr; }
+}
 
+.crowdStatusStrip{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px 12px;
+  align-items:center;
+  padding:6px 10px;
+  border-radius:14px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.10);
+}
+.crowdStatusStrip .crowdStatusName{
+  font-weight:900;
+  letter-spacing:.2px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width: 320px;
+}
+.crowdStatusStrip .crowdStatusMeta{
+  opacity:.85;
+  white-space:nowrap;
+}
+.pill.draft{
+  background: rgba(250, 204, 21, .14);
+  border: 1px solid rgba(250, 204, 21, .35);
+  color: rgba(250, 204, 21, .95);
+}
+
+.crowdEditorClosedHint{
+  padding:12px;
+  border-radius:16px;
+  background:rgba(0,0,0,.14);
+  border:1px dashed rgba(255,255,255,.18);
+  margin-bottom:10px;
+}
+.crowdEditorPanel{
+  margin-top:2px;
+  padding:12px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(0,0,0,.22);
+  margin-bottom:10px;
+}
+
+.crowdPromptPreview{
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:16px;
+  padding:12px;
+  background:rgba(0,0,0,.26);
+  min-height:140px;
+}
+
+/* Preview mock */
+.cpPrevInner{
+  border-radius:14px;
+  padding:12px;
+  background:rgba(0,0,0,.35);
+  border:1px solid rgba(255,255,255,.10);
+}
+.cpPrevTitle{
+  font-weight:800;
+  letter-spacing:.08em;
+  font-size:12px;
+  text-transform:uppercase;
+  opacity:.95;
+}
+.cpPrevLines{ margin-top:8px; display:flex; flex-direction:column; gap:6px; }
+.cpPrevLine{
+  padding:6px 8px;
+  border-radius:10px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.08);
+  font-size:12px;
+}
+.cpPrevMore{
+  background:transparent;
+  border:none;
+  opacity:.7;
+  padding:2px 2px;
+}
+.cpPrevFooter{
+  margin-top:10px;
+  font-size:12px;
+  opacity:.85;
+}
+.cpPrevHint{
+  margin-top:10px;
+  font-size:11px;
+  opacity:.65;
+}
+
+/* =========================
+   Soundboard header revamp
+   Two cards: Settings (left) + Show Control (right)
+   ========================= */
+.soundboardPage .sbCardsGrid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas: "settings show";
+  gap:12px;
+  margin-bottom:12px;
+  align-items:stretch;
+}
+.soundboardPage .sbSettingsCard{ grid-area: settings; }
+.soundboardPage .sbShowControlCard{ grid-area: show; }
+
+@media (max-width: 980px){
+  .soundboardPage .sbCardsGrid{
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "show"
+      "settings";
+  }
+}
+
+.soundboardPage .sbMiniCard .cardHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.soundboardPage .sbMiniCard .cardHeader h2{
+  margin:0;
+  font-size:16px;
+}
+
+.soundboardPage .sbShowStatus{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px 14px;
+  align-items:center;
+}
+.soundboardPage #sbPhase{
+  font-weight:1000;
+  letter-spacing:.4px;
+}
+.soundboardPage #sbTimer{
+  font-size:13px;
+  padding:9px 12px;
+  min-width:84px;
+}
+
+.soundboardPage .sbSafetyRow .btn{
+  white-space:nowrap;
+}
+
+.soundboardPage .sbSettingsRow .sbFadeWrap,
+.soundboardPage .sbSettingsRow .sbFreezeWrap{
+  margin:0;
+}
 
 /* =========================
    Soundboard: Embed + resizable pane
@@ -1922,4 +2087,228 @@ details.hbAcc .hbCatList{
 .sbResizing *{
   user-select: none !important;
   cursor: col-resize !important;
+}
+
+
+/* =========================
+   Soundboard: 3-row control layout (sticky header + optional sticky controls)
+   ========================= */
+.soundboardPage .sbStickyHeader{
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: rgba(10,16,28,.72);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.soundboardPage .sbHeader{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.soundboardPage .sbHeaderLeft{
+  min-width: 220px;
+}
+
+.soundboardPage .sbShowStatusHeader{
+  flex: 1 1 auto;
+  min-width: 320px;
+  justify-content: center;
+  gap: 10px;
+}
+
+.soundboardPage .sbShowStatusHeader .sbItem{
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.soundboardPage .sbMetaItem{
+  gap: 8px;
+}
+
+.soundboardPage .sbMetaLabel{
+  opacity: .75;
+  font-size: 12px;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+}
+
+.soundboardPage .sbMetaValue{
+  font-weight: 800;
+}
+
+.soundboardPage .sbHeaderRight{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 180px;
+}
+
+.soundboardPage .sbToggle{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+}
+
+.soundboardPage .sbToggle input{
+  transform: translateY(1px);
+}
+
+.soundboardPage .sbRow{
+  margin-top: 12px;
+}
+
+.soundboardPage .sbRow2{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.soundboardPage .sbPanel{
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 18px;
+  background: rgba(255,255,255,.03);
+  padding: 12px;
+}
+
+.soundboardPage .sbPanelHeader{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.soundboardPage .sbPanelTitle{
+  font-weight: 900;
+  letter-spacing: .2px;
+}
+
+.soundboardPage .sbTransportRow,
+.soundboardPage .sbTimeAdjustRow{
+  margin-top: 0 !important;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.soundboardPage.sbRow2Sticky .sbRow2{
+  position: sticky;
+  top: var(--sbRow1H, 92px);
+  z-index: 55;
+}
+
+.soundboardPage.sbRow2Sticky .sbRow2::before{
+  content:"";
+  position:absolute;
+  inset: -8px -6px;
+  background: rgba(10,16,28,.58);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,.06);
+  z-index: -1;
+}
+
+.soundboardPage .sbMain{
+  display: grid;
+  grid-template-columns: 1fr var(--sbSplitW, 12px) minmax(280px, var(--sbEmbedW, 420px));
+  gap: 12px;
+  align-items: start;
+}
+
+.soundboardPage .sbBoardPane{
+  min-width: 0;
+}
+
+.soundboardPage .sbSidePane{
+  min-width: 0;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 18px;
+  background: rgba(255,255,255,.03);
+  padding: 12px;
+  overflow: auto;
+  max-height: calc(100vh - 220px);
+}
+
+.soundboardPage .sbSideSection{
+  margin-top: 12px;
+}
+.soundboardPage .sbSideSection:first-child{
+  margin-top: 0;
+}
+
+.soundboardPage .sbEmbedPane{
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.soundboardPage .sbSafariTip{
+  margin-top: 10px;
+  opacity: .85;
+}
+
+.soundboardPage .sbPadsHeaderTop{
+  align-items: center;
+  gap: 10px;
+}
+
+.soundboardPage .sbStopAllBtn{
+  border-radius: 999px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.04);
+}
+
+.soundboardPage .sbHintRow{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.soundboardPage .sbHintRight{
+  opacity: .85;
+  white-space: nowrap;
+}
+
+/* Compact mode */
+.soundboardPage.sbCompact .sbStickyHeader{
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.soundboardPage.sbCompact .sbSubtitle{
+  display: none;
+}
+
+.soundboardPage.sbCompact .sbRow{
+  margin-top: 8px;
+}
+
+.soundboardPage.sbCompact .sbPanel{
+  padding: 10px;
+}
+
+@media (max-width: 1100px){
+  .soundboardPage .sbRow2{
+    grid-template-columns: 1fr;
+  }
+  .soundboardPage .sbMain{
+    grid-template-columns: 1fr;
+  }
+  .soundboardPage .sbSplitHandle{
+    display:none;
+  }
+  .soundboardPage .sbSidePane{
+    max-height: none;
+  }
 }

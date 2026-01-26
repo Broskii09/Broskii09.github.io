@@ -1,3 +1,11 @@
+
+
+// ---- UI scope (separate /TEST vs /OMJN) ----
+const SB_UI_SCOPE = (() => {
+  const p = (location.pathname || "").toLowerCase();
+  return p.includes("/omjn/test") ? "test" : "prod";
+})();
+
 /* Soundboard page (public Google Drive folder or local) */
 (() => {
   let state = OMJN.loadState();
@@ -6,6 +14,7 @@
   // ---- DOM ----
   const els = {
     phase: document.getElementById("sbPhase"),
+    phaseDot: document.getElementById("sbPhaseDot"),
     timer: document.getElementById("sbTimer"),
     now: document.getElementById("sbNow"),
     next: document.getElementById("sbNext"),
@@ -17,17 +26,23 @@
     end: document.getElementById("sbEnd"),
     minus30: document.getElementById("sbMinus30"),
     plus30: document.getElementById("sbPlus30"),
-    resetTime: document.getElementById("sbResetTime"),
     minus1: document.getElementById("sbMinus1"),
     minus5: document.getElementById("sbMinus5"),
     plus1: document.getElementById("sbPlus1"),
     plus5: document.getElementById("sbPlus5"),
+    resetTime: document.getElementById("sbResetTime"),
+
+    compactToggle: document.getElementById("sbCompactToggle"),
+    stickyRow2Toggle: document.getElementById("sbStickyRow2Toggle"),
+    stickyHeader: document.getElementById("sbStickyHeader"),
+    row2: document.getElementById("sbRow2"),
+    safariTip: document.getElementById("sbSafariTip"),
 
     embedSelect: document.getElementById("sbEmbedSelect"),
     embedAdd: document.getElementById("sbEmbedAdd"),
     embedRemove: document.getElementById("sbEmbedRemove"),
     splitHandle: document.getElementById("sbSplitHandle"),
-embedFrameWrap: document.getElementById("sbEmbedFrameWrap"),
+    embedFrameWrap: document.getElementById("sbEmbedFrameWrap"),
     embedModal: document.getElementById("sbEmbedModal"),
     embedClose: document.getElementById("sbEmbedClose"),
     embedCancel: document.getElementById("sbEmbedCancel"),
@@ -58,6 +73,64 @@ embedFrameWrap: document.getElementById("sbEmbedFrameWrap"),
     enableOverlay: document.getElementById("sbEnable"),
     enableBtn: document.getElementById("sbEnableBtn"),
   };
+
+// ---- UI prefs (compact rows + optional sticky controls) ----
+const UI_PREF_KEY = `omjn.sb.ui.v1.${SB_UI_SCOPE}`;
+
+function loadUiPrefs(){
+  try{
+    const raw = localStorage.getItem(UI_PREF_KEY);
+    const obj = raw ? JSON.parse(raw) : null;
+    return {
+      compact: !!obj?.compact,
+      stickyControls: !!obj?.stickyControls
+    };
+  }catch(_){
+    return { compact:false, stickyControls:false };
+  }
+}
+
+function saveUiPrefs(prefs){
+  try{ localStorage.setItem(UI_PREF_KEY, JSON.stringify(prefs)); }catch(_){}
+}
+
+function applyRow1HeightVar(){
+  const h = els.stickyHeader?.offsetHeight || 92;
+  document.documentElement.style.setProperty("--sbRow1H", `${h}px`);
+}
+
+function initUiPrefs(){
+  const prefs = loadUiPrefs();
+
+  // Defaults: expanded + non-sticky until user opts in
+  if(els.compactToggle){
+    els.compactToggle.checked = prefs.compact;
+    document.body.classList.toggle("sbCompact", prefs.compact);
+    els.compactToggle.addEventListener("change", () => {
+      prefs.compact = !!els.compactToggle.checked;
+      document.body.classList.toggle("sbCompact", prefs.compact);
+      saveUiPrefs(prefs);
+      applyRow1HeightVar();
+    });
+  }
+
+  if(els.stickyRow2Toggle){
+    els.stickyRow2Toggle.checked = prefs.stickyControls;
+    document.body.classList.toggle("sbRow2Sticky", prefs.stickyControls);
+    els.stickyRow2Toggle.addEventListener("change", () => {
+      prefs.stickyControls = !!els.stickyRow2Toggle.checked;
+      document.body.classList.toggle("sbRow2Sticky", prefs.stickyControls);
+      saveUiPrefs(prefs);
+      applyRow1HeightVar();
+    });
+  }
+
+  // keep sticky offset accurate
+  applyRow1HeightVar();
+  window.addEventListener("resize", () => applyRow1HeightVar());
+  setTimeout(applyRow1HeightVar, 50);
+}
+
 
   // ---- Audio engine ----
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -187,7 +260,9 @@ embedFrameWrap: document.getElementById("sbEmbedFrameWrap"),
   }
 
   showEnableOverlay(true);
-  els.enableBtn.addEventListener("click", async () => {
+    initUiPrefs();
+
+els.enableBtn.addEventListener("click", async () => {
     try{
       await ctx.resume();
       audioEnabled = true;
@@ -1487,14 +1562,15 @@ const cfg = loadCfg();
   els.resume.addEventListener("click", resume);
   els.end.addEventListener("click", endToSplash);
   els.minus30.addEventListener("click", () => addSeconds(-30));
+  els.plus30.addEventListener("click", () => addSeconds(30));
   if(els.minus1) els.minus1.addEventListener("click", () => addSeconds(-60));
   if(els.minus5) els.minus5.addEventListener("click", () => addSeconds(-300));
-  els.plus30.addEventListener("click", () => addSeconds(30));
   if(els.plus1) els.plus1.addEventListener("click", () => addSeconds(60));
   if(els.plus5) els.plus5.addEventListener("click", () => addSeconds(300));
   els.resetTime.addEventListener("click", resetTime);
 
   
+
 // ---- Music embed pane ----
 const SB_SCOPE = (() => {
   const p = (location.pathname || "").toLowerCase();
@@ -1689,7 +1765,7 @@ if(els.splitHandle){
     const b = getMainBounds();
     if(!b) return;
     const x = e.clientX;
-    const newW = x - b.left;
+    const newW = b.right - x;
     applyW(newW);
     e.preventDefault();
   }
@@ -1781,9 +1857,46 @@ if(els.splitHandle){
 
 initEmbeds();
 
+// Safari autoplay note for embeds (dismiss on first interaction)
+(function initSafariTip(){
+  if(!els.safariTip || !els.embedFrameWrap) return;
+  const ua = navigator.userAgent || "";
+  const isSafari = /Safari/.test(ua) && !/Chrome|Chromium|Edg/.test(ua);
+  const TIP_KEY = `omjn.sb.safariEmbedTipDismissed.v1.${SB_UI_SCOPE}`;
+  if(!isSafari) return;
+  try{
+    const dismissed = localStorage.getItem(TIP_KEY) === "1";
+    if(!dismissed) els.safariTip.hidden = false;
+  }catch(_){
+    els.safariTip.hidden = false;
+  }
+  const dismiss = () => {
+    els.safariTip.hidden = true;
+    try{ localStorage.setItem(TIP_KEY, "1"); }catch(_){}
+  };
+  els.embedFrameWrap.addEventListener("pointerdown", dismiss, { once:true });
+  els.embedFrameWrap.addEventListener("keydown", (e) => {
+    if(e.key === "Enter" || e.key === " "){ dismiss(); }
+  });
+})();
+
 // ---- Meta render ----
   function renderMeta(){
-    els.phase.textContent = state.phase || "—";
+    els.phase.textContent = ph;
+const ph = state.phase || "—";
+
+// Phase dot styling
+if(els.phaseDot){
+  els.phaseDot.classList.remove("good","warn","bad");
+  if(ph === "LIVE") els.phaseDot.classList.add("good");
+  else if(ph === "PAUSED") els.phaseDot.classList.add("warn");
+}
+
+// State-aware transport buttons (reduce mis-clicks)
+els.start.disabled = (ph !== "SPLASH");
+els.pause.disabled = (ph !== "LIVE");
+els.resume.disabled = (ph !== "PAUSED");
+els.end.disabled = !(ph === "LIVE" || ph === "PAUSED");
     const cur = state.queue.find(x=>x.id===state.currentSlotId) || null;
     els.now.textContent = cur?.displayName || "—";
     const [n1, n2] = OMJN.computeNextTwo(state);

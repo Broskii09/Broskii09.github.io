@@ -93,6 +93,16 @@ setBgColor: document.getElementById("setBgColor"),
     btnCrowdToggle: document.getElementById("btnCrowdToggle"),
     btnCrowdNext: document.getElementById("btnCrowdNext"),
     crowdPromptStatus: document.getElementById("crowdPromptStatus"),
+    crowdStatusStrip: document.getElementById("crowdStatusStrip"),
+    crowdStatusPill: document.getElementById("crowdStatusPill"),
+    crowdStatusName: document.getElementById("crowdStatusName"),
+    crowdStatusMeta: document.getElementById("crowdStatusMeta"),
+    crowdStatusAutoHide: document.getElementById("crowdStatusAutoHide"),
+    crowdDraftBadge: document.getElementById("crowdDraftBadge"),
+    btnCrowdEditToggle: document.getElementById("btnCrowdEditToggle"),
+    crowdEditorPanel: document.getElementById("crowdEditorPanel"),
+    crowdEditorClosedHint: document.getElementById("crowdEditorClosedHint"),
+    btnCrowdCancel: document.getElementById("btnCrowdCancel"),
     settingsModal: document.getElementById("settingsModal"),
     btnCloseSettings: document.getElementById("btnCloseSettings"),
 
@@ -935,6 +945,8 @@ function escapeHtml(s){
     updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.activePresetId = nextId; }, { recordHistory:false });
     // If currently showing, restart timer on preset swap
     scheduleCrowdAutoHide();
+    updateCrowdQuickButtons();
+    renderCrowdPromptPreview();
   }
 
   function setCrowdEnabled(on){
@@ -942,30 +954,127 @@ function escapeHtml(s){
     scheduleCrowdAutoHide();
   }
 
+  // Crowd prompt editor state
+  let crowdEditorReadFn = null;
+  let crowdEditorDirty = false;
+
+
+
   function updateCrowdQuickButtons(){
       if(!els.btnCrowdToggle) return;
+
       const cfg = getCrowdCfg(state);
       const p = getActiveCrowdPreset(cfg);
+      const presets = Array.isArray(cfg.presets) ? cfg.presets : [];
+      const idx = Math.max(0, presets.findIndex(x => x.id === cfg.activePresetId));
+      const displayIdx = presets.length ? `${idx+1}/${presets.length}` : "—";
       const name = (p?.name || p?.title || "Prompt").trim();
+      const autoHide = (p?.autoHideSeconds ?? 0) | 0;
 
       if(cfg.enabled){
         els.btnCrowdToggle.textContent = `Crowd: ${name}`;
         els.btnCrowdToggle.classList.add("good");
-        if(els.crowdPromptStatus){
-          els.crowdPromptStatus.textContent = `ON · ${name}`;
-          els.crowdPromptStatus.classList.add("on");
-          els.crowdPromptStatus.classList.remove("off");
-        }
-      } else {
+      }else{
         els.btnCrowdToggle.textContent = "Crowd: Off";
         els.btnCrowdToggle.classList.remove("good");
-        if(els.crowdPromptStatus){
-          els.crowdPromptStatus.textContent = `OFF · ${name}`;
-          els.crowdPromptStatus.classList.add("off");
-          els.crowdPromptStatus.classList.remove("on");
-        }
+      }
+
+      if(els.crowdStatusPill){
+        els.crowdStatusPill.textContent = cfg.enabled ? "ON" : "OFF";
+        els.crowdStatusPill.classList.toggle("on", !!cfg.enabled);
+        els.crowdStatusPill.classList.toggle("off", !cfg.enabled);
+      }
+      if(els.crowdStatusName) els.crowdStatusName.textContent = name || "—";
+      if(els.crowdStatusMeta) els.crowdStatusMeta.textContent = displayIdx;
+      if(els.crowdStatusAutoHide) els.crowdStatusAutoHide.textContent = `Auto-hide: ${autoHide ? autoHide + "s" : "off"}`;
+      if(els.crowdDraftBadge) els.crowdDraftBadge.hidden = !crowdEditorDirty;
+
+      const lockCycle = !!crowdEditorDirty;
+      if(els.btnCrowdPrev) els.btnCrowdPrev.disabled = lockCycle;
+      if(els.btnCrowdNext) els.btnCrowdNext.disabled = lockCycle;
+
+      // Legacy status element (if present)
+      if(els.crowdPromptStatus){
+        els.crowdPromptStatus.textContent = `${cfg.enabled ? "ON" : "OFF"} · ${name}`;
+        els.crowdPromptStatus.classList.toggle("on", !!cfg.enabled);
+        els.crowdPromptStatus.classList.toggle("off", !cfg.enabled);
       }
     }
+
+  function wireCrowdEditorInteractions(){
+      if(els.crowdEditorPanel){
+        els.crowdEditorPanel.addEventListener("mousedown", e => e.stopPropagation());
+        els.crowdEditorPanel.addEventListener("click", e => e.stopPropagation());
+        els.crowdEditorPanel.addEventListener("keydown", e => e.stopPropagation());
+      }
+
+      const onDirty = () => {
+        if(!els.crowdEditorPanel || els.crowdEditorPanel.hidden) return;
+        setCrowdEditorDirty(true);
+        renderCrowdPromptPreview();
+      };
+
+      for(const el of [els.crowdPresetName, els.crowdTitle, els.crowdFooter, els.crowdAutoHide, els.crowdLines]){
+        if(!el) continue;
+        el.addEventListener("input", onDirty);
+        el.addEventListener("change", onDirty);
+      }
+
+      if(els.btnCrowdEditToggle){
+        els.btnCrowdEditToggle.addEventListener("click", () => {
+          const isOpen = els.crowdEditorPanel && !els.crowdEditorPanel.hidden;
+          if(isOpen) closeCrowdEditor(false);
+          else openCrowdEditor();
+        });
+      }
+
+      if(els.btnCrowdCancel){
+        els.btnCrowdCancel.addEventListener("click", () => closeCrowdEditor(false));
+      }
+    }
+
+
+  function setCrowdEditorDirty(on){
+      crowdEditorDirty = !!on;
+      updateCrowdQuickButtons();
+    }
+
+
+  function loadCrowdEditorFromActivePreset(){
+      const cfg = getCrowdCfg(state);
+      const p = getActiveCrowdPreset(cfg) || {};
+      if(els.crowdPresetName) els.crowdPresetName.value = p.name || "";
+      if(els.crowdTitle) els.crowdTitle.value = p.title || "";
+      if(els.crowdFooter) els.crowdFooter.value = p.footer || "";
+      if(els.crowdAutoHide) els.crowdAutoHide.value = String((p.autoHideSeconds ?? 0) | 0);
+      if(els.crowdLines) els.crowdLines.value = Array.isArray(p.lines) ? p.lines.join("\n") : "";
+    }
+
+
+  function closeCrowdEditor(force=false){
+      if(!els.crowdEditorPanel) return;
+      if(!force && crowdEditorDirty){
+        const ok = confirm("Discard unsaved crowd prompt edits?");
+        if(!ok) return;
+      }
+      els.crowdEditorPanel.hidden = true;
+      if(els.crowdEditorClosedHint) els.crowdEditorClosedHint.hidden = false;
+      if(els.btnCrowdEditToggle) els.btnCrowdEditToggle.textContent = "Edit preset";
+      setCrowdEditorDirty(false);
+      renderCrowdPromptPreview();
+    }
+
+
+  function openCrowdEditor(){
+      if(!els.crowdEditorPanel) return;
+      els.crowdEditorPanel.hidden = false;
+      if(els.crowdEditorClosedHint) els.crowdEditorClosedHint.hidden = true;
+      if(els.btnCrowdEditToggle) els.btnCrowdEditToggle.textContent = "Close";
+      loadCrowdEditorFromActivePreset();
+      setCrowdEditorDirty(false);
+      renderCrowdPromptPreview();
+    }
+
 
 // ---- Sponsor Bug (Operator settings) ----
   const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
@@ -1340,6 +1449,9 @@ function escapeHtml(s){
       return { name, title, footer, autoHideSeconds, lines };
     }
 
+    crowdEditorReadFn = readCrowdEditor;
+
+
     function saveCrowdPreset(){
       const data = readCrowdEditor();
       updateState(s => {
@@ -1351,6 +1463,9 @@ function escapeHtml(s){
         }
       }, { recordHistory:false });
       scheduleCrowdAutoHide();
+      setCrowdEditorDirty(false);
+      updateCrowdQuickButtons();
+      renderCrowdPromptPreview();
     }
 
     function addCrowdPreset(fromPreset=null){
@@ -1943,11 +2058,8 @@ function getDragAfterElement(container, y){
 
     els.queue.addEventListener('drop', (e) => {
       e.preventDefault();
-      // Safari can provide an empty dataTransfer payload even when drag/drop succeeds.
-      // Use DOM order as the source of truth; only bail if nothing is currently dragging.
-      const draggedId = (e.dataTransfer && (e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text'))) || "";
-      const draggingEl = els.queue.querySelector('.queueItem.dragging');
-      if(!draggedId && !draggingEl) return;
+      const draggedId = e.dataTransfer.getData('text/plain');
+      if(!draggedId) return;
 
       const activeIds = [...els.queue.querySelectorAll('.queueItem:not(.isDone)')]
         .map(el => el.dataset.id)
@@ -2445,65 +2557,66 @@ function renderKPIs(){
   }
 
   function renderCrowdPromptPreview(){
-    if(!els.crowdPromptPreview) return;
-    const cfg = getCrowdCfg(state);
-    const p = getActiveCrowdPreset(cfg) || {};
-    const editorOpen = !!els.crowdEditor?.open;
+      if(!els.crowdPromptPreview) return;
+      const cfg = getCrowdCfg(state);
+      const p = getActiveCrowdPreset(cfg) || {};
 
-    let data = p;
-    if(editorOpen){
-      try{
-        const typed = readCrowdEditor();
-        data = Object.assign({}, p, typed);
-      }catch(_){}
+      const editorOpen = !!els.crowdEditorPanel && !els.crowdEditorPanel.hidden;
+
+      let data = p;
+      if(editorOpen && typeof crowdEditorReadFn === "function"){
+        try{
+          const typed = crowdEditorReadFn();
+          data = Object.assign({}, p, typed);
+        }catch(_){}
+      }
+
+      const title = (data.title || "").trim();
+      const footer = (data.footer || "").trim();
+      const lines = Array.isArray(data.lines) ? data.lines : [];
+
+      const root = els.crowdPromptPreview;
+      root.innerHTML = "";
+
+      const wrap = document.createElement("div");
+      wrap.className = "cpPrevInner";
+
+      const h = document.createElement("div");
+      h.className = "cpPrevTitle";
+      h.textContent = title || "CROWD PROMPT";
+      wrap.appendChild(h);
+
+      const list = document.createElement("div");
+      list.className = "cpPrevLines";
+      const max = 6;
+      for(const ln of lines.slice(0, max)){
+        const item = document.createElement("div");
+        item.className = "cpPrevLine";
+        item.textContent = ln;
+        list.appendChild(item);
+      }
+      if(lines.length > max){
+        const more = document.createElement("div");
+        more.className = "cpPrevLine cpPrevMore";
+        more.textContent = `… +${lines.length - max} more`;
+        list.appendChild(more);
+      }
+      wrap.appendChild(list);
+
+      if(footer){
+        const f = document.createElement("div");
+        f.className = "cpPrevFooter";
+        f.textContent = footer;
+        wrap.appendChild(f);
+      }
+
+      const hint = document.createElement("div");
+      hint.className = "cpPrevHint";
+      hint.textContent = cfg.enabled ? "Overlay ON (viewer sponsor hidden)" : "Overlay OFF";
+      wrap.appendChild(hint);
+
+      root.appendChild(wrap);
     }
-
-    const title = (data.title || "").trim();
-    const footer = (data.footer || "").trim();
-    const lines = Array.isArray(data.lines) ? data.lines : [];
-
-    const root = els.crowdPromptPreview;
-    root.innerHTML = "";
-
-    const wrap = document.createElement("div");
-    wrap.className = "cpPrevInner";
-
-    const h = document.createElement("div");
-    h.className = "cpPrevTitle";
-    h.textContent = title || "CROWD PROMPT";
-    wrap.appendChild(h);
-
-    const list = document.createElement("div");
-    list.className = "cpPrevLines";
-    const max = 5;
-    for(const ln of lines.slice(0, max)){
-      const item = document.createElement("div");
-      item.className = "cpPrevLine";
-      item.textContent = ln;
-      list.appendChild(item);
-    }
-    if(lines.length > max){
-      const more = document.createElement("div");
-      more.className = "cpPrevLine cpPrevMore";
-      more.textContent = `… +${lines.length - max} more`;
-      list.appendChild(more);
-    }
-    wrap.appendChild(list);
-
-    if(footer){
-      const f = document.createElement("div");
-      f.className = "cpPrevFooter";
-      f.textContent = footer;
-      wrap.appendChild(f);
-    }
-
-    const hint = document.createElement("div");
-    hint.className = "cpPrevHint";
-    hint.textContent = cfg.enabled ? "Overlay ON (viewer sponsor hidden)" : "Overlay OFF";
-    wrap.appendChild(hint);
-
-    root.appendChild(wrap);
-  }
 
   // ---- Timer-up modal (operator reminder) ----
   let timerUpDismissedSlotId = null;
@@ -2975,14 +3088,20 @@ toggleCustomAddFields();
     bindPerformerDnD();
 
     // Crowd prompt quick controls (now in right drawer)
-    if(els.btnCrowdPrev) els.btnCrowdPrev.addEventListener("click", (e) => { e.preventDefault(); cycleCrowdPreset(-1); renderSettings(); });
-    if(els.btnCrowdNext) els.btnCrowdNext.addEventListener("click", (e) => { e.preventDefault(); cycleCrowdPreset(+1); renderSettings(); });
+    if(els.btnCrowdPrev) els.btnCrowdPrev.addEventListener("click", (e) => { e.preventDefault(); cycleCrowdPreset(-1); });
+    if(els.btnCrowdNext) els.btnCrowdNext.addEventListener("click", (e) => { e.preventDefault(); cycleCrowdPreset(+1); });
     if(els.btnCrowdToggle) els.btnCrowdToggle.addEventListener("click", (e) => {
       e.preventDefault();
       const cfg = getCrowdCfg(state);
       setCrowdEnabled(!cfg.enabled);
-      renderSettings();
+      updateCrowdQuickButtons();
+      renderCrowdPromptPreview();
     });
+
+    wireCrowdEditorInteractions();
+    // Start collapsed by default
+    if(els.crowdEditorPanel) closeCrowdEditor(true);
+
 
     els.addType.addEventListener("change", toggleCustomAddFields);
 
