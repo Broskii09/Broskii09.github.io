@@ -13,7 +13,7 @@
   let lastCue = null;
 
   // Default QR image shown when a performer uses a QR layout but has no custom upload.
-  const DEFAULT_QR_SRC = "./assets/OMJN-QR.jpg";
+  const DEFAULT_QR_SRC = "./assets/OMJN-QR.png";
 
   const bg = document.getElementById("bg");
   const root = document.getElementById("root");
