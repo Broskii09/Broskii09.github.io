@@ -1806,114 +1806,62 @@ details.hbAcc .hbCatList{
 }
 
 
+/* =========================
+   Soundboard header revamp
+   Two cards: Settings (left) + Show Control (right)
+   ========================= */
+.soundboardPage .sbCardsGrid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas: "settings show";
+  gap:12px;
+  margin-bottom:12px;
+  align-items:stretch;
+}
+.soundboardPage .sbSettingsCard{ grid-area: settings; }
+.soundboardPage .sbShowControlCard{ grid-area: show; }
 
-/* ===========================
-   Operator: Crowd Prompts card
-   =========================== */
-
-.pill.tiny{ padding:3px 8px; font-size:11px; }
-
-.crowdPromptStatus{
-  display:inline-flex; align-items:center; justify-content:center;
-  padding:6px 10px; border-radius:999px;
-  font-size:12px; letter-spacing:.02em;
-  border:1px solid rgba(255,255,255,.16);
-  background:rgba(255,255,255,.08);
-  min-width:56px;
-}
-.crowdPromptStatus.on{
-  background:rgba(72,187,120,.16);
-  border-color:rgba(72,187,120,.30);
-}
-.crowdPromptStatus.off{
-  background:rgba(255,255,255,.08);
-  border-color:rgba(255,255,255,.16);
-  opacity:.85;
-}
-
-#crowdPromptCard .crowdCardBody{ display:flex; flex-direction:column; gap:10px; }
-
-.crowdCurrentRow{
-  display:flex; gap:12px; align-items:center; justify-content:space-between;
-  padding:10px 12px;
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:14px;
-  background:rgba(0,0,0,.18);
-}
-.crowdCurrentLeft{
-  display:flex; align-items:center; gap:10px;
-  min-width:0;
-}
-.crowdCurrentName{
-  font-weight:700;
-  font-size:14px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  max-width:100%;
-}
-.crowdCurrentRight{
-  display:flex; flex-direction:column; gap:2px;
-  align-items:flex-end;
-  text-align:right;
-}
-.crowdDirty{
-  color:var(--warn, #ffcc66);
-  font-weight:700;
+@media (max-width: 980px){
+  .soundboardPage .sbCardsGrid{
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "show"
+      "settings";
+  }
 }
 
-.crowdPromptPreviewWrap{ margin-top:2px; }
-.crowdPromptPreview{
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:16px;
-  padding:12px;
-  background:rgba(0,0,0,.26);
-  min-height:140px;
+.soundboardPage .sbMiniCard .cardHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.soundboardPage .sbMiniCard .cardHeader h2{
+  margin:0;
+  font-size:16px;
 }
 
-/* Preview mock */
-.cpPrevWrap{
-  border-radius:14px;
-  padding:12px;
-  background:rgba(0,0,0,.35);
-  border:1px solid rgba(255,255,255,.10);
+.soundboardPage .sbShowStatus{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px 14px;
+  align-items:center;
 }
-.cpPrevTitle{
-  font-weight:800;
-  letter-spacing:.08em;
-  font-size:12px;
-  text-transform:uppercase;
-  opacity:.95;
+.soundboardPage #sbPhase{
+  font-weight:1000;
+  letter-spacing:.4px;
 }
-.cpPrevList{ margin-top:8px; display:flex; flex-direction:column; gap:6px; }
-.cpPrevLine{
-  padding:6px 8px;
-  border-radius:10px;
-  background:rgba(255,255,255,.06);
-  border:1px solid rgba(255,255,255,.08);
-  font-size:12px;
-}
-.cpPrevMore{
-  background:transparent;
-  border:none;
-  opacity:.7;
-  padding:2px 2px;
-}
-.cpPrevFooter{
-  margin-top:10px;
-  font-size:12px;
-  opacity:.85;
-}
-.cpPrevHint{
-  margin-top:10px;
-  font-size:11px;
-  opacity:.65;
+.soundboardPage #sbTimer{
+  font-size:13px;
+  padding:9px 12px;
+  min-width:84px;
 }
 
-/* Editor panel */
-.crowdEditorPanel{
-  margin-top:2px;
-  padding:12px;
-  border-radius:16px;
-  border:1px solid rgba(255,255,255,.12);
-  background:rgba(0,0,0,.22);
+.soundboardPage .sbSafetyRow .btn{
+  white-space:nowrap;
 }
-.crowdEditorPanel .crowdPromptHelp{ margin-top:10px; opacity:.85; }
+
+.soundboardPage .sbSettingsRow .sbFadeWrap,
+.soundboardPage .sbSettingsRow .sbFreezeWrap{
+  margin:0;
+}

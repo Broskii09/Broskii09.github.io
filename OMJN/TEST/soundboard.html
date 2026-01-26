@@ -12,67 +12,96 @@
       <div class="cardHeader sbHeader">
         <div class="sbTitleWrap">
           <h2 style="margin:0;">Soundboard</h2>
-          <div class="small" id="sbPhase">—</div>
-        </div>
-
-        <div class="sbLiveControls">
-          <button class="btn small primary" id="sbStart">Start</button>
-          <button class="btn small" id="sbPause">Pause</button>
-          <button class="btn small" id="sbResume">Resume</button>
-          <button class="btn small" id="sbEnd">End → Splash</button>
-          <span class="sbTimer mono" id="sbTimer">0:00</span>
-          <button class="btn tiny" id="sbMinus30">-:30</button>
-          <button class="btn tiny" id="sbPlus30">+:30</button>
-          <button class="btn tiny" id="sbResetTime">Reset</button>
-          <button class="btn small" id="sbStopAll">Stop All</button>
-          <div class="sbFadeWrap" title="Fade-out duration when stopping sounds (Spacebar panic stop stays instant)">
-            <span class="small">Stop Fade</span>
-            <select id="sbStopFade" class="sbSelect" aria-label="Stop fade">
-              <option value="0">Instant</option>
-              <option value="150">150ms</option>
-              <option value="250">250ms</option>
-              <option value="500">500ms</option>
-              <option value="1000">1s</option>
-            </select>
-          </div>
-          <label class="sbFreezeWrap small" title="Prevent learning hotkeys from reshuffling while enabled" style="display:inline-flex; align-items:center; gap:8px; user-select:none;">
-            <input type="checkbox" id="sbFreezeHotkeys" />
-            Freeze Hotkeys
-          </label>
-        </div>
-
-        <div class="sbVolRow">
-          <div class="sbMasterVol">
-            <div class="small">Master Volume</div>
-            <div class="sbVolControls">
-              <input type="range" id="sbMasterVol" class="sbRange" min="0" max="100" step="1" value="50" aria-label="Master volume"/>
-              <div class="sbVolReadout mono" id="sbMasterVolReadout">50%</div>
-              <button class="btn tiny" id="sbMasterVolReset" type="button" title="Reset to 50%">Reset</button>
-            </div>
-            <div class="small" style="opacity:.85;">50% = normal • above 50% boosts gain</div>
-          </div>
-        </div>
-
-        <div class="row">
-          <a class="btn small" href="./operator.html">Back to Operator</a>
+          <div class="small" style="opacity:.85;">Show audio control + live timing</div>
         </div>
       </div>
 
-      <div class="cardBody sbBody">
-        <div class="sbTopMeta">
-          <div class="sbNowWrap">
-            <div class="small">Now</div>
-            <div class="sbNowName" id="sbNow">—</div>
-          </div>
-          <div class="sbNextWrap">
-            <div class="small">Next</div>
-            <div class="sbNextName" id="sbNext">—</div>
-          </div>
-          <div class="sbDeckWrap">
-            <div class="small">On Deck</div>
-            <div class="sbDeckName" id="sbDeck">—</div>
-          </div>
-        </div>
+      <div class="cardBody sbBody"><div class="sbCardsGrid">
+  <div class="card sbMiniCard sbSettingsCard">
+    <div class="cardHeader">
+      <h2>Soundboard Settings</h2>
+      <a class="btn tiny" href="./operator.html">Back to Operator</a>
+    </div>
+    <div class="cardBody">
+      <div class="sbVolRow">
+        <div class="sbMasterVol">
+    <div class="small">Master Volume</div>
+    <div class="sbVolControls">
+      <input type="range" id="sbMasterVol" class="sbRange" min="0" max="100" step="1" value="50" aria-label="Master volume"/>
+      <div class="sbVolReadout mono" id="sbMasterVolReadout">50%</div>
+      <button class="btn tiny" id="sbMasterVolReset" type="button" title="Reset to 50%">Reset</button>
+    </div>
+    <div class="small" style="opacity:.85;">50% = normal • above 50% boosts gain</div>
+  </div>
+      </div>
+
+      <div class="row wrap sbSettingsRow" style="gap:10px; justify-content:flex-start; margin-top:12px; align-items:center;">
+        <div class="sbFadeWrap" title="Fade-out duration when stopping sounds (Spacebar panic stop stays instant)">
+    <span class="small">Stop Fade</span>
+    <select id="sbStopFade" class="sbSelect" aria-label="Stop fade">
+      <option value="0">Instant</option>
+      <option value="150">150ms</option>
+      <option value="250">250ms</option>
+      <option value="500">500ms</option>
+      <option value="1000">1s</option>
+    </select>
+  </div>
+        <label class="sbFreezeWrap small" title="Prevent learning hotkeys from reshuffling while enabled" style="display:inline-flex; align-items:center; gap:8px; user-select:none;">
+    <input type="checkbox" id="sbFreezeHotkeys" />
+    Freeze Hotkeys
+  </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card sbMiniCard sbShowControlCard">
+    <div class="cardHeader">
+      <h2>Show Control</h2>
+    </div>
+    <div class="cardBody">
+      <div class="statusBanner sbShowStatus" id="sbShowStatus">
+        <span class="sbItem"><span class="sbDot" id="sbPhaseDot" aria-hidden="true"></span><span class="mono" id="sbPhase">—</span></span>
+        <span class="sbItem">Time: <span class="sbTimer mono" id="sbTimer">0:00</span></span>
+      </div>
+
+      <div class="row wrap sbTransportRow" style="gap:8px; justify-content:flex-start; margin-top:10px;">
+        <button class="btn small primary" id="sbStart">Start</button>
+        <button class="btn small" id="sbPause">Pause</button>
+        <button class="btn small" id="sbResume">Resume</button>
+        <button class="btn small" id="sbEnd">End → Splash</button>
+      </div>
+
+      <div class="row wrap sbTimeAdjustRow" style="gap:8px; justify-content:flex-start; margin-top:10px;">
+        <button class="btn tiny" id="sbMinus30">-:30</button>
+        <button class="btn tiny" id="sbPlus30">+:30</button>
+        <button class="btn tiny" id="sbResetTime">Reset</button>
+      </div>
+
+      <div class="sbTopMeta">
+  <div class="sbNowWrap">
+    <div class="small">Now</div>
+    <div class="sbNowName" id="sbNow">—</div>
+  </div>
+  <div class="sbNextWrap">
+    <div class="small">Next</div>
+    <div class="sbNextName" id="sbNext">—</div>
+  </div>
+  <div class="sbDeckWrap">
+    <div class="small">On Deck</div>
+    <div class="sbDeckName" id="sbDeck">—</div>
+  </div>
+</div>
+
+      <div class="row wrap sbSafetyRow" style="gap:10px; justify-content:flex-start; margin-top:10px; align-items:center;">
+        <button class="btn small" id="sbStopAll">Stop All</button>
+        <div class="small" style="opacity:.85;">Space = panic stop (instant)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+        
 
         <details class="sbConfig">
           <summary>Sound source</summary>

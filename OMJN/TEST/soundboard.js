@@ -6,6 +6,7 @@
   // ---- DOM ----
   const els = {
     phase: document.getElementById("sbPhase"),
+    phaseDot: document.getElementById("sbPhaseDot"),
     timer: document.getElementById("sbTimer"),
     now: document.getElementById("sbNow"),
     next: document.getElementById("sbNext"),
@@ -1476,7 +1477,21 @@ const cfg = loadCfg();
 
   // ---- Meta render ----
   function renderMeta(){
-    els.phase.textContent = state.phase || "—";
+    els.phase.textContent = ph;
+const ph = state.phase || "—";
+
+// Phase dot styling
+if(els.phaseDot){
+  els.phaseDot.classList.remove("good","warn","bad");
+  if(ph === "LIVE") els.phaseDot.classList.add("good");
+  else if(ph === "PAUSED") els.phaseDot.classList.add("warn");
+}
+
+// State-aware transport buttons (reduce mis-clicks)
+els.start.disabled = (ph !== "SPLASH");
+els.pause.disabled = (ph !== "LIVE");
+els.resume.disabled = (ph !== "PAUSED");
+els.end.disabled = !(ph === "LIVE" || ph === "PAUSED");
     const cur = state.queue.find(x=>x.id===state.currentSlotId) || null;
     els.now.textContent = cur?.displayName || "—";
     const [n1, n2] = OMJN.computeNextTwo(state);
