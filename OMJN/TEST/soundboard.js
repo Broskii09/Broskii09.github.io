@@ -256,24 +256,50 @@ function initUiPrefs(){
   const playing = new Map();
 
   function showEnableOverlay(show){
+    if(!els.enableOverlay) return;
     els.enableOverlay.style.display = show ? "flex" : "none";
   }
 
-  showEnableOverlay(true);
-    initUiPrefs();
+  audioEnabled = (ctx.state === "running");
+  showEnableOverlay(!audioEnabled);
+  initUiPrefs();
 
-els.enableBtn.addEventListener("click", async () => {
+// Enable audio (bind to any enable button, even if markup changes)
+const _enableBtns = Array.from(document.querySelectorAll("#sbEnableBtn"));
+for(const btn of _enableBtns){
+  btn.addEventListener("click", async () => {
     try{
+      // First attempt: resume the context
       await ctx.resume();
-      audioEnabled = true;
-      showEnableOverlay(false);
-      setStatus("Audio enabled.", false);
+
+      // Safari sometimes needs an extra silent start/stop to fully unlock output
+      if(ctx.state !== "running"){
+        try{
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          g.gain.value = 0;
+          osc.connect(g).connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.01);
+        }catch(_){}
+        await ctx.resume();
+      }
+
+      audioEnabled = (ctx.state === "running");
+      if(audioEnabled){
+        showEnableOverlay(false);
+        setStatus("Audio enabled.", false);
+      }else{
+        showEnableOverlay(true);
+        setStatus("Audio is still blocked. Try clicking again.", true);
+      }
     }catch(e){
+      showEnableOverlay(true);
       setStatus("Could not enable audio. Try clicking again.", true);
     }
   });
-
-  function setStatus(msg, isErr=false){
+}
+function setStatus(msg, isErr=false){
     if(!els.status) return;
     els.status.textContent = msg;
     els.status.style.color = isErr ? "var(--danger,#ff6b6b)" : "";
