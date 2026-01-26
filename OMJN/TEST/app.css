@@ -1779,15 +1779,15 @@ details.hbAcc .hbCatList{
 }
 .sbLoad{ font-size:12px; color:var(--muted); }
 .sbEnable {
-    position: absolute;
+    position: fixed;
     inset: 0;
     display: flex;
-    align-items: flex-start; /* <-- top */
-    justify-content: center; /* <-- centered horizontally */
-    padding-top: 18px; /* <-- distance from top of pads area */
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
     background: rgba(0,0,0,.55);
     backdrop-filter: blur(6px);
-    z-index: 10;
+    z-index: 500;
 }
 
 .sbEnableCard {
@@ -2118,6 +2118,7 @@ details.hbAcc .hbCatList{
   min-width: 320px;
   justify-content: center;
   gap: 10px;
+  margin-bottom: 0;
 }
 
 .soundboardPage .sbShowStatusHeader .sbItem{
