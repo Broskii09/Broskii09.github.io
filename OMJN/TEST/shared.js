@@ -602,6 +602,7 @@ return s;
 
   // ---- IndexedDB helpers for assets (compressed images) ----
   function openAssetDB(){
+    if(!("indexedDB" in window)) return Promise.reject(new Error("IndexedDB not available"));
     return new Promise((resolve, reject) => {
       const req = indexedDB.open(ASSET_DB.name, 1);
       req.onupgradeneeded = () => {
@@ -652,7 +653,28 @@ return s;
     const quality = opts.quality ?? 0.82;
     const outMime = opts.mime ?? "image/webp";
 
-    const bmp = await createImageBitmap(file);
+async function loadBitmapFromFile(f){
+  // Safari compatibility: createImageBitmap may be missing or fail for some image types.
+  if(typeof createImageBitmap === "function"){
+    try{ return await createImageBitmap(f); }catch(_){ /* fall through */ }
+  }
+  const url = URL.createObjectURL(f);
+  try{
+    const img = new Image();
+    img.decoding = "async";
+    img.src = url;
+    await new Promise((res, rej) => {
+      img.onload = () => res(true);
+      img.onerror = () => rej(new Error("Image decode failed"));
+    });
+    return img;
+  } finally {
+    try{ URL.revokeObjectURL(url); }catch(_){}
+  }
+}
+
+
+    const bmp = await loadBitmapFromFile(file);
     const w0 = bmp.width, h0 = bmp.height;
 
     const scale = Math.min(1, maxEdge / Math.max(w0, h0));
