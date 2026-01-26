@@ -3,87 +3,121 @@
   let state = OMJN.loadState();
   OMJN.applyThemeToDocument(document, state);
 
-  let lastRemainingMs = null;
-  let lastSlotId = null;
-  let overtimeFlashTimeout = null;
+  // ---- Element refs ----
+  const el = {
+    bg: document.getElementById("bg"),
+    root: document.getElementById("root"),
+    overlay: document.getElementById("overlay"),
+    splashInfo: document.getElementById("splashInfo"),
+    liveFooterBar: document.getElementById("liveFooterBar"),
 
-  let lastPhase = state.phase;
-  let startIntroPending = false;
-  let startIntroTimeout = null;
-  let lastCue = null;
+    // Start intro
+    startBanner: document.getElementById("startBanner"),
+    startBannerName: document.getElementById("startBannerName"),
+
+    // LIVE main card
+    vMainCard: document.getElementById("vMainCard"),
+    nowName: document.getElementById("nowName"),
+    timer: document.getElementById("timer"),
+    chipState: document.getElementById("chipState"),
+    chipType: document.getElementById("chipType"),
+    chipOver: document.getElementById("chipOver"),
+    chipWarn: document.getElementById("chipWarn"),
+    chipFinal: document.getElementById("chipFinal"),
+    liveNextUp: document.getElementById("liveNextUp"),
+    liveOnDeck: document.getElementById("liveOnDeck"),
+
+    // Progress bar
+    progress: document.getElementById("vProgress"),
+    progressFill: document.getElementById("vProgressFill"),
+
+    // Media column
+    vMedia: document.getElementById("vMedia"),
+    donationCard: document.getElementById("donationCard"),
+    donationText: document.getElementById("donationText"),
+    mediaBox: document.getElementById("mediaBox"),
+    mediaImg: document.getElementById("mediaImg"),
+    mediaEmpty: document.getElementById("mediaEmpty"),
+
+    // Splash cards
+    sNext: document.getElementById("sNext"),
+    sDeck: document.getElementById("sDeck"),
+    sNextSub: document.getElementById("sNextSub"),
+    sDeckSub: document.getElementById("sDeckSub"),
+
+    // House band
+    hbLineup: document.getElementById("hbLineup"),
+    hbLiveLineup: document.getElementById("hbLiveLineup"),
+
+    // Crowd Prompts
+    crowdLayer: document.getElementById("crowdLayer"),
+    crowdTitle: document.getElementById("crowdTitle"),
+    crowdLines: document.getElementById("crowdLines"),
+    crowdFooter: document.getElementById("crowdFooter"),
+
+    // Sponsor bug
+    sponsorLayer: document.getElementById("sponsorLayer"),
+    sponsorBug: document.getElementById("sponsorBug"),
+    sponsorImg: document.getElementById("sponsorImg"),
+
+    // Mic visualizer
+    vVizWrap: document.getElementById("vVizWrap"),
+    vViz: document.getElementById("vViz"),
+    btnVizMic: document.getElementById("btnVizMic"),
+  };
 
   // Default QR image shown when a performer uses a QR layout but has no custom upload.
   const DEFAULT_QR_SRC = "./assets/OMJN-QR.png";
 
-  const bg = document.getElementById("bg");
-  const root = document.getElementById("root");
-  const overlay = document.getElementById("overlay");
-  const splashInfo = document.getElementById("splashInfo");
-  const liveFooterBar = document.getElementById("liveFooterBar");
-
-  // Sponsor bug overlay
-  const sponsorLayer = document.getElementById("sponsorLayer");
-  const sponsorBug = document.getElementById("sponsorBug");
-  const sponsorImg = document.getElementById("sponsorImg");
-  const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
-
- // Crowd Prompts overlay (full-screen text slide)
-  const crowdLayer = document.getElementById("crowdLayer");
-  const crowdTitleEl = document.getElementById("crowdTitle");
-  const crowdLinesEl = document.getElementById("crowdLines");
-  const crowdFooterEl = document.getElementById("crowdFooter");
-
-
-  const vMainCard = document.getElementById("vMainCard");
-  const nowName = document.getElementById("nowName");
-  const timerEl = document.getElementById("timer");
-  const chipState = document.getElementById("chipState");
-  const chipType = document.getElementById("chipType");
-  const chipOver = document.getElementById("chipOver");
-  const chipWarn = document.getElementById("chipWarn");
-  const chipFinal = document.getElementById("chipFinal");
-  const liveNextUp = document.getElementById("liveNextUp");
-  const liveOnDeck = document.getElementById("liveOnDeck");
-
-  const startBanner = document.getElementById("startBanner");
-  const startBannerName = document.getElementById("startBannerName");
-
-
-  const vMedia = document.getElementById("vMedia");
-  const donationCard = document.getElementById("donationCard");
-  const mediaBox = document.getElementById("mediaBox");
-
-  const mediaImg = document.getElementById("mediaImg");
-  const mediaEmpty = document.getElementById("mediaEmpty");
-  const donationText = document.getElementById("donationText");
-
-  const sNext = document.getElementById("sNext");
-  const sDeck = document.getElementById("sDeck");
-  const sNextSub = document.getElementById("sNextSub");
-  const sDeckSub = document.getElementById("sDeckSub");
-
-  const hbLineup = document.getElementById("hbLineup");
-  const hbLiveLineup = document.getElementById("hbLiveLineup");
-
-  // Mic visualizer
-  const vVizWrap = document.getElementById("vVizWrap");
-  const vViz = document.getElementById("vViz");
-  const btnVizMic = document.getElementById("btnVizMic");
-
   // Operator uses this to show Viewer connection status
   const VIEWER_HEARTBEAT_KEY = "omjn.viewerHeartbeat.v1";
   setInterval(() => {
-    try{ localStorage.setItem(VIEWER_HEARTBEAT_KEY, String(Date.now())); }catch(_){ }
+    try { localStorage.setItem(VIEWER_HEARTBEAT_KEY, String(Date.now())); } catch (_) {}
   }, 1000);
 
-  let currentAssetUrl = null;
-  let lastMediaKey = null;
+  // ---- Render caches ----
+  let lastPhaseKey = null;
   let lastBgPath = null;
 
+  let lastSlotId = null;
+  let lastSlotStaticKey = null;
+  let lastNextDeckKey = null;
+  let lastLayoutKey = null;
+
+  let lastSplashKey = null;
+
+  let lastHbSplashKey = null;
+  let lastHbLiveKey = null;
+
+  let lastTimerText = null;
+  let lastChipStateKey = null;
+  let lastWarnFinalKey = null;
+  let lastProgressKey = null;
+
+  // Cue tracking
+  let lastRemainingMs = null;
+  let overtimeFlashTimeout = null;
+  let lastCue = null;
+
+  // Start intro runtime
+  let startIntroPending = false;
+  let startIntroTimeout = null;
+
+  // Media runtime
+  let currentAssetUrl = null;
+  let lastMediaKey = null;
+  let mediaToken = 0;
+
   // Sponsor bug runtime
+  const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
   let currentSponsorObjectUrl = null;
   let lastSponsorKey = null;
   let sponsorLoadToken = 0;
+
+  // Crowd prompts runtime (local auto-hide)
+  let crowdVisible = false;
+  let lastCrowdKey = null;
+  let crowdHideTimeout = null;
 
   // --- Visualizer runtime ---
   const viz = {
@@ -96,43 +130,41 @@
     dpr: 1,
   };
 
-  function vizEnabled(){
+  function vizEnabled() {
     return !!(state.viewerPrefs?.visualizerEnabled);
   }
-  function vizSensitivity(){
+  function vizSensitivity() {
     const n = Number(state.viewerPrefs?.visualizerSensitivity);
     return Number.isFinite(n) ? Math.max(0.25, Math.min(4, n)) : 1.0;
   }
-
-  function vizShouldRender(){
-    return state.phase === "LIVE" && vizEnabled() && !!viz.analyser && !!vVizWrap;
+  function vizShouldRender() {
+    return state.phase === "LIVE" && vizEnabled() && !!viz.analyser && !!el.vVizWrap;
   }
 
-  function resizeVizCanvas(){
-    if(!vViz) return;
-    const rect = vViz.getBoundingClientRect();
+  function resizeVizCanvas() {
+    if (!el.vViz) return;
+    const rect = el.vViz.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     viz.dpr = dpr;
     const w = Math.max(1, Math.round(rect.width * dpr));
     const h = Math.max(1, Math.round(rect.height * dpr));
-    if(vViz.width !== w) vViz.width = w;
-    if(vViz.height !== h) vViz.height = h;
+    if (el.vViz.width !== w) el.vViz.width = w;
+    if (el.vViz.height !== h) el.vViz.height = h;
   }
 
-  function getAccent(){
+  function getAccent() {
     const c = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
     return c || "#00c2ff";
   }
 
-  function drawRoundedRect(ctx, x, y, w, h, r){
+  function drawRoundedRect(ctx, x, y, w, h, r) {
     const rr = Math.max(0, Math.min(r, Math.min(w, h) / 2));
-    if(typeof ctx.roundRect === "function"){
+    if (typeof ctx.roundRect === "function") {
       ctx.beginPath();
       ctx.roundRect(x, y, w, h, rr);
       ctx.fill();
       return;
     }
-    // fallback path
     ctx.beginPath();
     ctx.moveTo(x + rr, y);
     ctx.lineTo(x + w - rr, y);
@@ -147,22 +179,22 @@
     ctx.fill();
   }
 
-  function renderVizFrame(){
-    if(!vizShouldRender()){
+  function renderVizFrame() {
+    if (!vizShouldRender()) {
       viz.running = false;
       viz.raf = null;
       return;
     }
 
-    const ctx = vViz.getContext("2d", { alpha: true });
-    if(!ctx){
+    const ctx = el.vViz.getContext("2d", { alpha: true });
+    if (!ctx) {
       viz.running = false;
       viz.raf = null;
       return;
     }
 
-    const w = vViz.width;
-    const h = vViz.height;
+    const w = el.vViz.width;
+    const h = el.vViz.height;
     ctx.clearRect(0, 0, w, h);
 
     viz.analyser.getByteFrequencyData(viz.data);
@@ -170,25 +202,21 @@
     const bars = 64; // TV-friendly
     const mid = h / 2;
     const gap = Math.max(1, Math.round(2 * viz.dpr));
-    const barW = Math.max(1, Math.floor((w - (gap * (bars - 1))) / bars));
+    const barW = Math.max(1, Math.floor((w - gap * (bars - 1)) / bars));
     const stride = Math.max(1, Math.floor(viz.data.length / bars));
 
-    const accent = getAccent();
-    ctx.fillStyle = accent;
+    ctx.fillStyle = getAccent();
 
     const sens = vizSensitivity();
     const maxHalf = Math.max(1, Math.floor(mid - 6 * viz.dpr));
     const radius = Math.max(2, Math.round(6 * viz.dpr));
 
-    for(let i = 0; i < bars; i++){
+    for (let i = 0; i < bars; i++) {
       const v = viz.data[i * stride] / 255; // 0..1
-      // soft curve so lows still move, highs don't peg
       const curved = Math.pow(v, 0.65);
       const amp = Math.min(1, curved * sens);
       const bh = Math.max(1, Math.floor(amp * maxHalf));
       const x = i * (barW + gap);
-
-      // draw top and bottom mirrored from center
       drawRoundedRect(ctx, x, mid - bh, barW, bh, radius);
       drawRoundedRect(ctx, x, mid, barW, bh, radius);
     }
@@ -196,9 +224,9 @@
     viz.raf = requestAnimationFrame(renderVizFrame);
   }
 
-  async function enableMicForVisualizer(){
-    try{
-      if(viz.stream) return true;
+  async function enableMicForVisualizer() {
+    try {
+      if (viz.stream) return true;
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       viz.stream = stream;
 
@@ -211,63 +239,66 @@
       src.connect(viz.analyser);
       viz.data = new Uint8Array(viz.analyser.frequencyBinCount);
 
-      // canvas sizing
       resizeVizCanvas();
       window.addEventListener("resize", resizeVizCanvas);
 
-      // only render when LIVE
       maybeStartViz();
       return true;
-    }catch(err){
+    } catch (err) {
       console.warn("Mic visualizer enable failed:", err);
       return false;
     }
   }
 
-  function maybeStartViz(){
-    if(!vizShouldRender()){
-      if(vVizWrap) vVizWrap.style.display = "none";
-      if(viz.running && viz.raf){
+  function maybeStartViz() {
+    if (!el.vVizWrap) return;
+
+    if (!vizShouldRender()) {
+      el.vVizWrap.style.display = "none";
+      if (viz.running && viz.raf) {
         cancelAnimationFrame(viz.raf);
         viz.raf = null;
       }
       viz.running = false;
       return;
     }
-    if(vVizWrap) vVizWrap.style.display = "block";
-    if(!viz.running){
+
+    el.vVizWrap.style.display = "block";
+    if (!viz.running) {
       viz.running = true;
       viz.raf = requestAnimationFrame(renderVizFrame);
     }
   }
 
-  function updateVizSetupButton(){
-    if(!btnVizMic) return;
-    const shouldShow = (state.phase === "SPLASH") && vizEnabled() && !viz.stream;
-    btnVizMic.style.display = shouldShow ? "inline-flex" : "none";
+  function updateVizSetupButton() {
+    if (!el.btnVizMic) return;
+    const shouldShow = state.phase === "SPLASH" && vizEnabled() && !viz.stream;
+    el.btnVizMic.style.display = shouldShow ? "inline-flex" : "none";
   }
 
-  function setBg(){
+  // ---- Background ----
+  function setBg() {
     const path = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
-    if(path === lastBgPath) return;
+    if (path === lastBgPath) return;
     lastBgPath = path;
-    bg.style.backgroundImage = `url('${path}')`;
+    if (el.bg) el.bg.style.backgroundImage = `url('${path}')`;
   }
 
-  function renderHouseBandLineup(targetEl, opts={}){
-    if(!targetEl) return;
+  // ---- House Band ----
+  function renderHouseBandLineup(targetEl, opts = {}) {
+    if (!targetEl) return;
     const top = OMJN.getHouseBandTopPerCategory(state);
-    const fmt = (state.viewerPrefs?.hbFooterFormat || "categoryFirst");
+    const fmt = state.viewerPrefs?.hbFooterFormat || "categoryFirst";
     targetEl.innerHTML = "";
-    if(!top.length) return;
+    if (!top.length) return;
 
     const instrumentLabel = (m) => {
-      if(!m) return "";
-      if(m.instrumentId === "custom") return OMJN.sanitizeText(m.customInstrument || "");
-      return (OMJN.houseBandInstrumentOptions().find(x => x.id === m.instrumentId)?.label || "");
+      if (!m) return "";
+      if (m.instrumentId === "custom") return OMJN.sanitizeText(m.customInstrument || "");
+      return OMJN.houseBandInstrumentOptions().find((x) => x.id === m.instrumentId)?.label || "";
     };
 
-    for(const item of top){
+    for (const item of top) {
       const m = item.member;
       const chip = document.createElement("span");
       chip.className = "hbChip" + (opts.compact ? " hbChipFooter" : "");
@@ -279,21 +310,20 @@
 
       const catLower = (cat || "").toLowerCase();
       const instLower = (inst || "").toLowerCase();
-      const instExtra = (inst && instLower && instLower !== catLower) ? inst : "";
+      const instExtra = inst && instLower && instLower !== catLower ? inst : "";
 
-      if(fmt === "nameFirst"){
-        if(name){
+      if (fmt === "nameFirst") {
+        if (name) {
           txt = instExtra ? `${name} (${cat} - ${instExtra})` : `${name} (${cat})`;
-        }else if(inst){
+        } else if (inst) {
           txt = instExtra ? `${instExtra} (${cat})` : `${cat}: ${inst}`;
-        }else{
+        } else {
           txt = cat;
         }
-      }else{
-        // categoryFirst (default)
-        if(name && instExtra) txt = `${cat}: ${name} (${instExtra})`;
-        else if(name) txt = `${cat}: ${name}`;
-        else if(inst) txt = `${cat}: ${inst}`;
+      } else {
+        if (name && instExtra) txt = `${cat}: ${name} (${instExtra})`;
+        else if (name) txt = `${cat}: ${name}`;
+        else if (inst) txt = `${cat}: ${inst}`;
         else txt = cat;
       }
 
@@ -302,192 +332,211 @@
     }
   }
 
+  function hbKey() {
+    const top = OMJN.getHouseBandTopPerCategory(state);
+    const fmt = state.viewerPrefs?.hbFooterFormat || "categoryFirst";
+    return JSON.stringify({ fmt, top: top.map((t) => ({ c: t.categoryLabel, n: t.member?.name || "", i: t.member?.instrumentId || "", x: t.member?.customInstrument || "" })) });
+  }
 
-  function clearCardCues(){
-    if(!vMainCard) return;
-    vMainCard.classList.remove("pulseWarn","pulseFinal","overtimeFlash","pulseWarnOnce","pulseFinalOnce","cue-warn","cue-final","cue-overtime");
-    if(overtimeFlashTimeout){
+  // ---- Card cues ----
+  function clearCardCues() {
+    if (!el.vMainCard) return;
+    el.vMainCard.classList.remove(
+      "pulseWarn",
+      "pulseFinal",
+      "overtimeFlash",
+      "pulseWarnOnce",
+      "pulseFinalOnce",
+      "cue-warn",
+      "cue-final",
+      "cue-overtime"
+    );
+    if (overtimeFlashTimeout) {
       clearTimeout(overtimeFlashTimeout);
       overtimeFlashTimeout = null;
     }
   }
 
-  function triggerOvertimeFlash(){
-    if(!vMainCard) return;
-    // Remove pulse so flash stands out
-    vMainCard.classList.remove("pulseWarn","pulseFinal");
+  function triggerOvertimeFlash() {
+    if (!el.vMainCard) return;
+    el.vMainCard.classList.remove("pulseWarn", "pulseFinal");
+    el.vMainCard.classList.remove("overtimeFlash");
+    void el.vMainCard.offsetWidth;
+    el.vMainCard.classList.add("overtimeFlash");
 
-    // Restart animation reliably
-    vMainCard.classList.remove("overtimeFlash");
-    void vMainCard.offsetWidth; // force reflow
-    vMainCard.classList.add("overtimeFlash");
-
-    if(overtimeFlashTimeout) clearTimeout(overtimeFlashTimeout);
+    if (overtimeFlashTimeout) clearTimeout(overtimeFlashTimeout);
     overtimeFlashTimeout = setTimeout(() => {
-      vMainCard.classList.remove("overtimeFlash");
+      el.vMainCard.classList.remove("overtimeFlash");
       overtimeFlashTimeout = null;
     }, 1050);
   }
 
-  
-  function triggerStartIntro(name){
-    if(!root) return;
-    if(startIntroTimeout){
-      clearTimeout(startIntroTimeout);
-      startIntroTimeout = null;
-    }
-    if(startBannerName) startBannerName.textContent = name || "—";
-    if(startBanner) startBanner.style.display = "flex";
-    root.classList.add("startIntro");
-    startIntroTimeout = setTimeout(() => {
-      root.classList.remove("startIntro");
-      if(startBanner) startBanner.style.display = "none";
-      startIntroTimeout = null;
-    }, 1600);
-  }
+  function applyCardCues(remainingMs, warnAtMs, finalAtMs) {
+    if (!el.vMainCard) return;
 
-function applyCardCues(remainingMs, warnAtMs, finalAtMs){
-    if(!vMainCard) return;
-
-    // One-time flash when crossing into overtime
-    if(lastRemainingMs !== null && lastRemainingMs > 0 && remainingMs <= 0){
+    if (lastRemainingMs !== null && lastRemainingMs > 0 && remainingMs <= 0) {
       triggerOvertimeFlash();
     }
 
-    // Cue state (color shift + gentle glow), plus a one-time pulse when crossing thresholds
-    const cue = (remainingMs <= 0) ? "overtime"
-      : (remainingMs <= finalAtMs) ? "final"
-      : (remainingMs <= warnAtMs) ? "warn"
-      : "normal";
+    const cue = remainingMs <= 0 ? "overtime" : remainingMs <= finalAtMs ? "final" : remainingMs <= warnAtMs ? "warn" : "normal";
 
-    vMainCard.classList.remove("cue-warn","cue-final","cue-overtime");
-    if(cue === "warn") vMainCard.classList.add("cue-warn");
-    if(cue === "final") vMainCard.classList.add("cue-final");
-    if(cue === "overtime") vMainCard.classList.add("cue-overtime");
+    el.vMainCard.classList.remove("cue-warn", "cue-final", "cue-overtime");
+    if (cue === "warn") el.vMainCard.classList.add("cue-warn");
+    if (cue === "final") el.vMainCard.classList.add("cue-final");
+    if (cue === "overtime") el.vMainCard.classList.add("cue-overtime");
 
-    // One-time pulse when entering warn/final (not continuous)
-    vMainCard.classList.remove("pulseWarnOnce","pulseFinalOnce");
-    if(lastCue && lastCue !== cue){
-      if(cue === "warn"){
-        vMainCard.classList.add("pulseWarnOnce");
-        setTimeout(() => vMainCard.classList.remove("pulseWarnOnce"), 750);
-      } else if(cue === "final"){
-        vMainCard.classList.add("pulseFinalOnce");
-        setTimeout(() => vMainCard.classList.remove("pulseFinalOnce"), 750);
+    el.vMainCard.classList.remove("pulseWarnOnce", "pulseFinalOnce");
+    if (lastCue && lastCue !== cue) {
+      if (cue === "warn") {
+        el.vMainCard.classList.add("pulseWarnOnce");
+        setTimeout(() => el.vMainCard.classList.remove("pulseWarnOnce"), 750);
+      } else if (cue === "final") {
+        el.vMainCard.classList.add("pulseFinalOnce");
+        setTimeout(() => el.vMainCard.classList.remove("pulseFinalOnce"), 750);
       }
     }
     lastCue = cue;
-
     lastRemainingMs = remainingMs;
   }
 
-  async function setMedia(slot){
-    // Avoid expensive IndexedDB reads + image reloads on every 250ms tick.
+  // ---- Start intro ----
+  function triggerStartIntro(name) {
+    if (!el.root) return;
+    if (startIntroTimeout) {
+      clearTimeout(startIntroTimeout);
+      startIntroTimeout = null;
+    }
+
+    // No lower-third banner — we just punch in the hero card briefly.
+    el.root.classList.add("startIntro");
+    startIntroTimeout = setTimeout(() => {
+      el.root.classList.remove("startIntro");
+      startIntroTimeout = null;
+    }, 650);
+  }
+
+  // ---- Media ----
+  async function setMedia(slot) {
     const media = slot?.media || {};
-    const mediaKey = slot
-      ? `${slot.id}|${media.mediaLayout || ""}|${media.imageAssetId || ""}`
-      : "none";
-    if(mediaKey === lastMediaKey) return;
+    const mediaKey = slot ? `${slot.id}|${media.mediaLayout || ""}|${media.imageAssetId || ""}` : "none";
+    if (mediaKey === lastMediaKey) return;
     lastMediaKey = mediaKey;
 
-    // Clear old URL
-    if(currentAssetUrl){
-      URL.revokeObjectURL(currentAssetUrl);
+    const tok = ++mediaToken;
+
+    if (currentAssetUrl) {
+      try { URL.revokeObjectURL(currentAssetUrl); } catch (_) {}
       currentAssetUrl = null;
     }
 
-    if(!slot){
-      mediaBox.style.display = "none";
-      mediaImg.style.display = "none";
-      mediaEmpty.style.display = "none";
+    if (!slot) {
+      if (el.mediaBox) el.mediaBox.style.display = "none";
+      if (el.mediaImg) el.mediaImg.style.display = "none";
+      if (el.mediaEmpty) el.mediaEmpty.style.display = "none";
       return;
     }
 
     const layout = media.mediaLayout || "NONE";
     const hasUploaded = !!media.imageAssetId;
-    const usesDefaultQr = !hasUploaded && ["QR_ONLY","IMAGE_PLUS_QR"].includes(layout);
+    const usesDefaultQr = !hasUploaded && ["QR_ONLY", "IMAGE_PLUS_QR"].includes(layout);
+    const wantImage = ["IMAGE_ONLY", "QR_ONLY", "IMAGE_PLUS_QR"].includes(layout) && (hasUploaded || usesDefaultQr);
 
-    const wantImage = ["IMAGE_ONLY","QR_ONLY","IMAGE_PLUS_QR"].includes(layout) && (hasUploaded || usesDefaultQr);
-
-    if(!wantImage){
-      mediaBox.style.display = "none";
-      mediaImg.style.display = "none";
-      mediaEmpty.style.display = "none";
+    if (!wantImage) {
+      if (el.mediaBox) el.mediaBox.style.display = "none";
+      if (el.mediaImg) el.mediaImg.style.display = "none";
+      if (el.mediaEmpty) el.mediaEmpty.style.display = "none";
       return;
     }
 
-    // If the performer is set to a QR layout but has no custom upload, show the site default QR.
-    if(usesDefaultQr){
-      mediaImg.src = DEFAULT_QR_SRC;
-      mediaImg.style.display = "block";
-      mediaEmpty.style.display = "none";
-      mediaBox.style.display = "flex";
+    if (usesDefaultQr) {
+      if (tok !== mediaToken) return;
+      el.mediaImg.src = DEFAULT_QR_SRC;
+      el.mediaImg.style.display = "block";
+      el.mediaEmpty.style.display = "none";
+      el.mediaBox.style.display = "flex";
       return;
     }
 
-    const blob = await OMJN.getAsset(media.imageAssetId);
-    if(!blob){
-      // If the uploaded asset can't be loaded (e.g., cleared storage), fall back to the default QR for QR layouts.
-      if(["QR_ONLY","IMAGE_PLUS_QR"].includes(layout)){
-        mediaImg.src = DEFAULT_QR_SRC;
-        mediaImg.style.display = "block";
-        mediaEmpty.style.display = "none";
-        mediaBox.style.display = "flex";
+    let blob = null;
+    try {
+      blob = await OMJN.getAsset(media.imageAssetId);
+    } catch (_) {
+      blob = null;
+    }
+    if (tok !== mediaToken) return;
+
+    if (!blob) {
+      if (["QR_ONLY", "IMAGE_PLUS_QR"].includes(layout)) {
+        el.mediaImg.src = DEFAULT_QR_SRC;
+        el.mediaImg.style.display = "block";
+        el.mediaEmpty.style.display = "none";
+        el.mediaBox.style.display = "flex";
       } else {
-        mediaBox.style.display = "none";
-        mediaImg.style.display = "none";
-        mediaEmpty.style.display = "none";
+        el.mediaBox.style.display = "none";
+        el.mediaImg.style.display = "none";
+        el.mediaEmpty.style.display = "none";
       }
       return;
     }
 
     currentAssetUrl = URL.createObjectURL(blob);
-    mediaImg.src = currentAssetUrl;
-    mediaImg.style.display = "block";
-    mediaEmpty.style.display = "none";
-    mediaBox.style.display = "flex";
+    el.mediaImg.src = currentAssetUrl;
+    el.mediaImg.style.display = "block";
+    el.mediaEmpty.style.display = "none";
+    el.mediaBox.style.display = "flex";
   }
 
-  // --- Sponsor bug ---
-  const SPONSOR_BASE_PAD = 48; // match viewerOverlay padding
-
-  function getSponsorCfg(){
+  // ---- Sponsor bug ----
+  function getSponsorCfg() {
     const d = OMJN.defaultState();
     return state.viewerPrefs?.sponsorBug || d.viewerPrefs.sponsorBug;
   }
 
-  function writeSponsorStatus(payload){
-    try{
+  function writeSponsorStatus(payload) {
+    try {
       const obj = Object.assign({ at: Date.now() }, payload || {});
       localStorage.setItem(SPONSOR_VIEWER_STATUS_KEY, JSON.stringify(obj));
-    }catch(_){ }
+    } catch (_) {}
   }
 
-  function hideSponsor(reason){
-    if(sponsorLayer) sponsorLayer.style.display = "none";
-    if(currentSponsorObjectUrl){
-      try{ URL.revokeObjectURL(currentSponsorObjectUrl); }catch(_){ }
+  function hideSponsor(reason) {
+    if (el.sponsorLayer) el.sponsorLayer.style.display = "none";
+    if (currentSponsorObjectUrl) {
+      try { URL.revokeObjectURL(currentSponsorObjectUrl); } catch (_) {}
       currentSponsorObjectUrl = null;
     }
-    if(sponsorImg) sponsorImg.src = "";
+    if (el.sponsorImg) el.sponsorImg.src = "";
     writeSponsorStatus({ ok: true, hidden: true, reason: reason || "hidden" });
   }
 
-  async function setSponsorBug(){
-    if(!sponsorLayer || !sponsorBug || !sponsorImg) return;
+  function getSafeInsets() {
+    // Values are resolved from env(safe-area-inset-*). If unsupported, these are 0.
+    try {
+      const cs = getComputedStyle(el.root || document.documentElement);
+      const t = parseInt(cs.getPropertyValue("--safe-top"), 10) || 0;
+      const r = parseInt(cs.getPropertyValue("--safe-right"), 10) || 0;
+      const b = parseInt(cs.getPropertyValue("--safe-bottom"), 10) || 0;
+      const l = parseInt(cs.getPropertyValue("--safe-left"), 10) || 0;
+      const p = parseInt(cs.getPropertyValue("--vPad"), 10) || 48;
+      return { t, r, b, l, p };
+    } catch (_) {
+      return { t: 0, r: 0, b: 0, l: 0, p: 48 };
+    }
+  }
+
+  async function setSponsorBug() {
+    if (!el.sponsorLayer || !el.sponsorBug || !el.sponsorImg) return;
 
     const cfg = getSponsorCfg() || {};
     const url = String(cfg.url || "").trim();
-    const footerVisible = !!(liveFooterBar && liveFooterBar.style.display !== "none" && !liveFooterBar.hidden);
+    const footerVisible = !!(el.liveFooterBar && el.liveFooterBar.style.display !== "none" && !el.liveFooterBar.hidden);
 
     // Hide sponsor bug during Crowd Prompts slides (clean interstitial)
-    const crowdOn = !!(state.viewerPrefs?.crowdPrompts?.enabled);
-    if(crowdOn){
+    if (crowdVisible) {
       hideSponsor("crowd-prompts");
       return;
     }
 
-    // Max size cap: % of current viewport (vmin)
     const maxPctRaw = Number(cfg.maxSizePct ?? 18);
     const maxPct = Number.isFinite(maxPctRaw) ? Math.max(5, Math.min(25, maxPctRaw)) : 18;
     const vmin = Math.max(1, Math.min(window.innerWidth || 1, window.innerHeight || 1));
@@ -506,384 +555,579 @@ function applyCardCues(remainingMs, warnAtMs, finalAtMs){
       sponsorCapPx,
       opacity: cfg.opacity,
       safeMargin: cfg.safeMargin,
-      footerVisible
+      footerVisible,
     });
-    if(key === lastSponsorKey) return;
+    if (key === lastSponsorKey) return;
     lastSponsorKey = key;
 
     const shouldShow = !!cfg.enabled && (!cfg.showLiveOnly || state.phase === "LIVE");
-    if(!shouldShow){
+    if (!shouldShow) {
       hideSponsor(cfg.enabled ? "not-live" : "disabled");
       return;
     }
 
-    // Layout
     const pos = String(cfg.position || "TR").toUpperCase();
     const safe = Math.max(0, Math.min(200, parseInt(cfg.safeMargin ?? 16, 10) || 0));
-    const pad = SPONSOR_BASE_PAD + safe;
+    const insets = getSafeInsets();
+
+    // Base padding matches viewerOverlay; plus safe-area inset on that edge.
+    const basePad = insets.p;
+
+    let padTop = basePad + safe + insets.t;
+    let padRight = basePad + safe + insets.r;
+    let padBottom = basePad + safe + insets.b;
+    let padLeft = basePad + safe + insets.l;
 
     let bottomExtra = 0;
-    if(footerVisible && (pos === "BL" || pos === "BR")){
-      try{
-        const r = liveFooterBar.getBoundingClientRect();
+    if (footerVisible && (pos === "BL" || pos === "BR")) {
+      try {
+        const r = el.liveFooterBar.getBoundingClientRect();
         bottomExtra = Math.round(r.height + 18);
-      }catch(_){ }
+      } catch (_) {}
     }
 
-    sponsorBug.classList.remove("posTL","posTR","posBL","posBR");
-    sponsorBug.classList.add("pos" + (pos === "TL" || pos === "TR" || pos === "BL" || pos === "BR" ? pos : "TR"));
+    el.sponsorBug.classList.remove("posTL", "posTR", "posBL", "posBR");
+    el.sponsorBug.classList.add("pos" + (pos === "TL" || pos === "TR" || pos === "BL" || pos === "BR" ? pos : "TR"));
 
-    sponsorBug.style.top = "";
-    sponsorBug.style.right = "";
-    sponsorBug.style.bottom = "";
-    sponsorBug.style.left = "";
+    el.sponsorBug.style.top = "";
+    el.sponsorBug.style.right = "";
+    el.sponsorBug.style.bottom = "";
+    el.sponsorBug.style.left = "";
 
-    if(pos === "TL"){
-      sponsorBug.style.top = pad + "px";
-      sponsorBug.style.left = pad + "px";
-    }else if(pos === "TR"){
-      sponsorBug.style.top = pad + "px";
-      sponsorBug.style.right = pad + "px";
-    }else if(pos === "BL"){
-      sponsorBug.style.bottom = (pad + bottomExtra) + "px";
-      sponsorBug.style.left = pad + "px";
-    }else{
-      sponsorBug.style.bottom = (pad + bottomExtra) + "px";
-      sponsorBug.style.right = pad + "px";
+    if (pos === "TL") {
+      el.sponsorBug.style.top = padTop + "px";
+      el.sponsorBug.style.left = padLeft + "px";
+    } else if (pos === "TR") {
+      el.sponsorBug.style.top = padTop + "px";
+      el.sponsorBug.style.right = padRight + "px";
+    } else if (pos === "BL") {
+      el.sponsorBug.style.bottom = padBottom + bottomExtra + "px";
+      el.sponsorBug.style.left = padLeft + "px";
+    } else {
+      el.sponsorBug.style.bottom = padBottom + bottomExtra + "px";
+      el.sponsorBug.style.right = padRight + "px";
     }
 
     const scale = Math.max(0.25, Math.min(2, Number(cfg.scale ?? 1)));
     const opacity = Math.max(0, Math.min(1, Number(cfg.opacity ?? 1)));
-    sponsorBug.style.setProperty("--sponsorScale", String(scale));
-    sponsorBug.style.setProperty("--sponsorCap", sponsorCapPx + "px");
-    sponsorBug.style.opacity = String(opacity);
+    el.sponsorBug.style.setProperty("--sponsorScale", String(scale));
+    el.sponsorBug.style.setProperty("--sponsorCap", sponsorCapPx + "px");
+    el.sponsorBug.style.opacity = String(opacity);
 
-    // Pick source (chosen type, then fallback)
-    const prefer = (cfg.sourceType === "url") ? ["url","upload"] : ["upload","url"];
+    const prefer = cfg.sourceType === "url" ? ["url", "upload"] : ["upload", "url"];
 
     let used = null;
     let blob = null;
-    for(const m of prefer){
-      if(m === "upload" && cfg.uploadAssetId){
-        try{ blob = await OMJN.getAsset(cfg.uploadAssetId); }catch(_){ blob = null; }
-        if(blob){ used = "upload"; break; }
+    for (const m of prefer) {
+      if (m === "upload" && cfg.uploadAssetId) {
+        try { blob = await OMJN.getAsset(cfg.uploadAssetId); } catch (_) { blob = null; }
+        if (blob) {
+          used = "upload";
+          break;
+        }
       }
-      if(m === "url" && url){
+      if (m === "url" && url) {
         used = "url";
         break;
       }
     }
 
-    if(!used){
+    if (!used) {
       hideSponsor("missing-source");
-      writeSponsorStatus({ ok:false, hidden:true, error:"missing-source" });
+      writeSponsorStatus({ ok: false, hidden: true, error: "missing-source" });
       return;
     }
 
-    // Clear prior object url if switching away from upload
-    if(used !== "upload" && currentSponsorObjectUrl){
-      try{ URL.revokeObjectURL(currentSponsorObjectUrl); }catch(_){ }
+    if (used !== "upload" && currentSponsorObjectUrl) {
+      try { URL.revokeObjectURL(currentSponsorObjectUrl); } catch (_) {}
       currentSponsorObjectUrl = null;
     }
 
-    if(used === "upload"){
-      if(currentSponsorObjectUrl){
-        try{ URL.revokeObjectURL(currentSponsorObjectUrl); }catch(_){ }
+    if (used === "upload") {
+      if (currentSponsorObjectUrl) {
+        try { URL.revokeObjectURL(currentSponsorObjectUrl); } catch (_) {}
       }
       currentSponsorObjectUrl = URL.createObjectURL(blob);
-      sponsorImg.onload = null;
-      sponsorImg.onerror = null;
-      sponsorImg.src = currentSponsorObjectUrl;
-      sponsorLayer.style.display = "block";
-      writeSponsorStatus({ ok:true, hidden:false, source:"upload" });
+      el.sponsorImg.onload = null;
+      el.sponsorImg.onerror = null;
+      el.sponsorImg.src = currentSponsorObjectUrl;
+      el.sponsorLayer.style.display = "block";
+      writeSponsorStatus({ ok: true, hidden: false, source: "upload" });
       return;
     }
 
-    // URL source: validate load
     const tok = ++sponsorLoadToken;
-    const loaded = await new Promise(resolve => {
-      sponsorImg.onload = () => resolve(true);
-      sponsorImg.onerror = () => resolve(false);
-      sponsorImg.src = url;
+    const loaded = await new Promise((resolve) => {
+      el.sponsorImg.onload = () => resolve(true);
+      el.sponsorImg.onerror = () => resolve(false);
+      el.sponsorImg.src = url;
     });
-    if(tok != sponsorLoadToken) return; // stale update
+    if (tok !== sponsorLoadToken) return;
 
-    if(loaded){
-      sponsorLayer.style.display = "block";
-      writeSponsorStatus({ ok:true, hidden:false, source:"url" });
-    }else{
-      sponsorLayer.style.display = "none";
-      sponsorImg.src = "";
-      writeSponsorStatus({ ok:false, hidden:true, source:"url", error:"bad-url" });
+    if (loaded) {
+      el.sponsorLayer.style.display = "block";
+      writeSponsorStatus({ ok: true, hidden: false, source: "url" });
+    } else {
+      el.sponsorLayer.style.display = "none";
+      el.sponsorImg.src = "";
+      writeSponsorStatus({ ok: false, hidden: true, source: "url", error: "bad-url" });
     }
   }
 
-
-
-  // --- Crowd Prompts (Viewer) ---
-  function getCrowdCfg(){
+  // ---- Crowd Prompts (Viewer) ----
+  function getCrowdCfg() {
     const d = OMJN.defaultState();
     return state.viewerPrefs?.crowdPrompts || d.viewerPrefs.crowdPrompts;
   }
 
-  function getActiveCrowdPreset(cfg){
-    if(!cfg) return null;
+  function getActiveCrowdPreset(cfg) {
+    if (!cfg) return null;
     const presets = Array.isArray(cfg.presets) ? cfg.presets : [];
     const id = String(cfg.activePresetId || "");
-    return presets.find(p => p && String(p.id) === id) || presets[0] || null;
+    return presets.find((p) => p && String(p.id) === id) || presets[0] || null;
   }
 
-  function renderCrowdPrompts(){
-    if(!root || !crowdLayer) return;
+  function applyCrowdVisibility() {
+    if (!el.root || !el.crowdLayer) return;
+    el.root.classList.toggle("isCrowd", !!crowdVisible);
+    el.crowdLayer.setAttribute("aria-hidden", crowdVisible ? "false" : "true");
+  }
+
+  function renderCrowdPrompts() {
+    if (!el.root || !el.crowdLayer) return;
 
     const cfg = getCrowdCfg() || {};
     const enabled = !!cfg.enabled;
-
-    root.classList.toggle("isCrowd", enabled);
-    crowdLayer.setAttribute("aria-hidden", enabled ? "false" : "true");
-
-    if(!enabled) return;
-
     const p = getActiveCrowdPreset(cfg) || {};
-    let title = String(p.title || "").trim();
+
+    const autoHideSeconds = Math.max(0, Number(p.autoHideSeconds || 0) || 0);
+    const title = String(p.title || "").trim();
     const footer = String(p.footer || "").trim();
     const rawLines = Array.isArray(p.lines) ? p.lines : [];
-    const lines = rawLines.map(v => String(v || "").trim()).filter(v => v.length);
+    const lines = rawLines.map((v) => String(v || "").trim()).filter((v) => v.length);
 
-    if(!title && !lines.length && !footer){
-      title = "CROWD PROMPT";
-      lines.push("Configure prompts in Operator → Crowd Prompts.");
-    }
+    const key = JSON.stringify({ enabled, id: String(p.id || ""), title, footer, lines, autoHideSeconds });
 
-    if(crowdTitleEl) crowdTitleEl.textContent = title || "CROWD PROMPT";
+    // If operator changed prompt or toggled it, reset local visibility + timers.
+    if (key !== lastCrowdKey) {
+      lastCrowdKey = key;
 
-    if(crowdFooterEl){
-      crowdFooterEl.textContent = footer;
-      crowdFooterEl.style.display = footer ? "" : "none";
-    }
-
-    if(crowdLinesEl){
-      crowdLinesEl.replaceChildren();
-      if(lines.length){
-        crowdLinesEl.style.display = "flex";
-        for(const t of lines){
-          const div = document.createElement("div");
-          div.className = "vCrowdLine";
-          div.textContent = t;
-          crowdLinesEl.appendChild(div);
-        }
-      }else{
-        crowdLinesEl.style.display = "none";
+      if (crowdHideTimeout) {
+        clearTimeout(crowdHideTimeout);
+        crowdHideTimeout = null;
       }
+
+      crowdVisible = enabled;
+
+      // Render content (even if auto-hide will kick in)
+      const safeTitle = title || (enabled ? "CROWD PROMPT" : "");
+      if (el.crowdTitle) el.crowdTitle.textContent = safeTitle || "CROWD PROMPT";
+
+      if (el.crowdFooter) {
+        el.crowdFooter.textContent = footer;
+        el.crowdFooter.style.display = footer ? "" : "none";
+      }
+
+      if (el.crowdLines) {
+        el.crowdLines.replaceChildren();
+        if (lines.length) {
+          el.crowdLines.style.display = "flex";
+          for (const t of lines) {
+            const div = document.createElement("div");
+            div.className = "vCrowdLine";
+            div.textContent = t;
+            el.crowdLines.appendChild(div);
+          }
+        } else {
+          el.crowdLines.style.display = "none";
+        }
+      }
+
+      applyCrowdVisibility();
+
+      if (enabled && autoHideSeconds > 0) {
+        crowdHideTimeout = setTimeout(() => {
+          crowdVisible = false;
+          applyCrowdVisibility();
+          // Sponsor may be suppressed while prompts are visible.
+          setSponsorBug().catch(() => {});
+        }, Math.round(autoHideSeconds * 1000));
+      }
+
+      // Sponsor may need to hide/show immediately.
+      setSponsorBug().catch(() => {});
+      return;
+    }
+
+    // If operator turned it off, ensure local visibility is off.
+    if (!enabled && crowdVisible) {
+      crowdVisible = false;
+      applyCrowdVisibility();
+      setSponsorBug().catch(() => {});
     }
   }
 
-  function renderSplash(){
-    overlay.style.display = "none";
-    splashInfo.style.display = "grid";
-    if(liveFooterBar) liveFooterBar.style.display = "none";
-    if(root){
-      root.classList.remove("hasHbFooter");
-      root.classList.remove("isLive");
-      root.classList.add("isSplash");
+  // ---- Phase shell ----
+  function showSplashShell() {
+    // Visibility handled by CSS via .isSplash/.isLive classes.
+    if (el.overlay) el.overlay.setAttribute("aria-hidden", "true");
+    if (el.splashInfo) el.splashInfo.setAttribute("aria-hidden", "false");
+    if (el.liveFooterBar) {
+      el.liveFooterBar.style.display = "none";
+      el.liveFooterBar.hidden = true;
     }
-    if(startBanner) startBanner.style.display = "none";
-    if(root) root.classList.remove("startIntro");
+    if (el.root) {
+      el.root.classList.remove("hasHbFooter", "isLive", "startIntro");
+      el.root.classList.add("isSplash");
+    }
 
+    // Reset LIVE-only caches
     clearCardCues();
     lastRemainingMs = null;
-    lastSlotId = null;
     lastCue = null;
+    lastTimerText = null;
+    lastWarnFinalKey = null;
+    lastChipStateKey = null;
+    lastProgressKey = null;
 
-    // Ensure we release any previously-loaded image when switching away from LIVE.
+    // Release any LIVE image
     setMedia(null).catch(() => {});
 
-    const [n1, n2] = OMJN.computeNextTwo(state);
-    sNext.textContent = n1?.displayName || "TBD";
-    sDeck.textContent = n2?.displayName || "TBD";
+    updateVizSetupButton();
+    maybeStartViz();
+  }
 
-    // subtext: slot type + minutes
+  function showLiveShell(showFooter) {
+    // Visibility handled by CSS via .isSplash/.isLive classes.
+    if (el.overlay) el.overlay.setAttribute("aria-hidden", "false");
+    if (el.splashInfo) el.splashInfo.setAttribute("aria-hidden", "true");
+    if (el.root) {
+      el.root.classList.remove("isSplash");
+      el.root.classList.add("isLive");
+      el.root.classList.toggle("hasHbFooter", !!showFooter);
+    }
+    if (el.liveFooterBar) {
+      el.liveFooterBar.style.display = showFooter ? "flex" : "none";
+      el.liveFooterBar.hidden = !showFooter;
+    }
+    updateVizSetupButton();
+    maybeStartViz();
+  }
+
+  function renderPhaseShell() {
+    const isLiveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
+    const phaseKey = JSON.stringify({ p: state.phase, cur: state.currentSlotId || null });
+    if (phaseKey === lastPhaseKey) return;
+    lastPhaseKey = phaseKey;
+
+    if (!isLiveish) {
+      showSplashShell();
+    } else {
+      // Footer visibility depends on HB + toggle
+      const hbHasAny = OMJN.getHouseBandTopPerCategory(state).length > 0;
+      const footerEnabled = state.viewerPrefs?.showHouseBandFooter !== false;
+      showLiveShell(footerEnabled && hbHasAny);
+    }
+  }
+
+  // ---- Splash render (state-driven) ----
+  function renderSplashStatic() {
+    const [n1, n2] = OMJN.computeNextTwo(state);
+    const showNextTwo = state.splash?.showNextTwo !== false;
+
+    const key = JSON.stringify({
+      showNextTwo,
+      n1: n1 ? { id: n1.id, n: n1.displayName, t: OMJN.displaySlotTypeLabel(state, n1), m: OMJN.effectiveMinutes(state, n1) } : null,
+      n2: n2 ? { id: n2.id, n: n2.displayName, t: OMJN.displaySlotTypeLabel(state, n2), m: OMJN.effectiveMinutes(state, n2) } : null,
+      hb: hbKey(),
+      hbEnabled: state.viewerPrefs?.showHouseBandFooter !== false,
+    });
+    if (key === lastSplashKey) return;
+    lastSplashKey = key;
+
+    // Next / Deck cards
+    if (el.sNext) el.sNext.textContent = showNextTwo ? (n1?.displayName || "TBD") : "";
+    if (el.sDeck) el.sDeck.textContent = showNextTwo ? (n2?.displayName || "TBD") : "";
+
     const sub1 = n1 ? `${OMJN.displaySlotTypeLabel(state, n1)} • ${OMJN.effectiveMinutes(state, n1)}m` : "Sign ups open";
     const sub2 = n2 ? `${OMJN.displaySlotTypeLabel(state, n2)} • ${OMJN.effectiveMinutes(state, n2)}m` : "Get ready";
-    sNextSub.textContent = sub1;
-    sDeckSub.textContent = sub2;
+    if (el.sNextSub) el.sNextSub.textContent = showNextTwo ? sub1 : "";
+    if (el.sDeckSub) el.sDeckSub.textContent = showNextTwo ? sub2 : "";
 
-    // Respect the Operator toggle for House Band visibility on Splash
-    const footerEnabled = (state.viewerPrefs?.showHouseBandFooter !== false);
+    // Optionally hide the Next/Deck cards entirely
+    try {
+      const nextCard = el.sNext?.closest?.(".vSplashCard");
+      const deckCard = el.sDeck?.closest?.(".vSplashCard");
+      if (nextCard) nextCard.style.display = showNextTwo ? "" : "none";
+      if (deckCard) deckCard.style.display = showNextTwo ? "" : "none";
+    } catch (_) {}
 
-    renderHouseBandLineup(hbLineup, { maxQueued: 10 });
-    // Hide the House Band card on Splash when toggle is off OR empty
-    const hbCard = hbLineup?.closest?.(".vBandCard");
-    const hasHB = (hbLineup && hbLineup.childElementCount);
-    if(hbCard) hbCard.style.display = (footerEnabled && hasHB) ? "" : "none";
+    // House Band card on Splash
+    const footerEnabled = state.viewerPrefs?.showHouseBandFooter !== false;
+    const hbTop = OMJN.getHouseBandTopPerCategory(state);
+    const hbCard = el.hbLineup?.closest?.(".vBandCard");
+
+    const hbK = hbKey();
+    if (hbK !== lastHbSplashKey) {
+      lastHbSplashKey = hbK;
+      renderHouseBandLineup(el.hbLineup, { maxQueued: 10 });
+    }
+
+    const hasHB = !!(el.hbLineup && el.hbLineup.childElementCount);
+    if (hbCard) hbCard.style.display = footerEnabled && hbTop.length && hasHB ? "" : "none";
 
     setBg();
   }
 
-  async function renderLive(){
-    overlay.style.display = "grid";
-    splashInfo.style.display = "none";
-    if(root){
-      root.classList.remove("isSplash");
-      root.classList.add("isLive");
-    }
-    // Show footer only if enabled AND there is at least one active House Band member queued
-    const hbHasAny = (OMJN.getHouseBandTopPerCategory(state).length > 0);
-    const footerEnabled = (state.viewerPrefs?.showHouseBandFooter !== false);
-    const showFooter = (footerEnabled && hbHasAny);
-    if(liveFooterBar){
-      liveFooterBar.style.display = showFooter ? "flex" : "none";
-      liveFooterBar.hidden = !showFooter;
-      if(!showFooter && hbLiveLineup) hbLiveLineup.innerHTML = "";
-    }
-    if(root) root.classList.toggle("hasHbFooter", showFooter);
+  // ---- LIVE render (state-driven, no timer tick) ----
+  function renderNextDeckStatic() {
+    const [n1, n2] = OMJN.computeNextTwo(state);
+    const key = JSON.stringify({
+      cur: state.currentSlotId || null,
+      n1: n1 ? { id: n1.id, n: n1.displayName } : null,
+      n2: n2 ? { id: n2.id, n: n2.displayName } : null,
+    });
+    if (key === lastNextDeckKey) return;
+    lastNextDeckKey = key;
 
+    if (el.liveNextUp) el.liveNextUp.textContent = n1?.displayName || "—";
+    if (el.liveOnDeck) el.liveOnDeck.textContent = n2?.displayName || "—";
+  }
+
+  function renderLiveStatic() {
     const cur = OMJN.computeCurrent(state);
-    if(!cur){
-      renderSplash();
-      return;
-    }
+    if (!cur) return;
 
-    // Reset cue tracking when slot changes
-    if(lastSlotId !== cur.id){
+    // Slot change reset
+    if (lastSlotId !== cur.id) {
       clearCardCues();
       lastRemainingMs = null;
+      lastCue = null;
       lastSlotId = cur.id;
+
+      // Force timer/progress repaint immediately
+      lastTimerText = null;
+      lastWarnFinalKey = null;
+      lastChipStateKey = null;
+      lastProgressKey = null;
     }
 
-    const type = OMJN.getSlotType(state, cur.slotTypeId);
-    nowName.textContent = cur.displayName || "—";
-    chipType.textContent = OMJN.displaySlotTypeLabel(state, cur);
+    // Update main identity / type / donation / media + layout in a keyed way
+    const donationUrl = String(cur.media?.donationUrl || "").trim();
+    const media = cur.media || {};
+    const mediaLayout = media.mediaLayout || "NONE";
+    const staticKey = JSON.stringify({
+      id: cur.id,
+      name: cur.displayName || "",
+      type: OMJN.displaySlotTypeLabel(state, cur),
+      donationUrl,
+      mediaLayout,
+      imageAssetId: media.imageAssetId || null,
+    });
 
-    if(startIntroPending){
-      triggerStartIntro(cur.displayName || "—");
-      startIntroPending = false;
+    if (staticKey !== lastSlotStaticKey) {
+      lastSlotStaticKey = staticKey;
+
+      if (el.nowName) el.nowName.textContent = cur.displayName || "—";
+      if (el.chipType) el.chipType.textContent = OMJN.displaySlotTypeLabel(state, cur);
+
+      if (startIntroPending) {
+        triggerStartIntro(cur.displayName || "—");
+        startIntroPending = false;
+      }
+
+      // Donation
+      if (donationUrl) {
+        if (el.donationText) el.donationText.textContent = donationUrl;
+        if (el.donationCard) el.donationCard.style.display = "block";
+      } else {
+        if (el.donationText) el.donationText.textContent = "";
+        if (el.donationCard) el.donationCard.style.display = "none";
+      }
+
+      // Media (async)
+      setMedia(cur).catch(() => {});
+
+      // Hero card: show/hide the embedded media section
+      const hasImage = mediaLayout === "IMAGE_ONLY" ? !!media.imageAssetId : mediaLayout === "QR_ONLY" || mediaLayout === "IMAGE_PLUS_QR";
+      const hasLink = !!donationUrl;
+      const showMedia = hasImage || hasLink;
+
+      const layoutKey = JSON.stringify({ showMedia });
+      if (layoutKey !== lastLayoutKey) {
+        lastLayoutKey = layoutKey;
+        if (el.vMedia) el.vMedia.style.display = showMedia ? "grid" : "none";
+      }
+
+      // Progress bar visibility toggle (static) (static)
+      const showProgress = state.viewerPrefs?.showProgressBar !== false;
+      if (el.progress) {
+        el.progress.hidden = !showProgress;
+        el.progress.setAttribute("aria-hidden", showProgress ? "false" : "true");
+      }
     }
 
-    // Next / On Deck (LIVE)
-    const [n1, n2] = OMJN.computeNextTwo(state);
-    if(liveNextUp) liveNextUp.textContent = n1?.displayName || "—";
-    if(liveOnDeck) liveOnDeck.textContent = n2?.displayName || "—";
+    // Next/Deck
+    renderNextDeckStatic();
 
-    // timer
+    // House Band footer (LIVE)
+    const hbK = hbKey();
+    if (hbK !== lastHbLiveKey) {
+      lastHbLiveKey = hbK;
+      renderHouseBandLineup(el.hbLiveLineup, { compact: true });
+    }
+
+    // Background
+    setBg();
+  }
+
+  // ---- LIVE timer tick (cheap) ----
+  function updateTimerAndCues() {
+    const isLiveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
+    if (!isLiveish) return;
+
+    const cur = OMJN.computeCurrent(state);
+    if (!cur) return;
+
     const t = OMJN.computeTimer(state);
     const remainingMs = t.remainingMs;
     const overtimeMs = t.overtimeMs;
 
-    timerEl.textContent = OMJN.formatMMSS(remainingMs);
+    // Timer text
+    const timerText = OMJN.formatMMSS(remainingMs);
+    if (timerText !== lastTimerText) {
+      lastTimerText = timerText;
+      if (el.timer) el.timer.textContent = timerText;
+    }
 
-    // chips
-    chipState.textContent = state.phase === "PAUSED" ? "PAUSED" : "LIVE";
-    chipState.className = "vChip " + (state.phase === "PAUSED" ? "warn" : "good");
+    // Phase chip
+    const chipStateKey = state.phase;
+    if (chipStateKey !== lastChipStateKey) {
+      lastChipStateKey = chipStateKey;
+      if (el.chipState) {
+        el.chipState.textContent = state.phase === "PAUSED" ? "PAUSED" : "LIVE";
+        el.chipState.className = "vChip " + (state.phase === "PAUSED" ? "warn" : "good");
+      }
+    }
 
-    // warning thresholds
+    // Threshold chips
     const warnAtMs = (state.viewerPrefs?.warnAtSec ?? 120) * 1000;
     const finalAtMs = (state.viewerPrefs?.finalAtSec ?? 30) * 1000;
 
-    chipWarn.style.display = (remainingMs > 0 && remainingMs <= warnAtMs && remainingMs > finalAtMs) ? "inline-flex" : "none";
-    chipFinal.style.display = (remainingMs > 0 && remainingMs <= finalAtMs) ? "inline-flex" : "none";
+    const warnShow = remainingMs > 0 && remainingMs <= warnAtMs && remainingMs > finalAtMs;
+    const finalShow = remainingMs > 0 && remainingMs <= finalAtMs;
+    const overShow = overtimeMs > 0;
 
-    // overtime chip
-    if(overtimeMs > 0){
-      chipOver.style.display = "inline-flex";
-      chipOver.textContent = `Overtime +${OMJN.formatMMSS(overtimeMs)}`;
-      chipOver.className = "vChip final";
-    } else {
-      chipOver.style.display = "none";
+    const warnFinalKey = JSON.stringify({ warnShow, finalShow, overShow, overtimeText: overShow ? OMJN.formatMMSS(overtimeMs) : "" });
+    if (warnFinalKey !== lastWarnFinalKey) {
+      lastWarnFinalKey = warnFinalKey;
+      if (el.chipWarn) el.chipWarn.style.display = warnShow ? "inline-flex" : "none";
+      if (el.chipFinal) el.chipFinal.style.display = finalShow ? "inline-flex" : "none";
+      if (el.chipOver) {
+        if (overShow) {
+          el.chipOver.style.display = "inline-flex";
+          el.chipOver.textContent = `Overtime +${OMJN.formatMMSS(overtimeMs)}`;
+          el.chipOver.className = "vChip final";
+        } else {
+          el.chipOver.style.display = "none";
+        }
+      }
     }
 
-    // cues on main card (pulse + overtime flash)
+    // Progress bar (optional)
+    if (el.progress && !el.progress.hidden && el.progressFill) {
+      const frac = t.durationMs > 0 ? (t.elapsedMs / t.durationMs) : 0;
+      const clamped = Math.max(0, Math.min(1, frac));
+      const over = frac > 1;
+
+      const progressKey = `${Math.round(clamped * 1000)}|${over ? 1 : 0}`;
+      if (progressKey !== lastProgressKey) {
+        lastProgressKey = progressKey;
+        el.progress.classList.toggle("overtime", over);
+        el.progressFill.style.transform = `scaleX(${clamped})`;
+      }
+    }
+
+    // Cues
     applyCardCues(remainingMs, warnAtMs, finalAtMs);
 
-    // House Band footer during LIVE (HB only)
-    renderHouseBandLineup(hbLiveLineup, { compact: true });
-
-    // donation link
-    const url = cur.media?.donationUrl || "";
-    if(url){
-      donationText.textContent = url;
-      donationCard.style.display = "block";
-    } else {
-      donationText.textContent = "";
-      donationCard.style.display = "none";
-    }
-
-    // media
-    await setMedia(cur);
-
-    // hide media column entirely if nothing exists (no awkward blanks)
-    const m = cur.media || {};
-    const layout = m.mediaLayout || "NONE";
-    const hasImage = (layout === "IMAGE_ONLY") ? !!m.imageAssetId : (layout === "QR_ONLY" || layout === "IMAGE_PLUS_QR");
-    const hasLink = !!m.donationUrl;
-    if(!hasImage && !hasLink){
-      vMedia.style.display = "none";
-      overlay.style.gridTemplateColumns = "1fr";
-    } else {
-      vMedia.style.display = "flex";
-      overlay.style.gridTemplateColumns = "1.25fr .75fr";
-    }
-
-    setBg();
+    // Visualizer gating
+    maybeStartViz();
   }
 
-  async function render(){
-    if(state.phase === "SPLASH" || !state.currentSlotId){
-      renderSplash();
-    }else{
-      await renderLive();
+  // ---- Main render (state-driven) ----
+  function renderStateDriven() {
+    renderPhaseShell();
+
+    const isLiveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
+    if (!isLiveish) {
+      renderSplashStatic();
+    } else {
+      // Footer visibility may change if HB changes (toggle handled by state)
+      const hbHasAny = OMJN.getHouseBandTopPerCategory(state).length > 0;
+      const footerEnabled = state.viewerPrefs?.showHouseBandFooter !== false;
+      showLiveShell(footerEnabled && hbHasAny);
+      renderLiveStatic();
     }
 
     // Crowd Prompts overlay (can show during any phase)
     renderCrowdPrompts();
 
-    // Visualizer UI (LIVE-only) + Splash setup button
+    // Sponsor bug overlay (state-driven; also called when crowd visibility changes)
+    setSponsorBug().catch(() => {});
+
+    // Visualizer setup button
     updateVizSetupButton();
     maybeStartViz();
 
-    // Sponsor bug overlay
-    await setSponsorBug();
+    // Apply theme
+    OMJN.applyThemeToDocument(document, state);
+
+    // Ensure timer UI is correct immediately
+    updateTimerAndCues();
   }
 
-  // animate timer locally without spamming BroadcastChannel
-  function tick(){
-    render().catch(()=>{});
-  }
-
-  // Subscribe to state updates
+  // ---- Subscribe to state updates ----
   OMJN.subscribe((s) => {
     const prevPhase = state?.phase;
     state = s;
-    if(prevPhase === "SPLASH" && (state.phase === "LIVE" || state.phase === "PAUSED") && state.currentSlotId){
+
+    if (prevPhase === "SPLASH" && (state.phase === "LIVE" || state.phase === "PAUSED") && state.currentSlotId) {
       startIntroPending = true;
     }
-    lastPhase = state.phase;
 
-    OMJN.applyThemeToDocument(document, state);
-    render().catch(()=>{});
+    renderStateDriven();
   });
 
-  // Boot
-  // Setup mic enable button (shown only on SPLASH when needed)
-  if(btnVizMic){
-    btnVizMic.addEventListener("click", async () => {
+  // ---- Boot ----
+  if (el.btnVizMic) {
+    el.btnVizMic.addEventListener("click", async () => {
       const ok = await enableMicForVisualizer();
-      if(ok) updateVizSetupButton();
+      if (ok) updateVizSetupButton();
     });
   }
 
   // If mic permission is already granted, we can enable without a click.
   (async () => {
-    try{
-      if(!vizEnabled()) return;
-      if(!navigator.permissions?.query) return;
+    try {
+      if (!vizEnabled()) return;
+      if (!navigator.permissions?.query) return;
       const p = await navigator.permissions.query({ name: "microphone" });
-      if(p?.state === "granted"){
+      if (p?.state === "granted") {
         await enableMicForVisualizer();
       }
-    }catch(_){ }
+    } catch (_) {}
   })();
 
-  render().catch(()=>{});
-  setInterval(tick, 250);
+  // Reposition sponsor bug on resize (safe areas + footer height)
+  window.addEventListener("resize", () => {
+    lastSponsorKey = null;
+    setSponsorBug().catch(() => {});
+    resizeVizCanvas();
+  });
+
+  renderStateDriven();
+
+  // Cheap live timer updates
+  setInterval(updateTimerAndCues, 120);
 })();

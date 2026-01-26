@@ -9,19 +9,10 @@
 <body style="margin:0;">
   <div class="viewerRoot" id="root">
     <div class="viewerBg" id="bg"></div>
-
-    <!-- Start transition banner (Splash → LIVE) -->
-    <div class="vStartBanner" id="startBanner" aria-hidden="true">
-      <div class="vStartBannerInner">
-        <div class="vStartSmall">NOW PERFORMING</div>
-        <div class="vStartName" id="startBannerName">—</div>
-      </div>
-    </div>
-
     <!-- Sponsor bug overlay (absolute; does not affect layout) -->
     <div class="vSponsorLayer" id="sponsorLayer" aria-hidden="true" style="display:none;">
       <div class="vSponsorBug posTR" id="sponsorBug">
-        <img id="sponsorImg" alt="" />
+        <img id="sponsorImg" alt="" decoding="async" loading="eager" />
       </div>
     </div>
 
@@ -34,12 +25,16 @@
       </div>
     </div>
 
-    <div class="viewerOverlay" id="overlay" style="display:none;">
+    <div class="viewerOverlay" id="overlay">
       <div class="vCard" id="vMainCard">
         <div class="small" id="nowLabel">NOW PERFORMING</div>
         <h1 class="vNowName" id="nowName">—</h1>
 
         <div class="vTimer mono" id="timer">0:00</div>
+
+        <div class="vProgress" id="vProgress" hidden aria-hidden="true">
+          <div class="vProgressFill" id="vProgressFill"></div>
+        </div>
 
         <div class="vStateRow">
           <span class="vChip good" id="chipState">LIVE</span>
@@ -60,16 +55,16 @@
             <div class="vNextDeckName" id="liveOnDeck">—</div>
           </div>
         </div>
-      </div>
 
-      <div class="vMedia" id="vMedia">
-        <div class="vMediaBox" id="mediaBox">
-          <div class="small" id="mediaEmpty">No image / QR for this performer</div>
-          <img id="mediaImg" alt="" style="display:none;"/>
-        </div>
-        <div class="vCard" id="donationCard" style="padding:18px 20px;">
-          <div class="small">Website / Socials</div>
-          <div style="font-size:22px; font-weight:850; word-break:break-word;" id="donationText">—</div>
+        <div class="vMedia" id="vMedia">
+          <div class="vMediaBox" id="mediaBox">
+            <div class="small" id="mediaEmpty">No image / QR for this performer</div>
+            <img id="mediaImg" alt="" style="display:none;" decoding="async" loading="eager"/>
+          </div>
+          <div class="vCard" id="donationCard" style="padding:18px 20px;">
+            <div class="small">Website / Socials</div>
+            <div style="font-size:22px; font-weight:850; word-break:break-word;" id="donationText">—</div>
+          </div>
         </div>
       </div>
 
