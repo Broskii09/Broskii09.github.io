@@ -144,9 +144,6 @@
     </div>
   </div>
 
-  <script src="./shared.js"></script>
-  <script src="./soundboard.js"></script>
-
   <!-- Add music embed modal -->
   <div class="modalOverlay" id="sbEmbedModal" hidden>
     <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="sbEmbedModalTitle">
@@ -265,6 +262,10 @@
       </div>
     </div>
   </div>
+
+  <!-- Scripts must load AFTER modals so JS can bind to those elements. -->
+  <script src="./shared.js"></script>
+  <script src="./soundboard.js"></script>
 
 </body>
 </html>
