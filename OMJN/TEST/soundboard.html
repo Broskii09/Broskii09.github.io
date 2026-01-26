@@ -12,96 +12,73 @@
       <div class="cardHeader sbHeader">
         <div class="sbTitleWrap">
           <h2 style="margin:0;">Soundboard</h2>
-          <div class="small" style="opacity:.85;">Show audio control + live timing</div>
+          <div class="small" id="sbPhase">—</div>
+        </div>
+
+        <div class="sbLiveControls">
+          <button class="btn small primary" id="sbStart">Start</button>
+          <button class="btn small" id="sbPause">Pause</button>
+          <button class="btn small" id="sbResume">Resume</button>
+          <button class="btn small" id="sbEnd">End → Splash</button>
+          <span class="sbTimer mono" id="sbTimer">0:00</span>
+          <div class="sbTimerBtns" role="group" aria-label="Timer controls">
+            <button class="btn tiny" id="sbMinus30">-:30</button>
+            <button class="btn tiny" id="sbMinus1">-1m</button>
+            <button class="btn tiny" id="sbMinus5">-5m</button>
+            <button class="btn tiny" id="sbPlus30">+:30</button>
+            <button class="btn tiny" id="sbPlus1">+1m</button>
+            <button class="btn tiny" id="sbPlus5">+5m</button>
+            <button class="btn tiny" id="sbResetTime">Reset Time</button>
+          </div>
+          <button class="btn small" id="sbStopAll">Stop All</button>
+          <div class="sbFadeWrap" title="Fade-out duration when stopping sounds (Spacebar panic stop stays instant)">
+            <span class="small">Stop Fade</span>
+            <select id="sbStopFade" class="sbSelect" aria-label="Stop fade">
+              <option value="0">Instant</option>
+              <option value="150">150ms</option>
+              <option value="250">250ms</option>
+              <option value="500">500ms</option>
+              <option value="1000">1s</option>
+            </select>
+          </div>
+          <label class="sbFreezeWrap small" title="Prevent learning hotkeys from reshuffling while enabled" style="display:inline-flex; align-items:center; gap:8px; user-select:none;">
+            <input type="checkbox" id="sbFreezeHotkeys" />
+            Freeze Hotkeys
+          </label>
+        </div>
+
+        <div class="sbVolRow">
+          <div class="sbMasterVol">
+            <div class="small">Master Volume</div>
+            <div class="sbVolControls">
+              <input type="range" id="sbMasterVol" class="sbRange" min="0" max="100" step="1" value="50" aria-label="Master volume"/>
+              <div class="sbVolReadout mono" id="sbMasterVolReadout">50%</div>
+              <button class="btn tiny" id="sbMasterVolReset" type="button" title="Reset to 50%">Reset</button>
+            </div>
+            <div class="small" style="opacity:.85;">50% = normal • above 50% boosts gain</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <a class="btn small" href="./operator.html">Back to Operator</a>
         </div>
       </div>
 
-      <div class="cardBody sbBody"><div class="sbCardsGrid">
-  <div class="card sbMiniCard sbSettingsCard">
-    <div class="cardHeader">
-      <h2>Soundboard Settings</h2>
-      <a class="btn tiny" href="./operator.html">Back to Operator</a>
-    </div>
-    <div class="cardBody">
-      <div class="sbVolRow">
-        <div class="sbMasterVol">
-    <div class="small">Master Volume</div>
-    <div class="sbVolControls">
-      <input type="range" id="sbMasterVol" class="sbRange" min="0" max="100" step="1" value="50" aria-label="Master volume"/>
-      <div class="sbVolReadout mono" id="sbMasterVolReadout">50%</div>
-      <button class="btn tiny" id="sbMasterVolReset" type="button" title="Reset to 50%">Reset</button>
-    </div>
-    <div class="small" style="opacity:.85;">50% = normal • above 50% boosts gain</div>
-  </div>
-      </div>
-
-      <div class="row wrap sbSettingsRow" style="gap:10px; justify-content:flex-start; margin-top:12px; align-items:center;">
-        <div class="sbFadeWrap" title="Fade-out duration when stopping sounds (Spacebar panic stop stays instant)">
-    <span class="small">Stop Fade</span>
-    <select id="sbStopFade" class="sbSelect" aria-label="Stop fade">
-      <option value="0">Instant</option>
-      <option value="150">150ms</option>
-      <option value="250">250ms</option>
-      <option value="500">500ms</option>
-      <option value="1000">1s</option>
-    </select>
-  </div>
-        <label class="sbFreezeWrap small" title="Prevent learning hotkeys from reshuffling while enabled" style="display:inline-flex; align-items:center; gap:8px; user-select:none;">
-    <input type="checkbox" id="sbFreezeHotkeys" />
-    Freeze Hotkeys
-  </label>
-      </div>
-    </div>
-  </div>
-
-  <div class="card sbMiniCard sbShowControlCard">
-    <div class="cardHeader">
-      <h2>Show Control</h2>
-    </div>
-    <div class="cardBody">
-      <div class="statusBanner sbShowStatus" id="sbShowStatus">
-        <span class="sbItem"><span class="sbDot" id="sbPhaseDot" aria-hidden="true"></span><span class="mono" id="sbPhase">—</span></span>
-        <span class="sbItem">Time: <span class="sbTimer mono" id="sbTimer">0:00</span></span>
-      </div>
-
-      <div class="row wrap sbTransportRow" style="gap:8px; justify-content:flex-start; margin-top:10px;">
-        <button class="btn small primary" id="sbStart">Start</button>
-        <button class="btn small" id="sbPause">Pause</button>
-        <button class="btn small" id="sbResume">Resume</button>
-        <button class="btn small" id="sbEnd">End → Splash</button>
-      </div>
-
-      <div class="row wrap sbTimeAdjustRow" style="gap:8px; justify-content:flex-start; margin-top:10px;">
-        <button class="btn tiny" id="sbMinus30">-:30</button>
-        <button class="btn tiny" id="sbPlus30">+:30</button>
-        <button class="btn tiny" id="sbResetTime">Reset</button>
-      </div>
-
-      <div class="sbTopMeta">
-  <div class="sbNowWrap">
-    <div class="small">Now</div>
-    <div class="sbNowName" id="sbNow">—</div>
-  </div>
-  <div class="sbNextWrap">
-    <div class="small">Next</div>
-    <div class="sbNextName" id="sbNext">—</div>
-  </div>
-  <div class="sbDeckWrap">
-    <div class="small">On Deck</div>
-    <div class="sbDeckName" id="sbDeck">—</div>
-  </div>
-</div>
-
-      <div class="row wrap sbSafetyRow" style="gap:10px; justify-content:flex-start; margin-top:10px; align-items:center;">
-        <button class="btn small" id="sbStopAll">Stop All</button>
-        <div class="small" style="opacity:.85;">Space = panic stop (instant)</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-        
+      <div class="cardBody sbBody">
+        <div class="sbTopMeta">
+          <div class="sbNowWrap">
+            <div class="small">Now</div>
+            <div class="sbNowName" id="sbNow">—</div>
+          </div>
+          <div class="sbNextWrap">
+            <div class="small">Next</div>
+            <div class="sbNextName" id="sbNext">—</div>
+          </div>
+          <div class="sbDeckWrap">
+            <div class="small">On Deck</div>
+            <div class="sbDeckName" id="sbDeck">—</div>
+          </div>
+        </div>
 
         <details class="sbConfig">
           <summary>Sound source</summary>
@@ -128,6 +105,30 @@
         </details>
 
         <div class="sbMain">
+          <div class="sbEmbedPane">
+            <div class="sbEmbedHeader">
+              <div class="sbEmbedTitle">
+                <div class="mono" style="font-weight:900; letter-spacing:.3px;">Music Embed</div>
+                <div class="small" style="opacity:.85;">Control background music</div>
+              </div>
+              <div class="sbEmbedControls">
+                <select id="sbEmbedSelect" class="sbSelect" aria-label="Select embed"></select>
+                <button class="btn tiny" id="sbEmbedAdd" type="button">Add…</button>
+                <button class="btn tiny" id="sbEmbedRemove" type="button" title="Remove selected custom embed">Remove</button>
+              </div>
+            </div>
+<div class="sbEmbedFrameWrap" id="sbEmbedFrameWrap" aria-label="Embedded music player"></div>
+
+            <div class="small" style="opacity:.8; margin-top:10px;">
+              Tip: Spotify/Apple embeds play in this panel. Audio may require clicking inside the player first on Safari.
+            </div>
+          </div>
+
+          <div class="sbSplitHandle" id="sbSplitHandle" role="separator" aria-orientation="vertical"
+     aria-label="Resize music / soundboard panes" tabindex="0" title="Drag to resize"></div>
+
+<div class="sbBoardPane">
+
           <div class="sbCats" id="sbCats">
             <button class="sbCat active" data-cat="__all">All</button>
           </div>
@@ -149,6 +150,8 @@
             </div>
             <div class="sbPads" id="sbPads"></div>
           </div>
+        
+          </div>
         </div>
 
         <div class="sbEnable" id="sbEnable">
@@ -164,5 +167,38 @@
 
   <script src="./shared.js"></script>
   <script src="./soundboard.js"></script>
+
+<div class="modalOverlay" id="sbEmbedModal" hidden>
+  <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="sbEmbedModalTitle">
+    <div class="modalHeader">
+      <div class="modalTitle">
+        <h2 id="sbEmbedModalTitle">Add music embed</h2>
+        <div class="small" style="opacity:.85;">Paste an Apple Music / Spotify embed iframe code (or any https iframe embed).</div>
+      </div>
+      <div class="modalActions">
+        <button class="btn small" id="sbEmbedClose" type="button">Close</button>
+      </div>
+    </div>
+    <div class="modalBody">
+      <div class="field">
+        <label>Name</label>
+        <input id="sbEmbedName" type="text" placeholder="e.g., Chill Set Break" autocomplete="off" />
+      </div>
+
+      <div class="field">
+        <label>Embed code</label>
+        <textarea id="sbEmbedCode" rows="6" placeholder='<iframe ... src="https://..." ...></iframe>'></textarea>
+        <div class="small" style="opacity:.8; margin-top:6px;">
+          We only use the iframe <span class="mono">src</span> + basic attributes. Scripts are not executed.
+        </div>
+      </div>
+
+      <div class="row" style="gap:10px; justify-content:flex-end; margin-top:14px;">
+        <button class="btn" id="sbEmbedCancel" type="button">Cancel</button>
+        <button class="btn primary" id="sbEmbedSave" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>

@@ -6,7 +6,6 @@
   // ---- DOM ----
   const els = {
     phase: document.getElementById("sbPhase"),
-    phaseDot: document.getElementById("sbPhaseDot"),
     timer: document.getElementById("sbTimer"),
     now: document.getElementById("sbNow"),
     next: document.getElementById("sbNext"),
@@ -19,6 +18,22 @@
     minus30: document.getElementById("sbMinus30"),
     plus30: document.getElementById("sbPlus30"),
     resetTime: document.getElementById("sbResetTime"),
+    minus1: document.getElementById("sbMinus1"),
+    minus5: document.getElementById("sbMinus5"),
+    plus1: document.getElementById("sbPlus1"),
+    plus5: document.getElementById("sbPlus5"),
+
+    embedSelect: document.getElementById("sbEmbedSelect"),
+    embedAdd: document.getElementById("sbEmbedAdd"),
+    embedRemove: document.getElementById("sbEmbedRemove"),
+    splitHandle: document.getElementById("sbSplitHandle"),
+embedFrameWrap: document.getElementById("sbEmbedFrameWrap"),
+    embedModal: document.getElementById("sbEmbedModal"),
+    embedClose: document.getElementById("sbEmbedClose"),
+    embedCancel: document.getElementById("sbEmbedCancel"),
+    embedSave: document.getElementById("sbEmbedSave"),
+    embedName: document.getElementById("sbEmbedName"),
+    embedCode: document.getElementById("sbEmbedCode"),
     stopAll: document.getElementById("sbStopAll"),
 
     masterVol: document.getElementById("sbMasterVol"),
@@ -1472,26 +1487,308 @@ const cfg = loadCfg();
   els.resume.addEventListener("click", resume);
   els.end.addEventListener("click", endToSplash);
   els.minus30.addEventListener("click", () => addSeconds(-30));
+  if(els.minus1) els.minus1.addEventListener("click", () => addSeconds(-60));
+  if(els.minus5) els.minus5.addEventListener("click", () => addSeconds(-300));
   els.plus30.addEventListener("click", () => addSeconds(30));
+  if(els.plus1) els.plus1.addEventListener("click", () => addSeconds(60));
+  if(els.plus5) els.plus5.addEventListener("click", () => addSeconds(300));
   els.resetTime.addEventListener("click", resetTime);
 
-  // ---- Meta render ----
-  function renderMeta(){
-    els.phase.textContent = ph;
-const ph = state.phase || "—";
+  
+// ---- Music embed pane ----
+const SB_SCOPE = (() => {
+  const p = (location.pathname || "").toLowerCase();
+  return p.includes("/omjn/test") ? "test" : "prod";
+})();
 
-// Phase dot styling
-if(els.phaseDot){
-  els.phaseDot.classList.remove("good","warn","bad");
-  if(ph === "LIVE") els.phaseDot.classList.add("good");
-  else if(ph === "PAUSED") els.phaseDot.classList.add("warn");
+const EMBED_STORE_KEY = `omjn.sb.embeds.v1.${SB_SCOPE}`;
+const EMBED_WIDTH_KEY = `omjn.sb.embedWidth.v1.${SB_SCOPE}`;
+
+const DEFAULT_EMBEDS = [
+  {
+    id: "apple_openmic",
+    name: "Apple Music — Open Mic Jam Night",
+    provider: "apple",
+    src: "https://embed.music.apple.com/us/playlist/open-mic-jam-night/pl.u-8aAVXGlf7bj2b0",
+    height: 450,
+    allow: "autoplay *; encrypted-media *; fullscreen *; clipboard-write",
+    sandbox: "allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
+  },
+  {
+    id: "spotify_openmic",
+    name: "Spotify — Open Mic Jam Night",
+    provider: "spotify",
+    src: "https://open.spotify.com/embed/playlist/3Gy0gpRkViCUgUrVVVQ9PX?utm_source=generator&theme=0",
+    height: 352,
+    allow: "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture",
+    sandbox: null
+  }
+];
+
+function safeJsonParse(raw){
+  try{ return JSON.parse(raw); }catch(_){ return null; }
 }
 
-// State-aware transport buttons (reduce mis-clicks)
-els.start.disabled = (ph !== "SPLASH");
-els.pause.disabled = (ph !== "LIVE");
-els.resume.disabled = (ph !== "PAUSED");
-els.end.disabled = !(ph === "LIVE" || ph === "PAUSED");
+function loadEmbedModel(){
+  const raw = localStorage.getItem(EMBED_STORE_KEY);
+  const obj = safeJsonParse(raw);
+  return {
+    selectedId: obj?.selectedId || DEFAULT_EMBEDS[0].id,
+    embeds: Array.isArray(obj?.embeds) ? obj.embeds : []
+  };
+}
+
+function saveEmbedModel(model){
+  try{
+    localStorage.setItem(EMBED_STORE_KEY, JSON.stringify(model));
+  }catch(e){
+    console.warn("Could not save embeds:", e);
+  }
+}
+
+function getAllEmbeds(model){
+  const customs = (model.embeds || []).filter(x => x && x.id && x.src);
+  return [...DEFAULT_EMBEDS, ...customs];
+}
+
+function sanitizeUrl(url){
+  try{
+    const u = new URL(url, location.href);
+    if(u.protocol !== "https:") return null;
+    return u.toString();
+  }catch(_){
+    return null;
+  }
+}
+
+function parseIframeCode(code){
+  const str = String(code || "");
+  const m = str.match(/<iframe[\s\S]*?\s+src\s*=\s*["']([^"']+)["'][\s\S]*?>/i);
+  if(!m) return null;
+  const src = sanitizeUrl(m[1]);
+  if(!src) return null;
+
+  const h = str.match(/\sheight\s*=\s*["']?(\d{2,4})["']?/i);
+  const height = h ? Math.max(200, Math.min(900, parseInt(h[1], 10))) : 352;
+
+  const allow = (str.match(/\sallow\s*=\s*["']([^"']+)["']/i)?.[1] || "").trim() || "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture";
+  const sandbox = (str.match(/\ssandbox\s*=\s*["']([^"']+)["']/i)?.[1] || "").trim() || null;
+
+  return { src, height, allow, sandbox };
+}
+
+function openEmbedModal(){
+  if(!els.embedModal) return;
+  els.embedName.value = "";
+  els.embedCode.value = "";
+  els.embedModal.hidden = false;
+  document.body.classList.add("modalOpen");
+  setTimeout(() => els.embedName?.focus(), 0);
+}
+
+function closeEmbedModal(){
+  if(!els.embedModal) return;
+  els.embedModal.hidden = true;
+  document.body.classList.remove("modalOpen");
+}
+
+function setEmbedPaneWidth(px){
+  const val = Math.max(280, Math.min(760, px|0));
+  document.documentElement.style.setProperty("--sbEmbedW", `${val}px`);
+  try{ localStorage.setItem(EMBED_WIDTH_KEY, String(val)); }catch(_){}
+}
+
+function loadEmbedPaneWidth(){
+  const raw = localStorage.getItem(EMBED_WIDTH_KEY);
+  const v = parseInt(raw || "", 10);
+  setEmbedPaneWidth(Number.isFinite(v) ? v : 420);
+}
+
+(){
+    const raw = localStorage.getItem(EMBED_WIDTH_KEY);
+    const v = parseInt(raw || "", 10);
+    setEmbedPaneWidth(Number.isFinite(v) ? v : 420);
+  }
+
+function renderEmbedSelect(model){
+  if(!els.embedSelect) return;
+  const all = getAllEmbeds(model);
+  els.embedSelect.innerHTML = "";
+  for(const e of all){
+    const opt = document.createElement("option");
+    opt.value = e.id;
+    opt.textContent = e.name || e.id;
+    els.embedSelect.appendChild(opt);
+  }
+  els.embedSelect.value = model.selectedId;
+}
+
+function renderEmbedFrame(model){
+  if(!els.embedFrameWrap) return;
+  const all = getAllEmbeds(model);
+  const e = all.find(x => x.id === model.selectedId) || all[0];
+  if(!e) return;
+
+  els.embedFrameWrap.innerHTML = "";
+  const iframe = document.createElement("iframe");
+  iframe.src = e.src;
+  iframe.height = String(e.height || 352);
+  iframe.allow = e.allow || "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture";
+  iframe.loading = "lazy";
+  iframe.referrerPolicy = "no-referrer";
+  iframe.setAttribute("frameborder", "0");
+  if(e.sandbox) iframe.setAttribute("sandbox", e.sandbox);
+  els.embedFrameWrap.appendChild(iframe);
+
+  // Remove button only for custom embeds
+  const isDefault = DEFAULT_EMBEDS.some(d => d.id === e.id);
+  if(els.embedRemove){
+    els.embedRemove.disabled = isDefault;
+    els.embedRemove.style.opacity = isDefault ? ".5" : "1";
+  }
+}
+
+function initEmbeds(){
+  if(!els.embedSelect || !els.embedFrameWrap) return;
+
+  let model = loadEmbedModel();
+  renderEmbedSelect(model);
+  renderEmbedFrame(model);
+  loadEmbedPaneWidth();
+
+// Splitter (drag divider) to resize embed pane vs soundboard pane
+if(els.splitHandle){
+  const handle = els.splitHandle;
+  const root = document.documentElement;
+
+  function clampW(px){
+    return Math.max(280, Math.min(760, px|0));
+  }
+
+  function applyW(px){
+    const val = clampW(px);
+    root.style.setProperty("--sbEmbedW", `${val}px`);
+    try{ localStorage.setItem(EMBED_WIDTH_KEY, String(val)); }catch(_){}
+  }
+
+  // Initialize from stored width
+  try{
+    const raw = localStorage.getItem(EMBED_WIDTH_KEY);
+    const v = parseInt(raw || "", 10);
+    if(Number.isFinite(v)) applyW(v);
+    else applyW(420);
+  }catch(_){
+    applyW(420);
+  }
+
+  let dragging = false;
+
+  function getMainBounds(){
+    // sbMain is the parent of panes
+    const main = handle.parentElement;
+    return main ? main.getBoundingClientRect() : null;
+  }
+
+  function onMove(e){
+    if(!dragging) return;
+    const b = getMainBounds();
+    if(!b) return;
+    const x = e.clientX;
+    const newW = x - b.left;
+    applyW(newW);
+    e.preventDefault();
+  }
+
+  function stopDrag(){
+    if(!dragging) return;
+    dragging = false;
+    document.body.classList.remove("sbResizing");
+    window.removeEventListener("pointermove", onMove, {passive:false});
+    window.removeEventListener("pointerup", stopDrag);
+  }
+
+  handle.addEventListener("pointerdown", (e) => {
+    // left button only
+    if(e.button !== 0) return;
+    dragging = true;
+    handle.setPointerCapture?.(e.pointerId);
+    document.body.classList.add("sbResizing");
+    window.addEventListener("pointermove", onMove, {passive:false});
+    window.addEventListener("pointerup", stopDrag);
+    e.preventDefault();
+  });
+
+  handle.addEventListener("dblclick", () => applyW(420));
+
+  // Keyboard accessibility
+  handle.addEventListener("keydown", (e) => {
+    const step = e.shiftKey ? 80 : 20;
+    if(e.key === "ArrowLeft"){
+      e.preventDefault();
+      const raw = root.style.getPropertyValue("--sbEmbedW").replace("px","").trim();
+      const cur = parseInt(raw || localStorage.getItem(EMBED_WIDTH_KEY) || "420", 10);
+      applyW(cur - step);
+    }else if(e.key === "ArrowRight"){
+      e.preventDefault();
+      const raw = root.style.getPropertyValue("--sbEmbedW").replace("px","").trim();
+      const cur = parseInt(raw || localStorage.getItem(EMBED_WIDTH_KEY) || "420", 10);
+      applyW(cur + step);
+    }
+  });
+}
+
+  els.embedSelect.addEventListener("change", () => {
+    model.selectedId = els.embedSelect.value;
+    saveEmbedModel(model);
+    renderEmbedFrame(model);
+  });
+
+  if(els.embedAdd) els.embedAdd.addEventListener("click", openEmbedModal);
+  if(els.embedClose) els.embedClose.addEventListener("click", closeEmbedModal);
+  if(els.embedCancel) els.embedCancel.addEventListener("click", closeEmbedModal);
+
+  if(els.embedSave) els.embedSave.addEventListener("click", () => {
+    const name = (els.embedName.value || "").trim() || "Custom Embed";
+    const parsed = parseIframeCode(els.embedCode.value || "");
+    if(!parsed){
+      alert("Could not find a valid <iframe src=\"https://...\"> in that embed code.");
+      return;
+    }
+    const id = `custom_${Date.now()}`;
+    const custom = {
+      id,
+      name,
+      provider: "custom",
+      src: parsed.src,
+      height: parsed.height,
+      allow: parsed.allow,
+      sandbox: parsed.sandbox
+    };
+    model.embeds = [...(model.embeds || []), custom];
+    model.selectedId = id;
+    saveEmbedModel(model);
+    renderEmbedSelect(model);
+    renderEmbedFrame(model);
+    closeEmbedModal();
+  });
+
+  if(els.embedRemove) els.embedRemove.addEventListener("click", () => {
+    const id = model.selectedId;
+    if(DEFAULT_EMBEDS.some(d => d.id === id)) return;
+    if(!confirm("Remove this custom embed?")) return;
+    model.embeds = (model.embeds || []).filter(x => x.id !== id);
+    model.selectedId = DEFAULT_EMBEDS[0].id;
+    saveEmbedModel(model);
+    renderEmbedSelect(model);
+    renderEmbedFrame(model);
+  });
+}
+
+initEmbeds();
+
+// ---- Meta render ----
+  function renderMeta(){
+    els.phase.textContent = state.phase || "—";
     const cur = state.queue.find(x=>x.id===state.currentSlotId) || null;
     els.now.textContent = cur?.displayName || "—";
     const [n1, n2] = OMJN.computeNextTwo(state);
