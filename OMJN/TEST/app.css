@@ -2313,3 +2313,67 @@ details.hbAcc .hbCatList{
     max-height: none;
   }
 }
+
+/* =========================
+   Soundboard fixes (2026-01-26)
+   ========================= */
+
+.soundboardPage{
+  --sbStickyTop: 0px;
+  --sbRow2H: 0px;
+}
+
+/* Ensure the audio enable overlay always sits above sticky headers + modals */
+.sbEnable{ z-index: 10000; }
+
+/* Tighter header so it doesn't feel "giant" */
+.soundboardPage #sbStickyHeader.cardHeader{
+  padding: 10px 12px;
+}
+.soundboardPage .sbHeader{ align-items: center; }
+
+.soundboardPage .sbShowStatusHeader{
+  padding: 6px 10px;
+  border-radius: 999px;
+  gap: 8px 10px;
+}
+.soundboardPage .sbShowStatusHeader .sbItem{
+  padding: 4px 8px;
+}
+.soundboardPage .sbMetaLabel{ font-size: 11px; }
+
+/* Sticky controls: Row2 lives in the cardBody scroller, so it should pin at the top of that scroller */
+.soundboardPage.sbRow2Sticky .sbRow2{
+  top: var(--sbStickyTop, 0px);
+  margin-top: 0;
+}
+
+/* More compact panels + rows */
+.soundboardPage .sbRow{ margin-top: 10px; }
+.soundboardPage .sbPanel{ padding: 10px; }
+
+/* Make categories more like pills instead of a tall stacked list */
+.soundboardPage .sbCats{
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-right: 0;
+  overflow: visible;
+  max-height: none;
+  margin-bottom: 10px;
+}
+.soundboardPage .sbCat{
+  border-radius: 999px;
+  padding: 8px 10px;
+  min-width: unset;
+}
+.soundboardPage .sbCat{ flex: 0 0 auto; }
+
+/* Keep the right pane in view while scrolling, without forcing a separate scroll for simple embed use */
+.soundboardPage .sbSidePane{
+  position: sticky;
+  top: calc(var(--sbStickyTop, 0px) + var(--sbRow2H, 0px) + 12px);
+  align-self: start;
+  max-height: calc(100vh - var(--sbStickyTop, 0px) - var(--sbRow2H, 0px) - 36px);
+}

@@ -72,6 +72,10 @@ const SB_UI_SCOPE = (() => {
 
     enableOverlay: document.getElementById("sbEnable"),
     enableBtn: document.getElementById("sbEnableBtn"),
+
+    settingsBtn: document.getElementById("sbSettingsBtn"),
+    settingsModal: document.getElementById("sbSettingsModal"),
+    settingsClose: document.getElementById("sbSettingsClose"),
   };
 
 // ---- UI prefs (compact rows + optional sticky controls) ----
@@ -94,9 +98,28 @@ function saveUiPrefs(prefs){
   try{ localStorage.setItem(UI_PREF_KEY, JSON.stringify(prefs)); }catch(_){}
 }
 
-function applyRow1HeightVar(){
-  const h = els.stickyHeader?.offsetHeight || 92;
-  document.documentElement.style.setProperty("--sbRow1H", `${h}px`);
+function applyStickyVars(){
+  // Row2 sticks inside the cardBody scroller (which starts below the header),
+  // so sticky top is normally 0. If the header is moved into the same scroller
+  // in a future layout, we automatically account for it.
+  let stickyTop = 0;
+  const row2 = els.row2;
+  const header = els.stickyHeader;
+
+  try{
+    const scroller = row2?.closest(".cardBody") || document.scrollingElement || document.documentElement;
+    if(scroller && header && scroller.contains(header)){
+      stickyTop = header.offsetHeight || 0;
+    }
+  }catch(_){
+    stickyTop = 0;
+  }
+
+  document.documentElement.style.setProperty("--sbStickyTop", `${Math.max(0, stickyTop|0)}px`);
+
+  // Side pane should tuck under Row2 only when sticky controls are enabled.
+  const row2H = (document.body.classList.contains("sbRow2Sticky") && row2) ? row2.offsetHeight : 0;
+  document.documentElement.style.setProperty("--sbRow2H", `${Math.max(0, row2H|0)}px`);
 }
 
 function initUiPrefs(){
@@ -110,7 +133,7 @@ function initUiPrefs(){
       prefs.compact = !!els.compactToggle.checked;
       document.body.classList.toggle("sbCompact", prefs.compact);
       saveUiPrefs(prefs);
-      applyRow1HeightVar();
+      applyStickyVars();
     });
   }
 
@@ -121,14 +144,14 @@ function initUiPrefs(){
       prefs.stickyControls = !!els.stickyRow2Toggle.checked;
       document.body.classList.toggle("sbRow2Sticky", prefs.stickyControls);
       saveUiPrefs(prefs);
-      applyRow1HeightVar();
+      applyStickyVars();
     });
   }
 
   // keep sticky offset accurate
-  applyRow1HeightVar();
-  window.addEventListener("resize", () => applyRow1HeightVar());
-  setTimeout(applyRow1HeightVar, 50);
+  applyStickyVars();
+  window.addEventListener("resize", () => applyStickyVars());
+  setTimeout(applyStickyVars, 50);
 }
 
 
@@ -263,6 +286,57 @@ function initUiPrefs(){
   audioEnabled = (ctx.state === "running");
   showEnableOverlay(!audioEnabled);
   initUiPrefs();
+
+  // ---- Settings modal (volume, fade, hotkeys, source) ----
+  function openSettingsModal(){
+    if(!els.settingsModal) return;
+    els.settingsModal.hidden = false;
+    document.body.classList.add("modalOpen");
+    setTimeout(() => {
+      // Focus first interactive control for quick keyboard use
+      (els.masterVol || els.apiKey || els.folder)?.focus?.();
+    }, 0);
+  }
+
+  function closeSettingsModal(){
+    if(!els.settingsModal) return;
+    els.settingsModal.hidden = true;
+    document.body.classList.remove("modalOpen");
+  }
+
+  function initSettingsModal(){
+    if(els.settingsBtn){
+      els.settingsBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        openSettingsModal();
+      });
+    }
+
+    if(els.settingsClose){
+      els.settingsClose.addEventListener("click", (e) => {
+        e.preventDefault();
+        closeSettingsModal();
+      });
+    }
+
+    // Click on the dark overlay closes
+    if(els.settingsModal){
+      els.settingsModal.addEventListener("click", (e) => {
+        if(e.target === els.settingsModal) closeSettingsModal();
+      });
+    }
+
+    // Esc closes (capture so it beats search / other handlers)
+    document.addEventListener("keydown", (e) => {
+      if(e.key === "Escape" && els.settingsModal && !els.settingsModal.hidden){
+        e.preventDefault();
+        e.stopPropagation();
+        closeSettingsModal();
+      }
+    }, true);
+  }
+
+  initSettingsModal();
 
 // Enable audio (bind to any enable button, even if markup changes)
 const _enableBtns = Array.from(document.querySelectorAll("#sbEnableBtn"));

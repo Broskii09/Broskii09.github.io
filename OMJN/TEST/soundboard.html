@@ -7,227 +7,264 @@
   <link rel="stylesheet" href="./app.css"/>
 </head>
 <body class="soundboardPage">
+
   <div class="container oneCol">
     <div class="card" id="sbCard">
+
       <div class="cardHeader sbHeader sbStickyHeader" id="sbStickyHeader">
-  <div class="sbHeaderLeft">
-    <div class="sbTitleWrap">
-      <h2 style="margin:0;">Soundboard</h2>
-      <div class="small sbSubtitle" style="opacity:.85;">Show audio control + live timing</div>
-    </div>
-  </div>
+        <div class="sbHeaderLeft">
+          <div class="sbTitleWrap">
+            <h2 style="margin:0;">Soundboard</h2>
+            <div class="small sbSubtitle" style="opacity:.85;">Show audio control + live timing</div>
+          </div>
+        </div>
 
-  <div class="statusBanner sbShowStatus sbShowStatusHeader" id="sbShowStatus" aria-label="Show status">
-    <span class="sbItem"><span class="sbDot" id="sbPhaseDot" aria-hidden="true"></span><span class="mono" id="sbPhase">—</span></span>
-    <span class="sbItem">Time: <span class="sbTimer mono" id="sbTimer">0:00</span></span>
-    <span class="sbItem sbMetaItem"><span class="sbMetaLabel">Now</span> <span class="sbMetaValue" id="sbNow">—</span></span>
-    <span class="sbItem sbMetaItem"><span class="sbMetaLabel">Next</span> <span class="sbMetaValue" id="sbNext">—</span></span>
-    <span class="sbItem sbMetaItem"><span class="sbMetaLabel">Deck</span> <span class="sbMetaValue" id="sbDeck">—</span></span>
-  </div>
+        <div class="statusBanner sbShowStatus sbShowStatusHeader" id="sbShowStatus" aria-label="Show status">
+          <span class="sbItem"><span class="sbDot" id="sbPhaseDot" aria-hidden="true"></span><span class="mono" id="sbPhase">—</span></span>
+          <span class="sbItem">Time: <span class="sbTimer mono" id="sbTimer">0:00</span></span>
+          <span class="sbItem sbMetaItem"><span class="sbMetaLabel">Now</span> <span class="sbMetaValue" id="sbNow">—</span></span>
+          <span class="sbItem sbMetaItem"><span class="sbMetaLabel">Next</span> <span class="sbMetaValue" id="sbNext">—</span></span>
+          <span class="sbItem sbMetaItem"><span class="sbMetaLabel">Deck</span> <span class="sbMetaValue" id="sbDeck">—</span></span>
+        </div>
 
-  <div class="sbHeaderRight">
-    <label class="sbToggle small" title="Reduce header + controls height">
-      <input type="checkbox" id="sbCompactToggle" />
-      Compact
-    </label>
-    <label class="sbToggle small" title="Keep transport/time controls visible while scrolling">
-      <input type="checkbox" id="sbStickyRow2Toggle" />
-      Sticky controls
-    </label>
-    <a class="btn tiny" href="./operator.html" title="Return to operator">Back</a>
-  </div>
-</div>
+        <div class="sbHeaderRight">
+          <label class="sbToggle small" title="Reduce header + controls height">
+            <input type="checkbox" id="sbCompactToggle" />
+            Compact
+          </label>
+          <label class="sbToggle small" title="Keep transport/time controls visible while scrolling">
+            <input type="checkbox" id="sbStickyRow2Toggle" />
+            Sticky controls
+          </label>
+          <button class="btn tiny" id="sbSettingsBtn" type="button" title="Open soundboard settings">Settings</button>
+          <a class="btn tiny" href="./operator.html" title="Return to operator">Back</a>
+        </div>
+      </div>
+
       <div class="cardBody sbBody">
-<div class="sbRow sbRow2" id="sbRow2">
-  <div class="sbPanel sbPanelTransport">
-    <div class="sbPanelHeader">
-      <div class="sbPanelTitle">Transport</div>
-    </div>
-    <div class="row wrap sbTransportRow">
-  <button class="btn small primary" id="sbStart">Start</button>
-  <button class="btn small" id="sbPause">Pause</button>
-  <button class="btn small" id="sbResume">Resume</button>
-  <button class="btn small" id="sbEnd">End → Splash</button>
-</div>
-  </div>
 
-  <div class="sbPanel sbPanelTimer">
-    <div class="sbPanelHeader">
-      <div class="sbPanelTitle">Timer Adjust</div>
-    </div>
-    <div class="row wrap sbTimeAdjustRow">
-  <button class="btn tiny" id="sbMinus5">-5m</button>
-  <button class="btn tiny" id="sbMinus1">-1m</button>
-  <button class="btn tiny" id="sbMinus30">-:30</button>
-  <button class="btn tiny" id="sbPlus30">+:30</button>
-  <button class="btn tiny" id="sbPlus1">+1m</button>
-  <button class="btn tiny" id="sbPlus5">+5m</button>
-  <button class="btn tiny" id="sbResetTime">Reset</button>
-</div>
-  </div>
-</div>
-
-      <div class="sbRow sbRow3" id="sbRow3">
-        <div class="sbMain" id="sbMain">
-          <div class="sbBoardPane">
-
-          <div class="sbCats" id="sbCats">
-            <button class="sbCat active" data-cat="__all">All</button>
+        <!-- Row 2: transport + timer adjust -->
+        <div class="sbRow sbRow2" id="sbRow2">
+          <div class="sbPanel sbPanelTransport">
+            <div class="sbPanelHeader">
+              <div class="sbPanelTitle">Transport</div>
+            </div>
+            <div class="row wrap sbTransportRow">
+              <button class="btn small primary" id="sbStart">Start</button>
+              <button class="btn small" id="sbPause">Pause</button>
+              <button class="btn small" id="sbResume">Resume</button>
+              <button class="btn small" id="sbEnd">End → Splash</button>
+            </div>
           </div>
 
-          <div class="sbPadsArea">
-            <div class="sbPadsHeader">
-              <div class="sbPadsHeaderTop">
-                <div class="sbPadsTitle" id="sbPadsTitle">All</div>
+          <div class="sbPanel sbPanelTimer">
+            <div class="sbPanelHeader">
+              <div class="sbPanelTitle">Timer Adjust</div>
+            </div>
+            <div class="row wrap sbTimeAdjustRow">
+              <button class="btn tiny" id="sbMinus5">-5m</button>
+              <button class="btn tiny" id="sbMinus1">-1m</button>
+              <button class="btn tiny" id="sbMinus30">-:30</button>
+              <button class="btn tiny" id="sbPlus30">+:30</button>
+              <button class="btn tiny" id="sbPlus1">+1m</button>
+              <button class="btn tiny" id="sbPlus5">+5m</button>
+              <button class="btn tiny" id="sbResetTime">Reset</button>
+            </div>
+          </div>
+        </div>
 
-                <button class="btn tiny sbStopAllBtn" id="sbStopAll" type="button" title="Stop all sounds">Stop All</button>
+        <!-- Row 3: pads + music embed -->
+        <div class="sbRow sbRow3" id="sbRow3">
+          <div class="sbMain" id="sbMain">
 
-                <div class="sbSearchWrap">
-                  <input type="text" id="sbSearch" class="sbSearch" placeholder="Search sounds… (Ctrl+K)" autocomplete="off" spellcheck="false"/>
-                  <button type="button" class="sbSearchClear" id="sbSearchClear" aria-label="Clear search">×</button>
+            <div class="sbBoardPane">
+              <div class="sbCats" id="sbCats">
+                <button class="sbCat active" data-cat="__all">All</button>
+              </div>
+
+              <div class="sbPadsArea">
+                <div class="sbPadsHeader">
+                  <div class="sbPadsHeaderTop">
+                    <div class="sbPadsTitle" id="sbPadsTitle">All</div>
+
+                    <button class="btn tiny sbStopAllBtn" id="sbStopAll" type="button" title="Stop all sounds">Stop All</button>
+
+                    <div class="sbSearchWrap">
+                      <input type="text" id="sbSearch" class="sbSearch" placeholder="Search sounds… (Ctrl+K)" autocomplete="off" spellcheck="false"/>
+                      <button type="button" class="sbSearchClear" id="sbSearchClear" aria-label="Clear search">×</button>
+                    </div>
+                  </div>
+
+                  <div class="sbHintRow">
+                    <div class="small" id="sbResultMeta">Tip: type anywhere to search • Up/Down selects • Enter plays • 1–9/0 triggers your Learning Hotkeys (when not typing).</div>
+                    <div class="small sbHintRight">Space = panic stop (instant)</div>
+                  </div>
                 </div>
-              </div>
 
-              <div class="sbHintRow">
-                <div class="small" id="sbResultMeta">Tip: type anywhere to search • Up/Down selects • Enter plays • 1–9/0 triggers your Learning Hotkeys (when not typing).</div>
-                <div class="small sbHintRight">Space = panic stop (instant)</div>
+                <div class="sbPads" id="sbPads"></div>
               </div>
             </div>
-            <div class="sbPads" id="sbPads"></div>
-          </div>
 
-</div>
+            <div class="sbSplitHandle" id="sbSplitHandle" role="separator" aria-orientation="vertical"
+                 aria-label="Resize soundboard / music panes" tabindex="0" title="Drag to resize"></div>
 
-          <div class="sbSplitHandle" id="sbSplitHandle" role="separator" aria-orientation="vertical"
-               aria-label="Resize soundboard / music panes" tabindex="0" title="Drag to resize"></div>
+            <div class="sbSidePane" id="sbSidePane">
+              <div class="sbEmbedPane">
+                <div class="sbEmbedHeader">
+                  <div class="sbEmbedTitle">
+                    <div class="mono" style="font-weight:900; letter-spacing:.3px;">Music Embed</div>
+                    <div class="small" style="opacity:.85;">Control background music</div>
+                  </div>
+                  <div class="sbEmbedControls">
+                    <select id="sbEmbedSelect" class="sbSelect" aria-label="Select embed"></select>
+                    <button class="btn tiny" id="sbEmbedAdd" type="button">Add…</button>
+                    <button class="btn tiny" id="sbEmbedRemove" type="button" title="Remove selected custom embed">Remove</button>
+                  </div>
+                </div>
 
-                  <div class="sbSidePane" id="sbSidePane">
-          <div class="sbEmbedPane">
-            <div class="sbEmbedHeader">
-              <div class="sbEmbedTitle">
-                <div class="mono" style="font-weight:900; letter-spacing:.3px;">Music Embed</div>
-                <div class="small" style="opacity:.85;">Control background music</div>
+                <div class="sbEmbedFrameWrap" id="sbEmbedFrameWrap" aria-label="Embedded music player"></div>
+                <div class="small sbSafariTip" id="sbSafariTip" hidden>Tip: click inside the player once to allow playback in Safari.</div>
               </div>
-              <div class="sbEmbedControls">
-                <select id="sbEmbedSelect" class="sbSelect" aria-label="Select embed"></select>
-                <button class="btn tiny" id="sbEmbedAdd" type="button">Add…</button>
-                <button class="btn tiny" id="sbEmbedRemove" type="button" title="Remove selected custom embed">Remove</button>
-              </div>
             </div>
-<div class="sbEmbedFrameWrap" id="sbEmbedFrameWrap" aria-label="Embedded music player"></div>
-            <div class="small sbSafariTip" id="sbSafariTip" hidden>Tip: click inside the player once to allow playback in Safari.</div>
-</div>
 
-          <div class="sbSideSection">
-            <div class="sbMasterVol">
-    <div class="small">Master Volume</div>
-    <div class="sbVolControls">
-      <input type="range" id="sbMasterVol" class="sbRange" min="0" max="100" step="1" value="50" aria-label="Master volume"/>
-      <div class="sbVolReadout mono" id="sbMasterVolReadout">50%</div>
-      <button class="btn tiny" id="sbMasterVolReset" type="button" title="Reset to 50%">Reset</button>
-    </div>
-    <div class="small" style="opacity:.85;">50% = normal • above 50% boosts gain</div>
-  </div>
-          </div>
-
-          <div class="sbSideSection">
-            <div class="row wrap sbSettingsRow" style="gap:10px; justify-content:flex-start; margin-top:12px; align-items:center;">
-        <div class="sbFadeWrap" title="Fade-out duration when stopping sounds (Spacebar panic stop stays instant)">
-    <span class="small">Stop Fade</span>
-    <select id="sbStopFade" class="sbSelect" aria-label="Stop fade">
-      <option value="0">Instant</option>
-      <option value="150">150ms</option>
-      <option value="250">250ms</option>
-      <option value="500">500ms</option>
-      <option value="1000">1s</option>
-    </select>
-  </div>
-        <label class="sbFreezeWrap small" title="Prevent learning hotkeys from reshuffling while enabled" style="display:inline-flex; align-items:center; gap:8px; user-select:none;">
-    <input type="checkbox" id="sbFreezeHotkeys" />
-    Freeze Hotkeys
-  </label>
-      </div>
-          </div>
-
-          <div class="sbSideSection">
-            <details class="sbConfig">
-          <summary>Sound source</summary>
-          <div class="row wrap" style="margin-top:10px;">
-            <div style="flex:1 1 320px; min-width:240px;">
-              <div class="small">Google Drive API key (public folder)</div>
-              <input type="text" id="sbApiKey" placeholder="AIza..."/>
-            </div>
-            <div style="flex:2 1 420px; min-width:240px;">
-              <div class="small">Drive folder link or ID</div>
-              <input type="text" id="sbFolder" placeholder="https://drive.google.com/drive/folders/..."/>
-            </div>
-            <div class="row" style="align-items:flex-end;">
-              <button class="btn small" id="sbRefresh">Refresh</button>
-              <label class="row small" style="gap:8px; user-select:none;">
-                <input type="checkbox" id="sbPreload" checked/>
-                Preload (faster pads)
-              </label>
-            </div>
-          </div>
-          <div class="small" id="sbStatus" style="margin-top:10px; opacity:.9;">
-            Enter an API key + folder, then Refresh.
-          </div>
-        </details>
           </div>
         </div>
-        </div>
+
       </div>
-          </div>
-        </div>
-      </div>
+
     </div>
   </div>
 
-<div class="sbEnable" id="sbEnable">
-          <div class="sbEnableCard">
-            <div style="font-size:18px; font-weight:900;">Enable Audio</div>
-            <div class="small" style="margin-top:6px;">Browsers require a click before audio can play.</div>
-            <button class="btn primary" id="sbEnableBtn" style="margin-top:12px;">Enable</button>
-          </div>
-        </div>
+  <!-- Audio unlock overlay -->
+  <div class="sbEnable" id="sbEnable">
+    <div class="sbEnableCard">
+      <div style="font-size:18px; font-weight:900;">Enable Audio</div>
+      <div class="small" style="margin-top:6px;">Browsers require a click before audio can play.</div>
+      <button class="btn primary" id="sbEnableBtn" style="margin-top:12px;">Enable</button>
+    </div>
   </div>
 
   <script src="./shared.js"></script>
   <script src="./soundboard.js"></script>
-</div>
 
-<div class="modalOverlay" id="sbEmbedModal" hidden>
-  <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="sbEmbedModalTitle">
-    <div class="modalHeader">
-      <div class="modalTitle">
-        <h2 id="sbEmbedModalTitle">Add music embed</h2>
-        <div class="small" style="opacity:.85;">Paste an Apple Music / Spotify embed iframe code (or any https iframe embed).</div>
-      </div>
-      <div class="modalActions">
-        <button class="btn small" id="sbEmbedClose" type="button">Close</button>
-      </div>
-    </div>
-    <div class="modalBody">
-      <div class="field">
-        <label>Name</label>
-        <input id="sbEmbedName" type="text" placeholder="e.g., Chill Set Break" autocomplete="off" />
-      </div>
-
-      <div class="field">
-        <label>Embed code</label>
-        <textarea id="sbEmbedCode" rows="6" placeholder='<iframe ... src="https://..." ...></iframe>'></textarea>
-        <div class="small" style="opacity:.8; margin-top:6px;">
-          We only use the iframe <span class="mono">src</span> + basic attributes. Scripts are not executed.
+  <!-- Add music embed modal -->
+  <div class="modalOverlay" id="sbEmbedModal" hidden>
+    <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="sbEmbedModalTitle">
+      <div class="modalHeader">
+        <div class="modalTitle">
+          <h2 id="sbEmbedModalTitle">Add music embed</h2>
+          <div class="small" style="opacity:.85;">Paste an Apple Music / Spotify embed iframe code (or any https iframe embed).</div>
+        </div>
+        <div class="modalActions">
+          <button class="btn small" id="sbEmbedClose" type="button">Close</button>
         </div>
       </div>
+      <div class="modalBody">
+        <div class="field">
+          <label>Name</label>
+          <input id="sbEmbedName" type="text" placeholder="e.g., Chill Set Break" autocomplete="off" />
+        </div>
 
-      <div class="row" style="gap:10px; justify-content:flex-end; margin-top:14px;">
-        <button class="btn" id="sbEmbedCancel" type="button">Cancel</button>
-        <button class="btn primary" id="sbEmbedSave" type="button">Save</button>
+        <div class="field">
+          <label>Embed code</label>
+          <textarea id="sbEmbedCode" rows="6" placeholder='<iframe ... src="https://..." ...></iframe>'></textarea>
+          <div class="small" style="opacity:.8; margin-top:6px;">
+            We only use the iframe <span class="mono">src</span> + basic attributes. Scripts are not executed.
+          </div>
+        </div>
+
+        <div class="row" style="gap:10px; justify-content:flex-end; margin-top:14px;">
+          <button class="btn" id="sbEmbedCancel" type="button">Cancel</button>
+          <button class="btn primary" id="sbEmbedSave" type="button">Save</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
+
+  <!-- Soundboard settings modal -->
+  <div class="modalOverlay" id="sbSettingsModal" hidden>
+    <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="sbSettingsModalTitle">
+      <div class="modalHeader">
+        <div class="modalTitle">
+          <h2 id="sbSettingsModalTitle">Soundboard Settings</h2>
+          <div class="small" style="opacity:.85;">Volume, stop fade, hotkeys, and sound source.</div>
+        </div>
+        <div class="modalActions">
+          <button class="btn small" id="sbSettingsClose" type="button">Close</button>
+        </div>
+      </div>
+
+      <div class="modalBody">
+
+        <div class="card nested">
+          <div class="cardHeader"><h2>Audio</h2></div>
+          <div class="cardBody">
+
+            <div class="sbMasterVol" style="max-width: 760px;">
+              <div class="small">Master Volume</div>
+              <div class="sbVolControls">
+                <input type="range" id="sbMasterVol" class="sbRange" min="0" max="100" step="1" value="50" aria-label="Master volume"/>
+                <div class="sbVolReadout mono" id="sbMasterVolReadout">50%</div>
+                <button class="btn tiny" id="sbMasterVolReset" type="button" title="Reset to 50%">Reset</button>
+              </div>
+              <div class="small" style="opacity:.85;">50% = normal • above 50% boosts gain</div>
+            </div>
+
+            <div class="row wrap sbSettingsRow" style="gap:10px; justify-content:flex-start; margin-top:12px; align-items:center;">
+              <div class="sbFadeWrap" title="Fade-out duration when stopping sounds (Spacebar panic stop stays instant)">
+                <span class="small">Stop Fade</span>
+                <select id="sbStopFade" class="sbSelect" aria-label="Stop fade">
+                  <option value="0">Instant</option>
+                  <option value="150">150ms</option>
+                  <option value="250">250ms</option>
+                  <option value="500">500ms</option>
+                  <option value="1000">1s</option>
+                </select>
+              </div>
+
+              <label class="sbFreezeWrap small" title="Prevent learning hotkeys from reshuffling while enabled" style="display:inline-flex; align-items:center; gap:8px; user-select:none;">
+                <input type="checkbox" id="sbFreezeHotkeys" />
+                Freeze Hotkeys
+              </label>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="card nested" style="margin-top:12px;">
+          <div class="cardHeader"><h2>Sound source</h2></div>
+          <div class="cardBody">
+
+            <details class="sbConfig" open>
+              <summary>Google Drive folder</summary>
+              <div class="row wrap" style="margin-top:10px;">
+                <div style="flex:1 1 320px; min-width:240px;">
+                  <div class="small">Google Drive API key (public folder)</div>
+                  <input type="text" id="sbApiKey" placeholder="AIza..."/>
+                </div>
+                <div style="flex:2 1 420px; min-width:240px;">
+                  <div class="small">Drive folder link or ID</div>
+                  <input type="text" id="sbFolder" placeholder="https://drive.google.com/drive/folders/..."/>
+                </div>
+                <div class="row" style="align-items:flex-end;">
+                  <button class="btn small" id="sbRefresh" type="button">Refresh</button>
+                  <label class="row small" style="gap:8px; user-select:none;">
+                    <input type="checkbox" id="sbPreload" checked/>
+                    Preload (faster pads)
+                  </label>
+                </div>
+              </div>
+              <div class="small" id="sbStatus" style="margin-top:10px; opacity:.9;">
+                Enter an API key + folder, then Refresh.
+              </div>
+            </details>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>
