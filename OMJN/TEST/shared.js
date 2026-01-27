@@ -163,7 +163,9 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         { id:"comedian", label:"Comedian", defaultMinutes:10, isJamMode:false, color:"#2dd4bf", enabled:true },
         { id:"poetry", label:"Poetry", defaultMinutes:10, isJamMode:false, color:"#fbbf24", enabled:true },
         { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
-],
+        { id:"houseband", label:"House Band", defaultMinutes:15, isJamMode:false, color:"#22c55e", enabled:false, special:true },
+        { id:"intermission", label:"Intermission", defaultMinutes:10, isJamMode:false, color:"#a855f7", enabled:false, special:true },
+      ],
       // House Band: independent per-instrument queues.
       // Viewer footer shows the FIRST active person from each category.
       houseBandQueues: {
@@ -565,6 +567,177 @@ return s;
     }
     return out;
   }
+  
+
+  // Flatten HB members into a single combined ordering.
+  // merge:
+  // - "concat" (default): category order, then list order
+  // - "roundRobin": interleave categories while respecting each category queue order
+  function allHouseBandMembers(state, opts={}){
+    ensureHouseBandQueues(state);
+    const activeOnly = !!opts.activeOnly;
+    const merge = String(opts.merge || "concat");
+
+    const buckets = HOUSE_BAND_CATEGORIES.map(cat => {
+      const list = state.houseBandQueues?.[cat.key] || [];
+      const items = [];
+      for(const m of list){
+        normalizeHouseBandMember(m);
+        if(activeOnly && m.active === false) continue;
+        items.push({ categoryKey: cat.key, categoryLabel: cat.label, member: { ...m } });
+      }
+      return items;
+    });
+
+    if(merge === "roundRobin"){
+      const out = [];
+      const ptr = buckets.map(() => 0);
+      let advanced = true;
+      while(advanced){
+        advanced = false;
+        for(let i=0;i<buckets.length;i++){
+          const list = buckets[i];
+          const p = ptr[i];
+          if(p < list.length){
+            out.push(list[p]);
+            ptr[i] = p + 1;
+            advanced = true;
+          }
+        }
+      }
+      return out;
+    }
+
+    // concat
+    return buckets.flat();
+  }
+
+  function findHouseBandMemberById(state, memberId){
+    const id = String(memberId || "").trim();
+    if(!id) return null;
+    ensureHouseBandQueues(state);
+    for(const cat of HOUSE_BAND_CATEGORIES){
+      const list = state.houseBandQueues?.[cat.key] || [];
+      const m = list.find(x => {
+        normalizeHouseBandMember(x);
+        return x.id === id;
+      });
+      if(m) return { categoryKey: cat.key, categoryLabel: cat.label, member: { ...m } };
+    }
+    return null;
+  }
+
+  // House Band "feature" pick for a HOUSE BAND slot
+  // Priority: explicit override (hbFeaturedId) → locked pick at start (hbShownId) → first active in HB lists
+  function getHouseBandFeaturedForSlot(state, slot){
+    ensureHouseBandQueues(state);
+    const forcedId = String(slot?.hbFeaturedId || "").trim();
+    const lockedId = String(slot?.hbShownId || "").trim();
+    const pickId = forcedId || lockedId;
+    if(pickId){
+      const found = findHouseBandMemberById(state, pickId);
+      if(found) return found;
+    }
+    const first = allHouseBandMembers(state, { activeOnly:true, merge:"roundRobin" })[0] || null;
+    return first;
+  }
+
+  // --- House Band Set Builder helpers ---
+
+  function houseBandInstrumentLabelForMember(m){
+    if(!m) return "";
+    const instId = String(m.instrumentId || "").trim();
+    if(instId === "custom") return sanitizeText(m.customInstrument || "");
+    return (HOUSE_BAND_INSTRUMENTS.find(x => x.id === instId)?.label || "");
+  }
+
+  function houseBandMembersInCategory(state, categoryKey, opts={}){
+    ensureHouseBandQueues(state);
+    const key = String(categoryKey || "").trim();
+    const activeOnly = (opts.activeOnly !== false);
+    const list = Array.isArray(state.houseBandQueues?.[key]) ? state.houseBandQueues[key] : [];
+    const out = [];
+    for(const m of list){
+      normalizeHouseBandMember(m);
+      if(activeOnly && m.active === false) continue;
+      out.push({ ...m });
+    }
+    return out;
+  }
+
+  // Reorder a category so the selected member is FIRST, and the previously suggested
+  // (first active) member becomes SECOND ("skipped → next").
+  // This avoids sending a skipped player to the back; they become the next opportunity.
+  function reorderHouseBandCategorySelectedWithSuggestedNext(state, categoryKey, selectedMemberId){
+    ensureHouseBandQueues(state);
+    const key = String(categoryKey || "").trim();
+    if(!HOUSE_BAND_CATEGORIES.some(c => c.key === key)) return { suggestedId: null };
+
+    const list = state.houseBandQueues[key] || [];
+    // Suggested = first ACTIVE in current order
+    const suggested = list.find(m => {
+      normalizeHouseBandMember(m);
+      return m.active !== false;
+    }) || null;
+    const suggestedId = suggested?.id || null;
+
+    const selId = String(selectedMemberId || "").trim();
+    if(!selId) return { suggestedId };
+
+    const selIdx = list.findIndex(m => {
+      normalizeHouseBandMember(m);
+      return m.id === selId;
+    });
+    if(selIdx < 0) return { suggestedId };
+
+    const selected = list[selIdx];
+    const useSuggestedSecond = (suggestedId && suggestedId !== selId);
+    const suggestedObj = useSuggestedSecond
+      ? (list.find(m => {
+          normalizeHouseBandMember(m);
+          return m.id === suggestedId;
+        }) || null)
+      : null;
+
+    const next = [];
+    next.push(selected);
+    if(suggestedObj) next.push(suggestedObj);
+
+    for(const m of list){
+      normalizeHouseBandMember(m);
+      if(m.id === selId) continue;
+      if(suggestedObj && m.id === suggestedObj.id) continue;
+      next.push(m);
+    }
+
+    state.houseBandQueues[key] = next;
+    return { suggestedId };
+  }
+
+  function buildHouseBandLineupFromSelections(state, selections){
+    ensureHouseBandQueues(state);
+    const sel = (selections && typeof selections === "object") ? selections : {};
+    const out = [];
+    for(const cat of HOUSE_BAND_CATEGORIES){
+      const memberId = String(sel[cat.key] || "").trim();
+      if(!memberId) continue;
+      const found = findHouseBandMemberById(state, memberId);
+      if(!found?.member) continue;
+      const m = found.member;
+      const inst = sanitizeText(houseBandInstrumentLabelForMember(m) || cat.label || "");
+      out.push({
+        categoryKey: cat.key,
+        categoryLabel: cat.label,
+        memberId: m.id,
+        name: sanitizeText(m.name || ""),
+        instrumentLabel: inst,
+        instrument: inst
+      });
+    }
+    return out;
+  }
+
+
   function computeNextTwo(state){
     const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
     const q = Array.isArray(state.queue) ? state.queue : [];
@@ -801,6 +974,12 @@ async function loadBitmapFromFile(f){
     houseBandCategoryKeyForInstrumentId, houseBandCategoryKeyForMember,
     ensureHouseBandQueues, addHouseBandMember, removeHouseBandMember,
     rotateHouseBandMemberToEnd, rotateHouseBandTopToEnd, reorderHouseBandCategory, getHouseBandTopPerCategory,
+    allHouseBandMembers, findHouseBandMemberById, getHouseBandFeaturedForSlot,
+    houseBandInstrumentLabelForMember, houseBandMembersInCategory, houseBandActiveMembersByCategory, houseBandSuggestedInCategory,
+    reorderHouseBandCategorySelectedWithSuggestedNext, buildHouseBandLineupFromSelections,
+
+    
+
     computeNextTwo, computeCurrent, computeTimer,
     openAssetDB, putAsset, getAsset, deleteAsset, compressImageFile,
     formatMMSS, sanitizeText, applyThemeToDocument

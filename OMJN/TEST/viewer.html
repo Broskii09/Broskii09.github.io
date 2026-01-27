@@ -9,6 +9,7 @@
 <body style="margin:0;">
   <div class="viewerRoot" id="root">
     <div class="viewerBg" id="bg"></div>
+
     <!-- Sponsor bug overlay (absolute; does not affect layout) -->
     <div class="vSponsorLayer" id="sponsorLayer" aria-hidden="true" style="display:none;">
       <div class="vSponsorBug posTR" id="sponsorBug">
@@ -25,45 +26,53 @@
       </div>
     </div>
 
+    <!-- LIVE/SPLASH main layer -->
     <div class="viewerOverlay" id="overlay">
-      <div class="vCard" id="vMainCard">
-        <div class="small" id="nowLabel">NOW PERFORMING</div>
-        <h1 class="vNowName" id="nowName">—</h1>
+      <div class="viewerFrame" id="viewerFrame">
+        <!-- LEFT: Main hero card -->
+        <div class="vCard" id="vMainCard">
+          <div class="small" id="nowLabel">NOW PERFORMING</div>
+          <h1 class="vNowName" id="nowName">—</h1>
+          <div class="vHBInstruments" id="hbInstruments" style="display:none;">—</div>
 
-        <div class="vTimer mono" id="timer">0:00</div>
+          <div class="vTimer mono" id="timer">0:00</div>
 
-        <div class="vProgress" id="vProgress" hidden aria-hidden="true">
-          <div class="vProgressFill" id="vProgressFill"></div>
+          <div class="vProgress" id="vProgress" hidden aria-hidden="true">
+            <div class="vProgressFill" id="vProgressFill"></div>
+          </div>
+
+          <div class="vStateRow">
+            <span class="vChip good" id="chipState">LIVE</span>
+            <span class="vChip" id="chipType">Standard</span>
+            <span class="vChip" id="chipOver" style="display:none;">Overtime +0:00</span>
+            <span class="vChip warn" id="chipWarn" style="display:none;">Wrap it up</span>
+            <span class="vChip final" id="chipFinal" style="display:none;">Final 30 sec</span>
+          </div>
+
+          <!-- Next/On Deck (LIVE only) -->
+          <div class="vNextDeckRow" id="liveNextDeck">
+            <div class="vNextDeckCell">
+              <div class="small">Next Up</div>
+              <div class="vNextDeckName" id="liveNextUp">—</div>
+            </div>
+            <div class="vNextDeckCell right">
+              <div class="small">On Deck</div>
+              <div class="vNextDeckName" id="liveOnDeck">—</div>
+            </div>
+          </div>
         </div>
 
-        <div class="vStateRow">
-          <span class="vChip good" id="chipState">LIVE</span>
-          <span class="vChip" id="chipType">Standard</span>
-          <span class="vChip" id="chipOver" style="display:none;">Overtime +0:00</span>
-          <span class="vChip warn" id="chipWarn" style="display:none;">Wrap it up</span>
-          <span class="vChip final" id="chipFinal" style="display:none;">Final 30 sec</span>
-        </div>
-
-        <!-- Next/On Deck (LIVE only) -->
-        <div class="vNextDeckRow" id="liveNextDeck">
-          <div class="vNextDeckCell">
-            <div class="small">Next Up</div>
-            <div class="vNextDeckName" id="liveNextUp">—</div>
-          </div>
-          <div class="vNextDeckCell right">
-            <div class="small">On Deck</div>
-            <div class="vNextDeckName" id="liveOnDeck">—</div>
-          </div>
-        </div>
-
-        <div class="vMedia" id="vMedia">
-          <div class="vMediaBox" id="mediaBox">
-            <div class="small" id="mediaEmpty">No image / QR for this performer</div>
-            <img id="mediaImg" alt="" style="display:none;" decoding="async" loading="eager"/>
-          </div>
-          <div class="vCard" id="donationCard" style="padding:18px 20px;">
-            <div class="small">Website / Socials</div>
-            <div style="font-size:22px; font-weight:850; word-break:break-word;" id="donationText">—</div>
+        <!-- RIGHT: Media / QR / socials (independent card stack) -->
+        <div class="vMediaPane" id="vMediaPane">
+          <div class="vMedia" id="vMedia">
+            <div class="vMediaBox" id="mediaBox">
+              <div class="small" id="mediaEmpty">No image / QR for this performer</div>
+              <img id="mediaImg" alt="" style="display:none;" decoding="async" loading="eager"/>
+            </div>
+            <div class="vCard" id="donationCard" style="padding:18px 20px;">
+              <div class="small">Website / Socials</div>
+              <div style="font-size:22px; font-weight:850; word-break:break-word;" id="donationText">—</div>
+            </div>
           </div>
         </div>
       </div>
@@ -103,7 +112,6 @@
         <span class="vFooterBandLine" id="hbLiveLineup"></span>
       </span>
     </div>
-
   </div>
 
   <script src="./shared.js"></script>

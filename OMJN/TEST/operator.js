@@ -10,6 +10,8 @@
     addName: document.getElementById("addName"),
     addType: document.getElementById("addType"),
     btnAdd: document.getElementById("btnAdd"),
+    btnAddIntermission: document.getElementById("btnAddIntermission"),
+    btnAddHouseBandSlot: document.getElementById("btnAddHouseBandSlot"),
     profileNames: document.getElementById("profileNames"),
     addCustomWrap: document.getElementById("addCustomWrap"),
     addCustomLabel: document.getElementById("addCustomLabel"),
@@ -167,12 +169,28 @@ setBgColor: document.getElementById("setBgColor"),
     hbAddTags: document.getElementById("hbAddTags"),
     btnAddHBQ: document.getElementById("btnAddHBQ"),
     hbCats: document.getElementById("hbCats"),
+
+    // House Band Set Builder modal
+    hbBuildModal: document.getElementById("hbBuildModal"),
+    hbBuildList: document.getElementById("hbBuildList"),
+    hbPreviewNames: document.getElementById("hbPreviewNames"),
+    hbPreviewRoles: document.getElementById("hbPreviewRoles"),
+    btnHbBuildClose: document.getElementById("btnHbBuildClose"),
+    btnHbBuildEnableAll: document.getElementById("btnHbBuildEnableAll"),
+    btnHbBuildClearAll: document.getElementById("btnHbBuildClearAll"),
+    btnHbBuildCancel: document.getElementById("btnHbBuildCancel"),
+    btnHbBuildSave: document.getElementById("btnHbBuildSave"),
   };
 
   let selectedId = null;
   // Inline per-row editor (Stage 2)
   let editingId = null;
   let editDraft = null;
+
+  // House Band Set Builder
+  let hbBuildCtx = null; // { mode:'add'|'edit', slotId?:string }
+  let hbBuildDraft = null;
+
 
   const VIEWER_HEARTBEAT_KEY = "omjn.viewerHeartbeat.v1";
 
@@ -309,12 +327,18 @@ setBgColor: document.getElementById("setBgColor"),
     }
   }
 
-
-
-  function visibleSlotTypes(){
-    return state.slotTypes.filter(t => (t.enabled !== false));
+  function slotTypesForSelect(opts = {}){
+    const includeDisabled = !!opts.includeDisabled;
+    const excludeSpecial = !!opts.excludeSpecial;
+    return (state.slotTypes || [])
+      .filter(t => t && t.id)
+      .filter(t => includeDisabled || (t.enabled !== false))
+      .filter(t => !excludeSpecial || (t.special !== true));
   }
 
+  function visibleSlotTypes(){
+    return slotTypesForSelect();
+  }
   // Select a performer in the queue, and apply sensible defaults for legacy/empty media settings.
   // If a slot has no uploaded image, no URL, and no explicit layout, default it to QR_ONLY so the
   // Viewer shows the default QR image (assets/OMJN-QR.jpg) without extra operator clicks.
@@ -364,6 +388,7 @@ setBgColor: document.getElementById("setBgColor"),
       notes: slot?.notes || "",
       donationUrl: (media.donationUrl || ""),
       mediaLayout: media.mediaLayout || "NONE",
+      intermissionMessage: slot?.intermissionMessage || "",
     };
   }
 
@@ -388,6 +413,7 @@ setBgColor: document.getElementById("setBgColor"),
     const notes = String(editDraft.notes || "");
     const url = OMJN.sanitizeText(editDraft.donationUrl || "");
     const layout = String(editDraft.mediaLayout || "NONE");
+    const intermissionMessage = String(editDraft.intermissionMessage || "").trim();
 
     const slotTypeId = String(editDraft.slotTypeId || "musician");
     const customLabel = OMJN.sanitizeText(editDraft.customTypeLabel || "");
@@ -409,6 +435,21 @@ setBgColor: document.getElementById("setBgColor"),
       if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
       slot.media.donationUrl = url || null;
       slot.media.mediaLayout = layout;
+
+      // Special screens
+      if(slotTypeId === "houseband"){
+        slot.displayName = "HOUSE BAND";
+        // Keep slot.hbSelections / slot.hbLineup (built via the House Band Set Builder modal).
+      }else{
+        try{ delete slot.hbSelections; }catch(_){ }
+        try{ delete slot.hbLineup; }catch(_){ }
+      }
+
+      if(slotTypeId === "intermission"){
+        slot.intermissionMessage = intermissionMessage || "WE'LL BE RIGHT BACK";
+      }else{
+        try{ delete slot.intermissionMessage; }catch(_){ }
+      }
 
       // profile auto-save (keep existing behavior)
       const key = normNameKey(slot.displayName);
@@ -504,7 +545,7 @@ setBgColor: document.getElementById("setBgColor"),
     const lType = document.createElement("label");
     lType.textContent = "Slot Type";
     const selType = document.createElement("select");
-    fillTypeSelect(selType);
+    fillTypeSelect(selType, { includeDisabled:true });
     selType.value = editDraft?.slotTypeId ?? (slot.slotTypeId || "musician");
     fType.appendChild(lType);
     fType.appendChild(selType);
@@ -551,6 +592,69 @@ setBgColor: document.getElementById("setBgColor"),
     });
     fMins.appendChild(lMins); fMins.appendChild(iMins);
 
+
+
+    // House Band Set (HOUSE BAND slots)
+    const fHB = document.createElement("div");
+    fHB.className = "field";
+    const lHB = document.createElement("label");
+    lHB.textContent = "House Band Set";
+
+    const hbPrevNames = document.createElement("div");
+    hbPrevNames.className = "small";
+    hbPrevNames.style.opacity = ".90";
+    hbPrevNames.style.marginTop = "4px";
+
+    const hbPrevRoles = document.createElement("div");
+    hbPrevRoles.className = "small";
+    hbPrevRoles.style.opacity = ".75";
+    hbPrevRoles.style.marginTop = "2px";
+
+    const btnHbEdit = document.createElement("button");
+    btnHbEdit.type = "button";
+    btnHbEdit.className = "btn small";
+    btnHbEdit.textContent = "Edit set…";
+    btnHbEdit.style.marginTop = "8px";
+    btnHbEdit.addEventListener("click", (e) => {
+      e.preventDefault();
+      openHbBuildModal({ mode: "edit", slotId: slot.id });
+    });
+
+    function syncHBPreview(){
+      const lineup = Array.isArray(slot.hbLineup) ? slot.hbLineup : [];
+      const names = lineup.map(x => String(x?.name || "").trim()).filter(Boolean).join(" • ");
+      const roles = lineup.map(x => String(x?.instrumentLabel || x?.instrument || "").trim()).filter(Boolean).join(" • ");
+      hbPrevNames.textContent = names || "—";
+      hbPrevRoles.textContent = roles || "";
+    }
+    syncHBPreview();
+
+    fHB.appendChild(lHB);
+    fHB.appendChild(hbPrevNames);
+    fHB.appendChild(hbPrevRoles);
+    fHB.appendChild(btnHbEdit);
+
+    // Intermission message (INTERMISSION slots)
+    const fIM = document.createElement("div");
+    fIM.className = "field";
+    const lIM = document.createElement("label");
+    lIM.textContent = "Intermission Message";
+    const tIM = document.createElement("textarea");
+    tIM.rows = 2;
+    tIM.placeholder = "WE'LL BE RIGHT BACK";
+    tIM.value = String(editDraft?.intermissionMessage ?? (slot.intermissionMessage || ""));
+    tIM.addEventListener("input", () => { if(editDraft) editDraft.intermissionMessage = tIM.value; });
+    tIM.addEventListener("keydown", (e) => { if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); } });
+    fIM.appendChild(lIM);
+    fIM.appendChild(tIM);
+
+    function syncSpecialFields(){
+      const curType = String(selType.value || "musician");
+      fHB.style.display = (curType === "houseband") ? "" : "none";
+      fIM.style.display = (curType === "intermission") ? "" : "none";
+    }
+    selType.addEventListener("change", syncSpecialFields);
+    syncSpecialFields();
     const fUrl = document.createElement("div");
     fUrl.className = "field";
     const lUrl = document.createElement("label");
@@ -1718,10 +1822,10 @@ function escapeHtml(s){
     }
   }
 
-function fillTypeSelect(selectEl){
+  function fillTypeSelect(selectEl, opts = {}){
     if(!selectEl) return;
     selectEl.innerHTML = "";
-    for(const t of visibleSlotTypes()){
+    for(const t of slotTypesForSelect(opts)){
       const opt = document.createElement("option");
       opt.value = t.id;
       opt.textContent = `${t.label} (${t.defaultMinutes}m)`;
@@ -2754,7 +2858,7 @@ function render(){
       }
     }
 
-    fillTypeSelect(els.addType);
+    fillTypeSelect(els.addType, { excludeSpecial:true });
 toggleCustomAddFields();
     // House Band add controls
     if(els.hbAddInstrument){
@@ -2813,6 +2917,237 @@ renderHouseBandCategories();
     els.addName.focus();
   }
 
+
+
+  // ---- House Band Set Builder Modal ----
+
+  function openHbBuildModal(ctx){
+    hbBuildCtx = ctx || { mode: "add" };
+    hbBuildDraft = buildHbBuildDraftFromState(hbBuildCtx.slotId || null);
+    if(!els.hbBuildModal) return;
+    renderHbBuildModal();
+    els.hbBuildModal.hidden = false;
+    document.body.classList.add("modalOpen");
+    setTimeout(() => { els.btnHbBuildSave?.focus?.(); }, 0);
+  }
+
+  function closeHbBuildModal(){
+    hbBuildCtx = null;
+    hbBuildDraft = null;
+    if(!els.hbBuildModal) return;
+    els.hbBuildModal.hidden = true;
+    document.body.classList.remove("modalOpen");
+  }
+
+  function buildHbBuildDraftFromState(slotId){
+    const draft = { cats: {} };
+    const slot = slotId ? (state.queue || []).find(x => x && x.id === slotId) : null;
+    const existing = (slot && slot.hbSelections && typeof slot.hbSelections === "object") ? slot.hbSelections : null;
+    const cats = OMJN.houseBandCategories();
+    for(const cat of cats){
+      const suggested = OMJN.houseBandSuggestedInCategory(state, cat.key);
+      const suggestedId = suggested?.member?.id || null;
+      let enabled = !!suggestedId;
+      let memberId = suggestedId;
+      if(existing && Object.prototype.hasOwnProperty.call(existing, cat.key)){
+        enabled = !!existing[cat.key];
+        memberId = existing[cat.key] || null;
+      }
+      draft.cats[cat.key] = { enabled, memberId, suggestedId };
+    }
+    return draft;
+  }
+
+  function computeHbBuildLineupFromDraft(){
+    if(!hbBuildDraft) return [];
+    const selections = {};
+    for(const [key, cfg] of Object.entries(hbBuildDraft.cats || {})){
+      if(cfg && cfg.enabled && cfg.memberId) selections[key] = cfg.memberId;
+    }
+    return OMJN.buildHouseBandLineupFromSelections(state, selections);
+  }
+
+  function updateHbBuildPreview(){
+    const lineup = computeHbBuildLineupFromDraft();
+    const names = lineup.map(x => OMJN.sanitizeText(x.name || "")).filter(Boolean);
+    const roles = lineup.map(x => OMJN.sanitizeText(x.instrumentLabel || "")).filter(Boolean);
+    if(els.hbPreviewNames) els.hbPreviewNames.textContent = names.length ? names.join(" • ") : "—";
+    if(els.hbPreviewRoles) els.hbPreviewRoles.textContent = roles.length ? roles.join(" • ") : "—";
+  }
+
+  function renderHbBuildModal(){
+    if(!els.hbBuildList || !hbBuildDraft) return;
+    const cats = OMJN.houseBandCategories();
+    els.hbBuildList.innerHTML = "";
+
+    for(const cat of cats){
+      const cfg = hbBuildDraft.cats[cat.key] || { enabled:false, memberId:null, suggestedId:null };
+      const row = document.createElement("div");
+      row.className = "hbBuildRow" + (cfg.enabled ? "" : " disabled");
+
+      const chk = document.createElement("input");
+      chk.type = "checkbox";
+      chk.checked = !!cfg.enabled;
+      chk.addEventListener("change", () => {
+        cfg.enabled = !!chk.checked;
+        if(cfg.enabled && !cfg.memberId){
+          cfg.memberId = cfg.suggestedId || null;
+        }
+        renderHbBuildModal();
+      });
+
+      const lab = document.createElement("div");
+      lab.className = "hbCatLabel";
+      lab.textContent = cat.label;
+
+      const sel = document.createElement("select");
+      const emptyOpt = document.createElement("option");
+      emptyOpt.value = "";
+      emptyOpt.textContent = "(none)";
+      sel.appendChild(emptyOpt);
+
+      const members = OMJN.houseBandMembersInCategory(state, cat.key, { activeOnly:true });
+      for(const item of members){
+        const m = item.member;
+        if(!m?.id) continue;
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        let label = String(m.name || "—");
+        if(cfg.suggestedId && m.id === cfg.suggestedId) label += "  • suggested";
+        opt.textContent = label;
+        sel.appendChild(opt);
+      }
+
+      sel.value = String(cfg.memberId || "");
+      sel.disabled = !cfg.enabled;
+      sel.addEventListener("change", () => {
+        cfg.memberId = sel.value || null;
+        updateHbBuildPreview();
+      });
+
+      row.appendChild(chk);
+      row.appendChild(lab);
+      row.appendChild(sel);
+      els.hbBuildList.appendChild(row);
+    }
+
+    if(els.btnHbBuildSave){
+      els.btnHbBuildSave.textContent = (hbBuildCtx && hbBuildCtx.mode === "edit") ? "Save" : "Add to Queue";
+    }
+
+    updateHbBuildPreview();
+  }
+
+  function enableAllHbBuild(){
+    if(!hbBuildDraft) return;
+    for(const cat of OMJN.houseBandCategories()){
+      const cfg = hbBuildDraft.cats[cat.key];
+      if(!cfg) continue;
+      cfg.enabled = true;
+      if(!cfg.memberId) cfg.memberId = cfg.suggestedId || null;
+    }
+    renderHbBuildModal();
+  }
+
+  function clearAllHbBuild(){
+    if(!hbBuildDraft) return;
+    for(const cat of OMJN.houseBandCategories()){
+      const cfg = hbBuildDraft.cats[cat.key];
+      if(!cfg) continue;
+      cfg.enabled = false;
+    }
+    renderHbBuildModal();
+  }
+
+  function commitHbBuild(){
+    if(!hbBuildDraft) return;
+    const selections = {};
+    for(const [catKey, cfg] of Object.entries(hbBuildDraft.cats || {})){
+      if(cfg && cfg.enabled && cfg.memberId) selections[catKey] = cfg.memberId;
+    }
+    const lineup = OMJN.buildHouseBandLineupFromSelections(state, selections);
+
+    if(hbBuildCtx && hbBuildCtx.mode === "edit" && hbBuildCtx.slotId){
+      updateState(s => {
+        const slot = (s.queue || []).find(x => x && x.id === hbBuildCtx.slotId);
+        if(!slot) return;
+        slot.slotTypeId = "houseband";
+        slot.displayName = "HOUSE BAND";
+        slot.hbSelections = selections;
+        slot.hbLineup = lineup;
+      });
+      closeHbBuildModal();
+      render();
+      return;
+    }
+
+    updateState(s => {
+      const slot = {
+        id: OMJN.uid("slot"),
+        createdAt: Date.now(),
+        displayName: "HOUSE BAND",
+        slotTypeId: "houseband",
+        minutesOverride: null,
+        customTypeLabel: "",
+        status: "QUEUED",
+        notes: "",
+        hbSelections: selections,
+        hbLineup: lineup,
+        media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
+      };
+
+      // Smart reorder: if you skip the suggested (top) player, keep them NEXT.
+      for(const [catKey, memberId] of Object.entries(selections)){
+        OMJN.reorderHouseBandCategorySelectedWithSuggestedNext(s, catKey, memberId);
+      }
+
+      insertQueuedSlotSmart(s, slot);
+    });
+
+    closeHbBuildModal();
+    render();
+  }
+  // Quick-add: Intermission + House Band special slots
+  function insertQueuedSlotSmart(s, slot){
+    if(!Array.isArray(s.queue)) s.queue = [];
+    const liveish = (s.phase === "LIVE" || s.phase === "PAUSED") && !!s.currentSlotId;
+
+    // Prefer inserting immediately after the current live item.
+    if(liveish){
+      const curIdx = s.queue.findIndex(x => x && x.id === s.currentSlotId);
+      const insertAt = (curIdx >= 0) ? (curIdx + 1) : 1;
+      s.queue.splice(Math.max(0, insertAt), 0, slot);
+      return;
+    }
+
+    // Otherwise, insert before completed items (DONE/SKIPPED) to keep the active queue grouped.
+    const firstCompletedIdx = s.queue.findIndex(x => x && x.status !== "QUEUED");
+    if(firstCompletedIdx >= 0) s.queue.splice(firstCompletedIdx, 0, slot);
+    else s.queue.push(slot);
+  }
+
+  function addIntermissionSlot(){
+    updateState(s => {
+      const slot = {
+        id: OMJN.uid("slot"),
+        createdAt: Date.now(),
+        displayName: "INTERMISSION",
+        slotTypeId: "intermission",
+        minutesOverride: null,
+        customTypeLabel: "",
+        status: "QUEUED",
+        notes: "",
+        intermissionMessage: "WE'LL BE RIGHT BACK",
+        media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
+      };
+      insertQueuedSlotSmart(s, slot);
+    });
+  }
+
+  function addHouseBandSlot(){
+    openHbBuildModal({ mode: 'add' });
+  }
+
   
   function guardedStart(){
     // determine who would start
@@ -2846,6 +3181,29 @@ function start(){
       if(idx > 0){
         const [moved] = s.queue.splice(idx, 1);
         s.queue.unshift(moved);
+      }
+      // Special screen behavior
+      // - House Band: ensure lineup snapshot exists
+      // - Intermission: default message if empty
+      if(String(pick.slotTypeId || "") === "houseband"){
+        pick.displayName = "HOUSE BAND";
+        if(!Array.isArray(pick.hbLineup) || pick.hbLineup.length === 0){
+          const sel = (pick.hbSelections && typeof pick.hbSelections === "object") ? pick.hbSelections : {};
+          // If no selections were stored (legacy HB slots), default to suggested top active in each category.
+          if(Object.keys(sel).length === 0){
+            for(const cat of OMJN.houseBandCategories()){
+              const sug = OMJN.houseBandSuggestedInCategory(s, cat.key);
+              const id = sug?.member?.id || null;
+              if(id) sel[cat.key] = id;
+            }
+          }
+          pick.hbSelections = sel;
+          pick.hbLineup = OMJN.buildHouseBandLineupFromSelections(s, sel);
+        }
+      }
+      if(String(pick.slotTypeId || "") === "intermission"){
+        const msg = String(pick.intermissionMessage || "").trim();
+        if(!msg) pick.intermissionMessage = "WE'LL BE RIGHT BACK";
       }
 
       s.currentSlotId = pick.id;
@@ -2897,6 +3255,15 @@ function start(){
       const idx = s.queue.findIndex(x => x.id === s.currentSlotId);
       const cur = idx >= 0 ? s.queue[idx] : null;
       if(cur){ cur.status = "DONE"; cur.completedAt = Date.now(); }
+      // If a HOUSE BAND slot just ended, rotate each featured lineup member
+      // to the end of their category queue.
+      if(cur && String(cur.slotTypeId || "") === "houseband"){
+        const lineup = Array.isArray(cur.hbLineup) ? cur.hbLineup : [];
+        for(const entry of lineup){
+          const memberId = String(entry?.memberId || entry?.id || "").trim();
+          if(memberId) OMJN.rotateHouseBandMemberToEnd(s, memberId);
+        }
+      }
 
       // Move completed performer to bottom so QUEUED order always drives Next/On Deck UX
       if(idx >= 0){
@@ -2904,7 +3271,7 @@ function start(){
         s.queue.push(moved);
       }
 
-      // House Band is independent; no automatic rotation happens here.
+      // House Band footer is independent; rotation is handled above for HOUSE BAND slots.
       s.currentSlotId = null;
       s.phase = "SPLASH";
       s.timer.running = false;
@@ -3082,7 +3449,7 @@ function start(){
 
 function bind(){
     // initial select options
-    fillTypeSelect(els.addType);
+    fillTypeSelect(els.addType, { excludeSpecial:true });
 toggleCustomAddFields();
     bindSettings();
     bindPerformerDnD();
@@ -3109,6 +3476,22 @@ toggleCustomAddFields();
       if(e.key === "Enter"){ e.preventDefault(); addPerformer(); }
     });
     els.btnAdd.addEventListener("click", addPerformer);
+
+    // Quick add special screens
+    if(els.btnAddIntermission){
+      els.btnAddIntermission.addEventListener("click", (e) => { e.preventDefault(); addIntermissionSlot(); });
+    }
+    if(els.btnAddHouseBandSlot){
+      els.btnAddHouseBandSlot.addEventListener("click", (e) => { e.preventDefault(); addHouseBandSlot(); });
+    }
+
+
+    // House Band Set Builder modal
+    if(els.btnHbBuildClose) els.btnHbBuildClose.addEventListener("click", (e) => { e.preventDefault(); closeHbBuildModal(); });
+    if(els.btnHbBuildCancel) els.btnHbBuildCancel.addEventListener("click", (e) => { e.preventDefault(); closeHbBuildModal(); });
+    if(els.btnHbBuildEnableAll) els.btnHbBuildEnableAll.addEventListener("click", (e) => { e.preventDefault(); enableAllHbBuild(); });
+    if(els.btnHbBuildClearAll) els.btnHbBuildClearAll.addEventListener("click", (e) => { e.preventDefault(); clearAllHbBuild(); });
+    if(els.btnHbBuildSave) els.btnHbBuildSave.addEventListener("click", (e) => { e.preventDefault(); commitHbBuild(); });
 
     // Tabs
     function setActiveTab(which){

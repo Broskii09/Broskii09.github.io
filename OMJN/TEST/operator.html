@@ -76,7 +76,11 @@
                         <input id="addCustomMinutes" type="number" min="1" step="1" placeholder="15" />
                     </div>
 
-	                    <button class="btn good" id="btnAdd">Add</button>
+	                    <div class="row" style="gap:10px; align-items:flex-end; padding-top:22px;">
+                      <button class="btn good" id="btnAdd" type="button">Add</button>
+                      <button class="btn" id="btnAddIntermission" type="button">Intermission</button>
+                      <button class="btn" id="btnAddHouseBandSlot" type="button">House Band</button>
+                    </div>
                 </div>
 
                 <hr class="sep" />
@@ -695,8 +699,6 @@
         </div>
     </div>
 
-    <script src="./shared.js"></script>
-    <script src="./operator.js"></script>
 
 
     <div class="modalOverlay" id="timerUpModal" hidden>
@@ -738,5 +740,44 @@
             </div>
         </div>
     </div>
+
+
+    <!-- House Band Set Builder Modal -->
+    <div class="modalOverlay" id="hbBuildModal" hidden>
+        <div class="modalPanel hbBuildPanel" role="dialog" aria-modal="true" aria-labelledby="hbBuildTitle">
+            <div class="modalHeader">
+                <div class="modalTitle">
+                    <h2 id="hbBuildTitle">Build House Band Set</h2>
+                    <div class="small" id="hbBuildSubtitle">Pick who’s playing for this set. Suggested players are preselected.</div>
+                </div>
+                <div class="modalActions">
+                    <button class="btn small" id="btnHbBuildClose" type="button">Close</button>
+                </div>
+            </div>
+            <div class="modalBody">
+                <div class="hbBuildGrid" id="hbBuildList"></div>
+
+                <div class="hbBuildPreview">
+                    <div class="small">Viewer preview</div>
+                    <div class="hbPreviewNames" id="hbPreviewNames">—</div>
+                    <div class="hbPreviewRoles" id="hbPreviewRoles">—</div>
+                </div>
+
+                <div class="row" style="justify-content:space-between; gap:10px; margin-top:14px;">
+                    <div class="row" style="gap:8px;">
+                        <button class="btn tiny" id="btnHbBuildEnableAll" type="button">Enable all</button>
+                        <button class="btn tiny" id="btnHbBuildClearAll" type="button">Clear all</button>
+                    </div>
+                    <div class="row" style="gap:10px;">
+                        <button class="btn" id="btnHbBuildCancel" type="button">Cancel</button>
+                        <button class="btn accent" id="btnHbBuildSave" type="button">Add to Queue</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+  <script src="./shared.js"></script>
+  <script src="./operator.js"></script>
 </body>
 </html>

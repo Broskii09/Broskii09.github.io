@@ -17,7 +17,9 @@
 
     // LIVE main card
     vMainCard: document.getElementById("vMainCard"),
+    nowLabel: document.getElementById("nowLabel"),
     nowName: document.getElementById("nowName"),
+    hbInstruments: document.getElementById("hbInstruments"),
     timer: document.getElementById("timer"),
     chipState: document.getElementById("chipState"),
     chipType: document.getElementById("chipType"),
@@ -33,6 +35,7 @@
 
     // Media column
     vMedia: document.getElementById("vMedia"),
+    vMediaPane: document.getElementById("vMediaPane"),
     donationCard: document.getElementById("donationCard"),
     donationText: document.getElementById("donationText"),
     mediaBox: document.getElementById("mediaBox"),
@@ -65,6 +68,19 @@
     vViz: document.getElementById("vViz"),
     btnVizMic: document.getElementById("btnVizMic"),
   };
+
+  // House Band instrument labels (for chipType when featuring a member)
+  const HB_INST_LABEL = (() => {
+    try{
+      const m = new Map();
+      for(const x of OMJN.houseBandInstrumentOptions()){
+        if(x && x.id) m.set(String(x.id), String(x.label || x.id));
+      }
+      return m;
+    }catch(_){
+      return new Map();
+    }
+  })();
 
   // Default QR image shown when a performer uses a QR layout but has no custom upload.
   const DEFAULT_QR_SRC = "./assets/OMJN-QR.png";
@@ -109,8 +125,16 @@
   let mediaToken = 0;
 
   function cleanName(v) {
-    const s = String(v ?? "").trim();
+    // Be defensive: remove zero-width characters that can make a name "look blank"
+    // while still being a non-empty string.
+    let s = String(v ?? "");
+    s = s.replace(/[\u200B-\u200D\uFEFF\u2060]/g, "");
+    s = s.replace(/\s+/g, " ").trim();
     return s || "—";
+  }
+
+  function slotName(slot) {
+    return cleanName(slot?.displayName ?? slot?.name ?? slot?.performerName ?? slot?.title ?? "");
   }
 
   // Sponsor bug runtime
@@ -851,8 +875,8 @@
     lastSplashKey = key;
 
     // Next / Deck cards
-    if (el.sNext) el.sNext.textContent = showNextTwo ? (n1?.displayName || "TBD") : "";
-    if (el.sDeck) el.sDeck.textContent = showNextTwo ? (n2?.displayName || "TBD") : "";
+    if (el.sNext) el.sNext.textContent = showNextTwo ? (n1 ? slotName(n1) : "TBD") : "";
+    if (el.sDeck) el.sDeck.textContent = showNextTwo ? (n2 ? slotName(n2) : "TBD") : "";
 
     const sub1 = n1 ? `${OMJN.displaySlotTypeLabel(state, n1)} • ${OMJN.effectiveMinutes(state, n1)}m` : "Sign ups open";
     const sub2 = n2 ? `${OMJN.displaySlotTypeLabel(state, n2)} • ${OMJN.effectiveMinutes(state, n2)}m` : "Get ready";
@@ -895,13 +919,51 @@
     if (key === lastNextDeckKey) return;
     lastNextDeckKey = key;
 
-    if (el.liveNextUp) el.liveNextUp.textContent = cleanName(n1?.displayName);
-    if (el.liveOnDeck) el.liveOnDeck.textContent = cleanName(n2?.displayName);
+    if (el.liveNextUp) el.liveNextUp.textContent = slotName(n1);
+    if (el.liveOnDeck) el.liveOnDeck.textContent = slotName(n2);
   }
 
   function renderLiveStatic() {
     const cur = OMJN.computeCurrent(state);
     if (!cur) return;
+
+    const slotTypeId = String(cur.slotTypeId || "");
+    const isHB = slotTypeId === "houseband";
+    const isIM = slotTypeId === "intermission";
+
+    if(el.root){
+      el.root.classList.toggle("isHB", isHB);
+      el.root.classList.toggle("isIM", isIM);
+    }
+
+    // Compute headline + chipType for special screens
+    let nowLabelText = "NOW PERFORMING";
+    let nowNameText = slotName(cur);
+    let chipTypeText = OMJN.displaySlotTypeLabel(state, cur);
+    let hbInstrumentsText = "";
+
+    if(isIM){
+      nowLabelText = "INTERMISSION";
+      nowNameText = cleanName(cur.intermissionMessage || "WE'LL BE RIGHT BACK");
+      chipTypeText = "INTERMISSION";
+    }else if(isHB){
+      nowLabelText = "HOUSE BAND";
+      const lineup = Array.isArray(cur.hbLineup) ? cur.hbLineup : [];
+      const names = lineup.map(x => cleanName(x?.name || "")).filter(Boolean);
+      const roles = lineup.map(x => cleanName(x?.instrumentLabel || x?.instrument || "")).filter(Boolean);
+      if(names.length){
+        nowNameText = names.join(" • ");
+      }else{
+        nowNameText = "HOUSE BAND";
+      }
+      hbInstrumentsText = roles.join(" • ");
+      chipTypeText = "HOUSE BAND";
+    }
+
+    // Defensive: if the headline name somehow ends up blank, restore it.
+    if (el.nowName && !String(el.nowName.textContent || "").replace(/[\u200B-\u200D\uFEFF\u2060]/g, "").trim()) {
+      el.nowName.textContent = nowNameText;
+    }
 
     // Slot change reset
     if (lastSlotId !== cur.id) {
@@ -923,8 +985,10 @@
     const mediaLayout = media.mediaLayout || "NONE";
     const staticKey = JSON.stringify({
       id: cur.id,
-      name: String(cur.displayName || "").trim(),
-      type: OMJN.displaySlotTypeLabel(state, cur),
+      nowLabelText,
+      nowNameText,
+      hbInstrumentsText,
+      chipTypeText,
       donationUrl,
       mediaLayout,
       imageAssetId: media.imageAssetId || null,
@@ -933,11 +997,18 @@
     if (staticKey !== lastSlotStaticKey) {
       lastSlotStaticKey = staticKey;
 
-      if (el.nowName) el.nowName.textContent = cleanName(cur.displayName);
-      if (el.chipType) el.chipType.textContent = OMJN.displaySlotTypeLabel(state, cur);
+      if (el.nowLabel) el.nowLabel.textContent = nowLabelText;
+      if (el.nowName) el.nowName.textContent = nowNameText;
+      if (el.hbInstruments){
+        const show = isHB && !!hbInstrumentsText;
+        el.hbInstruments.style.display = show ? "" : "none";
+        el.hbInstruments.textContent = show ? hbInstrumentsText : "";
+      }
+      if (el.chipType) el.chipType.textContent = chipTypeText;
 
       if (startIntroPending) {
-        triggerStartIntro(cleanName(cur.displayName));
+        // For special screens, animate the headline name (message/member).
+        triggerStartIntro(nowNameText);
         startIntroPending = false;
       }
 
@@ -969,7 +1040,9 @@
       const layoutKey = JSON.stringify({ showMedia });
       if (layoutKey !== lastLayoutKey) {
         lastLayoutKey = layoutKey;
-        if (el.vMedia) el.vMedia.style.display = showMedia ? "grid" : "none";
+        if (el.root) el.root.classList.toggle("noMediaPane", !showMedia);
+        if (el.vMediaPane) el.vMediaPane.style.display = showMedia ? "block" : "none";
+        if (el.vMedia) el.vMedia.style.display = showMedia ? "flex" : "none";
       }
 
       // Progress bar visibility toggle (static) (static)
