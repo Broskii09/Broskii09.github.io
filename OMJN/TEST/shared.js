@@ -652,18 +652,51 @@ return s;
   }
 
   function houseBandMembersInCategory(state, categoryKey, opts={}){
-    ensureHouseBandQueues(state);
-    const key = String(categoryKey || "").trim();
-    const activeOnly = (opts.activeOnly !== false);
-    const list = Array.isArray(state.houseBandQueues?.[key]) ? state.houseBandQueues[key] : [];
-    const out = [];
-    for(const m of list){
-      normalizeHouseBandMember(m);
-      if(activeOnly && m.active === false) continue;
-      out.push({ ...m });
-    }
-    return out;
+  ensureHouseBandQueues(state);
+  const key = String(categoryKey || "").trim();
+  const cat = HOUSE_BAND_CATEGORIES.find(c => c.key === key) || { key, label: key };
+  const activeOnly = (opts.activeOnly !== false);
+  const list = Array.isArray(state.houseBandQueues?.[key]) ? state.houseBandQueues[key] : [];
+  const out = [];
+  for(const m of list){
+    normalizeHouseBandMember(m);
+    if(activeOnly && m.active === false) continue;
+    out.push({ categoryKey: key, categoryLabel: cat.label, member: { ...m } });
   }
+  return out;
+}
+
+function houseBandSuggestedInCategory(state, categoryKey){
+  // Suggested = first ACTIVE member in the category's current order
+  const list = houseBandMembersInCategory(state, categoryKey, { activeOnly: true });
+  return list[0] || null;
+}
+
+function houseBandActiveMembersByCategory(state){
+  // Map categoryKey -> array of {categoryKey, categoryLabel, member}
+  ensureHouseBandQueues(state);
+  const out = {};
+  for(const cat of HOUSE_BAND_CATEGORIES){
+    out[cat.key] = houseBandMembersInCategory(state, cat.key, { activeOnly: true });
+  }
+  return out;
+}
+
+function houseBandSuggestedInCategory(state, categoryKey){
+  // Suggested = first ACTIVE member in the category's current order
+  const list = houseBandMembersInCategory(state, categoryKey, { activeOnly: true });
+  return list[0] || null;
+}
+
+function houseBandActiveMembersByCategory(state){
+  // Map categoryKey -> array of {categoryKey, categoryLabel, member}
+  ensureHouseBandQueues(state);
+  const out = {};
+  for(const cat of HOUSE_BAND_CATEGORIES){
+    out[cat.key] = houseBandMembersInCategory(state, cat.key, { activeOnly: true });
+  }
+  return out;
+}
 
   // Reorder a category so the selected member is FIRST, and the previously suggested
   // (first active) member becomes SECOND ("skipped → next").
