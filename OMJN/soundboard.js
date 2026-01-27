@@ -1,3 +1,11 @@
+
+
+// ---- UI scope (separate /TEST vs /OMJN) ----
+const SB_UI_SCOPE = (() => {
+  const p = (location.pathname || "").toLowerCase();
+  return p.includes("/omjn/test") ? "test" : "prod";
+})();
+
 /* Soundboard page (public Google Drive folder or local) */
 (() => {
   let state = OMJN.loadState();
@@ -6,6 +14,7 @@
   // ---- DOM ----
   const els = {
     phase: document.getElementById("sbPhase"),
+    phaseDot: document.getElementById("sbPhaseDot"),
     timer: document.getElementById("sbTimer"),
     now: document.getElementById("sbNow"),
     next: document.getElementById("sbNext"),
@@ -17,7 +26,29 @@
     end: document.getElementById("sbEnd"),
     minus30: document.getElementById("sbMinus30"),
     plus30: document.getElementById("sbPlus30"),
+    minus1: document.getElementById("sbMinus1"),
+    minus5: document.getElementById("sbMinus5"),
+    plus1: document.getElementById("sbPlus1"),
+    plus5: document.getElementById("sbPlus5"),
     resetTime: document.getElementById("sbResetTime"),
+
+    compactToggle: document.getElementById("sbCompactToggle"),
+    stickyRow2Toggle: document.getElementById("sbStickyRow2Toggle"),
+    stickyHeader: document.getElementById("sbStickyHeader"),
+    row2: document.getElementById("sbRow2"),
+    safariTip: document.getElementById("sbSafariTip"),
+
+    embedSelect: document.getElementById("sbEmbedSelect"),
+    embedAdd: document.getElementById("sbEmbedAdd"),
+    embedRemove: document.getElementById("sbEmbedRemove"),
+    splitHandle: document.getElementById("sbSplitHandle"),
+    embedFrameWrap: document.getElementById("sbEmbedFrameWrap"),
+    embedModal: document.getElementById("sbEmbedModal"),
+    embedClose: document.getElementById("sbEmbedClose"),
+    embedCancel: document.getElementById("sbEmbedCancel"),
+    embedSave: document.getElementById("sbEmbedSave"),
+    embedName: document.getElementById("sbEmbedName"),
+    embedCode: document.getElementById("sbEmbedCode"),
     stopAll: document.getElementById("sbStopAll"),
 
     masterVol: document.getElementById("sbMasterVol"),
@@ -41,7 +72,88 @@
 
     enableOverlay: document.getElementById("sbEnable"),
     enableBtn: document.getElementById("sbEnableBtn"),
+
+    settingsBtn: document.getElementById("sbSettingsBtn"),
+    settingsModal: document.getElementById("sbSettingsModal"),
+    settingsClose: document.getElementById("sbSettingsClose"),
   };
+
+// ---- UI prefs (compact rows + optional sticky controls) ----
+const UI_PREF_KEY = `omjn.sb.ui.v1.${SB_UI_SCOPE}`;
+
+function loadUiPrefs(){
+  try{
+    const raw = localStorage.getItem(UI_PREF_KEY);
+    const obj = raw ? JSON.parse(raw) : null;
+    return {
+      compact: !!obj?.compact,
+      stickyControls: !!obj?.stickyControls
+    };
+  }catch(_){
+    return { compact:false, stickyControls:false };
+  }
+}
+
+function saveUiPrefs(prefs){
+  try{ localStorage.setItem(UI_PREF_KEY, JSON.stringify(prefs)); }catch(_){}
+}
+
+function applyStickyVars(){
+  // Row2 sticks inside the cardBody scroller (which starts below the header),
+  // so sticky top is normally 0. If the header is moved into the same scroller
+  // in a future layout, we automatically account for it.
+  let stickyTop = 0;
+  const row2 = els.row2;
+  const header = els.stickyHeader;
+
+  try{
+    const scroller = row2?.closest(".cardBody") || document.scrollingElement || document.documentElement;
+    if(scroller && header && scroller.contains(header)){
+      stickyTop = header.offsetHeight || 0;
+    }
+  }catch(_){
+    stickyTop = 0;
+  }
+
+  document.documentElement.style.setProperty("--sbStickyTop", `${Math.max(0, stickyTop|0)}px`);
+
+  // Side pane should tuck under Row2 only when sticky controls are enabled.
+  const row2H = (document.body.classList.contains("sbRow2Sticky") && row2) ? row2.offsetHeight : 0;
+  document.documentElement.style.setProperty("--sbRow2H", `${Math.max(0, row2H|0)}px`);
+}
+
+function initUiPrefs(){
+  const prefs = loadUiPrefs();
+
+  // Defaults: expanded + non-sticky until user opts in
+  if(els.compactToggle){
+    els.compactToggle.checked = prefs.compact;
+    document.body.classList.toggle("sbCompact", prefs.compact);
+    els.compactToggle.addEventListener("change", () => {
+      prefs.compact = !!els.compactToggle.checked;
+      document.body.classList.toggle("sbCompact", prefs.compact);
+      saveUiPrefs(prefs);
+      applyStickyVars();
+    });
+  }
+
+  if(els.stickyRow2Toggle){
+    els.stickyRow2Toggle.checked = prefs.stickyControls;
+    document.body.classList.toggle("sbRow2Sticky", prefs.stickyControls);
+    els.stickyRow2Toggle.addEventListener("change", () => {
+      prefs.stickyControls = !!els.stickyRow2Toggle.checked;
+      document.body.classList.toggle("sbRow2Sticky", prefs.stickyControls);
+      saveUiPrefs(prefs);
+      applyStickyVars();
+    });
+  }
+
+  // keep sticky offset accurate
+  applyStickyVars();
+  window.addEventListener("resize", () => applyStickyVars());
+  setTimeout(applyStickyVars, 50);
+}
+
 
   // ---- Audio engine ----
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -167,22 +279,101 @@
   const playing = new Map();
 
   function showEnableOverlay(show){
+    if(!els.enableOverlay) return;
     els.enableOverlay.style.display = show ? "flex" : "none";
   }
 
-  showEnableOverlay(true);
-  els.enableBtn.addEventListener("click", async () => {
+  audioEnabled = (ctx.state === "running");
+  showEnableOverlay(!audioEnabled);
+  initUiPrefs();
+
+  // ---- Settings modal (volume, fade, hotkeys, source) ----
+  function openSettingsModal(){
+    if(!els.settingsModal) return;
+    els.settingsModal.hidden = false;
+    document.body.classList.add("modalOpen");
+    setTimeout(() => {
+      // Focus first interactive control for quick keyboard use
+      (els.masterVol || els.apiKey || els.folder)?.focus?.();
+    }, 0);
+  }
+
+  function closeSettingsModal(){
+    if(!els.settingsModal) return;
+    els.settingsModal.hidden = true;
+    document.body.classList.remove("modalOpen");
+  }
+
+  function initSettingsModal(){
+    if(els.settingsBtn){
+      els.settingsBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        openSettingsModal();
+      });
+    }
+
+    if(els.settingsClose){
+      els.settingsClose.addEventListener("click", (e) => {
+        e.preventDefault();
+        closeSettingsModal();
+      });
+    }
+
+    // Click on the dark overlay closes
+    if(els.settingsModal){
+      els.settingsModal.addEventListener("click", (e) => {
+        if(e.target === els.settingsModal) closeSettingsModal();
+      });
+    }
+
+    // Esc closes (capture so it beats search / other handlers)
+    document.addEventListener("keydown", (e) => {
+      if(e.key === "Escape" && els.settingsModal && !els.settingsModal.hidden){
+        e.preventDefault();
+        e.stopPropagation();
+        closeSettingsModal();
+      }
+    }, true);
+  }
+
+  initSettingsModal();
+
+// Enable audio (bind to any enable button, even if markup changes)
+const _enableBtns = Array.from(document.querySelectorAll("#sbEnableBtn"));
+for(const btn of _enableBtns){
+  btn.addEventListener("click", async () => {
     try{
+      // First attempt: resume the context
       await ctx.resume();
-      audioEnabled = true;
-      showEnableOverlay(false);
-      setStatus("Audio enabled.", false);
+
+      // Safari sometimes needs an extra silent start/stop to fully unlock output
+      if(ctx.state !== "running"){
+        try{
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          g.gain.value = 0;
+          osc.connect(g).connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.01);
+        }catch(_){}
+        await ctx.resume();
+      }
+
+      audioEnabled = (ctx.state === "running");
+      if(audioEnabled){
+        showEnableOverlay(false);
+        setStatus("Audio enabled.", false);
+      }else{
+        showEnableOverlay(true);
+        setStatus("Audio is still blocked. Try clicking again.", true);
+      }
     }catch(e){
+      showEnableOverlay(true);
       setStatus("Could not enable audio. Try clicking again.", true);
     }
   });
-
-  function setStatus(msg, isErr=false){
+}
+function setStatus(msg, isErr=false){
     if(!els.status) return;
     els.status.textContent = msg;
     els.status.style.color = isErr ? "var(--danger,#ff6b6b)" : "";
@@ -1265,93 +1456,92 @@ const cfg = loadCfg();
   els.folder.addEventListener("change", saveCfg);
   els.preload.addEventListener("change", saveCfg);
 
-  // Try local manifest first (optional), then user can refresh from Drive.
-  // Try local manifest first (optional). Then auto-refresh from Drive using baked defaults.
-  (async () => {
-    try{ await loadLocalManifest(); }catch(_){}
-    // Auto-populate from Drive once on load
-    try{
-      const hasKey = !!String(els.apiKey.value||"").trim();
-      const hasFolder = !!String(els.folder.value||"").trim();
-      if(hasKey && hasFolder) els.refresh.click();
-    }catch(_){}
-  })();
+// ---- Refresh sounds ----
+async function refreshFromDrive(){
+  saveCfg();
+  const apiKey = String(els.apiKey.value||"").trim();
+  const folderId = parseFolderId(els.folder.value);
+  if(!apiKey || !folderId){
+    setStatus("Please enter an API key and Drive folder.", true);
+    return;
+  }
+  setStatus("Loading sounds from Drive…", false);
+  try{
+    const rootChildren = await driveList(apiKey, folderId);
+    const subfolders = rootChildren.filter(isFolder);
 
+    const rootSounds = rootChildren.filter(f => !isFolder(f) && isAudio(f));
+    const cats = [];
 
-  // ---- Refresh sounds ----
-  els.refresh.addEventListener("click", async () => {
-    saveCfg();
-    const apiKey = String(els.apiKey.value||"").trim();
-    const folderId = parseFolderId(els.folder.value);
-    if(!apiKey || !folderId){
-      setStatus("Please enter an API key and Drive folder.", true);
-      return;
+    if(rootSounds.length){
+      cats.push({
+        id: "general",
+        label: "General",
+        sounds: rootSounds.map(f => ({
+          id: f.id,
+          name: f.name,
+          mimeType: f.mimeType,
+          modifiedTime: f.modifiedTime,
+          downloadUrl: driveDownloadUrl(apiKey, f.id),
+        }))
+      });
     }
-    setStatus("Loading sounds from Drive…", false);
-    try{
-      const rootChildren = await driveList(apiKey, folderId);
-      const subfolders = rootChildren.filter(isFolder);
 
-      const rootSounds = rootChildren.filter(f => !isFolder(f) && isAudio(f));
-      const cats = [];
-
-      if(rootSounds.length){
-        cats.push({
-          id: "general",
-          label: "General",
-          sounds: rootSounds.map(f => ({
-            id: f.id,
-            name: f.name,
-            mimeType: f.mimeType,
-            modifiedTime: f.modifiedTime,
-            downloadUrl: driveDownloadUrl(apiKey, f.id),
-          }))
-        });
+    // Load each subfolder as a category
+    for(const sf of subfolders){
+      let files = [];
+      try{
+        files = await driveList(apiKey, sf.id);
+      }catch(e){
+        console.warn("Subfolder list failed:", sf.name, e);
       }
-
-      // Load each subfolder as a category
-      for(const sf of subfolders){
-        let files = [];
-        try{
-          files = await driveList(apiKey, sf.id);
-        }catch(e){
-          console.warn("Subfolder list failed:", sf.name, e);
-        }
-        const aud = files.filter(f => !isFolder(f) && isAudio(f));
-        if(!aud.length) continue;
-        cats.push({
-          id: sf.id,
-          label: sf.name,
-          sounds: aud.map(f => ({
-            id: f.id,
-            name: f.name,
-            mimeType: f.mimeType,
-            modifiedTime: f.modifiedTime,
-            downloadUrl: driveDownloadUrl(apiKey, f.id),
-          }))
-        });
-      }
-
-      categories = cats;
-      indexSounds();
-      activeCategoryId = "__all";
-      setSearchQuery("");
-      selectedIdx = 0;
-      renderCategories();
-      renderPads();
-
-      const total = categories.reduce((n,c) => n + c.sounds.length, 0);
-      setStatus(`Loaded ${total} sound(s) across ${categories.length} category(ies).`, false);
-
-      // Optional preload
-      if(els.preload.checked){
-        preloadAllVisible();
-      }
-    }catch(e){
-      console.error(e);
-      setStatus("Could not load Drive folder. Check API key, sharing, and folder ID.", true);
+      const aud = files.filter(f => !isFolder(f) && isAudio(f));
+      if(!aud.length) continue;
+      cats.push({
+        id: sf.id,
+        label: sf.name,
+        sounds: aud.map(f => ({
+          id: f.id,
+          name: f.name,
+          mimeType: f.mimeType,
+          modifiedTime: f.modifiedTime,
+          downloadUrl: driveDownloadUrl(apiKey, f.id),
+        }))
+      });
     }
-  });
+
+    categories = cats;
+    indexSounds();
+    activeCategoryId = "__all";
+    setSearchQuery("");
+    selectedIdx = 0;
+    renderCategories();
+    renderPads();
+
+    const total = categories.reduce((n,c) => n + c.sounds.length, 0);
+    setStatus(`Loaded ${total} sound(s) across ${categories.length} category(ies).`, false);
+
+    // Optional preload
+    if(els.preload.checked){
+      preloadAllVisible();
+    }
+  }catch(e){
+    console.error(e);
+    setStatus("Could not load Drive folder. Check API key, sharing, and folder ID.", true);
+  }
+}
+
+els.refresh.addEventListener("click", refreshFromDrive);
+
+// Try local manifest first (optional). Then auto-refresh from Drive using baked defaults.
+(async () => {
+  try{ await loadLocalManifest(); }catch(_){ }
+  try{
+    const hasKey = !!String(els.apiKey.value||"").trim();
+    const hasFolder = !!String(els.folder.value||"").trim();
+    if(hasKey && hasFolder) await refreshFromDrive();
+  }catch(_){ }
+})();
 
   async function preloadAllVisible(){
     const sounds = categories.flatMap(c => c.sounds);
@@ -1472,22 +1662,364 @@ const cfg = loadCfg();
   els.end.addEventListener("click", endToSplash);
   els.minus30.addEventListener("click", () => addSeconds(-30));
   els.plus30.addEventListener("click", () => addSeconds(30));
+  if(els.minus1) els.minus1.addEventListener("click", () => addSeconds(-60));
+  if(els.minus5) els.minus5.addEventListener("click", () => addSeconds(-300));
+  if(els.plus1) els.plus1.addEventListener("click", () => addSeconds(60));
+  if(els.plus5) els.plus5.addEventListener("click", () => addSeconds(300));
   els.resetTime.addEventListener("click", resetTime);
 
-  // ---- Meta render ----
-  function renderMeta(){
-    els.phase.textContent = state.phase || "—";
-    const cur = state.queue.find(x=>x.id===state.currentSlotId) || null;
-    els.now.textContent = cur?.displayName || "—";
-    const [n1, n2] = OMJN.computeNextTwo(state);
-    els.next.textContent = n1?.displayName || "—";
-    els.deck.textContent = n2?.displayName || "—";
+  
 
-    const t = OMJN.computeTimer(state);
-    els.timer.textContent = OMJN.formatMMSS(t.remainingMs || 0);
+// ---- Music embed pane ----
+const SB_SCOPE = (() => {
+  const p = (location.pathname || "").toLowerCase();
+  return p.includes("/omjn/test") ? "test" : "prod";
+})();
+
+const EMBED_STORE_KEY = `omjn.sb.embeds.v1.${SB_SCOPE}`;
+const EMBED_WIDTH_KEY = `omjn.sb.embedWidth.v1.${SB_SCOPE}`;
+
+const DEFAULT_EMBEDS = [
+  {
+    id: "apple_openmic",
+    name: "Apple Music — Open Mic Jam Night",
+    provider: "apple",
+    src: "https://embed.music.apple.com/us/playlist/open-mic-jam-night/pl.u-8aAVXGlf7bj2b0",
+    height: 450,
+    allow: "autoplay *; encrypted-media *; fullscreen *; clipboard-write",
+    sandbox: "allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
+  },
+  {
+    id: "spotify_openmic",
+    name: "Spotify — Open Mic Jam Night",
+    provider: "spotify",
+    src: "https://open.spotify.com/embed/playlist/3Gy0gpRkViCUgUrVVVQ9PX?utm_source=generator&theme=0",
+    height: 352,
+    allow: "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture",
+    sandbox: null
+  }
+];
+
+function safeJsonParse(raw){
+  try{ return JSON.parse(raw); }catch(_){ return null; }
+}
+
+function loadEmbedModel(){
+  const raw = localStorage.getItem(EMBED_STORE_KEY);
+  const obj = safeJsonParse(raw);
+  return {
+    selectedId: obj?.selectedId || DEFAULT_EMBEDS[0].id,
+    embeds: Array.isArray(obj?.embeds) ? obj.embeds : []
+  };
+}
+
+function saveEmbedModel(model){
+  try{
+    localStorage.setItem(EMBED_STORE_KEY, JSON.stringify(model));
+  }catch(e){
+    console.warn("Could not save embeds:", e);
+  }
+}
+
+function getAllEmbeds(model){
+  const customs = (model.embeds || []).filter(x => x && x.id && x.src);
+  return [...DEFAULT_EMBEDS, ...customs];
+}
+
+function sanitizeUrl(url){
+  try{
+    const u = new URL(url, location.href);
+    if(u.protocol !== "https:") return null;
+    return u.toString();
+  }catch(_){
+    return null;
+  }
+}
+
+function parseIframeCode(code){
+  const str = String(code || "");
+  const m = str.match(/<iframe[\s\S]*?\s+src\s*=\s*["']([^"']+)["'][\s\S]*?>/i);
+  if(!m) return null;
+  const src = sanitizeUrl(m[1]);
+  if(!src) return null;
+
+  const h = str.match(/\sheight\s*=\s*["']?(\d{2,4})["']?/i);
+  const height = h ? Math.max(200, Math.min(900, parseInt(h[1], 10))) : 352;
+
+  const allow = (str.match(/\sallow\s*=\s*["']([^"']+)["']/i)?.[1] || "").trim() || "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture";
+  const sandbox = (str.match(/\ssandbox\s*=\s*["']([^"']+)["']/i)?.[1] || "").trim() || null;
+
+  return { src, height, allow, sandbox };
+}
+
+function openEmbedModal(){
+  if(!els.embedModal) return;
+  els.embedName.value = "";
+  els.embedCode.value = "";
+  els.embedModal.hidden = false;
+  document.body.classList.add("modalOpen");
+  setTimeout(() => els.embedName?.focus(), 0);
+}
+
+function closeEmbedModal(){
+  if(!els.embedModal) return;
+  els.embedModal.hidden = true;
+  document.body.classList.remove("modalOpen");
+}
+
+function setEmbedPaneWidth(px){
+  const val = Math.max(280, Math.min(760, px|0));
+  document.documentElement.style.setProperty("--sbEmbedW", `${val}px`);
+  try{ localStorage.setItem(EMBED_WIDTH_KEY, String(val)); }catch(_){}
+}
+
+function loadEmbedPaneWidth(){
+  const raw = localStorage.getItem(EMBED_WIDTH_KEY);
+  const v = parseInt(raw || "", 10);
+  setEmbedPaneWidth(Number.isFinite(v) ? v : 420);
+}
+
+
+function renderEmbedSelect(model){
+  if(!els.embedSelect) return;
+  const all = getAllEmbeds(model);
+  els.embedSelect.innerHTML = "";
+  for(const e of all){
+    const opt = document.createElement("option");
+    opt.value = e.id;
+    opt.textContent = e.name || e.id;
+    els.embedSelect.appendChild(opt);
+  }
+  els.embedSelect.value = model.selectedId;
+}
+
+function renderEmbedFrame(model){
+  if(!els.embedFrameWrap) return;
+  const all = getAllEmbeds(model);
+  const e = all.find(x => x.id === model.selectedId) || all[0];
+  if(!e) return;
+
+  els.embedFrameWrap.innerHTML = "";
+  const iframe = document.createElement("iframe");
+  iframe.src = e.src;
+  iframe.height = String(e.height || 352);
+  iframe.allow = e.allow || "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture";
+  iframe.loading = "lazy";
+  iframe.referrerPolicy = "no-referrer";
+  iframe.setAttribute("frameborder", "0");
+  if(e.sandbox) iframe.setAttribute("sandbox", e.sandbox);
+  els.embedFrameWrap.appendChild(iframe);
+
+  // Remove button only for custom embeds
+  const isDefault = DEFAULT_EMBEDS.some(d => d.id === e.id);
+  if(els.embedRemove){
+    els.embedRemove.disabled = isDefault;
+    els.embedRemove.style.opacity = isDefault ? ".5" : "1";
+  }
+}
+
+function initEmbeds(){
+  if(!els.embedSelect || !els.embedFrameWrap) return;
+
+  let model = loadEmbedModel();
+  renderEmbedSelect(model);
+  renderEmbedFrame(model);
+  loadEmbedPaneWidth();
+
+// Splitter (drag divider) to resize embed pane vs soundboard pane
+if(els.splitHandle){
+  const handle = els.splitHandle;
+  const root = document.documentElement;
+
+  function clampW(px){
+    return Math.max(280, Math.min(760, px|0));
+  }
+
+  function applyW(px){
+    const val = clampW(px);
+    root.style.setProperty("--sbEmbedW", `${val}px`);
+    try{ localStorage.setItem(EMBED_WIDTH_KEY, String(val)); }catch(_){}
+  }
+
+  // Initialize from stored width
+  try{
+    const raw = localStorage.getItem(EMBED_WIDTH_KEY);
+    const v = parseInt(raw || "", 10);
+    if(Number.isFinite(v)) applyW(v);
+    else applyW(420);
+  }catch(_){
+    applyW(420);
+  }
+
+  let dragging = false;
+
+  function getMainBounds(){
+    // sbMain is the parent of panes
+    const main = handle.parentElement;
+    return main ? main.getBoundingClientRect() : null;
+  }
+
+  function onMove(e){
+    if(!dragging) return;
+    const b = getMainBounds();
+    if(!b) return;
+    const x = e.clientX;
+    const newW = b.right - x;
+    applyW(newW);
+    e.preventDefault();
+  }
+
+  function stopDrag(){
+    if(!dragging) return;
+    dragging = false;
+    document.body.classList.remove("sbResizing");
+    window.removeEventListener("pointermove", onMove, {passive:false});
+    window.removeEventListener("pointerup", stopDrag);
+  }
+
+  handle.addEventListener("pointerdown", (e) => {
+    // left button only
+    if(e.button !== 0) return;
+    dragging = true;
+    handle.setPointerCapture?.(e.pointerId);
+    document.body.classList.add("sbResizing");
+    window.addEventListener("pointermove", onMove, {passive:false});
+    window.addEventListener("pointerup", stopDrag);
+    e.preventDefault();
+  });
+
+  handle.addEventListener("dblclick", () => applyW(420));
+
+  // Keyboard accessibility
+  handle.addEventListener("keydown", (e) => {
+    const step = e.shiftKey ? 80 : 20;
+    if(e.key === "ArrowLeft"){
+      e.preventDefault();
+      const raw = root.style.getPropertyValue("--sbEmbedW").replace("px","").trim();
+      const cur = parseInt(raw || localStorage.getItem(EMBED_WIDTH_KEY) || "420", 10);
+      applyW(cur - step);
+    }else if(e.key === "ArrowRight"){
+      e.preventDefault();
+      const raw = root.style.getPropertyValue("--sbEmbedW").replace("px","").trim();
+      const cur = parseInt(raw || localStorage.getItem(EMBED_WIDTH_KEY) || "420", 10);
+      applyW(cur + step);
+    }
+  });
+}
+
+  els.embedSelect.addEventListener("change", () => {
+    model.selectedId = els.embedSelect.value;
+    saveEmbedModel(model);
+    renderEmbedFrame(model);
+  });
+
+  if(els.embedAdd) els.embedAdd.addEventListener("click", openEmbedModal);
+  if(els.embedClose) els.embedClose.addEventListener("click", closeEmbedModal);
+  if(els.embedCancel) els.embedCancel.addEventListener("click", closeEmbedModal);
+
+  if(els.embedSave) els.embedSave.addEventListener("click", () => {
+    const name = (els.embedName.value || "").trim() || "Custom Embed";
+    const parsed = parseIframeCode(els.embedCode.value || "");
+    if(!parsed){
+      alert("Could not find a valid <iframe src=\"https://...\"> in that embed code.");
+      return;
+    }
+    const id = `custom_${Date.now()}`;
+    const custom = {
+      id,
+      name,
+      provider: "custom",
+      src: parsed.src,
+      height: parsed.height,
+      allow: parsed.allow,
+      sandbox: parsed.sandbox
+    };
+    model.embeds = [...(model.embeds || []), custom];
+    model.selectedId = id;
+    saveEmbedModel(model);
+    renderEmbedSelect(model);
+    renderEmbedFrame(model);
+    closeEmbedModal();
+  });
+
+  if(els.embedRemove) els.embedRemove.addEventListener("click", () => {
+    const id = model.selectedId;
+    if(DEFAULT_EMBEDS.some(d => d.id === id)) return;
+    if(!confirm("Remove this custom embed?")) return;
+    model.embeds = (model.embeds || []).filter(x => x.id !== id);
+    model.selectedId = DEFAULT_EMBEDS[0].id;
+    saveEmbedModel(model);
+    renderEmbedSelect(model);
+    renderEmbedFrame(model);
+  });
+}
+
+initEmbeds();
+
+// Safari autoplay note for embeds (dismiss on first interaction)
+(function initSafariTip(){
+  if(!els.safariTip || !els.embedFrameWrap) return;
+  const ua = navigator.userAgent || "";
+  const isSafari = /Safari/.test(ua) && !/Chrome|Chromium|Edg/.test(ua);
+  const TIP_KEY = `omjn.sb.safariEmbedTipDismissed.v1.${SB_UI_SCOPE}`;
+  if(!isSafari) return;
+  try{
+    const dismissed = localStorage.getItem(TIP_KEY) === "1";
+    if(!dismissed) els.safariTip.hidden = false;
+  }catch(_){
+    els.safariTip.hidden = false;
+  }
+  const dismiss = () => {
+    els.safariTip.hidden = true;
+    try{ localStorage.setItem(TIP_KEY, "1"); }catch(_){}
+  };
+  els.embedFrameWrap.addEventListener("pointerdown", dismiss, { once:true });
+  els.embedFrameWrap.addEventListener("keydown", (e) => {
+    if(e.key === "Enter" || e.key === " "){ dismiss(); }
+  });
+})();
+
+
+// ---- Meta render ----
+  function renderMeta(){
+    // Phase
+    const ph = (state && state.phase) ? state.phase : "—";
+    if(els.phase) els.phase.textContent = ph;
+
+    // Phase dot styling
+    if(els.phaseDot){
+      els.phaseDot.classList.remove("good","warn","bad");
+      if(ph === "LIVE") els.phaseDot.classList.add("good");
+      else if(ph === "PAUSED") els.phaseDot.classList.add("warn");
+    }
+
+    // State-aware transport buttons (reduce mis-clicks)
+    if(els.start)  els.start.disabled  = (ph !== "SPLASH");
+    if(els.pause)  els.pause.disabled  = (ph !== "LIVE");
+    if(els.resume) els.resume.disabled = (ph !== "PAUSED");
+    if(els.end)    els.end.disabled    = !(ph === "LIVE" || ph === "PAUSED");
+
+    // Now / Next / Deck
+    const q = (state && Array.isArray(state.queue)) ? state.queue : [];
+    const cur = q.find(x => x && x.id === state.currentSlotId) || null;
+    if(els.now)  els.now.textContent  = (cur && cur.displayName) ? cur.displayName : "—";
+
+    const pair = (typeof OMJN !== "undefined" && OMJN && typeof OMJN.computeNextTwo === "function")
+      ? OMJN.computeNextTwo(state)
+      : [null, null];
+    const n1 = pair[0], n2 = pair[1];
+    if(els.next) els.next.textContent = (n1 && n1.displayName) ? n1.displayName : "—";
+    if(els.deck) els.deck.textContent = (n2 && n2.displayName) ? n2.displayName : "—";
+
+    // Timer
+    if(els.timer && typeof OMJN !== "undefined" && OMJN && typeof OMJN.computeTimer === "function" && typeof OMJN.formatMMSS === "function"){
+      const t = OMJN.computeTimer(state) || {};
+      els.timer.textContent = OMJN.formatMMSS(t.remainingMs || 0);
+    }
   }
 
   // Tick timer display
+
   setInterval(renderMeta, 250);
   renderMeta();
 

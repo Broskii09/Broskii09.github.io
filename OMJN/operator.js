@@ -10,6 +10,8 @@
     addName: document.getElementById("addName"),
     addType: document.getElementById("addType"),
     btnAdd: document.getElementById("btnAdd"),
+    btnAddIntermission: document.getElementById("btnAddIntermission"),
+    btnAddHouseBandSlot: document.getElementById("btnAddHouseBandSlot"),
     profileNames: document.getElementById("profileNames"),
     addCustomWrap: document.getElementById("addCustomWrap"),
     addCustomLabel: document.getElementById("addCustomLabel"),
@@ -93,6 +95,16 @@ setBgColor: document.getElementById("setBgColor"),
     btnCrowdToggle: document.getElementById("btnCrowdToggle"),
     btnCrowdNext: document.getElementById("btnCrowdNext"),
     crowdPromptStatus: document.getElementById("crowdPromptStatus"),
+    crowdStatusStrip: document.getElementById("crowdStatusStrip"),
+    crowdStatusPill: document.getElementById("crowdStatusPill"),
+    crowdStatusName: document.getElementById("crowdStatusName"),
+    crowdStatusMeta: document.getElementById("crowdStatusMeta"),
+    crowdStatusAutoHide: document.getElementById("crowdStatusAutoHide"),
+    crowdDraftBadge: document.getElementById("crowdDraftBadge"),
+    btnCrowdEditToggle: document.getElementById("btnCrowdEditToggle"),
+    crowdEditorPanel: document.getElementById("crowdEditorPanel"),
+    crowdEditorClosedHint: document.getElementById("crowdEditorClosedHint"),
+    btnCrowdCancel: document.getElementById("btnCrowdCancel"),
     settingsModal: document.getElementById("settingsModal"),
     btnCloseSettings: document.getElementById("btnCloseSettings"),
 
@@ -157,12 +169,28 @@ setBgColor: document.getElementById("setBgColor"),
     hbAddTags: document.getElementById("hbAddTags"),
     btnAddHBQ: document.getElementById("btnAddHBQ"),
     hbCats: document.getElementById("hbCats"),
+
+    // House Band Set Builder modal
+    hbBuildModal: document.getElementById("hbBuildModal"),
+    hbBuildList: document.getElementById("hbBuildList"),
+    hbPreviewNames: document.getElementById("hbPreviewNames"),
+    hbPreviewRoles: document.getElementById("hbPreviewRoles"),
+    btnHbBuildClose: document.getElementById("btnHbBuildClose"),
+    btnHbBuildEnableAll: document.getElementById("btnHbBuildEnableAll"),
+    btnHbBuildClearAll: document.getElementById("btnHbBuildClearAll"),
+    btnHbBuildCancel: document.getElementById("btnHbBuildCancel"),
+    btnHbBuildSave: document.getElementById("btnHbBuildSave"),
   };
 
   let selectedId = null;
   // Inline per-row editor (Stage 2)
   let editingId = null;
   let editDraft = null;
+
+  // House Band Set Builder
+  let hbBuildCtx = null; // { mode:'add'|'edit', slotId?:string }
+  let hbBuildDraft = null;
+
 
   const VIEWER_HEARTBEAT_KEY = "omjn.viewerHeartbeat.v1";
 
@@ -299,12 +327,18 @@ setBgColor: document.getElementById("setBgColor"),
     }
   }
 
-
-
-  function visibleSlotTypes(){
-    return state.slotTypes.filter(t => (t.enabled !== false));
+  function slotTypesForSelect(opts = {}){
+    const includeDisabled = !!opts.includeDisabled;
+    const excludeSpecial = !!opts.excludeSpecial;
+    return (state.slotTypes || [])
+      .filter(t => t && t.id)
+      .filter(t => includeDisabled || (t.enabled !== false))
+      .filter(t => !excludeSpecial || (t.special !== true));
   }
 
+  function visibleSlotTypes(){
+    return slotTypesForSelect();
+  }
   // Select a performer in the queue, and apply sensible defaults for legacy/empty media settings.
   // If a slot has no uploaded image, no URL, and no explicit layout, default it to QR_ONLY so the
   // Viewer shows the default QR image (assets/OMJN-QR.jpg) without extra operator clicks.
@@ -354,6 +388,7 @@ setBgColor: document.getElementById("setBgColor"),
       notes: slot?.notes || "",
       donationUrl: (media.donationUrl || ""),
       mediaLayout: media.mediaLayout || "NONE",
+      intermissionMessage: slot?.intermissionMessage || "",
     };
   }
 
@@ -378,6 +413,7 @@ setBgColor: document.getElementById("setBgColor"),
     const notes = String(editDraft.notes || "");
     const url = OMJN.sanitizeText(editDraft.donationUrl || "");
     const layout = String(editDraft.mediaLayout || "NONE");
+    const intermissionMessage = String(editDraft.intermissionMessage || "").trim();
 
     const slotTypeId = String(editDraft.slotTypeId || "musician");
     const customLabel = OMJN.sanitizeText(editDraft.customTypeLabel || "");
@@ -399,6 +435,21 @@ setBgColor: document.getElementById("setBgColor"),
       if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
       slot.media.donationUrl = url || null;
       slot.media.mediaLayout = layout;
+
+      // Special screens
+      if(slotTypeId === "houseband"){
+        slot.displayName = "HOUSE BAND";
+        // Keep slot.hbSelections / slot.hbLineup (built via the House Band Set Builder modal).
+      }else{
+        try{ delete slot.hbSelections; }catch(_){ }
+        try{ delete slot.hbLineup; }catch(_){ }
+      }
+
+      if(slotTypeId === "intermission"){
+        slot.intermissionMessage = intermissionMessage || "WE'LL BE RIGHT BACK";
+      }else{
+        try{ delete slot.intermissionMessage; }catch(_){ }
+      }
 
       // profile auto-save (keep existing behavior)
       const key = normNameKey(slot.displayName);
@@ -494,7 +545,7 @@ setBgColor: document.getElementById("setBgColor"),
     const lType = document.createElement("label");
     lType.textContent = "Slot Type";
     const selType = document.createElement("select");
-    fillTypeSelect(selType);
+    fillTypeSelect(selType, { includeDisabled:true });
     selType.value = editDraft?.slotTypeId ?? (slot.slotTypeId || "musician");
     fType.appendChild(lType);
     fType.appendChild(selType);
@@ -541,6 +592,69 @@ setBgColor: document.getElementById("setBgColor"),
     });
     fMins.appendChild(lMins); fMins.appendChild(iMins);
 
+
+
+    // House Band Set (HOUSE BAND slots)
+    const fHB = document.createElement("div");
+    fHB.className = "field";
+    const lHB = document.createElement("label");
+    lHB.textContent = "House Band Set";
+
+    const hbPrevNames = document.createElement("div");
+    hbPrevNames.className = "small";
+    hbPrevNames.style.opacity = ".90";
+    hbPrevNames.style.marginTop = "4px";
+
+    const hbPrevRoles = document.createElement("div");
+    hbPrevRoles.className = "small";
+    hbPrevRoles.style.opacity = ".75";
+    hbPrevRoles.style.marginTop = "2px";
+
+    const btnHbEdit = document.createElement("button");
+    btnHbEdit.type = "button";
+    btnHbEdit.className = "btn small";
+    btnHbEdit.textContent = "Edit set…";
+    btnHbEdit.style.marginTop = "8px";
+    btnHbEdit.addEventListener("click", (e) => {
+      e.preventDefault();
+      openHbBuildModal({ mode: "edit", slotId: slot.id });
+    });
+
+    function syncHBPreview(){
+      const lineup = Array.isArray(slot.hbLineup) ? slot.hbLineup : [];
+      const names = lineup.map(x => String(x?.name || "").trim()).filter(Boolean).join(" • ");
+      const roles = lineup.map(x => String(x?.instrumentLabel || x?.instrument || "").trim()).filter(Boolean).join(" • ");
+      hbPrevNames.textContent = names || "—";
+      hbPrevRoles.textContent = roles || "";
+    }
+    syncHBPreview();
+
+    fHB.appendChild(lHB);
+    fHB.appendChild(hbPrevNames);
+    fHB.appendChild(hbPrevRoles);
+    fHB.appendChild(btnHbEdit);
+
+    // Intermission message (INTERMISSION slots)
+    const fIM = document.createElement("div");
+    fIM.className = "field";
+    const lIM = document.createElement("label");
+    lIM.textContent = "Intermission Message";
+    const tIM = document.createElement("textarea");
+    tIM.rows = 2;
+    tIM.placeholder = "WE'LL BE RIGHT BACK";
+    tIM.value = String(editDraft?.intermissionMessage ?? (slot.intermissionMessage || ""));
+    tIM.addEventListener("input", () => { if(editDraft) editDraft.intermissionMessage = tIM.value; });
+    tIM.addEventListener("keydown", (e) => { if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); } });
+    fIM.appendChild(lIM);
+    fIM.appendChild(tIM);
+
+    function syncSpecialFields(){
+      const curType = String(selType.value || "musician");
+      fHB.style.display = (curType === "houseband") ? "" : "none";
+      fIM.style.display = (curType === "intermission") ? "" : "none";
+    }
+    selType.addEventListener("change", syncSpecialFields);
+    syncSpecialFields();
     const fUrl = document.createElement("div");
     fUrl.className = "field";
     const lUrl = document.createElement("label");
@@ -935,6 +1049,8 @@ function escapeHtml(s){
     updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.activePresetId = nextId; }, { recordHistory:false });
     // If currently showing, restart timer on preset swap
     scheduleCrowdAutoHide();
+    updateCrowdQuickButtons();
+    renderCrowdPromptPreview();
   }
 
   function setCrowdEnabled(on){
@@ -942,30 +1058,127 @@ function escapeHtml(s){
     scheduleCrowdAutoHide();
   }
 
+  // Crowd prompt editor state
+  let crowdEditorReadFn = null;
+  let crowdEditorDirty = false;
+
+
+
   function updateCrowdQuickButtons(){
       if(!els.btnCrowdToggle) return;
+
       const cfg = getCrowdCfg(state);
       const p = getActiveCrowdPreset(cfg);
+      const presets = Array.isArray(cfg.presets) ? cfg.presets : [];
+      const idx = Math.max(0, presets.findIndex(x => x.id === cfg.activePresetId));
+      const displayIdx = presets.length ? `${idx+1}/${presets.length}` : "—";
       const name = (p?.name || p?.title || "Prompt").trim();
+      const autoHide = (p?.autoHideSeconds ?? 0) | 0;
 
       if(cfg.enabled){
         els.btnCrowdToggle.textContent = `Crowd: ${name}`;
         els.btnCrowdToggle.classList.add("good");
-        if(els.crowdPromptStatus){
-          els.crowdPromptStatus.textContent = `ON · ${name}`;
-          els.crowdPromptStatus.classList.add("on");
-          els.crowdPromptStatus.classList.remove("off");
-        }
-      } else {
+      }else{
         els.btnCrowdToggle.textContent = "Crowd: Off";
         els.btnCrowdToggle.classList.remove("good");
-        if(els.crowdPromptStatus){
-          els.crowdPromptStatus.textContent = `OFF · ${name}`;
-          els.crowdPromptStatus.classList.add("off");
-          els.crowdPromptStatus.classList.remove("on");
-        }
+      }
+
+      if(els.crowdStatusPill){
+        els.crowdStatusPill.textContent = cfg.enabled ? "ON" : "OFF";
+        els.crowdStatusPill.classList.toggle("on", !!cfg.enabled);
+        els.crowdStatusPill.classList.toggle("off", !cfg.enabled);
+      }
+      if(els.crowdStatusName) els.crowdStatusName.textContent = name || "—";
+      if(els.crowdStatusMeta) els.crowdStatusMeta.textContent = displayIdx;
+      if(els.crowdStatusAutoHide) els.crowdStatusAutoHide.textContent = `Auto-hide: ${autoHide ? autoHide + "s" : "off"}`;
+      if(els.crowdDraftBadge) els.crowdDraftBadge.hidden = !crowdEditorDirty;
+
+      const lockCycle = !!crowdEditorDirty;
+      if(els.btnCrowdPrev) els.btnCrowdPrev.disabled = lockCycle;
+      if(els.btnCrowdNext) els.btnCrowdNext.disabled = lockCycle;
+
+      // Legacy status element (if present)
+      if(els.crowdPromptStatus){
+        els.crowdPromptStatus.textContent = `${cfg.enabled ? "ON" : "OFF"} · ${name}`;
+        els.crowdPromptStatus.classList.toggle("on", !!cfg.enabled);
+        els.crowdPromptStatus.classList.toggle("off", !cfg.enabled);
       }
     }
+
+  function wireCrowdEditorInteractions(){
+      if(els.crowdEditorPanel){
+        els.crowdEditorPanel.addEventListener("mousedown", e => e.stopPropagation());
+        els.crowdEditorPanel.addEventListener("click", e => e.stopPropagation());
+        els.crowdEditorPanel.addEventListener("keydown", e => e.stopPropagation());
+      }
+
+      const onDirty = () => {
+        if(!els.crowdEditorPanel || els.crowdEditorPanel.hidden) return;
+        setCrowdEditorDirty(true);
+        renderCrowdPromptPreview();
+      };
+
+      for(const el of [els.crowdPresetName, els.crowdTitle, els.crowdFooter, els.crowdAutoHide, els.crowdLines]){
+        if(!el) continue;
+        el.addEventListener("input", onDirty);
+        el.addEventListener("change", onDirty);
+      }
+
+      if(els.btnCrowdEditToggle){
+        els.btnCrowdEditToggle.addEventListener("click", () => {
+          const isOpen = els.crowdEditorPanel && !els.crowdEditorPanel.hidden;
+          if(isOpen) closeCrowdEditor(false);
+          else openCrowdEditor();
+        });
+      }
+
+      if(els.btnCrowdCancel){
+        els.btnCrowdCancel.addEventListener("click", () => closeCrowdEditor(false));
+      }
+    }
+
+
+  function setCrowdEditorDirty(on){
+      crowdEditorDirty = !!on;
+      updateCrowdQuickButtons();
+    }
+
+
+  function loadCrowdEditorFromActivePreset(){
+      const cfg = getCrowdCfg(state);
+      const p = getActiveCrowdPreset(cfg) || {};
+      if(els.crowdPresetName) els.crowdPresetName.value = p.name || "";
+      if(els.crowdTitle) els.crowdTitle.value = p.title || "";
+      if(els.crowdFooter) els.crowdFooter.value = p.footer || "";
+      if(els.crowdAutoHide) els.crowdAutoHide.value = String((p.autoHideSeconds ?? 0) | 0);
+      if(els.crowdLines) els.crowdLines.value = Array.isArray(p.lines) ? p.lines.join("\n") : "";
+    }
+
+
+  function closeCrowdEditor(force=false){
+      if(!els.crowdEditorPanel) return;
+      if(!force && crowdEditorDirty){
+        const ok = confirm("Discard unsaved crowd prompt edits?");
+        if(!ok) return;
+      }
+      els.crowdEditorPanel.hidden = true;
+      if(els.crowdEditorClosedHint) els.crowdEditorClosedHint.hidden = false;
+      if(els.btnCrowdEditToggle) els.btnCrowdEditToggle.textContent = "Edit preset";
+      setCrowdEditorDirty(false);
+      renderCrowdPromptPreview();
+    }
+
+
+  function openCrowdEditor(){
+      if(!els.crowdEditorPanel) return;
+      els.crowdEditorPanel.hidden = false;
+      if(els.crowdEditorClosedHint) els.crowdEditorClosedHint.hidden = true;
+      if(els.btnCrowdEditToggle) els.btnCrowdEditToggle.textContent = "Close";
+      loadCrowdEditorFromActivePreset();
+      setCrowdEditorDirty(false);
+      renderCrowdPromptPreview();
+    }
+
 
 // ---- Sponsor Bug (Operator settings) ----
   const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
@@ -1340,6 +1553,9 @@ function escapeHtml(s){
       return { name, title, footer, autoHideSeconds, lines };
     }
 
+    crowdEditorReadFn = readCrowdEditor;
+
+
     function saveCrowdPreset(){
       const data = readCrowdEditor();
       updateState(s => {
@@ -1351,6 +1567,9 @@ function escapeHtml(s){
         }
       }, { recordHistory:false });
       scheduleCrowdAutoHide();
+      setCrowdEditorDirty(false);
+      updateCrowdQuickButtons();
+      renderCrowdPromptPreview();
     }
 
     function addCrowdPreset(fromPreset=null){
@@ -1603,10 +1822,10 @@ function escapeHtml(s){
     }
   }
 
-function fillTypeSelect(selectEl){
+  function fillTypeSelect(selectEl, opts = {}){
     if(!selectEl) return;
     selectEl.innerHTML = "";
-    for(const t of visibleSlotTypes()){
+    for(const t of slotTypesForSelect(opts)){
       const opt = document.createElement("option");
       opt.value = t.id;
       opt.textContent = `${t.label} (${t.defaultMinutes}m)`;
@@ -2442,65 +2661,66 @@ function renderKPIs(){
   }
 
   function renderCrowdPromptPreview(){
-    if(!els.crowdPromptPreview) return;
-    const cfg = getCrowdCfg(state);
-    const p = getActiveCrowdPreset(cfg) || {};
-    const editorOpen = !!els.crowdEditor?.open;
+      if(!els.crowdPromptPreview) return;
+      const cfg = getCrowdCfg(state);
+      const p = getActiveCrowdPreset(cfg) || {};
 
-    let data = p;
-    if(editorOpen){
-      try{
-        const typed = readCrowdEditor();
-        data = Object.assign({}, p, typed);
-      }catch(_){}
+      const editorOpen = !!els.crowdEditorPanel && !els.crowdEditorPanel.hidden;
+
+      let data = p;
+      if(editorOpen && typeof crowdEditorReadFn === "function"){
+        try{
+          const typed = crowdEditorReadFn();
+          data = Object.assign({}, p, typed);
+        }catch(_){}
+      }
+
+      const title = (data.title || "").trim();
+      const footer = (data.footer || "").trim();
+      const lines = Array.isArray(data.lines) ? data.lines : [];
+
+      const root = els.crowdPromptPreview;
+      root.innerHTML = "";
+
+      const wrap = document.createElement("div");
+      wrap.className = "cpPrevInner";
+
+      const h = document.createElement("div");
+      h.className = "cpPrevTitle";
+      h.textContent = title || "CROWD PROMPT";
+      wrap.appendChild(h);
+
+      const list = document.createElement("div");
+      list.className = "cpPrevLines";
+      const max = 6;
+      for(const ln of lines.slice(0, max)){
+        const item = document.createElement("div");
+        item.className = "cpPrevLine";
+        item.textContent = ln;
+        list.appendChild(item);
+      }
+      if(lines.length > max){
+        const more = document.createElement("div");
+        more.className = "cpPrevLine cpPrevMore";
+        more.textContent = `… +${lines.length - max} more`;
+        list.appendChild(more);
+      }
+      wrap.appendChild(list);
+
+      if(footer){
+        const f = document.createElement("div");
+        f.className = "cpPrevFooter";
+        f.textContent = footer;
+        wrap.appendChild(f);
+      }
+
+      const hint = document.createElement("div");
+      hint.className = "cpPrevHint";
+      hint.textContent = cfg.enabled ? "Overlay ON (viewer sponsor hidden)" : "Overlay OFF";
+      wrap.appendChild(hint);
+
+      root.appendChild(wrap);
     }
-
-    const title = (data.title || "").trim();
-    const footer = (data.footer || "").trim();
-    const lines = Array.isArray(data.lines) ? data.lines : [];
-
-    const root = els.crowdPromptPreview;
-    root.innerHTML = "";
-
-    const wrap = document.createElement("div");
-    wrap.className = "cpPrevInner";
-
-    const h = document.createElement("div");
-    h.className = "cpPrevTitle";
-    h.textContent = title || "CROWD PROMPT";
-    wrap.appendChild(h);
-
-    const list = document.createElement("div");
-    list.className = "cpPrevLines";
-    const max = 5;
-    for(const ln of lines.slice(0, max)){
-      const item = document.createElement("div");
-      item.className = "cpPrevLine";
-      item.textContent = ln;
-      list.appendChild(item);
-    }
-    if(lines.length > max){
-      const more = document.createElement("div");
-      more.className = "cpPrevLine cpPrevMore";
-      more.textContent = `… +${lines.length - max} more`;
-      list.appendChild(more);
-    }
-    wrap.appendChild(list);
-
-    if(footer){
-      const f = document.createElement("div");
-      f.className = "cpPrevFooter";
-      f.textContent = footer;
-      wrap.appendChild(f);
-    }
-
-    const hint = document.createElement("div");
-    hint.className = "cpPrevHint";
-    hint.textContent = cfg.enabled ? "Overlay ON (viewer sponsor hidden)" : "Overlay OFF";
-    wrap.appendChild(hint);
-
-    root.appendChild(wrap);
-  }
 
   // ---- Timer-up modal (operator reminder) ----
   let timerUpDismissedSlotId = null;
@@ -2638,7 +2858,7 @@ function render(){
       }
     }
 
-    fillTypeSelect(els.addType);
+    fillTypeSelect(els.addType, { excludeSpecial:true });
 toggleCustomAddFields();
     // House Band add controls
     if(els.hbAddInstrument){
@@ -2697,6 +2917,237 @@ renderHouseBandCategories();
     els.addName.focus();
   }
 
+
+
+  // ---- House Band Set Builder Modal ----
+
+  function openHbBuildModal(ctx){
+    hbBuildCtx = ctx || { mode: "add" };
+    hbBuildDraft = buildHbBuildDraftFromState(hbBuildCtx.slotId || null);
+    if(!els.hbBuildModal) return;
+    renderHbBuildModal();
+    els.hbBuildModal.hidden = false;
+    document.body.classList.add("modalOpen");
+    setTimeout(() => { els.btnHbBuildSave?.focus?.(); }, 0);
+  }
+
+  function closeHbBuildModal(){
+    hbBuildCtx = null;
+    hbBuildDraft = null;
+    if(!els.hbBuildModal) return;
+    els.hbBuildModal.hidden = true;
+    document.body.classList.remove("modalOpen");
+  }
+
+  function buildHbBuildDraftFromState(slotId){
+    const draft = { cats: {} };
+    const slot = slotId ? (state.queue || []).find(x => x && x.id === slotId) : null;
+    const existing = (slot && slot.hbSelections && typeof slot.hbSelections === "object") ? slot.hbSelections : null;
+    const cats = OMJN.houseBandCategories();
+    for(const cat of cats){
+      const suggested = OMJN.houseBandSuggestedInCategory(state, cat.key);
+      const suggestedId = suggested?.member?.id || null;
+      let enabled = !!suggestedId;
+      let memberId = suggestedId;
+      if(existing && Object.prototype.hasOwnProperty.call(existing, cat.key)){
+        enabled = !!existing[cat.key];
+        memberId = existing[cat.key] || null;
+      }
+      draft.cats[cat.key] = { enabled, memberId, suggestedId };
+    }
+    return draft;
+  }
+
+  function computeHbBuildLineupFromDraft(){
+    if(!hbBuildDraft) return [];
+    const selections = {};
+    for(const [key, cfg] of Object.entries(hbBuildDraft.cats || {})){
+      if(cfg && cfg.enabled && cfg.memberId) selections[key] = cfg.memberId;
+    }
+    return OMJN.buildHouseBandLineupFromSelections(state, selections);
+  }
+
+  function updateHbBuildPreview(){
+    const lineup = computeHbBuildLineupFromDraft();
+    const names = lineup.map(x => OMJN.sanitizeText(x.name || "")).filter(Boolean);
+    const roles = lineup.map(x => OMJN.sanitizeText(x.instrumentLabel || "")).filter(Boolean);
+    if(els.hbPreviewNames) els.hbPreviewNames.textContent = names.length ? names.join(" • ") : "—";
+    if(els.hbPreviewRoles) els.hbPreviewRoles.textContent = roles.length ? roles.join(" • ") : "—";
+  }
+
+  function renderHbBuildModal(){
+    if(!els.hbBuildList || !hbBuildDraft) return;
+    const cats = OMJN.houseBandCategories();
+    els.hbBuildList.innerHTML = "";
+
+    for(const cat of cats){
+      const cfg = hbBuildDraft.cats[cat.key] || { enabled:false, memberId:null, suggestedId:null };
+      const row = document.createElement("div");
+      row.className = "hbBuildRow" + (cfg.enabled ? "" : " disabled");
+
+      const chk = document.createElement("input");
+      chk.type = "checkbox";
+      chk.checked = !!cfg.enabled;
+      chk.addEventListener("change", () => {
+        cfg.enabled = !!chk.checked;
+        if(cfg.enabled && !cfg.memberId){
+          cfg.memberId = cfg.suggestedId || null;
+        }
+        renderHbBuildModal();
+      });
+
+      const lab = document.createElement("div");
+      lab.className = "hbCatLabel";
+      lab.textContent = cat.label;
+
+      const sel = document.createElement("select");
+      const emptyOpt = document.createElement("option");
+      emptyOpt.value = "";
+      emptyOpt.textContent = "(none)";
+      sel.appendChild(emptyOpt);
+
+      const members = OMJN.houseBandMembersInCategory(state, cat.key, { activeOnly:true });
+      for(const item of members){
+        const m = item.member;
+        if(!m?.id) continue;
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        let label = String(m.name || "—");
+        if(cfg.suggestedId && m.id === cfg.suggestedId) label += "  • suggested";
+        opt.textContent = label;
+        sel.appendChild(opt);
+      }
+
+      sel.value = String(cfg.memberId || "");
+      sel.disabled = !cfg.enabled;
+      sel.addEventListener("change", () => {
+        cfg.memberId = sel.value || null;
+        updateHbBuildPreview();
+      });
+
+      row.appendChild(chk);
+      row.appendChild(lab);
+      row.appendChild(sel);
+      els.hbBuildList.appendChild(row);
+    }
+
+    if(els.btnHbBuildSave){
+      els.btnHbBuildSave.textContent = (hbBuildCtx && hbBuildCtx.mode === "edit") ? "Save" : "Add to Queue";
+    }
+
+    updateHbBuildPreview();
+  }
+
+  function enableAllHbBuild(){
+    if(!hbBuildDraft) return;
+    for(const cat of OMJN.houseBandCategories()){
+      const cfg = hbBuildDraft.cats[cat.key];
+      if(!cfg) continue;
+      cfg.enabled = true;
+      if(!cfg.memberId) cfg.memberId = cfg.suggestedId || null;
+    }
+    renderHbBuildModal();
+  }
+
+  function clearAllHbBuild(){
+    if(!hbBuildDraft) return;
+    for(const cat of OMJN.houseBandCategories()){
+      const cfg = hbBuildDraft.cats[cat.key];
+      if(!cfg) continue;
+      cfg.enabled = false;
+    }
+    renderHbBuildModal();
+  }
+
+  function commitHbBuild(){
+    if(!hbBuildDraft) return;
+    const selections = {};
+    for(const [catKey, cfg] of Object.entries(hbBuildDraft.cats || {})){
+      if(cfg && cfg.enabled && cfg.memberId) selections[catKey] = cfg.memberId;
+    }
+    const lineup = OMJN.buildHouseBandLineupFromSelections(state, selections);
+
+    if(hbBuildCtx && hbBuildCtx.mode === "edit" && hbBuildCtx.slotId){
+      updateState(s => {
+        const slot = (s.queue || []).find(x => x && x.id === hbBuildCtx.slotId);
+        if(!slot) return;
+        slot.slotTypeId = "houseband";
+        slot.displayName = "HOUSE BAND";
+        slot.hbSelections = selections;
+        slot.hbLineup = lineup;
+      });
+      closeHbBuildModal();
+      render();
+      return;
+    }
+
+    updateState(s => {
+      const slot = {
+        id: OMJN.uid("slot"),
+        createdAt: Date.now(),
+        displayName: "HOUSE BAND",
+        slotTypeId: "houseband",
+        minutesOverride: null,
+        customTypeLabel: "",
+        status: "QUEUED",
+        notes: "",
+        hbSelections: selections,
+        hbLineup: lineup,
+        media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
+      };
+
+      // Smart reorder: if you skip the suggested (top) player, keep them NEXT.
+      for(const [catKey, memberId] of Object.entries(selections)){
+        OMJN.reorderHouseBandCategorySelectedWithSuggestedNext(s, catKey, memberId);
+      }
+
+      insertQueuedSlotSmart(s, slot);
+    });
+
+    closeHbBuildModal();
+    render();
+  }
+  // Quick-add: Intermission + House Band special slots
+  function insertQueuedSlotSmart(s, slot){
+    if(!Array.isArray(s.queue)) s.queue = [];
+    const liveish = (s.phase === "LIVE" || s.phase === "PAUSED") && !!s.currentSlotId;
+
+    // Prefer inserting immediately after the current live item.
+    if(liveish){
+      const curIdx = s.queue.findIndex(x => x && x.id === s.currentSlotId);
+      const insertAt = (curIdx >= 0) ? (curIdx + 1) : 1;
+      s.queue.splice(Math.max(0, insertAt), 0, slot);
+      return;
+    }
+
+    // Otherwise, insert before completed items (DONE/SKIPPED) to keep the active queue grouped.
+    const firstCompletedIdx = s.queue.findIndex(x => x && x.status !== "QUEUED");
+    if(firstCompletedIdx >= 0) s.queue.splice(firstCompletedIdx, 0, slot);
+    else s.queue.push(slot);
+  }
+
+  function addIntermissionSlot(){
+    updateState(s => {
+      const slot = {
+        id: OMJN.uid("slot"),
+        createdAt: Date.now(),
+        displayName: "INTERMISSION",
+        slotTypeId: "intermission",
+        minutesOverride: null,
+        customTypeLabel: "",
+        status: "QUEUED",
+        notes: "",
+        intermissionMessage: "WE'LL BE RIGHT BACK",
+        media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
+      };
+      insertQueuedSlotSmart(s, slot);
+    });
+  }
+
+  function addHouseBandSlot(){
+    openHbBuildModal({ mode: 'add' });
+  }
+
   
   function guardedStart(){
     // determine who would start
@@ -2730,6 +3181,29 @@ function start(){
       if(idx > 0){
         const [moved] = s.queue.splice(idx, 1);
         s.queue.unshift(moved);
+      }
+      // Special screen behavior
+      // - House Band: ensure lineup snapshot exists
+      // - Intermission: default message if empty
+      if(String(pick.slotTypeId || "") === "houseband"){
+        pick.displayName = "HOUSE BAND";
+        if(!Array.isArray(pick.hbLineup) || pick.hbLineup.length === 0){
+          const sel = (pick.hbSelections && typeof pick.hbSelections === "object") ? pick.hbSelections : {};
+          // If no selections were stored (legacy HB slots), default to suggested top active in each category.
+          if(Object.keys(sel).length === 0){
+            for(const cat of OMJN.houseBandCategories()){
+              const sug = OMJN.houseBandSuggestedInCategory(s, cat.key);
+              const id = sug?.member?.id || null;
+              if(id) sel[cat.key] = id;
+            }
+          }
+          pick.hbSelections = sel;
+          pick.hbLineup = OMJN.buildHouseBandLineupFromSelections(s, sel);
+        }
+      }
+      if(String(pick.slotTypeId || "") === "intermission"){
+        const msg = String(pick.intermissionMessage || "").trim();
+        if(!msg) pick.intermissionMessage = "WE'LL BE RIGHT BACK";
       }
 
       s.currentSlotId = pick.id;
@@ -2781,6 +3255,15 @@ function start(){
       const idx = s.queue.findIndex(x => x.id === s.currentSlotId);
       const cur = idx >= 0 ? s.queue[idx] : null;
       if(cur){ cur.status = "DONE"; cur.completedAt = Date.now(); }
+      // If a HOUSE BAND slot just ended, rotate each featured lineup member
+      // to the end of their category queue.
+      if(cur && String(cur.slotTypeId || "") === "houseband"){
+        const lineup = Array.isArray(cur.hbLineup) ? cur.hbLineup : [];
+        for(const entry of lineup){
+          const memberId = String(entry?.memberId || entry?.id || "").trim();
+          if(memberId) OMJN.rotateHouseBandMemberToEnd(s, memberId);
+        }
+      }
 
       // Move completed performer to bottom so QUEUED order always drives Next/On Deck UX
       if(idx >= 0){
@@ -2788,7 +3271,7 @@ function start(){
         s.queue.push(moved);
       }
 
-      // House Band is independent; no automatic rotation happens here.
+      // House Band footer is independent; rotation is handled above for HOUSE BAND slots.
       s.currentSlotId = null;
       s.phase = "SPLASH";
       s.timer.running = false;
@@ -2966,20 +3449,26 @@ function start(){
 
 function bind(){
     // initial select options
-    fillTypeSelect(els.addType);
+    fillTypeSelect(els.addType, { excludeSpecial:true });
 toggleCustomAddFields();
     bindSettings();
     bindPerformerDnD();
 
     // Crowd prompt quick controls (now in right drawer)
-    if(els.btnCrowdPrev) els.btnCrowdPrev.addEventListener("click", (e) => { e.preventDefault(); cycleCrowdPreset(-1); renderSettings(); });
-    if(els.btnCrowdNext) els.btnCrowdNext.addEventListener("click", (e) => { e.preventDefault(); cycleCrowdPreset(+1); renderSettings(); });
+    if(els.btnCrowdPrev) els.btnCrowdPrev.addEventListener("click", (e) => { e.preventDefault(); cycleCrowdPreset(-1); });
+    if(els.btnCrowdNext) els.btnCrowdNext.addEventListener("click", (e) => { e.preventDefault(); cycleCrowdPreset(+1); });
     if(els.btnCrowdToggle) els.btnCrowdToggle.addEventListener("click", (e) => {
       e.preventDefault();
       const cfg = getCrowdCfg(state);
       setCrowdEnabled(!cfg.enabled);
-      renderSettings();
+      updateCrowdQuickButtons();
+      renderCrowdPromptPreview();
     });
+
+    wireCrowdEditorInteractions();
+    // Start collapsed by default
+    if(els.crowdEditorPanel) closeCrowdEditor(true);
+
 
     els.addType.addEventListener("change", toggleCustomAddFields);
 
@@ -2987,6 +3476,22 @@ toggleCustomAddFields();
       if(e.key === "Enter"){ e.preventDefault(); addPerformer(); }
     });
     els.btnAdd.addEventListener("click", addPerformer);
+
+    // Quick add special screens
+    if(els.btnAddIntermission){
+      els.btnAddIntermission.addEventListener("click", (e) => { e.preventDefault(); addIntermissionSlot(); });
+    }
+    if(els.btnAddHouseBandSlot){
+      els.btnAddHouseBandSlot.addEventListener("click", (e) => { e.preventDefault(); addHouseBandSlot(); });
+    }
+
+
+    // House Band Set Builder modal
+    if(els.btnHbBuildClose) els.btnHbBuildClose.addEventListener("click", (e) => { e.preventDefault(); closeHbBuildModal(); });
+    if(els.btnHbBuildCancel) els.btnHbBuildCancel.addEventListener("click", (e) => { e.preventDefault(); closeHbBuildModal(); });
+    if(els.btnHbBuildEnableAll) els.btnHbBuildEnableAll.addEventListener("click", (e) => { e.preventDefault(); enableAllHbBuild(); });
+    if(els.btnHbBuildClearAll) els.btnHbBuildClearAll.addEventListener("click", (e) => { e.preventDefault(); clearAllHbBuild(); });
+    if(els.btnHbBuildSave) els.btnHbBuildSave.addEventListener("click", (e) => { e.preventDefault(); commitHbBuild(); });
 
     // Tabs
     function setActiveTab(which){
@@ -3213,7 +3718,70 @@ els.showTitle.addEventListener("input", () => {
       if(e.target === els.settingsModal) closeSettingsModal();
     });
     document.addEventListener("keydown", (e) => {
-      if(e.key === "Escape" && !els.settingsModal.hidden) closeSettingsModal();
+      const k = e.key;
+
+      // If Timer-up modal is open, give it priority (show-critical)
+      if(els.timerUpModal && !els.timerUpModal.hidden){
+        if(k === "Escape"){
+          e.preventDefault();
+          els.btnTimerUpDismiss?.click();
+          return;
+        }
+        if(k === "Enter"){
+          const ae = document.activeElement;
+          // If a button inside the modal is focused, let Enter activate that normally
+          if(ae && ae.closest && ae.closest("#timerUpModal") && (ae.tagName||"").toLowerCase() === "button"){
+            return;
+          }
+          e.preventDefault();
+          els.btnTimerUpEnd?.click();
+          return;
+        }
+      }
+
+      // Settings modal close
+      if(k === "Escape" && els.settingsModal && !els.settingsModal.hidden){
+        e.preventDefault();
+        closeSettingsModal();
+        return;
+      }
+
+      // Operator hotkeys (guarded)
+      if(!(state.operatorPrefs?.hotkeysEnabled)) return;
+      if(isTypingContext(e.target)) return;
+
+      // Don't steal keys if any modal is open (except timer-up handled above)
+      if(document.body.classList.contains("modalOpen")) return;
+
+      const isCtrl = e.ctrlKey || e.metaKey;
+
+      // Undo/Redo
+      if(isCtrl && !e.shiftKey && (k === "z" || k === "Z")){
+        e.preventDefault();
+        undo();
+        return;
+      }
+      if(isCtrl && ((k === "y" || k === "Y") || (e.shiftKey && (k === "z" || k === "Z")))){
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      // Space = Start/Pause/Resume
+      if(k === " " || k === "Spacebar"){
+        e.preventDefault();
+        if(state.phase === "SPLASH") guardedStart();
+        else if(state.phase === "LIVE") pause();
+        else if(state.phase === "PAUSED") resume();
+        return;
+      }
+
+      // N = End → Splash
+      if(k === "n" || k === "N"){
+        e.preventDefault();
+        guardedEnd();
+        return;
+      }
     });
   }
 
