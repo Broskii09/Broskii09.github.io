@@ -9,6 +9,7 @@
     queue: document.getElementById("queue"),
     addName: document.getElementById("addName"),
     addType: document.getElementById("addType"),
+    addTypeSticky: document.getElementById("addTypeSticky"),
     btnAdd: document.getElementById("btnAdd"),
     btnAddIntermission: document.getElementById("btnAddIntermission"),
     btnAddHouseBandSlot: document.getElementById("btnAddHouseBandSlot"),
@@ -33,6 +34,13 @@ setBgColor: document.getElementById("setBgColor"),
     setCardColor: document.getElementById("setCardColor"),
     setCardOpacity: document.getElementById("setCardOpacity"),
     setCardOpacityVal: document.getElementById("setCardOpacityVal"),
+    setSplashShowNextTwo: document.getElementById("setSplashShowNextTwo"),
+    setShowProgressBar: document.getElementById("setShowProgressBar"),
+    setShowOvertime: document.getElementById("setShowOvertime"),
+    setWarnAtSec: document.getElementById("setWarnAtSec"),
+    setWarnAtSecVal: document.getElementById("setWarnAtSecVal"),
+    setFinalAtSec: document.getElementById("setFinalAtSec"),
+    setFinalAtSecVal: document.getElementById("setFinalAtSecVal"),
     setWarnColor: document.getElementById("setWarnColor"),
     setWarnAlpha: document.getElementById("setWarnAlpha"),
     setWarnAlphaVal: document.getElementById("setWarnAlphaVal"),
@@ -47,6 +55,8 @@ setBgColor: document.getElementById("setBgColor"),
     setVizEnabled: document.getElementById("setVizEnabled"),
     setVizSensitivity: document.getElementById("setVizSensitivity"),
     setVizSensitivityVal: document.getElementById("setVizSensitivityVal"),
+    setVizMode: document.getElementById("setVizMode"),
+    setVizDirection: document.getElementById("setVizDirection"),
 
     // Crowd Prompts
     setCrowdEnabled: document.getElementById("setCrowdEnabled"),
@@ -180,6 +190,20 @@ setBgColor: document.getElementById("setBgColor"),
     btnHbBuildClearAll: document.getElementById("btnHbBuildClearAll"),
     btnHbBuildCancel: document.getElementById("btnHbBuildCancel"),
     btnHbBuildSave: document.getElementById("btnHbBuildSave"),
+
+    // Intermission Builder modal
+    intermissionModal: document.getElementById("intermissionModal"),
+    imName: document.getElementById("imName"),
+    imMsg: document.getElementById("imMsg"),
+    imCustomWrap: document.getElementById("imCustomWrap"),
+    imCustomMins: document.getElementById("imCustomMins"),
+    imDur5: document.getElementById("imDur5"),
+    imDur10: document.getElementById("imDur10"),
+    imDur15: document.getElementById("imDur15"),
+    imDurCustom: document.getElementById("imDurCustom"),
+    btnImClose: document.getElementById("btnImClose"),
+    btnImCancel: document.getElementById("btnImCancel"),
+    btnImAdd: document.getElementById("btnImAdd"),
   };
 
   let selectedId = null;
@@ -190,6 +214,9 @@ setBgColor: document.getElementById("setBgColor"),
   // House Band Set Builder
   let hbBuildCtx = null; // { mode:'add'|'edit', slotId?:string }
   let hbBuildDraft = null;
+
+  // Intermission Builder
+  let imDraft = null; // { minutes: number | 'custom' }
 
 
   const VIEWER_HEARTBEAT_KEY = "omjn.viewerHeartbeat.v1";
@@ -268,7 +295,16 @@ setBgColor: document.getElementById("setBgColor"),
   // ---- Performer profiles (stored in state) ----
   function ensureProfilesShape(s){
     if(!s.profiles) s.profiles = {};
-    if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true };
+    if(!s.operatorPrefs) s.operatorPrefs = {
+      startGuard:true,
+      endGuard:true,
+      hotkeysEnabled:true,
+      quickAddStickyType:false,
+      lastQuickAddType:""
+    };
+    // Backfill new prefs in existing saves
+    if(s.operatorPrefs.quickAddStickyType == null) s.operatorPrefs.quickAddStickyType = false;
+    if(typeof s.operatorPrefs.lastQuickAddType !== "string") s.operatorPrefs.lastQuickAddType = "";
   }
 
   // ---- House Band shape ----
@@ -303,11 +339,13 @@ setBgColor: document.getElementById("setBgColor"),
     }, { recordHistory:false }); // profile updates shouldn't spam undo
   }
 
-  function applyProfileDefaultsToSlot(s, slot, profile){
+  function applyProfileDefaultsToSlot(s, slot, profile, opts = {}){
     if(!profile) return;
 
+    const applyType = (opts.applyType !== false);
+
     // Slot type + minutes always apply
-    slot.slotTypeId = profile.defaultSlotTypeId || slot.slotTypeId;
+    if(applyType) slot.slotTypeId = profile.defaultSlotTypeId || slot.slotTypeId;
     slot.minutesOverride = profile.defaultMinutesOverride ?? slot.minutesOverride ?? null;
 
     // Media defaults: only apply if the profile has an explicit media preference.
@@ -525,6 +563,106 @@ setBgColor: document.getElementById("setBgColor"),
 
     const left = document.createElement("div");
     left.className = "col";
+
+    const initialType = String(editDraft?.slotTypeId ?? slot.slotTypeId ?? "musician");
+
+    // Intermission should not look like a performer editor:
+    // Only allow Title, Duration, and Message.
+    if(initialType === "intermission"){
+      grid.style.gridTemplateColumns = "1fr";
+
+      const fName = document.createElement("div");
+      fName.className = "field";
+      const lName = document.createElement("label");
+      lName.textContent = "Title";
+      const iName = document.createElement("input");
+      iName.type = "text";
+      iName.value = editDraft?.displayName ?? (slot.displayName || "");
+      iName.addEventListener("input", () => { if(editDraft) editDraft.displayName = iName.value; });
+      iName.addEventListener("keydown", (e) => {
+        if(e.key === "Enter"){ e.preventDefault(); saveInlineEdit(slot.id); }
+        if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); }
+      });
+      fName.appendChild(lName); fName.appendChild(iName);
+
+      const fMins = document.createElement("div");
+      fMins.className = "field";
+      const lMins = document.createElement("label");
+      lMins.textContent = "Duration (minutes)";
+      const iMins = document.createElement("input");
+      iMins.type = "number";
+      iMins.min = "1";
+      iMins.step = "1";
+      iMins.placeholder = "10";
+      iMins.value = String(editDraft?.minutesOverride ?? (slot.minutesOverride ?? ""));
+      iMins.addEventListener("input", () => { if(editDraft) editDraft.minutesOverride = iMins.value; });
+      iMins.addEventListener("keydown", (e) => {
+        if(e.key === "Enter"){ e.preventDefault(); saveInlineEdit(slot.id); }
+        if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); }
+      });
+
+      const quick = document.createElement("div");
+      quick.className = "row";
+      quick.style.gap = "8px";
+      quick.style.marginTop = "8px";
+      const mkBtn = (label, mins) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "btn tiny";
+        b.textContent = label;
+        b.addEventListener("click", (e) => {
+          e.preventDefault();
+          iMins.value = String(mins);
+          if(editDraft) editDraft.minutesOverride = String(mins);
+        });
+        return b;
+      };
+      quick.appendChild(mkBtn("5m", 5));
+      quick.appendChild(mkBtn("10m", 10));
+      quick.appendChild(mkBtn("15m", 15));
+      quick.appendChild(mkBtn("Custom", ""));
+      quick.lastChild.addEventListener("click", (e) => { e.preventDefault(); iMins.focus(); iMins.select?.(); });
+
+      fMins.appendChild(lMins); fMins.appendChild(iMins); fMins.appendChild(quick);
+
+      const fIM = document.createElement("div");
+      fIM.className = "field";
+      const lIM = document.createElement("label");
+      lIM.textContent = "Message on screen";
+      const tIM = document.createElement("textarea");
+      tIM.rows = 3;
+      tIM.placeholder = "WE'LL BE RIGHT BACK";
+      tIM.value = String(editDraft?.intermissionMessage ?? (slot.intermissionMessage || ""));
+      tIM.addEventListener("input", () => { if(editDraft) editDraft.intermissionMessage = tIM.value; });
+      tIM.addEventListener("keydown", (e) => { if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); } });
+      fIM.appendChild(lIM); fIM.appendChild(tIM);
+
+      left.appendChild(fName);
+      left.appendChild(fMins);
+      left.appendChild(fIM);
+
+      grid.appendChild(left);
+      wrap.appendChild(grid);
+
+      const actions = document.createElement("div");
+      actions.className = "qExpActions";
+
+      const btnCancel = document.createElement("button");
+      btnCancel.className = "btn small";
+      btnCancel.textContent = "Cancel";
+      btnCancel.addEventListener("click", (e) => { e.preventDefault(); cancelInlineEdit(); });
+
+      const btnSave = document.createElement("button");
+      btnSave.className = "btn small";
+      btnSave.textContent = "Save";
+      btnSave.addEventListener("click", (e) => { e.preventDefault(); saveInlineEdit(slot.id); });
+
+      actions.appendChild(btnCancel);
+      actions.appendChild(btnSave);
+      wrap.appendChild(actions);
+
+      return wrap;
+    }
 
     const fName = document.createElement("div");
     fName.className = "field";
@@ -1316,6 +1454,23 @@ function escapeHtml(s){
       if(els.setCardOpacityVal) els.setCardOpacityVal.textContent = Number(card.opacity ?? 0.90).toFixed(2);
     }
 
+    // Splash + timer prefs
+    if(els.setSplashShowNextTwo) els.setSplashShowNextTwo.checked = (state.splash?.showNextTwo !== false);
+    if(els.setShowProgressBar) els.setShowProgressBar.checked = (state.viewerPrefs?.showProgressBar !== false);
+    if(els.setShowOvertime) els.setShowOvertime.checked = (state.viewerPrefs?.showOvertime !== false);
+
+    if(els.setWarnAtSec){
+      const v = clamp(parseInt(String(state.viewerPrefs?.warnAtSec ?? 120), 10) || 120, 0, 600);
+      els.setWarnAtSec.value = String(v);
+      if(els.setWarnAtSecVal) els.setWarnAtSecVal.textContent = OMJN.formatMMSS(v * 1000);
+    }
+    if(els.setFinalAtSec){
+      const v = clamp(parseInt(String(state.viewerPrefs?.finalAtSec ?? 30), 10) || 30, 0, 600);
+      els.setFinalAtSec.value = String(v);
+      if(els.setFinalAtSecVal) els.setFinalAtSecVal.textContent = OMJN.formatMMSS(v * 1000);
+    }
+
+
     const cues = st.viewerCues || {};
     if(els.setWarnColor) els.setWarnColor.value = cues.warnHex || "#00c2ff";
     if(els.setWarnAlpha){
@@ -1347,6 +1502,16 @@ function escapeHtml(s){
       const vv = Number.isFinite(v) ? Math.max(0.25, Math.min(4, v)) : 1.0;
       els.setVizSensitivity.value = String(vv);
       if(els.setVizSensitivityVal) els.setVizSensitivityVal.textContent = `${vv.toFixed(2)}×`;
+
+    if(els.setVizMode){
+      const m = String(state.viewerPrefs?.visualizerMode || "eq");
+      els.setVizMode.value = (m === "volume") ? "volume" : "eq";
+    }
+    if(els.setVizDirection){
+      const d = String(state.viewerPrefs?.visualizerDirection || "mirror");
+      els.setVizDirection.value = (d === "ltr") ? "ltr" : "mirror";
+    }
+
     }
 
     
@@ -1513,6 +1678,53 @@ function escapeHtml(s){
       els.hotkeysEnabled.addEventListener("change", () => updateState(s => { s.operatorPrefs.hotkeysEnabled = !!els.hotkeysEnabled.checked; }, { recordHistory:false }));
     }
 
+
+    // Splash layout
+    if(els.setSplashShowNextTwo){
+      els.setSplashShowNextTwo.addEventListener("change", () => {
+        updateState(s => {
+          s.splash = s.splash || {};
+          s.splash.showNextTwo = !!els.setSplashShowNextTwo.checked;
+        }, { recordHistory:false });
+      });
+    }
+
+    // Timer display prefs
+    if(els.setShowProgressBar){
+      els.setShowProgressBar.addEventListener("change", () => {
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.showProgressBar = !!els.setShowProgressBar.checked;
+        }, { recordHistory:false });
+      });
+    }
+    if(els.setShowOvertime){
+      els.setShowOvertime.addEventListener("change", () => {
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.showOvertime = !!els.setShowOvertime.checked;
+        }, { recordHistory:false });
+      });
+    }
+
+    function bindRemainingSec(inputEl, valEl, key, defVal){
+      if(!inputEl) return;
+      const onAny = () => {
+        const raw = parseInt(String(inputEl.value || defVal), 10);
+        const val = clamp(Number.isFinite(raw) ? raw : defVal, 0, 600);
+        inputEl.value = String(val);
+        if(valEl) valEl.textContent = OMJN.formatMMSS(val * 1000);
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs[key] = val;
+        }, { recordHistory:false });
+      };
+      inputEl.addEventListener("input", onAny);
+      inputEl.addEventListener("change", onAny);
+    }
+    bindRemainingSec(els.setWarnAtSec, els.setWarnAtSecVal, "warnAtSec", 120);
+    bindRemainingSec(els.setFinalAtSec, els.setFinalAtSecVal, "finalAtSec", 30);
+
     // Viewer extras: mic visualizer
     if(els.setVizEnabled){
       els.setVizEnabled.addEventListener("change", () => {
@@ -1540,7 +1752,26 @@ function escapeHtml(s){
       });
     }
 
-    
+
+    // Viewer extras: visualizer mode/direction
+    if(els.setVizMode){
+      els.setVizMode.addEventListener("change", () => {
+        const mode = String(els.setVizMode.value || "eq");
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.visualizerMode = (mode === "volume") ? "volume" : "eq";
+        }, { recordHistory:false });
+      });
+    }
+    if(els.setVizDirection){
+      els.setVizDirection.addEventListener("change", () => {
+        const dir = String(els.setVizDirection.value || "mirror");
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.visualizerDirection = (dir === "ltr") ? "ltr" : "mirror";
+        }, { recordHistory:false });
+      });
+    }
 
     // Crowd Prompts controls
     function readCrowdEditor(){
@@ -1820,11 +2051,60 @@ function escapeHtml(s){
         }, { recordHistory:false });
       });
     }
+
+    // Settings tabs (Viewer / Timer / Visualizer / Crowd / Advanced)
+    if(els.settingsModal && !els.settingsModal.dataset.tabsBound){
+      els.settingsModal.dataset.tabsBound = "1";
+
+      const navBtns = Array.from(els.settingsModal.querySelectorAll('.settingsTabBtn[data-tab]'));
+      const panels  = Array.from(els.settingsModal.querySelectorAll('.settingsPanel[data-panel]'));
+
+      function activateSettingsTab(tabId){
+        navBtns.forEach(btn => {
+          const isActive = btn.dataset.tab === tabId;
+          btn.classList.toggle("isActive", isActive);
+          btn.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+        panels.forEach(p => {
+          p.hidden = (p.dataset.panel !== tabId);
+        });
+        try{ localStorage.setItem("omjn_settingsTab", tabId); }catch(_){}
+      }
+
+      navBtns.forEach(btn => {
+        btn.addEventListener("click", () => activateSettingsTab(btn.dataset.tab));
+      });
+
+      // Initial tab (remember last)
+      let firstTab = "viewer";
+      try{ firstTab = localStorage.getItem("omjn_settingsTab") || "viewer"; }catch(_){}
+      activateSettingsTab(firstTab);
+
+      // Shortcut: jump to Crowd Prompt editor
+      const btnOpenCrowd = document.getElementById("btnSettingsOpenCrowdEditor");
+      if(btnOpenCrowd){
+        btnOpenCrowd.addEventListener("click", () => {
+          closeSettingsModal();
+          els.btnCrowdEditToggle?.click?.();
+        });
+      }
+    }
+
   }
 
   function fillTypeSelect(selectEl, opts = {}){
     if(!selectEl) return;
     selectEl.innerHTML = "";
+
+    if(opts.includeBlank){
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = opts.blankLabel || "— Choose type —";
+      opt.disabled = true;
+      opt.selected = true;
+      selectEl.appendChild(opt);
+    }
+
     for(const t of slotTypesForSelect(opts)){
       const opt = document.createElement("option");
       opt.value = t.id;
@@ -1868,6 +2148,7 @@ function escapeHtml(s){
 
     div.draggable = (slot.status === "QUEUED") && !isLive && !isDone && (editingId !== slot.id);
     div.dataset.id = slot.id;
+    div.dataset.slotType = String(slot.slotTypeId || "");
     if(t?.color) div.style.borderLeft = `6px solid ${t.color}`;
 
     if(div.draggable){
@@ -1994,17 +2275,19 @@ function escapeHtml(s){
       });
       actions.appendChild(btnSkip);
 
-      // No-show - disabled for current performer
-      const btnNo = document.createElement("button");
-      btnNo.className = "btn tiny";
-      btnNo.textContent = "No-show";
-      btnNo.title = "Mark as no-show and move to Completed";
-      btnNo.disabled = (slot.status !== "QUEUED") || isLive;
-      btnNo.addEventListener("click", (e) => {
-        e.stopPropagation();
-        markNoShow(slot.id);
-      });
-      actions.appendChild(btnNo);
+      // No-show (not applicable for special screens like Intermission)
+      if(String(slot.slotTypeId || "") !== "intermission"){
+        const btnNo = document.createElement("button");
+        btnNo.className = "btn tiny";
+        btnNo.textContent = "No-show";
+        btnNo.title = "Mark as no-show and move to Completed";
+        btnNo.disabled = (slot.status !== "QUEUED") || isLive;
+        btnNo.addEventListener("click", (e) => {
+          e.stopPropagation();
+          markNoShow(slot.id);
+        });
+        actions.appendChild(btnNo);
+      }
     }
 
     if(isDone){
@@ -2858,8 +3141,20 @@ function render(){
       }
     }
 
-    fillTypeSelect(els.addType, { excludeSpecial:true });
-toggleCustomAddFields();
+    // Quick-add Slot Type: no default; optionally sticky
+    const prevQuickType = els.addType?.value ?? "";
+    fillTypeSelect(els.addType, { excludeSpecial:true, includeBlank:true, blankLabel:"— Choose type —" });
+    const sticky = !!state.operatorPrefs?.quickAddStickyType;
+    if(els.addTypeSticky) els.addTypeSticky.checked = sticky;
+    const last = String(state.operatorPrefs?.lastQuickAddType || "");
+    if(sticky && last){
+      els.addType.value = last;
+    }else if(prevQuickType && Array.from(els.addType.options).some(o => o.value === prevQuickType)){
+      els.addType.value = prevQuickType;
+    }else{
+      els.addType.value = "";
+    }
+    toggleCustomAddFields();
     // House Band add controls
     if(els.hbAddInstrument){
       fillHBInstrumentSelect(els.hbAddInstrument);
@@ -2880,8 +3175,30 @@ renderHouseBandCategories();
     const name = OMJN.sanitizeText(els.addName.value);
     if(!name) return;
 
+    // Determine Slot Type (no default). If blank, try profile; otherwise require explicit choice.
+    const key = normNameKey(name);
+    const prof = (key && state.profiles) ? (state.profiles[key] || null) : null;
+    let slotTypeId = String(els.addType.value || "");
+    const userChoseType = !!slotTypeId;
+    if(!slotTypeId && prof?.defaultSlotTypeId){
+      slotTypeId = prof.defaultSlotTypeId;
+      // Reflect auto-filled value in the UI so the operator sees what will be used.
+      if(els.addType) els.addType.value = slotTypeId;
+    }
+    if(!slotTypeId){
+      els.addType?.classList.add("isError");
+      setTimeout(() => els.addType?.classList.remove("isError"), 750);
+      els.addType?.focus?.();
+      return;
+    }
+
+    const sticky = !!els.addTypeSticky?.checked;
+
     updateState(s => {
-      const slotTypeId = els.addType.value || "musician";
+      ensureProfilesShape(s);
+      s.operatorPrefs.quickAddStickyType = sticky;
+      if(sticky) s.operatorPrefs.lastQuickAddType = slotTypeId;
+
       const isCustom = slotTypeId === "custom";
       const customTypeLabel = isCustom ? OMJN.sanitizeText(els.addCustomLabel.value) : "";
       const customMinutesRaw = isCustom ? els.addCustomMinutes.value : "";
@@ -2897,8 +3214,11 @@ renderHouseBandCategories();
         notes: "",
         media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
       };
+
       const prof = s.profiles?.[normNameKey(slot.displayName)] || null;
-        if(prof) applyProfileDefaultsToSlot(s, slot, prof);
+      // Only apply profile Slot Type if the operator didn't explicitly choose one.
+      if(prof) applyProfileDefaultsToSlot(s, slot, prof, { applyType: !userChoseType });
+
         s.queue.push(slot);
         // create/update profile for future auto-fill
         if(slot.displayName){
@@ -2915,6 +3235,12 @@ renderHouseBandCategories();
 
     els.addName.value = "";
     els.addName.focus();
+
+    if(!sticky){
+      // Force conscious selection each time (prevents accidentally adding comedians as musicians).
+      if(els.addType) els.addType.value = "";
+      toggleCustomAddFields();
+    }
   }
 
 
@@ -3127,21 +3453,91 @@ renderHouseBandCategories();
   }
 
   function addIntermissionSlot(){
+    // Backwards compatible default add (no prompt)
+    return addIntermissionSlotWithOptions({});
+  }
+
+  function openIntermissionModal(){
+    if(!els.intermissionModal) return;
+    imDraft = { minutes: 10 };
+
+    if(els.imName) els.imName.value = "INTERMISSION";
+    if(els.imMsg) els.imMsg.value = "WE'LL BE RIGHT BACK";
+    if(els.imCustomMins) els.imCustomMins.value = "";
+    if(els.imCustomWrap) els.imCustomWrap.style.display = "none";
+    setIntermissionPresetActive(10);
+
+    els.intermissionModal.hidden = false;
+    document.body.classList.add("modalOpen");
+    setTimeout(() => { els.imName?.focus?.(); }, 0);
+  }
+
+  function closeIntermissionModal(){
+    imDraft = null;
+    if(!els.intermissionModal) return;
+    els.intermissionModal.hidden = true;
+    document.body.classList.remove("modalOpen");
+  }
+
+  function setIntermissionPresetActive(val){
+    const btns = [els.imDur5, els.imDur10, els.imDur15, els.imDurCustom].filter(Boolean);
+    for(const b of btns){
+      const k = String(b.dataset.mins || "");
+      const isActive = (val === "custom") ? (k === "custom") : (k === String(val));
+      b.classList.toggle("accent", isActive);
+    }
+    if(val === "custom"){
+      if(els.imCustomWrap) els.imCustomWrap.style.display = "";
+      setTimeout(() => { els.imCustomMins?.focus?.(); }, 0);
+    }else{
+      if(els.imCustomWrap) els.imCustomWrap.style.display = "none";
+    }
+  }
+
+  function addIntermissionSlotWithOptions(opts = {}){
+    const titleRaw = OMJN.sanitizeText(opts.title || "INTERMISSION");
+    const title = (titleRaw || "INTERMISSION").toUpperCase();
+
+    let minutesOverride = null;
+    const m = Number(opts.minutes);
+    if(Number.isFinite(m) && m > 0) minutesOverride = Math.round(m);
+
+    const message = String(opts.message || "").trim() || "WE'LL BE RIGHT BACK";
+
     updateState(s => {
       const slot = {
         id: OMJN.uid("slot"),
         createdAt: Date.now(),
-        displayName: "INTERMISSION",
+        displayName: title,
         slotTypeId: "intermission",
-        minutesOverride: null,
+        minutesOverride: minutesOverride,
         customTypeLabel: "",
         status: "QUEUED",
         notes: "",
-        intermissionMessage: "WE'LL BE RIGHT BACK",
+        intermissionMessage: message,
         media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
       };
       insertQueuedSlotSmart(s, slot);
     });
+  }
+
+  function commitIntermissionModal(){
+    if(!els.intermissionModal || els.intermissionModal.hidden) return;
+    const title = (els.imName?.value || "").trim() || "INTERMISSION";
+    const message = (els.imMsg?.value || "").trim() || "WE'LL BE RIGHT BACK";
+
+    let minutes = 10;
+    if(imDraft?.minutes === "custom"){
+      const n = Math.round(Number(els.imCustomMins?.value || 0));
+      if(Number.isFinite(n) && n > 0) minutes = n;
+    }else if(Number.isFinite(Number(imDraft?.minutes))){
+      minutes = Math.round(Number(imDraft.minutes));
+    }
+    minutes = clamp(minutes, 1, 600);
+
+    addIntermissionSlotWithOptions({ title, minutes, message });
+    closeIntermissionModal();
+    render();
   }
 
   function addHouseBandSlot(){
@@ -3436,6 +3832,12 @@ function start(){
     if(!els.settingsModal) return;
     els.settingsModal.hidden = false;
     document.body.classList.add("modalOpen");
+    // restore last-opened tab
+    try{
+      const tab = localStorage.getItem("omjn_settingsTab") || "viewer";
+      const btn = els.settingsModal.querySelector(`.settingsTabBtn[data-tab="${tab}"]`);
+      btn?.click?.();
+    }catch(_){/* ignore */}
     // focus close for quick escape
     setTimeout(() => { els.btnCloseSettings?.focus?.(); }, 0);
   }
@@ -3449,8 +3851,14 @@ function start(){
 
 function bind(){
     // initial select options
-    fillTypeSelect(els.addType, { excludeSpecial:true });
-toggleCustomAddFields();
+    fillTypeSelect(els.addType, { excludeSpecial:true, includeBlank:true, blankLabel:"— Choose type —" });
+    if(els.addTypeSticky) els.addTypeSticky.checked = !!state.operatorPrefs?.quickAddStickyType;
+    if(state.operatorPrefs?.quickAddStickyType && state.operatorPrefs?.lastQuickAddType){
+      els.addType.value = String(state.operatorPrefs.lastQuickAddType);
+    }else{
+      els.addType.value = "";
+    }
+    toggleCustomAddFields();
     bindSettings();
     bindPerformerDnD();
 
@@ -3470,7 +3878,42 @@ toggleCustomAddFields();
     if(els.crowdEditorPanel) closeCrowdEditor(true);
 
 
-    els.addType.addEventListener("change", toggleCustomAddFields);
+    // Keep sticky checkbox co-located with Slot Type; it controls whether the type is remembered.
+    if(els.addTypeSticky){
+      els.addTypeSticky.addEventListener("change", () => {
+        const on = !!els.addTypeSticky.checked;
+        updateState(s => {
+          ensureProfilesShape(s);
+          s.operatorPrefs.quickAddStickyType = on;
+          if(!on) s.operatorPrefs.lastQuickAddType = "";
+        }, { recordHistory:false });
+
+        if(!on){
+          if(els.addType) els.addType.value = "";
+          toggleCustomAddFields();
+        }
+      });
+    }
+
+    els.addType.addEventListener("change", () => {
+      toggleCustomAddFields();
+      if(els.addTypeSticky?.checked){
+        updateState(s => {
+          ensureProfilesShape(s);
+          s.operatorPrefs.lastQuickAddType = String(els.addType.value || "");
+        }, { recordHistory:false });
+      }
+    });
+
+    // If the operator picks a known performer name (profile), auto-fill Slot Type only when blank.
+    els.addName.addEventListener("input", () => {
+      if(!els.addType || String(els.addType.value || "") !== "") return;
+      const prof = getProfileForName(els.addName.value);
+      if(prof?.defaultSlotTypeId){
+        els.addType.value = prof.defaultSlotTypeId;
+        toggleCustomAddFields();
+      }
+    });
 
     els.addName.addEventListener("keydown", (e) => {
       if(e.key === "Enter"){ e.preventDefault(); addPerformer(); }
@@ -3479,11 +3922,28 @@ toggleCustomAddFields();
 
     // Quick add special screens
     if(els.btnAddIntermission){
-      els.btnAddIntermission.addEventListener("click", (e) => { e.preventDefault(); addIntermissionSlot(); });
+      els.btnAddIntermission.addEventListener("click", (e) => { e.preventDefault(); openIntermissionModal(); });
     }
     if(els.btnAddHouseBandSlot){
       els.btnAddHouseBandSlot.addEventListener("click", (e) => { e.preventDefault(); addHouseBandSlot(); });
     }
+
+    // Intermission Builder modal
+    if(els.btnImClose) els.btnImClose.addEventListener("click", (e) => { e.preventDefault(); closeIntermissionModal(); });
+    if(els.btnImCancel) els.btnImCancel.addEventListener("click", (e) => { e.preventDefault(); closeIntermissionModal(); });
+    if(els.btnImAdd) els.btnImAdd.addEventListener("click", (e) => { e.preventDefault(); commitIntermissionModal(); });
+    if(els.intermissionModal){
+      els.intermissionModal.addEventListener("mousedown", (e) => {
+        if(e.target === els.intermissionModal) closeIntermissionModal();
+      });
+    }
+    const imPreset = (mins) => (e) => { e.preventDefault(); imDraft = imDraft || { minutes: 10 }; imDraft.minutes = mins; setIntermissionPresetActive(mins); };
+    if(els.imDur5) els.imDur5.addEventListener("click", imPreset(5));
+    if(els.imDur10) els.imDur10.addEventListener("click", imPreset(10));
+    if(els.imDur15) els.imDur15.addEventListener("click", imPreset(15));
+    if(els.imDurCustom) els.imDurCustom.addEventListener("click", imPreset("custom"));
+    if(els.imName) els.imName.addEventListener("keydown", (e) => { if(e.key === "Enter"){ e.preventDefault(); commitIntermissionModal(); } if(e.key === "Escape"){ e.preventDefault(); closeIntermissionModal(); } });
+    if(els.imCustomMins) els.imCustomMins.addEventListener("keydown", (e) => { if(e.key === "Enter"){ e.preventDefault(); commitIntermissionModal(); } if(e.key === "Escape"){ e.preventDefault(); closeIntermissionModal(); } });
 
 
     // House Band Set Builder modal
@@ -3740,6 +4200,28 @@ els.showTitle.addEventListener("input", () => {
       }
 
       // Settings modal close
+      if(els.intermissionModal && !els.intermissionModal.hidden){
+        if(k === "Escape"){
+          e.preventDefault();
+          closeIntermissionModal();
+          return;
+        }
+        if(k === "Enter"){
+          const ae = document.activeElement;
+          // Allow Enter to add unless you're typing in the message box
+          if(ae && ae.closest && ae.closest("#intermissionModal") && (ae.tagName||"").toLowerCase() === "textarea"){
+            return;
+          }
+          // If a button is focused, let Enter activate it normally
+          if(ae && ae.closest && ae.closest("#intermissionModal") && (ae.tagName||"").toLowerCase() === "button"){
+            return;
+          }
+          e.preventDefault();
+          commitIntermissionModal();
+          return;
+        }
+      }
+
       if(k === "Escape" && els.settingsModal && !els.settingsModal.hidden){
         e.preventDefault();
         closeSettingsModal();

@@ -166,6 +166,20 @@ select option{ background: var(--panel); color: var(--text); }
   display:flex; flex-direction:column; gap:6px;
 }
 .field label{font-size:12px; color:var(--muted)}
+.labelRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.inlineCheck{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  cursor:pointer;
+  user-select:none;
+}
+.inlineCheck input{ transform: translateY(1px); }
 .field input[type="text"], .field input[type="number"], .field textarea, .field select{
   width:100%;
   background:rgba(0,0,0,.22);
@@ -174,6 +188,10 @@ select option{ background: var(--panel); color: var(--text); }
   padding:10px 10px;
   border-radius:12px;
   outline:none;
+}
+.field input.isError, .field textarea.isError, .field select.isError{
+  border-color: rgba(255,90,95,.65);
+  box-shadow: 0 0 0 2px rgba(255,90,95,.12);
 }
 .field textarea{min-height:90px; resize:vertical;}
 
@@ -212,6 +230,17 @@ select option{ background: var(--panel); color: var(--text); }
   border-radius:16px;
   border:1px solid rgba(255,255,255,.10);
   background:rgba(0,0,0,.16);
+}
+
+/* Make Intermission stand out more in the queue */
+.queueItem[data-slot-type="intermission"]{
+  background: rgba(255, 204, 102, .14);
+  border-color: rgba(255, 204, 102, .30);
+}
+.queueItem[data-slot-type="intermission"] .badge.gold{
+  border-color: rgba(255, 204, 102, .35);
+  color: var(--amber);
+  background: rgba(255, 204, 102, .12);
 }
 
 .queueItem.isSelected{outline:2px solid rgba(255,255,255,.18);}
@@ -420,6 +449,26 @@ hr.sep{
   display:block;
 }
 
+
+/* Visualizer hint (shown when enabled but mic not granted yet) */
+.vVizWrap{ position: relative; }
+.vVizWrap.needsMic{ cursor: pointer; }
+.vVizHint{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 0 18px;
+  text-align:center;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: .10em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.82);
+  text-shadow: 0 2px 12px rgba(0,0,0,.65);
+  pointer-events:none;
+}
 /* Setup button (Splash only) */
 .vMicEnable{
   position:absolute;
@@ -2548,3 +2597,64 @@ details.hbAcc .hbCatList{
 }
 .hbPreviewNames{ margin-top:4px; font-size:24px; font-weight:950; text-transform:uppercase; }
 .hbPreviewRoles{ margin-top:2px; font-size:18px; font-weight:800; text-transform:uppercase; opacity:.85; }
+
+
+/* ===== Settings (tabbed) ===== */
+.settingsPanelShell{
+  max-width: 1080px;
+}
+.settingsTabs{
+  display:flex;
+  gap:14px;
+  align-items:stretch;
+}
+.settingsNav{
+  flex:0 0 190px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding-right:8px;
+  border-right: 1px solid rgba(255,255,255,.08);
+}
+.settingsTabBtn{
+  width:100%;
+  text-align:left;
+  padding:10px 12px;
+  border-radius:12px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.10);
+  color: inherit;
+  cursor:pointer;
+}
+.settingsTabBtn:hover{
+  background: rgba(255,255,255,.05);
+}
+.settingsTabBtn.isActive{
+  background: rgba(255,255,255,.07);
+  border-color: rgba(255,255,255,.18);
+  box-shadow: 0 6px 18px rgba(0,0,0,.22);
+}
+.settingsPanels{
+  flex:1 1 auto;
+  min-width:0;
+  padding-left:6px;
+}
+.settingsPanel[hidden]{ display:none !important; }
+
+@media (max-width: 920px){
+  .settingsTabs{ flex-direction:column; }
+  .settingsNav{
+    flex:0 0 auto;
+    flex-direction:row;
+    overflow:auto;
+    padding-right:0;
+    padding-bottom:8px;
+    border-right:none;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .settingsTabBtn{
+    width:auto;
+    white-space:nowrap;
+  }
+  .settingsPanels{ padding-left:0; }
+}

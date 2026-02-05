@@ -80,6 +80,10 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         // Mic-based audio visualizer (Viewer)
         visualizerEnabled: false,
         visualizerSensitivity: 1.0,
+        // eq (spectrum) or volume (level)
+        visualizerMode: "eq",
+        // mirror (center-out) or ltr (left-to-right)
+        visualizerDirection: "mirror",
 
         sponsorBug: {
           enabled: false,
@@ -216,6 +220,8 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
       if(s.viewerPrefs.visualizerEnabled === undefined) s.viewerPrefs.visualizerEnabled = false;
       if(s.viewerPrefs.visualizerSensitivity === undefined) s.viewerPrefs.visualizerSensitivity = 1.0;
+      if(s.viewerPrefs.visualizerMode === undefined) s.viewerPrefs.visualizerMode = "eq";
+      if(s.viewerPrefs.visualizerDirection === undefined) s.viewerPrefs.visualizerDirection = "mirror";
       if(!s.viewerPrefs.sponsorBug) s.viewerPrefs.sponsorBug = d.viewerPrefs.sponsorBug;
       else {
         const b = s.viewerPrefs.sponsorBug;
