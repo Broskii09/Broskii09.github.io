@@ -9,9 +9,9 @@
     queue: document.getElementById("queue"),
     addName: document.getElementById("addName"),
     addType: document.getElementById("addType"),
-    addTypeSticky: document.getElementById("addTypeSticky"),
     btnAdd: document.getElementById("btnAdd"),
     btnAddIntermission: document.getElementById("btnAddIntermission"),
+    btnAddAd: document.getElementById("btnAddAd"),
     btnAddHouseBandSlot: document.getElementById("btnAddHouseBandSlot"),
     profileNames: document.getElementById("profileNames"),
     addCustomWrap: document.getElementById("addCustomWrap"),
@@ -204,6 +204,28 @@ setBgColor: document.getElementById("setBgColor"),
     btnImClose: document.getElementById("btnImClose"),
     btnImCancel: document.getElementById("btnImCancel"),
     btnImAdd: document.getElementById("btnImAdd"),
+
+// Graphic Ad Builder modal
+adModal: document.getElementById("adModal"),
+adModalTitle: document.getElementById("adModalTitle"),
+adModalSub: document.getElementById("adModalSub"),
+adLabel: document.getElementById("adLabel"),
+adSource: document.getElementById("adSource"),
+adPresetWrap: document.getElementById("adPresetWrap"),
+adPreset: document.getElementById("adPreset"),
+adManifestLocalRow: document.getElementById("adManifestLocalRow"),
+btnLoadAdManifest: document.getElementById("btnLoadAdManifest"),
+adManifestFile: document.getElementById("adManifestFile"),
+adPresetStatus: document.getElementById("adPresetStatus"),
+adUploadWrap: document.getElementById("adUploadWrap"),
+adFile: document.getElementById("adFile"),
+adUrlWrap: document.getElementById("adUrlWrap"),
+adUrl: document.getElementById("adUrl"),
+adPreviewWrap: document.getElementById("adPreviewWrap"),
+adPreview: document.getElementById("adPreview"),
+btnAdClose: document.getElementById("btnAdClose"),
+btnAdCancel: document.getElementById("btnAdCancel"),
+btnAdSave: document.getElementById("btnAdSave"),
   };
 
   let selectedId = null;
@@ -217,6 +239,13 @@ setBgColor: document.getElementById("setBgColor"),
 
   // Intermission Builder
   let imDraft = null; // { minutes: number | 'custom' }
+
+  // Graphic Ad Builder (v1: ads + presets)
+  // Keep these declared to avoid ReferenceError when loading presets or opening the Ad modal.
+  let adCtx = null;           // { mode:'add'|'edit', slotId?:string }
+  let adPresetsTried = false; // whether we've attempted to load a presets manifest
+  let adPresets = null;       // { sourceUrl:string, items:Array }
+  let adPresetsSource = null;
 
 
   const VIEWER_HEARTBEAT_KEY = "omjn.viewerHeartbeat.v1";
@@ -295,16 +324,7 @@ setBgColor: document.getElementById("setBgColor"),
   // ---- Performer profiles (stored in state) ----
   function ensureProfilesShape(s){
     if(!s.profiles) s.profiles = {};
-    if(!s.operatorPrefs) s.operatorPrefs = {
-      startGuard:true,
-      endGuard:true,
-      hotkeysEnabled:true,
-      quickAddStickyType:false,
-      lastQuickAddType:""
-    };
-    // Backfill new prefs in existing saves
-    if(s.operatorPrefs.quickAddStickyType == null) s.operatorPrefs.quickAddStickyType = false;
-    if(typeof s.operatorPrefs.lastQuickAddType !== "string") s.operatorPrefs.lastQuickAddType = "";
+    if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true };
   }
 
   // ---- House Band shape ----
@@ -339,13 +359,11 @@ setBgColor: document.getElementById("setBgColor"),
     }, { recordHistory:false }); // profile updates shouldn't spam undo
   }
 
-  function applyProfileDefaultsToSlot(s, slot, profile, opts = {}){
+  function applyProfileDefaultsToSlot(s, slot, profile){
     if(!profile) return;
 
-    const applyType = (opts.applyType !== false);
-
     // Slot type + minutes always apply
-    if(applyType) slot.slotTypeId = profile.defaultSlotTypeId || slot.slotTypeId;
+    slot.slotTypeId = profile.defaultSlotTypeId || slot.slotTypeId;
     slot.minutesOverride = profile.defaultMinutesOverride ?? slot.minutesOverride ?? null;
 
     // Media defaults: only apply if the profile has an explicit media preference.
@@ -384,6 +402,11 @@ setBgColor: document.getElementById("setBgColor"),
     selectedId = slotId;
 
     const slot = state.queue.find(x => x.id === slotId) || null;
+    if(slot && String(slot.slotTypeId || "") === "ad_graphic"){
+      render();
+      return;
+    }
+
     const donationUrl = slot?.media?.donationUrl;
     const hasUrl = (typeof donationUrl === "string") && donationUrl.trim() !== "";
     const hasUpload = !!slot?.media?.imageAssetId;
@@ -2095,16 +2118,6 @@ function escapeHtml(s){
   function fillTypeSelect(selectEl, opts = {}){
     if(!selectEl) return;
     selectEl.innerHTML = "";
-
-    if(opts.includeBlank){
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = opts.blankLabel || "— Choose type —";
-      opt.disabled = true;
-      opt.selected = true;
-      selectEl.appendChild(opt);
-    }
-
     for(const t of slotTypesForSelect(opts)){
       const opt = document.createElement("option");
       opt.value = t.id;
@@ -3141,20 +3154,8 @@ function render(){
       }
     }
 
-    // Quick-add Slot Type: no default; optionally sticky
-    const prevQuickType = els.addType?.value ?? "";
-    fillTypeSelect(els.addType, { excludeSpecial:true, includeBlank:true, blankLabel:"— Choose type —" });
-    const sticky = !!state.operatorPrefs?.quickAddStickyType;
-    if(els.addTypeSticky) els.addTypeSticky.checked = sticky;
-    const last = String(state.operatorPrefs?.lastQuickAddType || "");
-    if(sticky && last){
-      els.addType.value = last;
-    }else if(prevQuickType && Array.from(els.addType.options).some(o => o.value === prevQuickType)){
-      els.addType.value = prevQuickType;
-    }else{
-      els.addType.value = "";
-    }
-    toggleCustomAddFields();
+    fillTypeSelect(els.addType, { excludeSpecial:true });
+toggleCustomAddFields();
     // House Band add controls
     if(els.hbAddInstrument){
       fillHBInstrumentSelect(els.hbAddInstrument);
@@ -3175,30 +3176,8 @@ renderHouseBandCategories();
     const name = OMJN.sanitizeText(els.addName.value);
     if(!name) return;
 
-    // Determine Slot Type (no default). If blank, try profile; otherwise require explicit choice.
-    const key = normNameKey(name);
-    const prof = (key && state.profiles) ? (state.profiles[key] || null) : null;
-    let slotTypeId = String(els.addType.value || "");
-    const userChoseType = !!slotTypeId;
-    if(!slotTypeId && prof?.defaultSlotTypeId){
-      slotTypeId = prof.defaultSlotTypeId;
-      // Reflect auto-filled value in the UI so the operator sees what will be used.
-      if(els.addType) els.addType.value = slotTypeId;
-    }
-    if(!slotTypeId){
-      els.addType?.classList.add("isError");
-      setTimeout(() => els.addType?.classList.remove("isError"), 750);
-      els.addType?.focus?.();
-      return;
-    }
-
-    const sticky = !!els.addTypeSticky?.checked;
-
     updateState(s => {
-      ensureProfilesShape(s);
-      s.operatorPrefs.quickAddStickyType = sticky;
-      if(sticky) s.operatorPrefs.lastQuickAddType = slotTypeId;
-
+      const slotTypeId = els.addType.value || "musician";
       const isCustom = slotTypeId === "custom";
       const customTypeLabel = isCustom ? OMJN.sanitizeText(els.addCustomLabel.value) : "";
       const customMinutesRaw = isCustom ? els.addCustomMinutes.value : "";
@@ -3214,11 +3193,8 @@ renderHouseBandCategories();
         notes: "",
         media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
       };
-
       const prof = s.profiles?.[normNameKey(slot.displayName)] || null;
-      // Only apply profile Slot Type if the operator didn't explicitly choose one.
-      if(prof) applyProfileDefaultsToSlot(s, slot, prof, { applyType: !userChoseType });
-
+        if(prof) applyProfileDefaultsToSlot(s, slot, prof);
         s.queue.push(slot);
         // create/update profile for future auto-fill
         if(slot.displayName){
@@ -3235,12 +3211,6 @@ renderHouseBandCategories();
 
     els.addName.value = "";
     els.addName.focus();
-
-    if(!sticky){
-      // Force conscious selection each time (prevents accidentally adding comedians as musicians).
-      if(els.addType) els.addType.value = "";
-      toggleCustomAddFields();
-    }
   }
 
 
@@ -3539,6 +3509,391 @@ renderHouseBandCategories();
     closeIntermissionModal();
     render();
   }
+
+
+// ---- Graphic Ad Builder (v1: still images) ----
+async function ensureAdPresets(){
+  if(adPresetsTried) return adPresets;
+  // When running from file://, fetch() cannot load local manifests. Allow manual load via file input.
+  if(location.protocol === "file:" && !adPresets){
+    adPresetsTried = true;
+    adPresetsSource = null;
+    return adPresets;
+  }
+  adPresetsTried = true;
+
+  const candidates = [
+    "./ads_manifest.json",
+    "./ads_manifest.example.json",
+    "./assets/ads/ads_manifest.json",
+    "./assets/ads/ads_manifest.example.json",
+  ];
+
+  for(const url of candidates){
+    try{
+      const res = await fetch(url, { cache: "no-store" });
+      if(!res.ok) continue;
+      const json = await res.json();
+      const items = Array.isArray(json?.items) ? json.items : (Array.isArray(json) ? json : []);
+      if(items.length){
+        adPresets = { sourceUrl: url, items };
+        return adPresets;
+      }
+    }catch(_){}
+  }
+  adPresets = null;
+  return adPresets;
+}
+
+function filenameLabelFromPath(p){
+  const s = String(p || "");
+  const base = s.split("/").pop() || s;
+  const noQ = base.split("?")[0].split("#")[0];
+  const noExt = noQ.replace(/\.[a-z0-9]+$/i, "");
+  return (noExt || "").replace(/[_-]+/g, " ").trim();
+}
+
+function populateAdPresetSelect(){
+  if(!els.adPreset) return;
+
+  const items = Array.isArray(adPresets?.items) ? adPresets.items : [];
+  els.adPreset.innerHTML = "";
+  if(!items.length){
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "No presets loaded";
+    els.adPreset.appendChild(opt);
+    els.adPreset.disabled = true;
+  }else{
+    const opt0 = document.createElement("option");
+    opt0.value = "";
+    opt0.textContent = "Select a preset…";
+    els.adPreset.appendChild(opt0);
+
+    for(const it of items){
+      const o = document.createElement("option");
+      o.value = String(it.id || it.url || it.src || "");
+      o.textContent = String(it.label || filenameLabelFromPath(it.url || it.src || it.id) || "Preset");
+      o.dataset.url = String(it.url || it.src || "");
+      els.adPreset.appendChild(o);
+    }
+    els.adPreset.disabled = false;
+  }
+
+  // Local file mode guidance / status
+  if(els.adManifestLocalRow){
+    const showLocal = (location.protocol === "file:" && !items.length);
+    els.adManifestLocalRow.style.display = showLocal ? "" : "none";
+  }
+  if(els.adPresetStatus){
+    const src = String(adPresets?.sourceUrl || "");
+    if(items.length && src){
+      els.adPresetStatus.style.display = "";
+      els.adPresetStatus.textContent = "Loaded presets from: " + src;
+    }else if(location.protocol === "file:" && !items.length){
+      els.adPresetStatus.style.display = "";
+      els.adPresetStatus.textContent = "Presets can’t be fetched from file://. Use “Load manifest file…” or run a local server.";
+    }else{
+      els.adPresetStatus.style.display = "none";
+      els.adPresetStatus.textContent = "";
+    }
+  }
+}
+
+
+function resetAdDraft(){
+  // Internal-only fields: _objectUrl is used for preview of local files or stored assets.
+  adDraft = {
+    label: "",
+    source: "preset",      // preset | upload | url
+    presetId: "",
+    url: "",
+    uploadFile: null,
+    uploadAssetId: null,
+    _objectUrl: null
+  };
+}
+
+function revokeAdDraftObjectUrl(){
+  if(adDraft?._objectUrl){
+    try{ URL.revokeObjectURL(adDraft._objectUrl); }catch(_){}
+    adDraft._objectUrl = null;
+  }
+}
+
+function setAdPreviewSrc(src){
+  if(!els.adPreviewWrap || !els.adPreview) return;
+  const s = String(src || "").trim();
+  if(!s){
+    els.adPreviewWrap.style.display = "none";
+    els.adPreview.src = "";
+    return;
+  }
+  els.adPreviewWrap.style.display = "";
+  els.adPreview.src = s;
+}
+
+async function previewAdFromAsset(assetId){
+  if(!assetId) return setAdPreviewSrc("");
+  revokeAdDraftObjectUrl();
+  try{
+    const blob = await OMJN.getAsset(assetId);
+    if(!blob) return setAdPreviewSrc("");
+    adDraft._objectUrl = URL.createObjectURL(blob);
+    setAdPreviewSrc(adDraft._objectUrl);
+  }catch(_){
+    setAdPreviewSrc("");
+  }
+}
+
+function syncAdSourceUI(){
+  const src = String(els.adSource?.value || "upload");
+  if(adDraft) adDraft.source = src;
+
+  if(els.adPresetWrap) els.adPresetWrap.style.display = (src === "preset") ? "" : "none";
+  if(src === "preset") populateAdPresetSelect();
+  if(els.adUploadWrap) els.adUploadWrap.style.display = (src === "upload") ? "" : "none";
+  if(els.adUrlWrap) els.adUrlWrap.style.display = (src === "url") ? "" : "none";
+
+  // Preview source
+  if(src === "upload"){
+    if(adDraft?.uploadFile){
+      revokeAdDraftObjectUrl();
+      adDraft._objectUrl = URL.createObjectURL(adDraft.uploadFile);
+      setAdPreviewSrc(adDraft._objectUrl);
+    }else if(adDraft?.uploadAssetId){
+      previewAdFromAsset(adDraft.uploadAssetId);
+    }else{
+      setAdPreviewSrc("");
+    }
+  }else if(src === "url"){
+    setAdPreviewSrc(els.adUrl?.value || adDraft?.url || "");
+  }else if(src === "preset"){
+    // Show preview if preset already selected
+    setAdPreviewSrc(adDraft?.url || "");
+  }
+}
+
+async function openAdModal(ctx){
+  if(!els.adModal) return;
+
+  adCtx = ctx || { mode: "add" };
+  resetAdDraft();
+
+  // Load presets
+  await ensureAdPresets();
+  populateAdPresetSelect();
+
+  if(adCtx.mode === "edit" && adCtx.slotId){
+    const slot = (state.queue || []).find(x => x && x.id === adCtx.slotId);
+    if(slot && String(slot.slotTypeId) === "ad_graphic"){
+      const cfg = slot.ad || {};
+      adDraft.label = String(cfg.label || slot.displayName || "");
+      adDraft.uploadAssetId = cfg.uploadAssetId || null;
+      adDraft.url = String(cfg.url || "");
+      adDraft.presetId = String(cfg.presetId || "");
+      // Infer source
+      if(adDraft.presetId) adDraft.source = "preset";
+      else if(adDraft.uploadAssetId) adDraft.source = "upload";
+      else if(adDraft.url) adDraft.source = "url";
+    }
+  }else{
+    // Default source preference: presets if present, else upload
+    adDraft.source = (adPresets?.items?.length || 0) > 0 ? "preset" : "upload";
+  }
+
+  // Populate UI
+  if(els.adLabel) els.adLabel.value = adDraft.label || "";
+  if(els.adSource) els.adSource.value = adDraft.source || "upload";
+
+  if(els.adUrl) els.adUrl.value = adDraft.url || "";
+
+  // Set preset selection if present
+  if(els.adPreset){
+    els.adPreset.value = adDraft.presetId || "";
+  }
+
+  if(els.adModalTitle){
+    els.adModalTitle.textContent = (adCtx.mode === "edit") ? "Edit Graphic Ad" : "Graphic Ad";
+  }
+  if(els.btnAdSave){
+    els.btnAdSave.textContent = (adCtx.mode === "edit") ? "Save" : "Add to Queue";
+  }
+
+  els.adModal.hidden = false;
+  document.body.classList.add("modalOpen");
+
+  // Preview
+  if(adDraft.source === "upload" && adDraft.uploadAssetId){
+    await previewAdFromAsset(adDraft.uploadAssetId);
+  }
+  syncAdSourceUI();
+
+  setTimeout(() => { els.adLabel?.focus?.(); }, 0);
+}
+
+function closeAdModal(){
+  if(!els.adModal) return;
+  revokeAdDraftObjectUrl();
+  adCtx = null;
+  adDraft = null;
+  els.adModal.hidden = true;
+  document.body.classList.remove("modalOpen");
+}
+
+function getSelectedAdPreset(){
+  const id = String(els.adPreset?.value || "");
+  if(!id) return null;
+  const items = adPresets?.items || [];
+  return items.find(x => String(x.id || x.url || "") === id) || null;
+}
+
+async function saveAdUploadForSlot(slotId, file){
+  if(!slotId || !file) return null;
+  const assetId = OMJN.uid("asset");
+  const blob = await OMJN.compressImageFile(file, 2200, 0.92);
+  await OMJN.putAsset(assetId, blob);
+
+  updateState(s => {
+    const slot = (s.queue || []).find(x => x && x.id === slotId);
+    if(!slot) return;
+    if(!slot.ad || typeof slot.ad !== "object") slot.ad = {};
+    slot.ad.uploadAssetId = assetId;
+  });
+
+  return assetId;
+}
+
+async function commitAdModal(){
+  if(!els.adModal || els.adModal.hidden) return;
+
+  const labelRaw = String(els.adLabel?.value || "").trim();
+  const label = labelRaw ? labelRaw.toUpperCase() : "";
+
+  const src = String(els.adSource?.value || "upload");
+
+  const cfg = {
+    kind: "graphic",
+    label: label,
+    sourceType: src, // preset | upload | url (for UI); viewer uses upload/url
+    presetId: null,
+    url: "",
+    uploadAssetId: null
+  };
+
+  // Preserve existing upload asset on edit unless replaced
+  let existingUploadAssetId = null;
+  if(adCtx?.mode === "edit" && adCtx.slotId){
+    const slot = (state.queue || []).find(x => x && x.id === adCtx.slotId);
+    existingUploadAssetId = slot?.ad?.uploadAssetId || null;
+  }
+
+  if(src === "preset"){
+    const it = getSelectedAdPreset();
+    if(!it){
+      alert("Pick a preset first (or switch Source).");
+      return;
+    }
+    cfg.presetId = String(it.id || it.url || "");
+    cfg.url = String(it.url || "").trim();
+    cfg.sourceType = "url";
+    if(!cfg.label){
+      const from = String(it.label || filenameLabelFromPath(cfg.url) || "AD");
+      cfg.label = from.toUpperCase();
+    }
+  }else if(src === "url"){
+    cfg.url = String(els.adUrl?.value || "").trim();
+    cfg.sourceType = "url";
+    if(!cfg.url){
+      alert("Enter an image URL (or switch Source).");
+      return;
+    }
+    if(!cfg.label){
+      cfg.label = filenameLabelFromPath(cfg.url).toUpperCase() || "AD";
+    }
+  }else{
+    // upload
+    cfg.sourceType = "upload";
+    if(adDraft?.uploadFile){
+      // will upload after the slot exists
+    }else if(existingUploadAssetId){
+      cfg.uploadAssetId = existingUploadAssetId;
+    }else{
+      alert("Choose an image file to upload (or switch Source).");
+      return;
+    }
+    if(!cfg.label){
+      const fromFile = adDraft?.uploadFile ? filenameLabelFromPath(adDraft.uploadFile.name) : "AD";
+      cfg.label = fromFile.toUpperCase() || "AD";
+    }
+  }
+
+  if(adCtx?.mode === "edit" && adCtx.slotId){
+    const slotId = adCtx.slotId;
+
+    // Update slot fields immediately.
+    updateState(s => {
+      const slot = (s.queue || []).find(x => x && x.id === slotId);
+      if(!slot) return;
+      slot.slotTypeId = "ad_graphic";
+      slot.displayName = cfg.label || "AD";
+      slot.ad = { ...slot.ad, ...cfg };
+    });
+
+    // If upload & new file selected, replace asset.
+    if(src === "upload" && adDraft?.uploadFile){
+      // Delete old asset
+      if(existingUploadAssetId){
+        try{ OMJN.deleteAsset(existingUploadAssetId); }catch(_){}
+        updateState(s => { if(s.assetsIndex) delete s.assetsIndex[existingUploadAssetId]; });
+      }
+      const newAssetId = await saveAdUploadForSlot(slotId, adDraft.uploadFile);
+      updateState(s => {
+        const slot = (s.queue || []).find(x => x && x.id === slotId);
+        if(!slot) return;
+        if(!slot.ad) slot.ad = {};
+        slot.ad.uploadAssetId = newAssetId;
+      });
+    }
+
+    closeAdModal();
+    render();
+    return;
+  }
+
+  // Add new slot
+  let newSlotId = null;
+
+  updateState(s => {
+    const slot = {
+      id: OMJN.uid("slot"),
+      createdAt: Date.now(),
+      displayName: cfg.label || "AD",
+      slotTypeId: "ad_graphic",
+      minutesOverride: null,
+      customTypeLabel: "",
+      status: "QUEUED",
+      notes: "",
+      ad: cfg,
+      media: { donationUrl: null, imageAssetId: null, mediaLayout: "NONE" }
+    };
+    newSlotId = slot.id;
+    insertQueuedSlotSmart(s, slot);
+  });
+
+  if(src === "upload" && adDraft?.uploadFile && newSlotId){
+    const assetId = await saveAdUploadForSlot(newSlotId, adDraft.uploadFile);
+    updateState(s => {
+      const slot = (s.queue || []).find(x => x && x.id === newSlotId);
+      if(!slot) return;
+      if(!slot.ad) slot.ad = {};
+      slot.ad.uploadAssetId = assetId;
+    });
+  }
+
+  closeAdModal();
+  render();
+}
 
   function addHouseBandSlot(){
     openHbBuildModal({ mode: 'add' });
@@ -3851,14 +4206,8 @@ function start(){
 
 function bind(){
     // initial select options
-    fillTypeSelect(els.addType, { excludeSpecial:true, includeBlank:true, blankLabel:"— Choose type —" });
-    if(els.addTypeSticky) els.addTypeSticky.checked = !!state.operatorPrefs?.quickAddStickyType;
-    if(state.operatorPrefs?.quickAddStickyType && state.operatorPrefs?.lastQuickAddType){
-      els.addType.value = String(state.operatorPrefs.lastQuickAddType);
-    }else{
-      els.addType.value = "";
-    }
-    toggleCustomAddFields();
+    fillTypeSelect(els.addType, { excludeSpecial:true });
+toggleCustomAddFields();
     bindSettings();
     bindPerformerDnD();
 
@@ -3878,42 +4227,7 @@ function bind(){
     if(els.crowdEditorPanel) closeCrowdEditor(true);
 
 
-    // Keep sticky checkbox co-located with Slot Type; it controls whether the type is remembered.
-    if(els.addTypeSticky){
-      els.addTypeSticky.addEventListener("change", () => {
-        const on = !!els.addTypeSticky.checked;
-        updateState(s => {
-          ensureProfilesShape(s);
-          s.operatorPrefs.quickAddStickyType = on;
-          if(!on) s.operatorPrefs.lastQuickAddType = "";
-        }, { recordHistory:false });
-
-        if(!on){
-          if(els.addType) els.addType.value = "";
-          toggleCustomAddFields();
-        }
-      });
-    }
-
-    els.addType.addEventListener("change", () => {
-      toggleCustomAddFields();
-      if(els.addTypeSticky?.checked){
-        updateState(s => {
-          ensureProfilesShape(s);
-          s.operatorPrefs.lastQuickAddType = String(els.addType.value || "");
-        }, { recordHistory:false });
-      }
-    });
-
-    // If the operator picks a known performer name (profile), auto-fill Slot Type only when blank.
-    els.addName.addEventListener("input", () => {
-      if(!els.addType || String(els.addType.value || "") !== "") return;
-      const prof = getProfileForName(els.addName.value);
-      if(prof?.defaultSlotTypeId){
-        els.addType.value = prof.defaultSlotTypeId;
-        toggleCustomAddFields();
-      }
-    });
+    els.addType.addEventListener("change", toggleCustomAddFields);
 
     els.addName.addEventListener("keydown", (e) => {
       if(e.key === "Enter"){ e.preventDefault(); addPerformer(); }
@@ -3928,6 +4242,10 @@ function bind(){
       els.btnAddHouseBandSlot.addEventListener("click", (e) => { e.preventDefault(); addHouseBandSlot(); });
     }
 
+if(els.btnAddAd){
+  els.btnAddAd.addEventListener("click", (e) => { e.preventDefault(); openAdModal({ mode: "add" }); });
+}
+
     // Intermission Builder modal
     if(els.btnImClose) els.btnImClose.addEventListener("click", (e) => { e.preventDefault(); closeIntermissionModal(); });
     if(els.btnImCancel) els.btnImCancel.addEventListener("click", (e) => { e.preventDefault(); closeIntermissionModal(); });
@@ -3937,6 +4255,87 @@ function bind(){
         if(e.target === els.intermissionModal) closeIntermissionModal();
       });
     }
+
+// Graphic Ad Builder modal
+if(els.btnAdClose) els.btnAdClose.addEventListener("click", (e) => { e.preventDefault(); closeAdModal(); });
+if(els.btnAdCancel) els.btnAdCancel.addEventListener("click", (e) => { e.preventDefault(); closeAdModal(); });
+if(els.btnAdSave) els.btnAdSave.addEventListener("click", (e) => { e.preventDefault(); commitAdModal(); });
+
+if(els.adModal){
+  els.adModal.addEventListener("mousedown", (e) => {
+    if(e.target === els.adModal) closeAdModal();
+  });
+}
+
+if(els.adSource) els.adSource.addEventListener("change", (e) => { e.preventDefault(); syncAdSourceUI(); });
+
+if(els.adPreset) els.adPreset.addEventListener("change", (e) => {
+  e.preventDefault();
+  const it = getSelectedAdPreset();
+  if(it){
+    const url = String(it.url || "").trim();
+    if(els.adUrl) els.adUrl.value = url;
+    if(adDraft) adDraft.url = url;
+    if(adDraft) adDraft.presetId = String(it.id || it.url || "");
+    if(els.adLabel && !String(els.adLabel.value || "").trim()){
+      els.adLabel.value = String(it.label || filenameLabelFromPath(url) || "AD");
+    }
+  }
+  syncAdSourceUI();
+});
+
+if(els.btnLoadAdManifest && els.adManifestFile){
+  els.btnLoadAdManifest.addEventListener("click", (e) => {
+    e.preventDefault();
+    els.adManifestFile.value = "";
+    els.adManifestFile.click();
+  });
+  els.adManifestFile.addEventListener("change", async (e) => {
+    const f = els.adManifestFile.files && els.adManifestFile.files[0] ? els.adManifestFile.files[0] : null;
+    if(!f) return;
+    try{
+      const text = await f.text();
+      const json = JSON.parse(text);
+      const items = Array.isArray(json?.items) ? json.items : (Array.isArray(json) ? json : []);
+      if(!items.length) throw new Error("Manifest has no items.");
+      adPresets = { sourceUrl: f.name, items };
+      adPresetsTried = true;
+      populateAdPresetSelect();
+      // Ensure the UI is on Preset mode
+      if(els.adSource) els.adSource.value = "preset";
+      syncAdSourceUI();
+    }catch(err){
+      console.warn("Failed to load ad manifest:", err);
+      adPresets = null;
+      adPresetsTried = true;
+      populateAdPresetSelect();
+      if(els.adPresetStatus){
+        els.adPresetStatus.style.display = "";
+        els.adPresetStatus.textContent = "Failed to load manifest: " + (err?.message || String(err));
+      }
+    }
+  });
+}
+
+if(els.adFile) els.adFile.addEventListener("change", (e) => {
+  const f = els.adFile.files && els.adFile.files[0] ? els.adFile.files[0] : null;
+  if(adDraft) adDraft.uploadFile = f;
+  if(f && els.adLabel && !String(els.adLabel.value || "").trim()){
+    els.adLabel.value = filenameLabelFromPath(f.name);
+  }
+  syncAdSourceUI();
+});
+
+if(els.adUrl) els.adUrl.addEventListener("input", () => {
+  if(adDraft) adDraft.url = String(els.adUrl.value || "");
+  if(String(els.adSource?.value || "") === "url") setAdPreviewSrc(els.adUrl.value || "");
+});
+
+document.addEventListener("keydown", (e) => {
+  if(!els.adModal || els.adModal.hidden) return;
+  if(e.key === "Escape"){ e.preventDefault(); closeAdModal(); }
+  if(e.key === "Enter" && (e.metaKey || e.ctrlKey)){ e.preventDefault(); commitAdModal(); }
+});
     const imPreset = (mins) => (e) => { e.preventDefault(); imDraft = imDraft || { minutes: 10 }; imDraft.minutes = mins; setIntermissionPresetActive(mins); };
     if(els.imDur5) els.imDur5.addEventListener("click", imPreset(5));
     if(els.imDur10) els.imDur10.addEventListener("click", imPreset(10));

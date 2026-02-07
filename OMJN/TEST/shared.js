@@ -169,6 +169,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
         { id:"houseband", label:"House Band", defaultMinutes:15, isJamMode:false, color:"#22c55e", enabled:false, special:true },
         { id:"intermission", label:"Intermission", defaultMinutes:10, isJamMode:false, color:"#a855f7", enabled:false, special:true },
+        { id:"ad_graphic", label:"Graphic Ad", defaultMinutes:0, isJamMode:false, color:"#fb7185", enabled:false, special:true },
       ],
       // House Band: independent per-instrument queues.
       // Viewer footer shows the FIRST active person from each category.
@@ -418,6 +419,18 @@ return s;
   function normalizeSlot(slot){
     if(!slot.media) slot.media = { donationUrl: null, imageAssetId: null, mediaLayout: "NONE" };
     if(!("customTypeLabel" in slot)) slot.customTypeLabel = "";
+
+    // Graphic Ads: keep a dedicated config object so viewer/operator can render them reliably.
+    if(String(slot.slotTypeId || "") === "ad_graphic"){
+      if(!slot.ad || typeof slot.ad !== "object") slot.ad = {};
+      if(!slot.ad.kind) slot.ad.kind = "graphic";
+      if(!slot.ad.sourceType) slot.ad.sourceType = "upload"; // upload | url | preset
+      if(slot.ad.uploadAssetId === undefined) slot.ad.uploadAssetId = null;
+      if(slot.ad.url === undefined) slot.ad.url = "";
+      if(slot.ad.presetId === undefined) slot.ad.presetId = null;
+      if(slot.ad.label === undefined) slot.ad.label = "";
+    }
+
     return slot;
   }
 

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "sponsor_acme",
+      "label": "ACME Plumbing",
+      "url": "./assets/ads/acme_plumbing.png"
+    },
+    {
+      "id": "sponsor_foos",
+      "label": "Foo's Pizza",
+      "url": "./assets/ads/foos_pizza.jpg"
+    },
+    {
+      "id": "house_rules",
+      "label": "House Rules",
+      "url": "./assets/ads/house_rules.png"
+    }
+  ]
+}

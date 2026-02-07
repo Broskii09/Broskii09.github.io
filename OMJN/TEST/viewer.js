@@ -6,6 +6,8 @@
   // ---- Element refs ----
   const el = {
     bg: document.getElementById("bg"),
+    adLayer: document.getElementById("adLayer"),
+    adImg: document.getElementById("adImg"),
     root: document.getElementById("root"),
     overlay: document.getElementById("overlay"),
     splashInfo: document.getElementById("splashInfo"),
@@ -110,6 +112,11 @@
   let lastChipStateKey = null;
   let lastWarnFinalKey = null;
   let lastProgressKey = null;
+
+  // Ad layer tracking
+  let lastAdKey = null;
+  let adToken = 0;
+  let currentAdObjectUrl = null;
 
   // Cue tracking
   let lastRemainingMs = null;
@@ -698,6 +705,82 @@
     el.mediaBox.style.display = "flex";
   }
 
+
+  // ---- Full-screen Ad (Graphic) ----
+  function isAdGraphic(slot){
+    return !!slot && String(slot.slotTypeId || "") === "ad_graphic";
+  }
+
+  function hideAdLayer(){
+    if(el.adLayer) el.adLayer.style.display = "none";
+    if(el.adLayer) el.adLayer.setAttribute("aria-hidden", "true");
+    if(currentAdObjectUrl){
+      try{ URL.revokeObjectURL(currentAdObjectUrl); }catch(_){}
+      currentAdObjectUrl = null;
+    }
+    if(el.adImg) el.adImg.src = "";
+    lastAdKey = null;
+  }
+
+  async function setAdGraphic(slot){
+    if(!el.adLayer || !el.adImg) return;
+    if(!isAdGraphic(slot)){
+      hideAdLayer();
+      return;
+    }
+
+    const cfg = slot.ad || {};
+    const key = JSON.stringify({
+      id: slot.id,
+      srcType: cfg.sourceType || "",
+      url: cfg.url || "",
+      asset: cfg.uploadAssetId || ""
+    });
+    if(key === lastAdKey){
+      // ensure visible
+      el.adLayer.style.display = "flex";
+      el.adLayer.setAttribute("aria-hidden", "false");
+      return;
+    }
+    lastAdKey = key;
+
+    const tok = ++adToken;
+
+    // clear previous object URL
+    if(currentAdObjectUrl){
+      try{ URL.revokeObjectURL(currentAdObjectUrl); }catch(_){}
+      currentAdObjectUrl = null;
+    }
+
+    let finalSrc = "";
+    const srcType = String(cfg.sourceType || "");
+
+    if(srcType === "upload" && cfg.uploadAssetId){
+      let blob = null;
+      try{ blob = await OMJN.getAsset(cfg.uploadAssetId); }catch(_){ blob = null; }
+      if(tok !== adToken) return;
+      if(blob){
+        currentAdObjectUrl = URL.createObjectURL(blob);
+        finalSrc = currentAdObjectUrl;
+      }
+    } else {
+      finalSrc = String(cfg.url || "").trim();
+    }
+
+    if(tok !== adToken) return;
+
+    if(!finalSrc){
+      // Nothing to show; keep layer hidden.
+      hideAdLayer();
+      return;
+    }
+
+    el.adImg.src = finalSrc;
+    el.adLayer.style.display = "flex";
+    el.adLayer.setAttribute("aria-hidden", "false");
+  }
+
+
   // ---- Sponsor bug ----
   function getSponsorCfg() {
     const d = OMJN.defaultState();
@@ -1257,6 +1340,7 @@
 
     const cur = OMJN.computeCurrent(state);
     if (!cur) return;
+    if(isAdGraphic(cur)) return;
 
     const t = OMJN.computeTimer(state);
     const remainingMs = t.remainingMs;
@@ -1325,36 +1409,51 @@
   }
 
   // ---- Main render (state-driven) ----
-  function renderStateDriven() {
-    renderPhaseShell();
+function renderStateDriven() {
+  renderPhaseShell();
 
-    const isLiveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
-    if (!isLiveish) {
-      renderSplashStatic();
-    } else {
-      // Footer visibility may change if HB changes (toggle handled by state)
-      const hbHasAny = OMJN.getHouseBandTopPerCategory(state).length > 0;
-      const footerEnabled = state.viewerPrefs?.showHouseBandFooter !== false;
-      showLiveShell(footerEnabled && hbHasAny);
-      renderLiveStatic();
-    }
+  const isLiveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
+  const cur = isLiveish ? OMJN.computeCurrent(state) : null;
+  const isAd = isAdGraphic(cur);
 
-    // Crowd Prompts overlay (can show during any phase)
-    renderCrowdPrompts();
+  if(el.root) el.root.classList.toggle("isAd", isAd);
 
-    // Sponsor bug overlay (state-driven; also called when crowd visibility changes)
-    setSponsorBug().catch(() => {});
-
-    // Visualizer setup button
-    updateVizSetupButton();
-    maybeStartViz();
-
-    // Apply theme
-    OMJN.applyThemeToDocument(document, state);
-
-    // Ensure timer UI is correct immediately
-    updateTimerAndCues();
+  if(!isLiveish){
+    hideAdLayer();
+    renderSplashStatic();
+  } else if(isAd){
+    // Full-screen graphic: keep other LIVE UI out of the way.
+    showLiveShell(false);
+    setAdGraphic(cur).catch(()=>{});
+  } else {
+    hideAdLayer();
+    // Footer visibility may change if HB changes (toggle handled by state)
+    const hbHasAny = OMJN.getHouseBandTopPerCategory(state).length > 0;
+    const footerEnabled = state.viewerPrefs?.showHouseBandFooter !== false;
+    showLiveShell(footerEnabled && hbHasAny);
+    renderLiveStatic();
   }
+
+  // Crowd Prompts overlay (can show during any phase)
+  renderCrowdPrompts();
+
+  // Sponsor bug overlay (do not draw over full-screen ads)
+  if(!isAd){
+    setSponsorBug().catch(() => {});
+  }else{
+    hideSponsor("ad");
+  }
+
+  // Visualizer setup button
+  updateVizSetupButton();
+  maybeStartViz();
+
+  // Apply theme
+  OMJN.applyThemeToDocument(document, state);
+
+  // Ensure timer UI is correct immediately
+  updateTimerAndCues();
+}
 
   // ---- Subscribe to state updates ----
   OMJN.subscribe((s) => {
