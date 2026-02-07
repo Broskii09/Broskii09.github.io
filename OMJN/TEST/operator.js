@@ -213,10 +213,6 @@ adLabel: document.getElementById("adLabel"),
 adSource: document.getElementById("adSource"),
 adPresetWrap: document.getElementById("adPresetWrap"),
 adPreset: document.getElementById("adPreset"),
-adManifestLocalRow: document.getElementById("adManifestLocalRow"),
-btnLoadAdManifest: document.getElementById("btnLoadAdManifest"),
-adManifestFile: document.getElementById("adManifestFile"),
-adPresetStatus: document.getElementById("adPresetStatus"),
 adUploadWrap: document.getElementById("adUploadWrap"),
 adFile: document.getElementById("adFile"),
 adUrlWrap: document.getElementById("adUrlWrap"),
@@ -245,7 +241,6 @@ btnAdSave: document.getElementById("btnAdSave"),
   let adCtx = null;           // { mode:'add'|'edit', slotId?:string }
   let adPresetsTried = false; // whether we've attempted to load a presets manifest
   let adPresets = null;       // { sourceUrl:string, items:Array }
-  let adPresetsSource = null;
 
 
   const VIEWER_HEARTBEAT_KEY = "omjn.viewerHeartbeat.v1";
@@ -3514,12 +3509,6 @@ renderHouseBandCategories();
 // ---- Graphic Ad Builder (v1: still images) ----
 async function ensureAdPresets(){
   if(adPresetsTried) return adPresets;
-  // When running from file://, fetch() cannot load local manifests. Allow manual load via file input.
-  if(location.protocol === "file:" && !adPresets){
-    adPresetsTried = true;
-    adPresetsSource = null;
-    return adPresets;
-  }
   adPresetsTried = true;
 
   const candidates = [
@@ -3554,52 +3543,32 @@ function filenameLabelFromPath(p){
 }
 
 function populateAdPresetSelect(){
-  if(!els.adPreset) return;
-
-  const items = Array.isArray(adPresets?.items) ? adPresets.items : [];
+  if(!els.adPreset || !els.adPresetWrap) return;
   els.adPreset.innerHTML = "";
+
+  const items = adPresets?.items || [];
   if(!items.length){
+    els.adPresetWrap.style.display = "none";
+    return;
+  }
+
+  els.adPresetWrap.style.display = "";
+
+  const opt0 = document.createElement("option");
+  opt0.value = "";
+  opt0.textContent = "Select a preset…";
+  els.adPreset.appendChild(opt0);
+
+  for(const it of items){
+    const id = String(it.id || it.url || "");
+    const label = String(it.label || filenameLabelFromPath(it.url) || id || "Preset");
+    if(!id) continue;
     const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "No presets loaded";
+    opt.value = id;
+    opt.textContent = label;
     els.adPreset.appendChild(opt);
-    els.adPreset.disabled = true;
-  }else{
-    const opt0 = document.createElement("option");
-    opt0.value = "";
-    opt0.textContent = "Select a preset…";
-    els.adPreset.appendChild(opt0);
-
-    for(const it of items){
-      const o = document.createElement("option");
-      o.value = String(it.id || it.url || it.src || "");
-      o.textContent = String(it.label || filenameLabelFromPath(it.url || it.src || it.id) || "Preset");
-      o.dataset.url = String(it.url || it.src || "");
-      els.adPreset.appendChild(o);
-    }
-    els.adPreset.disabled = false;
-  }
-
-  // Local file mode guidance / status
-  if(els.adManifestLocalRow){
-    const showLocal = (location.protocol === "file:" && !items.length);
-    els.adManifestLocalRow.style.display = showLocal ? "" : "none";
-  }
-  if(els.adPresetStatus){
-    const src = String(adPresets?.sourceUrl || "");
-    if(items.length && src){
-      els.adPresetStatus.style.display = "";
-      els.adPresetStatus.textContent = "Loaded presets from: " + src;
-    }else if(location.protocol === "file:" && !items.length){
-      els.adPresetStatus.style.display = "";
-      els.adPresetStatus.textContent = "Presets can’t be fetched from file://. Use “Load manifest file…” or run a local server.";
-    }else{
-      els.adPresetStatus.style.display = "none";
-      els.adPresetStatus.textContent = "";
-    }
   }
 }
-
 
 function resetAdDraft(){
   // Internal-only fields: _objectUrl is used for preview of local files or stored assets.
@@ -3650,8 +3619,7 @@ function syncAdSourceUI(){
   const src = String(els.adSource?.value || "upload");
   if(adDraft) adDraft.source = src;
 
-  if(els.adPresetWrap) els.adPresetWrap.style.display = (src === "preset") ? "" : "none";
-  if(src === "preset") populateAdPresetSelect();
+  if(els.adPresetWrap) els.adPresetWrap.style.display = (src === "preset" && (adPresets?.items?.length || 0) > 0) ? "" : "none";
   if(els.adUploadWrap) els.adUploadWrap.style.display = (src === "upload") ? "" : "none";
   if(els.adUrlWrap) els.adUrlWrap.style.display = (src === "url") ? "" : "none";
 
@@ -4283,39 +4251,6 @@ if(els.adPreset) els.adPreset.addEventListener("change", (e) => {
   }
   syncAdSourceUI();
 });
-
-if(els.btnLoadAdManifest && els.adManifestFile){
-  els.btnLoadAdManifest.addEventListener("click", (e) => {
-    e.preventDefault();
-    els.adManifestFile.value = "";
-    els.adManifestFile.click();
-  });
-  els.adManifestFile.addEventListener("change", async (e) => {
-    const f = els.adManifestFile.files && els.adManifestFile.files[0] ? els.adManifestFile.files[0] : null;
-    if(!f) return;
-    try{
-      const text = await f.text();
-      const json = JSON.parse(text);
-      const items = Array.isArray(json?.items) ? json.items : (Array.isArray(json) ? json : []);
-      if(!items.length) throw new Error("Manifest has no items.");
-      adPresets = { sourceUrl: f.name, items };
-      adPresetsTried = true;
-      populateAdPresetSelect();
-      // Ensure the UI is on Preset mode
-      if(els.adSource) els.adSource.value = "preset";
-      syncAdSourceUI();
-    }catch(err){
-      console.warn("Failed to load ad manifest:", err);
-      adPresets = null;
-      adPresetsTried = true;
-      populateAdPresetSelect();
-      if(els.adPresetStatus){
-        els.adPresetStatus.style.display = "";
-        els.adPresetStatus.textContent = "Failed to load manifest: " + (err?.message || String(err));
-      }
-    }
-  });
-}
 
 if(els.adFile) els.adFile.addEventListener("change", (e) => {
   const f = els.adFile.files && els.adFile.files[0] ? els.adFile.files[0] : null;

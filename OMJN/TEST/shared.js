@@ -419,7 +419,7 @@ return s;
   function normalizeSlot(slot){
     if(!slot.media) slot.media = { donationUrl: null, imageAssetId: null, mediaLayout: "NONE" };
     if(!("customTypeLabel" in slot)) slot.customTypeLabel = "";
-
+    
     // Graphic Ads: keep a dedicated config object so viewer/operator can render them reliably.
     if(String(slot.slotTypeId || "") === "ad_graphic"){
       if(!slot.ad || typeof slot.ad !== "object") slot.ad = {};
@@ -431,7 +431,7 @@ return s;
       if(slot.ad.label === undefined) slot.ad.label = "";
     }
 
-    return slot;
+return slot;
   }
 
   function houseBandInstrumentOptions(){
