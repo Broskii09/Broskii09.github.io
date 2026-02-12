@@ -2642,9 +2642,63 @@ details.hbAcc .hbCatList{
 }
 
 
-/* ---- Viewer: Full-screen Ad layer ---- */
-.vAdLayer{ position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:#000; z-index:50; }
-.vAdLayer img{ width:100%; height:100%; object-fit:contain; }
+/* --- Ads (Graphic-only v1) --- */
+.vAdLayer{
+  position:absolute;
+  inset:0;
+  z-index:50;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: rgba(0,0,0,.92);
+}
+.vAdLayer img{
+  max-width:100%;
+  max-height:100%;
+  width:100%;
+  height:100%;
+  object-fit: contain;
+}
 .viewerRoot.isAd .viewerOverlay{ display:none !important; }
-.viewerRoot.isAd .vSplashInfo{ display:none !important; }
+.viewerRoot.isAd #splashInfo{ display:none !important; }
+.viewerRoot.isAd .vSponsorLayer{ display:none !important; }
+.viewerRoot.isAd .vVizWrap{ display:none !important; }
 .viewerRoot.isAd .vLiveFooterBar{ display:none !important; }
+.vAdFail{
+  position:absolute;
+  bottom:24px;
+  left:50%;
+  transform:translateX(-50%);
+  padding:10px 14px;
+  border-radius:999px;
+  font-weight:900;
+  letter-spacing:.06em;
+  background: rgba(255,90,95,.18);
+  border:1px solid rgba(255,90,95,.35);
+}
+
+/* Ad preset list (Operator) */
+.adPresetTools{ display:flex; gap:10px; align-items:center; margin-top:6px; }
+.adPresetSearch{ flex:1; }
+.adPresetList{
+  margin-top:10px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:12px;
+  overflow:hidden;
+  max-height:320px;
+  overflow:auto;
+}
+.adPresetRow{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  padding:10px 10px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.adPresetRow:last-child{ border-bottom:none; }
+.adPresetRow:hover{ background: rgba(255,255,255,.04); }
+.adPresetLabel{ font-weight:900; }
+.adPresetMeta{ font-size:12px; opacity:.75; }
+.adPresetMain{ flex:1; min-width:0; }
+.adPresetActions{ display:flex; gap:8px; flex:0 0 auto; }
+.adPresetRow.isSelected{ background: rgba(0,194,255,.10); }

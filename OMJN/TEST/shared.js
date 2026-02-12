@@ -67,7 +67,7 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
       lastSavedAt: null,
       showTitle: "Open Mic & Jam Night",
       phase: "SPLASH", // SPLASH | LIVE | PAUSED
-operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false },
+operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false, quickAddStickyType:false, quickAddLastTypeId:"", armedNextSlotId:null },
       profiles: {},
         splash: { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true },
       viewerPrefs: {
@@ -167,9 +167,9 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         { id:"comedian", label:"Comedian", defaultMinutes:10, isJamMode:false, color:"#2dd4bf", enabled:true },
         { id:"poetry", label:"Poetry", defaultMinutes:10, isJamMode:false, color:"#fbbf24", enabled:true },
         { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
+        { id:"ad_graphic", label:"Ad (Graphic)", defaultMinutes:0, isJamMode:false, color:"#ef4444", enabled:false, special:true },
         { id:"houseband", label:"House Band", defaultMinutes:15, isJamMode:false, color:"#22c55e", enabled:false, special:true },
         { id:"intermission", label:"Intermission", defaultMinutes:10, isJamMode:false, color:"#a855f7", enabled:false, special:true },
-        { id:"ad_graphic", label:"Graphic Ad", defaultMinutes:0, isJamMode:false, color:"#fb7185", enabled:false, special:true },
       ],
       // House Band: independent per-instrument queues.
       // Viewer footer shows the FIRST active person from each category.
@@ -213,8 +213,11 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
 
       if(!s.version) s.version = 1;
       if(s.lastSavedAt === undefined) s.lastSavedAt = null;
-if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false };
+if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false, quickAddStickyType:false, quickAddLastTypeId:"", armedNextSlotId:null };
       if(s.operatorPrefs.editCollapsed === undefined) s.operatorPrefs.editCollapsed = false;
+      if(s.operatorPrefs.quickAddStickyType === undefined) s.operatorPrefs.quickAddStickyType = false;
+      if(s.operatorPrefs.quickAddLastTypeId === undefined) s.operatorPrefs.quickAddLastTypeId = "";
+      if(s.operatorPrefs.armedNextSlotId === undefined) s.operatorPrefs.armedNextSlotId = null;
 
       if(!s.profiles) s.profiles = {};
       if (!s.splash) s.splash = { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true };
@@ -419,19 +422,7 @@ return s;
   function normalizeSlot(slot){
     if(!slot.media) slot.media = { donationUrl: null, imageAssetId: null, mediaLayout: "NONE" };
     if(!("customTypeLabel" in slot)) slot.customTypeLabel = "";
-    
-    // Graphic Ads: keep a dedicated config object so viewer/operator can render them reliably.
-    if(String(slot.slotTypeId || "") === "ad_graphic"){
-      if(!slot.ad || typeof slot.ad !== "object") slot.ad = {};
-      if(!slot.ad.kind) slot.ad.kind = "graphic";
-      if(!slot.ad.sourceType) slot.ad.sourceType = "upload"; // upload | url | preset
-      if(slot.ad.uploadAssetId === undefined) slot.ad.uploadAssetId = null;
-      if(slot.ad.url === undefined) slot.ad.url = "";
-      if(slot.ad.presetId === undefined) slot.ad.presetId = null;
-      if(slot.ad.label === undefined) slot.ad.label = "";
-    }
-
-return slot;
+    return slot;
   }
 
   function houseBandInstrumentOptions(){

@@ -10,8 +10,7 @@
   <div class="viewerRoot" id="root">
     <div class="viewerBg" id="bg"></div>
 
-      <div class="vAdLayer" id="adLayer" style="display:none;" aria-hidden="true"><img id="adImg" alt="" /></div>
-<!-- Sponsor bug overlay (absolute; does not affect layout) -->
+    <!-- Sponsor bug overlay (absolute; does not affect layout) -->
     <div class="vSponsorLayer" id="sponsorLayer" aria-hidden="true" style="display:none;">
       <div class="vSponsorBug posTR" id="sponsorBug">
         <img id="sponsorImg" alt="" decoding="async" loading="eager" />
@@ -27,7 +26,14 @@
       </div>
     </div>
 
-    <!-- LIVE/SPLASH main layer -->
+    
+    <!-- Full-screen Ad layer (Graphic-only v1) -->
+    <div class="vAdLayer" id="adLayer" aria-hidden="true" style="display:none;">
+      <img id="adImg" alt="" decoding="async" loading="eager"/>
+      <div class="vAdFail" id="adFail" style="display:none;">AD FAILED TO LOAD</div>
+    </div>
+
+<!-- LIVE/SPLASH main layer -->
     <div class="viewerOverlay" id="overlay">
       <div class="viewerFrame" id="viewerFrame">
         <!-- LEFT: Main hero card -->
