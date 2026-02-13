@@ -174,6 +174,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
         { id:"houseband", label:"House Band", defaultMinutes:15, isJamMode:false, color:"#22c55e", enabled:false, special:true },
         { id:"intermission", label:"Intermission", defaultMinutes:10, isJamMode:false, color:"#a855f7", enabled:false, special:true },
+        { id:"ad_graphic", label:"Ad (Graphic)", defaultMinutes:1, isJamMode:false, color:"#f97316", enabled:false, special:true },
       ],
       // House Band: independent per-instrument queues.
       // Viewer footer shows the FIRST active person from each category.

@@ -12,6 +12,7 @@
     btnAdd: document.getElementById("btnAdd"),
     btnAddIntermission: document.getElementById("btnAddIntermission"),
     btnAddHouseBandSlot: document.getElementById("btnAddHouseBandSlot"),
+    btnAddAd: document.getElementById("btnAddAd"),
     profileNames: document.getElementById("profileNames"),
     addCustomWrap: document.getElementById("addCustomWrap"),
     addCustomLabel: document.getElementById("addCustomLabel"),
@@ -183,7 +184,32 @@ setBgColor: document.getElementById("setBgColor"),
     btnAddHBQ: document.getElementById("btnAddHBQ"),
     hbCats: document.getElementById("hbCats"),
 
-    // House Band Set Builder modal
+    
+    // Graphic Ad Builder modal
+    adModal: document.getElementById("adModal"),
+    adLabel: document.getElementById("adLabel"),
+    adSource: document.getElementById("adSource"),
+    adPreset: document.getElementById("adPreset"),
+    adPresetWrap: document.getElementById("adPresetWrap"),
+    adPresetSearch: document.getElementById("adPresetSearch"),
+    adPresetList: document.getElementById("adPresetList"),
+    adPresetStatus: document.getElementById("adPresetStatus"),
+    btnAdPresetRefresh: document.getElementById("btnAdPresetRefresh"),
+    adManifestLocalRow: document.getElementById("adManifestLocalRow"),
+    adManifestFile: document.getElementById("adManifestFile"),
+    btnLoadAdManifest: document.getElementById("btnLoadAdManifest"),
+    adUploadWrap: document.getElementById("adUploadWrap"),
+    adFile: document.getElementById("adFile"),
+    adUrlWrap: document.getElementById("adUrlWrap"),
+    adUrl: document.getElementById("adUrl"),
+    adPreviewWrap: document.getElementById("adPreviewWrap"),
+    adPreviewImg: document.getElementById("adPreviewImg"),
+    btnAdClose: document.getElementById("btnAdClose"),
+    btnAdCancel: document.getElementById("btnAdCancel"),
+    btnAdSave: document.getElementById("btnAdSave"),
+    btnAdLive: document.getElementById("btnAdLive"),
+
+// House Band Set Builder modal
     hbBuildModal: document.getElementById("hbBuildModal"),
     hbBuildList: document.getElementById("hbBuildList"),
     hbPreviewNames: document.getElementById("hbPreviewNames"),
@@ -220,6 +246,14 @@ setBgColor: document.getElementById("setBgColor"),
 
   // Intermission Builder
   let imDraft = null; // { minutes: number | 'custom' }
+
+  // Graphic Ad Builder
+  let adDraft = null; // { source:'preset'|'upload'|'url', label:string, url:string, presetId:string|null, file:File|null }
+  let adPresets = []; // normalized preset items: [{ id, label, url }]
+  let adSelectedPresetId = null;
+  let adPreviewUrl = null;
+  let adManifestSource = ""; // 'ads_manifest.json' | 'ads_manifest.example.json' | 'local'
+
 
 
   const VIEWER_HEARTBEAT_KEY = "omjn.viewerHeartbeat.v1";
@@ -3502,7 +3536,370 @@ renderHouseBandCategories();
     }
   }
 
-  function addIntermissionSlotWithOptions(opts = {}){
+  
+
+  // ---- Graphic Ad Builder ----
+  function ensureGraphicAdSlotType(s){
+    if(!Array.isArray(s.slotTypes)) s.slotTypes = [];
+    if(!s.slotTypes.some(t => t && t.id === "ad_graphic")){
+      s.slotTypes.push({
+        id: "ad_graphic",
+        label: "Ad (Graphic)",
+        defaultMinutes: 1,
+        isJamMode: false,
+        color: "#f97316",
+        enabled: false,
+        special: true
+      });
+    }
+  }
+
+  function resetAdDraft(){
+    adDraft = { source: "preset", label: "", url: "", presetId: null, file: null };
+    adSelectedPresetId = null;
+    adManifestSource = "";
+    setAdPreviewSrc("");
+    if(els.adPresetSearch) els.adPresetSearch.value = "";
+  }
+
+  function setAdPresetStatus(msg){
+    if(!els.adPresetStatus) return;
+    const text = String(msg || "").trim();
+    if(!text){
+      els.adPresetStatus.style.display = "none";
+      els.adPresetStatus.textContent = "";
+      return;
+    }
+    els.adPresetStatus.style.display = "";
+    els.adPresetStatus.textContent = text;
+  }
+
+  function setAdPreviewSrc(src){
+    // Revoke prior blob preview if we created one
+    if(adPreviewUrl){
+      try{ URL.revokeObjectURL(adPreviewUrl); }catch(_){ }
+      adPreviewUrl = null;
+    }
+
+    const s = String(src || "").trim();
+    // Track new blob URLs so we can revoke on close
+    if(s && s.startsWith("blob:")) adPreviewUrl = s;
+    if(!els.adPreviewWrap || !els.adPreviewImg) return;
+
+    if(!s){
+      els.adPreviewWrap.style.display = "none";
+      els.adPreviewImg.removeAttribute("src");
+      return;
+    }
+    els.adPreviewWrap.style.display = "";
+    els.adPreviewImg.src = s;
+  }
+
+  function updateAdModalVisibility(){
+    if(!els.adSource) return;
+    const mode = String(els.adSource.value || "preset").toLowerCase();
+
+    if(els.adPresetWrap) els.adPresetWrap.style.display = (mode === "preset") ? "" : "none";
+    if(els.adUploadWrap) els.adUploadWrap.style.display = (mode === "upload") ? "" : "none";
+    if(els.adUrlWrap) els.adUrlWrap.style.display = (mode === "url") ? "" : "none";
+
+    // Preview source
+    if(mode === "preset"){
+      const item = adPresets.find(x => x.id === adSelectedPresetId) || null;
+      setAdPreviewSrc(item ? item.url : "");
+    } else if(mode === "url"){
+      const u = String(els.adUrl?.value || "").trim();
+      setAdPreviewSrc(u);
+    } else if(mode === "upload"){
+      const f = els.adFile?.files?.[0] || null;
+      if(f){
+        setAdPreviewSrc(URL.createObjectURL(f));
+      }else{
+        setAdPreviewSrc("");
+      }
+    }
+  }
+
+  function normalizeAdItems(items){
+    if(!Array.isArray(items)) return [];
+    const out = [];
+    for(const it of items){
+      const id = String(it?.id || "").trim();
+      const label = String(it?.label || it?.name || it?.title || id).trim();
+      const url = String(it?.url || it?.src || "").trim();
+      if(id && url) out.push({ id, label: label || id, url });
+    }
+    return out;
+  }
+
+  async function loadAdManifestFromNetwork(){
+    const tryFetch = async (path) => {
+      const res = await fetch(path, { cache: "no-store" });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    };
+
+    let data = null;
+    let source = "";
+    try{
+      data = await tryFetch("./ads_manifest.json");
+      source = "ads_manifest.json";
+    }catch(_e1){
+      data = await tryFetch("./ads_manifest.example.json");
+      source = "ads_manifest.example.json";
+    }
+
+    adPresets = normalizeAdItems(data?.items || []);
+    adManifestSource = source;
+
+    if(els.adManifestLocalRow) els.adManifestLocalRow.style.display = "none";
+    setAdPresetStatus(`Loaded ${adPresets.length} preset(s) from ${source}.`);
+    renderAdPresetList();
+  }
+
+  function loadAdManifestFromFile(file){
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const data = JSON.parse(String(reader.result || "{}"));
+        adPresets = normalizeAdItems(data?.items || []);
+        adManifestSource = "local";
+        setAdPresetStatus(`Loaded ${adPresets.length} preset(s) from local file.`);
+        renderAdPresetList();
+      }catch(e){
+        alert("Manifest parse failed: " + e.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function renderAdPresetList(){
+    if(!els.adPresetList) return;
+    const q = String(els.adPresetSearch?.value || "").trim().toLowerCase();
+
+    let list = adPresets.slice();
+    if(q){
+      list = list.filter(x => x.label.toLowerCase().includes(q) || x.id.toLowerCase().includes(q));
+    }
+
+    // Hidden select for compatibility
+    if(els.adPreset){
+      els.adPreset.innerHTML = "";
+      const opt0 = document.createElement("option");
+      opt0.value = "";
+      opt0.textContent = "Select…";
+      els.adPreset.appendChild(opt0);
+      for(const it of adPresets){
+        const opt = document.createElement("option");
+        opt.value = it.id;
+        opt.textContent = it.label;
+        els.adPreset.appendChild(opt);
+      }
+      els.adPreset.value = adSelectedPresetId || "";
+    }
+
+    els.adPresetList.innerHTML = "";
+    if(list.length === 0){
+      const empty = document.createElement("div");
+      empty.className = "small muted";
+      empty.style.padding = "10px 8px";
+      empty.textContent = q ? "No presets match your search." : "No preset ads found.";
+      els.adPresetList.appendChild(empty);
+      return;
+    }
+
+    for(const it of list){
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn";
+      btn.style.display = "flex";
+      btn.style.alignItems = "center";
+      btn.style.justifyContent = "flex-start";
+      btn.style.gap = "10px";
+      btn.style.width = "100%";
+      btn.style.margin = "0 0 8px 0";
+      btn.style.padding = "10px 12px";
+      btn.style.borderRadius = "12px";
+      btn.style.border = (it.id === adSelectedPresetId) ? "1px solid var(--accent)" : "1px solid rgba(255,255,255,.14)";
+      btn.style.background = (it.id === adSelectedPresetId) ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.22)";
+      btn.title = it.id;
+
+      const thumb = document.createElement("img");
+      thumb.alt = "";
+      thumb.src = it.url;
+      thumb.style.width = "80px";
+      thumb.style.height = "45px";
+      thumb.style.objectFit = "cover";
+      thumb.style.borderRadius = "10px";
+      thumb.style.border = "1px solid rgba(255,255,255,.12)";
+      btn.appendChild(thumb);
+
+      const meta = document.createElement("div");
+      meta.style.display = "flex";
+      meta.style.flexDirection = "column";
+      meta.style.gap = "2px";
+
+      const title = document.createElement("div");
+      title.textContent = it.label;
+      meta.appendChild(title);
+
+      const sub = document.createElement("div");
+      sub.className = "small muted mono";
+      sub.textContent = it.id;
+      meta.appendChild(sub);
+
+      btn.appendChild(meta);
+
+      btn.addEventListener("click", () => {
+        adSelectedPresetId = it.id;
+        if(els.adPreset) els.adPreset.value = it.id;
+
+        // Only auto-fill label if empty
+        const curLabel = String(els.adLabel?.value || "").trim();
+        if(!curLabel && els.adLabel) els.adLabel.value = it.label || it.id;
+
+        updateAdModalVisibility();
+      });
+
+      els.adPresetList.appendChild(btn);
+    }
+  }
+
+  async function commitAdSlot(opts = {}){
+    const goLive = !!opts.goLive;
+    if(!els.adSource) return;
+
+    const mode = String(els.adSource.value || "preset").toLowerCase();
+    let label = OMJN.sanitizeText(String(els.adLabel?.value || ""));
+
+    // Build ad payload
+    const ad = { source: mode };
+    let assetId = null;
+    let assetMeta = null;
+
+    if(mode === "preset"){
+      const item = adPresets.find(x => x.id === adSelectedPresetId) || null;
+      if(!item){
+        alert("Select a preset ad.");
+        return;
+      }
+      ad.url = item.url;
+      ad.presetId = item.id;
+      if(!label) label = item.label || item.id;
+    }else if(mode === "url"){
+      const url = String(els.adUrl?.value || "").trim();
+      if(!url){
+        alert("Enter an image URL.");
+        return;
+      }
+      ad.url = url;
+    }else if(mode === "upload"){
+      const file = els.adFile?.files?.[0] || null;
+      if(!file){
+        alert("Choose an image to upload.");
+        return;
+      }
+
+      // compress and store locally
+      const { blob, meta } = await OMJN.compressImageFile(file, { maxEdge: 2200, quality: 0.86, mime: "image/webp" });
+      if(!blob){
+        alert("Upload failed.");
+        return;
+      }
+      assetId = OMJN.uid("asset");
+      await OMJN.putAsset(assetId, blob);
+      assetMeta = meta || null;
+      ad.assetId = assetId;
+
+      if(!label){
+        const nm = String(file.name || "").replace(/\.[^.]+$/, "");
+        label = OMJN.sanitizeText(nm) || "AD";
+      }
+    }else{
+      alert("Unknown ad source.");
+      return;
+    }
+
+    if(!label) label = "AD";
+
+    const slotId = OMJN.uid("slot");
+    const slot = {
+      id: slotId,
+      createdAt: Date.now(),
+      displayName: label,
+      slotTypeId: "ad_graphic",
+      minutesOverride: 1,
+      customTypeLabel: "",
+      status: "QUEUED",
+      notes: "",
+      ad,
+      media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
+    };
+
+    updateState(s => {
+      ensureGraphicAdSlotType(s);
+      if(assetId && assetMeta){
+        s.assetsIndex = s.assetsIndex || {};
+        s.assetsIndex[assetId] = assetMeta;
+      }
+
+      insertQueuedSlotSmart(s, slot);
+
+      if(goLive){
+        // move to top for clarity
+        const idx = s.queue.findIndex(x => x && x.id === slotId);
+        if(idx > 0){
+          const [moved] = s.queue.splice(idx, 1);
+          s.queue.unshift(moved);
+        }
+        s.currentSlotId = slotId;
+        s.phase = "LIVE";
+        s.timer.running = true;
+        s.timer.startedAt = Date.now();
+        s.timer.elapsedMs = 0;
+        s.timer.baseDurationMs = OMJN.effectiveMinutes(s, slot) * 60 * 1000;
+      }
+    });
+
+    // Select the new slot in the operator UI
+    try{ selectSlot(slotId); }catch(_){}
+    render();
+    closeAdModal();
+  }
+
+  function openAdModal(){
+    if(!els.adModal) return;
+    resetAdDraft();
+
+    if(els.adLabel) els.adLabel.value = "";
+    if(els.adSource) els.adSource.value = "preset";
+    if(els.adUrl) els.adUrl.value = "";
+    if(els.adFile) els.adFile.value = "";
+    if(els.adManifestFile) els.adManifestFile.value = "";
+
+    els.adModal.hidden = false;
+    updateAdModalVisibility();
+
+    // Load presets (best effort)
+    if(adPresets.length === 0){
+      loadAdManifestFromNetwork()
+        .catch(() => {
+          if(els.adManifestLocalRow) els.adManifestLocalRow.style.display = "";
+          setAdPresetStatus("Could not load ads_manifest.json. You can load a local manifest.");
+        });
+    }else{
+      renderAdPresetList();
+    }
+  }
+
+  function closeAdModal(){
+    if(!els.adModal) return;
+    els.adModal.hidden = true;
+    resetAdDraft();
+  }
+
+function addIntermissionSlotWithOptions(opts = {}){
     const titleRaw = OMJN.sanitizeText(opts.title || "INTERMISSION");
     const title = (titleRaw || "INTERMISSION").toUpperCase();
 
@@ -3894,6 +4291,57 @@ toggleCustomAddFields();
     if(els.btnAddHouseBandSlot){
       els.btnAddHouseBandSlot.addEventListener("click", (e) => { e.preventDefault(); addHouseBandSlot(); });
     }
+
+    if(els.btnAddAd){
+      els.btnAddAd.addEventListener("click", (e) => { e.preventDefault(); openAdModal(); });
+    }
+
+    // Graphic Ad Builder modal
+    if(els.btnAdClose) els.btnAdClose.addEventListener("click", (e) => { e.preventDefault(); closeAdModal(); });
+    if(els.btnAdCancel) els.btnAdCancel.addEventListener("click", (e) => { e.preventDefault(); closeAdModal(); });
+
+    if(els.adSource) els.adSource.addEventListener("change", () => { updateAdModalVisibility(); });
+    if(els.adPresetSearch) els.adPresetSearch.addEventListener("input", () => { renderAdPresetList(); });
+    if(els.btnAdPresetRefresh) els.btnAdPresetRefresh.addEventListener("click", (e) => {
+      e.preventDefault();
+      loadAdManifestFromNetwork().catch(() => {
+        if(els.adManifestLocalRow) els.adManifestLocalRow.style.display = "";
+        setAdPresetStatus("Could not load ads_manifest.json. You can load a local manifest.");
+      });
+    });
+
+    if(els.btnLoadAdManifest) els.btnLoadAdManifest.addEventListener("click", (e) => {
+      e.preventDefault();
+      const f = els.adManifestFile?.files?.[0] || null;
+      if(!f){ alert("Choose a manifest file first."); return; }
+      loadAdManifestFromFile(f);
+    });
+
+    if(els.adFile) els.adFile.addEventListener("change", () => {
+      // auto-preview and auto-fill label if empty
+      const f = els.adFile.files?.[0] || null;
+      if(f){
+        const cur = String(els.adLabel?.value || "").trim();
+        if(!cur && els.adLabel){
+          const nm = String(f.name || "").replace(/\.[^.]+$/, "");
+          els.adLabel.value = nm;
+        }
+      }
+      updateAdModalVisibility();
+    });
+
+    if(els.adUrl) els.adUrl.addEventListener("input", () => { updateAdModalVisibility(); });
+
+    if(els.btnAdSave) els.btnAdSave.addEventListener("click", async (e) => {
+      e.preventDefault();
+      try{ await commitAdSlot({ goLive:false }); }catch(err){ alert(err.message || String(err)); }
+    });
+
+    if(els.btnAdLive) els.btnAdLive.addEventListener("click", async (e) => {
+      e.preventDefault();
+      try{ await commitAdSlot({ goLive:true }); }catch(err){ alert(err.message || String(err)); }
+    });
+
 
     // Intermission Builder modal
     if(els.btnImClose) els.btnImClose.addEventListener("click", (e) => { e.preventDefault(); closeIntermissionModal(); });
