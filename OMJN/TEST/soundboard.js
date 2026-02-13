@@ -1256,9 +1256,7 @@ function setStatus(msg, isErr=false){
     });
   }
 
-
-
-
+  
   // Hotkey guard: do not run shortcuts while a text-entry control is focused
   function isTypingContext(el = document.activeElement){
     if(!el) return false;
@@ -1289,10 +1287,11 @@ function setStatus(msg, isErr=false){
     }
     return false;
   }
+
   window.addEventListener("keydown", (e) => {
     const activeEl = document.activeElement;
-    const isSearchFocused = (activeEl === els.search);
     const isTypingField = isTypingEvent(e);
+    const isSearchFocused = (activeEl === els.search);
 
     // Cmd/Ctrl+K focuses search
     if((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "k")){
