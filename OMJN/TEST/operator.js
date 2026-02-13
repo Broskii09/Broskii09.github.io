@@ -34,6 +34,10 @@ setBgColor: document.getElementById("setBgColor"),
     setCardOpacity: document.getElementById("setCardOpacity"),
     setCardOpacityVal: document.getElementById("setCardOpacityVal"),
     setSplashShowNextTwo: document.getElementById("setSplashShowNextTwo"),
+    setAutoScale: document.getElementById("setAutoScale"),
+    setScaleBias: document.getElementById("setScaleBias"),
+    setScaleBiasVal: document.getElementById("setScaleBiasVal"),
+    setSafeArea: document.getElementById("setSafeArea"),
     setShowProgressBar: document.getElementById("setShowProgressBar"),
     setShowOvertime: document.getElementById("setShowOvertime"),
     setWarnAtSec: document.getElementById("setWarnAtSec"),
@@ -1456,6 +1460,23 @@ function escapeHtml(s){
 
     // Splash + timer prefs
     if(els.setSplashShowNextTwo) els.setSplashShowNextTwo.checked = (state.splash?.showNextTwo !== false);
+
+    // Viewer legibility
+    if(els.setAutoScale) els.setAutoScale.checked = (state.viewerPrefs?.autoScale !== false);
+    if(els.setScaleBias){
+      const raw = Number(state.viewerPrefs?.scaleBias ?? 1.0);
+      const v = Number.isFinite(raw) ? clamp(raw, 0.90, 1.40) : 1.0;
+      els.setScaleBias.value = String(v);
+      if(els.setScaleBiasVal) els.setScaleBiasVal.textContent = `${v.toFixed(2)}×`;
+    }
+    if(els.setSafeArea){
+      const raw = Number(state.viewerPrefs?.safeAreaPct ?? 0.03);
+      const allowed = [0, 0.03, 0.06, 0.09];
+      const v = Number.isFinite(raw) ? raw : 0;
+      const snap = allowed.reduce((best, cur) => (Math.abs(cur - v) < Math.abs(best - v) ? cur : best), allowed[0]);
+      els.setSafeArea.value = String(snap);
+    }
+
     if(els.setShowProgressBar) els.setShowProgressBar.checked = (state.viewerPrefs?.showProgressBar !== false);
     if(els.setShowOvertime) els.setShowOvertime.checked = (state.viewerPrefs?.showOvertime !== false);
 
@@ -1685,6 +1706,46 @@ function escapeHtml(s){
         updateState(s => {
           s.splash = s.splash || {};
           s.splash.showNextTwo = !!els.setSplashShowNextTwo.checked;
+        }, { recordHistory:false });
+      });
+    }
+
+    // Viewer legibility (scaling + safe area)
+    if(els.setAutoScale){
+      els.setAutoScale.addEventListener("change", () => {
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.autoScale = !!els.setAutoScale.checked;
+        }, { recordHistory:false });
+      });
+    }
+    if(els.setScaleBias){
+      const onBias = () => {
+        const val = clamp(parseFloat(els.setScaleBias.value||"1"), 0.90, 1.40);
+        els.setScaleBias.value = String(val);
+        if(els.setScaleBiasVal) els.setScaleBiasVal.textContent = `${val.toFixed(2)}×`;
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.scaleBias = val;
+        }, { recordHistory:false });
+      };
+      els.setScaleBias.addEventListener("input", onBias);
+      els.setScaleBias.addEventListener("change", onBias);
+      if(els.setScaleBiasVal) els.setScaleBiasVal.addEventListener?.("dblclick", () => {
+        els.setScaleBias.value = "1.00";
+        onBias();
+      });
+    }
+    if(els.setSafeArea){
+      els.setSafeArea.addEventListener("change", () => {
+        const raw = Number(els.setSafeArea.value);
+        const allowed = [0, 0.03, 0.06, 0.09];
+        const v = Number.isFinite(raw) ? raw : 0;
+        const snap = allowed.reduce((best, cur) => (Math.abs(cur - v) < Math.abs(best - v) ? cur : best), allowed[0]);
+        els.setSafeArea.value = String(snap);
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.safeAreaPct = snap;
         }, { recordHistory:false });
       });
     }

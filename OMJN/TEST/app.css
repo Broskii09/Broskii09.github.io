@@ -20,6 +20,10 @@
   --overtime-flash-bg: rgba(255, 0, 0, .85);
   --pulse-warn-dur: 3.2s;
   --pulse-final-dur: 1.4s;
+
+  /* Viewer layout vars (set live by viewer.js) */
+  --vScale: 1;
+  --safePad: 0px;
 }
 
 *{box-sizing:border-box}
@@ -315,7 +319,7 @@ hr.sep{
   position:relative;
   overflow:hidden;
   background:#000;
-  --vPad: 48px;
+  --vPad: calc(48px * var(--vScale));
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -359,7 +363,10 @@ hr.sep{
   align-items:center;
   justify-content:center;
   gap:18px;
-  padding: calc(var(--vPad) + var(--safe-top)) calc(var(--vPad) + var(--safe-right)) calc(var(--vPad) + var(--safe-bottom)) calc(var(--vPad) + var(--safe-left));
+  padding: calc(var(--vPad) + var(--safePad) + var(--safe-top))
+           calc(var(--vPad) + var(--safePad) + var(--safe-right))
+           calc(var(--vPad) + var(--safePad) + var(--safe-bottom))
+           calc(var(--vPad) + var(--safePad) + var(--safe-left));
   text-align:center;
 
   /* Crossfade between Splash and Live (no layout jumps) */
@@ -500,7 +507,10 @@ hr.sep{
   display:flex;
   align-items:center;
   justify-content:center;
-  padding: calc(var(--vPad) + var(--safe-top)) calc(var(--vPad) + var(--safe-right)) calc(var(--vPad) + var(--safe-bottom)) calc(var(--vPad) + var(--safe-left));
+  padding: calc(var(--vPad) + var(--safePad) + var(--safe-top))
+           calc(var(--vPad) + var(--safePad) + var(--safe-right))
+           calc(var(--vPad) + var(--safePad) + var(--safe-bottom))
+           calc(var(--vPad) + var(--safePad) + var(--safe-left));
   pointer-events:none;
   opacity:0;
   visibility:hidden;
@@ -566,13 +576,13 @@ hr.sep{
 .vCard{
   background:var(--card-bg);
   border:1px solid rgba(255,255,255,.10);
-  border-radius:28px;
+  border-radius: calc(28px * var(--vScale));
   box-shadow:var(--shadow);
-  padding:28px;
+  padding: calc(28px * var(--vScale));
 }
 
 .vNowName{
-  font-size: clamp(44px, 6vw, 72px);
+  font-size: calc(clamp(44px, 6vw, 72px) * var(--vScale));
   font-weight:950;
   line-height:1.05;
   letter-spacing:.2px;
@@ -587,7 +597,7 @@ hr.sep{
 
 .vHBInstruments{
   margin-top: 8px;
-  font-size: clamp(18px, 2.2vw, 30px);
+  font-size: calc(clamp(18px, 2.2vw, 30px) * var(--vScale));
   font-weight: 850;
   letter-spacing: .8px;
   color: var(--muted);
@@ -600,14 +610,14 @@ hr.sep{
 }
 
 .viewerRoot.isHB .vNowName{
-  font-size: clamp(34px, 4.8vw, 62px);
+  font-size: calc(clamp(34px, 4.8vw, 62px) * var(--vScale));
   -webkit-line-clamp: 2;
 }
-.viewerRoot.isHB .vTimer{ margin-top:14px; }
+.viewerRoot.isHB .vTimer{ margin-top: calc(14px * var(--vScale)); }
 
 .vTimer{
-  margin-top:18px;
-  font-size: clamp(72px, 10vw, 120px);
+  margin-top: calc(18px * var(--vScale));
+  font-size: calc(clamp(72px, 10vw, 120px) * var(--vScale));
   font-weight:1000;
   letter-spacing:1px;
   display:inline-block;
@@ -660,7 +670,7 @@ hr.sep{
 .vNextDeckCell.right{ text-align:right; }
 .vNextDeckName{
   margin-top:6px;
-  font-size: clamp(20px, 2.4vw, 26px);
+  font-size: calc(clamp(20px, 2.4vw, 26px) * var(--vScale));
   font-weight:950;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -681,14 +691,14 @@ hr.sep{
 /* Viewer: emphasize the slot type chip and remove the redundant LIVE pill */
 #chipState{ display:none !important; }
 #chipType{
-  font-size: clamp(22px, 3vw, 38px);
-  padding: 14px 22px;
+  font-size: calc(clamp(22px, 3vw, 38px) * var(--vScale));
+  padding: calc(14px * var(--vScale)) calc(22px * var(--vScale));
   font-weight: 950;
   letter-spacing: .02em;
 }
 .vNext{
   margin-top:18px;
-  font-size:20px;
+  font-size: calc(20px * var(--vScale));
   color:var(--muted);
 }
 .vNext strong{color:var(--text)}
@@ -724,20 +734,20 @@ hr.sep{
   transform: translateY(0);
   transition: opacity 320ms ease, transform 320ms ease, visibility 0s linear 320ms;
   position:absolute;
-  left: calc(var(--vPad) + var(--safe-left));
-  right: calc(var(--vPad) + var(--safe-right));
-  bottom: calc(var(--vPad) + var(--safe-bottom));
+  left: calc(var(--vPad) + var(--safePad) + var(--safe-left));
+  right: calc(var(--vPad) + var(--safePad) + var(--safe-right));
+  bottom: calc(var(--vPad) + var(--safePad) + var(--safe-bottom));
   display:grid;
   grid-template-columns: 1fr 1fr;
-  gap:18px;
+  gap: calc(18px * var(--vScale));
   align-items:stretch;
 }
-.vSplashInfo .vCard{padding:18px 20px; border-radius:24px;}
+.vSplashInfo .vCard{padding: calc(18px * var(--vScale)) calc(20px * var(--vScale)); border-radius: calc(24px * var(--vScale));}
 .vSplashCard{min-height:150px;}
-.vBandCard{grid-column: 1 / -1; padding:16px 18px;}
-.vSplashInfo h3{margin:0 0 6px; font-size:18px; color:var(--muted); font-weight:850;}
-.vSplashInfo .who{font-size: clamp(22px, 3vw, 30px); font-weight:950; margin:0;}
-.vSplashInfo .sub{margin-top:6px; font-size:14px; color:var(--muted);}
+.vBandCard{grid-column: 1 / -1; padding: calc(16px * var(--vScale)) calc(18px * var(--vScale));}
+.vSplashInfo h3{margin:0 0 6px; font-size: calc(18px * var(--vScale)); color:var(--muted); font-weight:850;}
+.vSplashInfo .who{font-size: calc(clamp(22px, 3vw, 30px) * var(--vScale)); font-weight:950; margin:0;}
+.vSplashInfo .sub{margin-top:6px; font-size: calc(14px * var(--vScale)); color:var(--muted);}
 
 .vBandLine{
   display:flex;
@@ -753,51 +763,51 @@ hr.sep{
   display:inline-flex;
   align-items:center;
   gap:8px;
-  padding:10px 12px;
+  padding: calc(10px * var(--vScale)) calc(12px * var(--vScale));
   border-radius:999px;
   background:rgba(255,255,255,.06);
   border:1px solid rgba(255,255,255,.10);
   font-weight:850;
-  font-size:14px;
+  font-size: calc(14px * var(--vScale));
 }
 .hbChipFooter{
-  padding:10px 14px;
-  font-size:20px;
+  padding: calc(10px * var(--vScale)) calc(14px * var(--vScale));
+  font-size: calc(20px * var(--vScale));
   font-weight:850;
 }
 .hbChip.cooling{opacity:.55;}
 .hbCd{
   margin-left:6px;
-  padding:4px 8px;
+  padding: calc(4px * var(--vScale)) calc(8px * var(--vScale));
   border-radius:999px;
   background:rgba(0,0,0,.25);
   border:1px solid rgba(255,255,255,.12);
   font-weight:900;
-  font-size:12px;
+  font-size: calc(12px * var(--vScale));
 }
 .hbTag{
-  padding:4px 8px;
+  padding: calc(4px * var(--vScale)) calc(8px * var(--vScale));
   border-radius:999px;
   background:rgba(255,255,255,.08);
   border:1px solid rgba(255,255,255,.10);
   font-weight:800;
-  font-size:12px;
+  font-size: calc(12px * var(--vScale));
   color:var(--muted);
 }
 
 .vLiveFooterBar{
   position:absolute;
-  left:22px;
-  right:22px;
-  bottom:16px;
-  padding:22px 22px;
-  border-radius:34px;
+  left: calc((22px * var(--vScale)) + var(--safePad) + var(--safe-left));
+  right: calc((22px * var(--vScale)) + var(--safePad) + var(--safe-right));
+  bottom: calc((16px * var(--vScale)) + var(--safePad) + var(--safe-bottom));
+  padding: calc(22px * var(--vScale)) calc(22px * var(--vScale));
+  border-radius: calc(34px * var(--vScale));
   background:rgba(0,0,0,.42);
   border:1px solid rgba(255,255,255,.10);
   backdrop-filter: blur(8px);
   display:flex;
   align-items:center;
-  gap:18px;
+  gap: calc(18px * var(--vScale));
   overflow:hidden;
   white-space:nowrap;
 }
@@ -808,12 +818,12 @@ hr.sep{
   min-width:0;
 }
 .vFooterLabel{
-  font-size:12px;
+  font-size: calc(12px * var(--vScale));
   color:var(--muted);
   font-weight:850;
 }
 .vFooterName{
-  font-size:18px;
+  font-size: calc(18px * var(--vScale));
   font-weight:950;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -831,7 +841,7 @@ hr.sep{
   overflow:hidden;
 }
 .vFooterBandTitle{
-  font-size:22px;
+  font-size: calc(22px * var(--vScale));
   color:var(--muted);
   font-weight:850;
   flex:0 0 auto;
@@ -2536,17 +2546,17 @@ details.hbAcc .hbCatList{
    ============================= */
 
 /* Slightly tighten vertical rhythm so the media area has room */
-.viewerRoot #vMainCard{ padding: 26px 28px; }
+.viewerRoot #vMainCard{ padding: calc(26px * var(--vScale)) calc(28px * var(--vScale)); }
 .viewerRoot .vNowName{ margin-top: 8px; }
-.viewerRoot .vTimer{ margin-top: 14px; font-size: clamp(64px, 9vw, 112px); }
+.viewerRoot .vTimer{ margin-top: calc(14px * var(--vScale)); font-size: calc(clamp(64px, 9vw, 112px) * var(--vScale)); }
 
-.viewerRoot .vNextDeckRow{ margin-top: 16px; gap: 12px; }
-.viewerRoot .vNextDeckCell{ padding: 10px 12px; }
-.viewerRoot .vNextDeckName{ margin-top: 4px; font-size: clamp(18px, 2.2vw, 24px); }
+.viewerRoot .vNextDeckRow{ margin-top: calc(16px * var(--vScale)); gap: calc(12px * var(--vScale)); }
+.viewerRoot .vNextDeckCell{ padding: calc(10px * var(--vScale)) calc(12px * var(--vScale)); }
+.viewerRoot .vNextDeckName{ margin-top: 4px; font-size: calc(clamp(18px, 2.2vw, 24px) * var(--vScale)); }
 
 /* Media block inside hero card: size the box so images can fit (no % height ambiguity) */
-.viewerRoot .vMedia{ margin-top: 0; gap: 12px; align-items: stretch; }
-.viewerRoot .vMediaBox{ padding: 14px; overflow: hidden; }
+.viewerRoot .vMedia{ margin-top: 0; gap: calc(12px * var(--vScale)); align-items: stretch; }
+.viewerRoot .vMediaBox{ padding: calc(14px * var(--vScale)); overflow: hidden; }
 
 /* Layout-specific sizing (viewer.js toggles .mediaQR / .mediaImage) */
 .viewerRoot.mediaQR .vMediaBox{
