@@ -472,6 +472,35 @@
                         </span>
                     </div>
 
+                    <h3 class="subhead">Legibility</h3>
+                    <div class="small" style="margin-bottom:8px; opacity:.85;">Helps keep the Viewer readable across TVs/projectors and odd aspect ratios.</div>
+
+                    <div class="row wrap" style="align-items:flex-end; margin-bottom:10px;">
+                        <span class="pill" title="Automatically scale the Viewer UI based on screen size and aspect ratio">
+                            Auto Scale
+                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="setAutoScale" />
+                                <span class="small">on</span>
+                            </label>
+                        </span>
+
+                        <div class="field" style="flex:1 1 260px;">
+                            <label>Scale Bias</label>
+                            <input id="setScaleBias" type="range" min="0.90" max="1.40" step="0.01" />
+                            <div class="small mono" id="setScaleBiasVal">1.00×</div>
+                        </div>
+
+                        <div class="field" style="width:220px;">
+                            <label>Safe Area</label>
+                            <select id="setSafeArea">
+                                <option value="0">Off (0%)</option>
+                                <option value="0.03">TV Safe (3%)</option>
+                                <option value="0.06">Projector Safe (6%)</option>
+                                <option value="0.09">Extreme (9%)</option>
+                            </select>
+                        </div>
+                    </div>
+
 <hr class="sep" />
 
                     <h3 class="subhead">Sponsor Bug</h3>
