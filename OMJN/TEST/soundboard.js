@@ -1256,11 +1256,43 @@ function setStatus(msg, isErr=false){
     });
   }
 
+
+
+
+  // Hotkey guard: do not run shortcuts while a text-entry control is focused
+  function isTypingContext(el = document.activeElement){
+    if(!el) return false;
+    if(!!el.isContentEditable) return true;
+
+    const tag = (el.tagName||"").toLowerCase();
+    if(tag === "input" || tag === "textarea" || tag === "select") return true;
+
+    const role = (el.getAttribute && el.getAttribute("role")) ? String(el.getAttribute("role")).toLowerCase() : "";
+    if(role === "textbox" || role === "searchbox" || role === "combobox") return true;
+
+    if(el.closest){
+      const host = el.closest('input, textarea, select, [contenteditable="true"], [role="textbox"], [role="searchbox"], [role="combobox"]');
+      if(host) return true;
+    }
+    return false;
+  }
+
+  function isTypingEvent(e){
+    if(isTypingContext(document.activeElement)) return true;
+    if(isTypingContext(e?.target || null)) return true;
+
+    const path = (e && typeof e.composedPath === "function") ? e.composedPath() : null;
+    if(path && path.length){
+      for(const node of path){
+        if(node && node.nodeType === 1 && isTypingContext(node)) return true;
+      }
+    }
+    return false;
+  }
   window.addEventListener("keydown", (e) => {
     const activeEl = document.activeElement;
-    const tag = (activeEl && activeEl.tagName) ? activeEl.tagName.toLowerCase() : "";
-    const isTypingField = (tag === "input" || tag === "textarea" || tag === "select");
     const isSearchFocused = (activeEl === els.search);
+    const isTypingField = isTypingEvent(e);
 
     // Cmd/Ctrl+K focuses search
     if((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "k")){
