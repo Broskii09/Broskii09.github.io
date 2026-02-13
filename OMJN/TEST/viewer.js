@@ -145,44 +145,6 @@
     return cleanName(slot?.displayName ?? slot?.name ?? slot?.performerName ?? slot?.title ?? "");
   }
 
-  function clamp(n, min, max){
-    return Math.max(min, Math.min(max, n));
-  }
-
-  function snapSafePct(pct){
-    const allowed = [0, 0.03, 0.06, 0.09];
-    const v = Number.isFinite(pct) ? pct : 0;
-    return allowed.reduce((best, cur) => (Math.abs(cur - v) < Math.abs(best - v) ? cur : best), allowed[0]);
-  }
-
-  function applyViewerLayoutPrefs(opts = {}){
-    const w = window.innerWidth || document.documentElement.clientWidth || 1920;
-    const h = window.innerHeight || document.documentElement.clientHeight || 1080;
-    const shortSide = Math.min(w, h) || 1080;
-
-    const prefs = state?.viewerPrefs || {};
-    const autoScale = prefs.autoScale !== false;
-    const biasRaw = Number(prefs.scaleBias ?? 1.0);
-    const bias = Number.isFinite(biasRaw) ? clamp(biasRaw, 0.90, 1.40) : 1.0;
-
-    // Aspect ratio factor (wide -> slightly up, tall -> slightly down)
-    const ar = w / h;
-    const aspectFactor = clamp(1 + (ar - (16 / 9)) * 0.12, 0.92, 1.08);
-    // Resolution factor on the short side (gentle)
-    const resFactor = clamp(Math.pow(shortSide / 1080, 0.25), 0.85, 1.25);
-
-    let vScale = autoScale ? (aspectFactor * resFactor) : 1.0;
-    vScale = clamp(vScale * bias, 0.85, 1.35);
-
-    const isAd = !!opts.isAd;
-    const safePctRaw = Number(prefs.safeAreaPct ?? 0.03);
-    const safePct = isAd ? 0 : snapSafePct(safePctRaw);
-    const safePadPx = Math.round(shortSide * safePct);
-
-    document.documentElement.style.setProperty("--vScale", String(vScale));
-    document.documentElement.style.setProperty("--safePad", `${safePadPx}px`);
-  }
-
   // Sponsor bug runtime
   const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
   let currentSponsorObjectUrl = null;
@@ -775,10 +737,9 @@
       const b = parseInt(cs.getPropertyValue("--safe-bottom"), 10) || 0;
       const l = parseInt(cs.getPropertyValue("--safe-left"), 10) || 0;
       const p = parseInt(cs.getPropertyValue("--vPad"), 10) || 48;
-      const s = parseInt(cs.getPropertyValue("--safePad"), 10) || 0;
-      return { t, r, b, l, p, s };
+      return { t, r, b, l, p };
     } catch (_) {
-      return { t: 0, r: 0, b: 0, l: 0, p: 48, s: 0 };
+      return { t: 0, r: 0, b: 0, l: 0, p: 48 };
     }
   }
 
@@ -829,7 +790,7 @@
     const insets = getSafeInsets();
 
     // Base padding matches viewerOverlay; plus safe-area inset on that edge.
-    const basePad = (insets.p || 48) + (insets.s || 0);
+    const basePad = insets.p;
 
     let padTop = basePad + safe + insets.t;
     let padRight = basePad + safe + insets.r;
@@ -1434,9 +1395,6 @@ function renderStateDriven() {
     const cur = isLiveish ? (state.queue || []).find(x => x && x.id === state.currentSlotId) : null;
     const isAd = !!cur && String(cur.slotTypeId || "") === "ad_graphic";
 
-    // Viewer legibility (dynamic scaling + safe-area padding)
-    applyViewerLayoutPrefs({ isAd });
-
     if (!isLiveish) {
       setAdVisible(false);
       renderSplashStatic();
@@ -1515,12 +1473,6 @@ function renderStateDriven() {
 
   // Reposition sponsor bug on resize (safe areas + footer height)
   window.addEventListener("resize", () => {
-    try {
-      const isLiveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
-      const cur = isLiveish ? (state.queue || []).find(x => x && x.id === state.currentSlotId) : null;
-      const isAd = !!cur && String(cur.slotTypeId || "") === "ad_graphic";
-      applyViewerLayoutPrefs({ isAd });
-    } catch (_) {}
     lastSponsorKey = null;
     setSponsorBug().catch(() => {});
     resizeVizCanvas();

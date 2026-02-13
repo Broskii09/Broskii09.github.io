@@ -75,11 +75,6 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         finalAtSec: 30,
         showOvertime: true,
         showProgressBar: true,
-        // Viewer legibility
-        autoScale: true,
-        scaleBias: 1.0,
-        // 0 / 0.03 / 0.06 / 0.09
-        safeAreaPct: 0.03,
         showHouseBandFooter:true,
         hbFooterFormat:"categoryFirst",
         // Mic-based audio visualizer (Viewer)
@@ -223,20 +218,6 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(!s.profiles) s.profiles = {};
       if (!s.splash) s.splash = { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true };
       if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
-      // Viewer legibility prefs
-      if(s.viewerPrefs.autoScale === undefined) s.viewerPrefs.autoScale = (d.viewerPrefs.autoScale !== false);
-      if(s.viewerPrefs.scaleBias === undefined) s.viewerPrefs.scaleBias = Number(d.viewerPrefs.scaleBias ?? 1.0);
-      else {
-        const b = Number(s.viewerPrefs.scaleBias);
-        s.viewerPrefs.scaleBias = Number.isFinite(b) ? Math.max(0.90, Math.min(1.40, b)) : 1.0;
-      }
-      if(s.viewerPrefs.safeAreaPct === undefined) s.viewerPrefs.safeAreaPct = Number(d.viewerPrefs.safeAreaPct ?? 0.03);
-      else {
-        const raw = Number(s.viewerPrefs.safeAreaPct);
-        const allowed = [0, 0.03, 0.06, 0.09];
-        const v = Number.isFinite(raw) ? raw : 0;
-        s.viewerPrefs.safeAreaPct = allowed.reduce((best, cur) => (Math.abs(cur - v) < Math.abs(best - v) ? cur : best), allowed[0]);
-      }
       if(s.viewerPrefs.visualizerEnabled === undefined) s.viewerPrefs.visualizerEnabled = false;
       if(s.viewerPrefs.visualizerSensitivity === undefined) s.viewerPrefs.visualizerSensitivity = 1.0;
       if(s.viewerPrefs.visualizerMode === undefined) s.viewerPrefs.visualizerMode = "eq";
