@@ -28,7 +28,7 @@
         </div>
 
         <div class="sbHeaderRight">
-          <label class="sbToggle small" title="Reduce header + controls height">
+          <label for="sbEmbedName" class="sbToggle small" title="Reduce header + controls height">
             <input type="checkbox" id="sbCompactToggle" />
             Compact
           </label>
@@ -90,7 +90,7 @@
                     <button class="btn tiny sbStopAllBtn" id="sbStopAll" type="button" title="Stop all sounds">Stop All</button>
 
                     <div class="sbSearchWrap">
-                      <input type="text" id="sbSearch" class="sbSearch" placeholder="Search sounds… (Ctrl+K)" autocomplete="off" spellcheck="false"/>
+                      <input type="text" id="sbSearch" class="sbSearch" placeholder="Search sounds… (Ctrl+K)" autocomplete="off" spellcheck="false"/ aria-label="Search sounds">
                       <button type="button" class="sbSearchClear" id="sbSearchClear" aria-label="Clear search">×</button>
                     </div>
                   </div>
@@ -158,12 +158,12 @@
       </div>
       <div class="modalBody">
         <div class="field">
-          <label>Name</label>
+          <label for="sbEmbedName">Name</label>
           <input id="sbEmbedName" type="text" placeholder="e.g., Chill Set Break" autocomplete="off" />
         </div>
 
         <div class="field">
-          <label>Embed code</label>
+          <label for="sbEmbedCode">Embed code</label>
           <textarea id="sbEmbedCode" rows="6" placeholder='<iframe ... src="https://..." ...></iframe>'></textarea>
           <div class="small" style="opacity:.8; margin-top:6px;">
             We only use the iframe <span class="mono">src</span> + basic attributes. Scripts are not executed.
@@ -237,11 +237,11 @@
               <div class="row wrap" style="margin-top:10px;">
                 <div style="flex:1 1 320px; min-width:240px;">
                   <div class="small">Google Drive API key (public folder)</div>
-                  <input type="text" id="sbApiKey" placeholder="AIza..."/>
+                  <input type="text" id="sbApiKey" placeholder="AIza..."/ aria-label="Google API key">
                 </div>
                 <div style="flex:2 1 420px; min-width:240px;">
                   <div class="small">Drive folder link or ID</div>
-                  <input type="text" id="sbFolder" placeholder="https://drive.google.com/drive/folders/..."/>
+                  <input type="text" id="sbFolder" placeholder="https://drive.google.com/drive/folders/..."/ aria-label="Google Drive folder URL">
                 </div>
                 <div class="row" style="align-items:flex-end;">
                   <button class="btn small" id="sbRefresh" type="button">Refresh</button>

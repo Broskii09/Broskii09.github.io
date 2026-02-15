@@ -79,6 +79,7 @@
 	                    <div class="row" style="gap:10px; align-items:flex-end; padding-top:22px;">
                       <button class="btn good" id="btnAdd" type="button">Add</button>
                       <button class="btn" id="btnAddIntermission" type="button">Intermission</button>
+                      <button class="btn" id="btnAddAd" type="button">Ad</button>
                       <button class="btn" id="btnAddHouseBandSlot" type="button">House Band</button>
                     </div>
                 </div>
@@ -403,12 +404,12 @@
 
 
 
-    <div class="modalOverlay" id="settingsModal" hidden>
-        <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+        <div class="modalOverlay" id="settingsModal" hidden>
+        <div class="modalPanel settingsPanelShell" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
             <div class="modalHeader">
                 <div class="modalTitle">
                     <h2 id="settingsTitle">Settings</h2>
-                    <div class="small">Theme · Viewer cues · Slot types · Backup</div>
+                    <div class="small">Viewer · Timer · Visualizer · Crowd · Advanced</div>
                 </div>
                 <div class="modalActions">
                     <button class="btn small" id="btnCloseSettings" type="button">Close</button>
@@ -417,48 +418,18 @@
             <div class="modalBody">
                 <div class="cardBody">
 
-                    <div class="row" style="margin-bottom:10px;">
-                        <span class="pill" title="Prevents accidental starts">
-                            Start Confirm
-                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-                                <input type="checkbox" id="startGuard" />
-                                <span class="small">on</span>
-                            </label>
-                        </span>
-
-                        <span class="pill" title="Prevents accidental end-to-splash while live">
-                            End Confirm
-                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-                                <input type="checkbox" id="endGuard" />
-                                <span class="small">on</span>
-                            </label>
-                        </span>
-
-                        <span class="pill" title="Keyboard shortcuts for fast hosting">
-                            Hotkeys
-                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-                                <input type="checkbox" id="hotkeysEnabled" />
-                                <span class="small">on</span>
-                            </label>
-                        </span>
-                        <div class="spacer"></div>
-                        <div class="small">Shortcuts: Space Start/Pause/Resume · N End · Ctrl+Z Undo</div>
-                    </div>
-
-                    <div class="readyStrip">
-                        <div class="readyCol">
-                            <div class="small">Next Up</div>
-                            <div class="readyName">—</div>
+                    <div class="settingsTabs">
+                        <div class="settingsNav" role="tablist" aria-label="Settings sections">
+                            <button class="settingsTabBtn isActive" type="button" data-tab="viewer" aria-selected="true">Viewer</button>
+                            <button class="settingsTabBtn" type="button" data-tab="timer" aria-selected="false">Timer</button>
+                            <button class="settingsTabBtn" type="button" data-tab="visualizer" aria-selected="false">Visualizer</button>
+                            <button class="settingsTabBtn" type="button" data-tab="crowd" aria-selected="false">Crowd</button>
+                            <button class="settingsTabBtn" type="button" data-tab="advanced" aria-selected="false">Advanced</button>
                         </div>
-                        <div class="readyCol right">
-                            <div class="small">On Deck</div>
-                            <div class="readyName">—</div>
-                        </div>
-                    </div>
 
-                    <hr class="sep" />
-
-                    <h3 class="subhead">Theme</h3>
+                        <div class="settingsPanels">
+                            <section class="settingsPanel" data-panel="viewer">
+<h3 class="subhead">Theme</h3>
                     <div class="row wrap">
                         <div class="field" style="flex:1 1 180px;">
                             <label>Background</label>
@@ -490,79 +461,18 @@
                         </div>
                     </div>
 
-                    <div class="readyStrip">
-                        <div class="readyCol">
-                            <div class="small">Next Up</div>
-                            <div class="readyName">—</div>
-                        </div>
-                        <div class="readyCol right">
-                            <div class="small">On Deck</div>
-                            <div class="readyName">—</div>
-                        </div>
-                    </div>
-
-                    <hr class="sep" />
-
-                    <h3 class="subhead">Viewer time cues</h3>
-                    <div class="row wrap">
-                        <div class="field" style="flex:1 1 180px;">
-                            <label>2:00 Pulse Color</label>
-                            <input id="setWarnColor" type="color" />
-                        </div>
-                        <div class="field" style="flex:1 1 220px;">
-                            <label>2:00 Pulse Speed (sec)</label>
-                            <input id="setWarnSpeed" type="number" min="0.6" step="0.1" />
-                        </div>
-                        <div class="field" style="flex:1 1 240px;">
-                            <label>2:00 Pulse Opacity</label>
-                            <input id="setWarnAlpha" type="range" min="0" max="1" step="0.01" />
-                            <div class="small mono" id="setWarnAlphaVal">0.12</div>
-                        </div>
-
-                        <div class="field" style="flex:1 1 180px;">
-                            <label>0:30 Pulse Color</label>
-                            <input id="setFinalColor" type="color" />
-                        </div>
-                        <div class="field" style="flex:1 1 220px;">
-                            <label>0:30 Pulse Speed (sec)</label>
-                            <input id="setFinalSpeed" type="number" min="0.4" step="0.1" />
-                        </div>
-                        <div class="field" style="flex:1 1 240px;">
-                            <label>0:30 Pulse Opacity</label>
-                            <input id="setFinalAlpha" type="range" min="0" max="1" step="0.01" />
-                            <div class="small mono" id="setFinalAlphaVal">0.18</div>
-                        </div>
-                        <div class="field" style="flex:1 1 180px;">
-                            <label>Overtime Flash Color</label>
-                            <input id="setOvertimeColor" type="color" />
-                        </div>
-                    </div>
-                    <div class="field" style="flex:1 1 240px;">
-                        <label>Overtime Flash Opacity</label>
-                        <input id="setOvertimeAlpha" type="range" min="0" max="1" step="0.01" />
-                        <div class="small mono" id="setOvertimeAlphaVal">0.85</div>
-                    </div>
-
-                    <hr class="sep" />
-
-                    <h3 class="subhead">Viewer extras</h3>
-                    <div class="row wrap">
-                        <span class="pill" title="Mic-based visualizer shown during LIVE only">
-                            Audio visualizer
+                    <h3 class="subhead">Splash</h3>
+                    <div class="row wrap" style="align-items:flex-end; margin-bottom:10px;">
+                        <span class="pill" title="Show or hide the Next Up / On Deck cards on the SPLASH screen">
+                            Next Up / On Deck cards
                             <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-                                <input type="checkbox" id="setVizEnabled" />
+                                <input type="checkbox" id="setSplashShowNextTwo" />
                                 <span class="small">on</span>
                             </label>
                         </span>
-                        <div class="field" style="flex:1 1 320px;">
-                            <label>Sensitivity (start at 1.0×)</label>
-                            <input id="setVizSensitivity" type="range" min="0.25" max="4" step="0.05" />
-                            <div class="small mono" id="setVizSensitivityVal">1.00×</div>
-                        </div>
-                        <div class="small" style="opacity:.85;">Tip: open the Viewer once before showtime and click “Enable Mic Visualizer” if your browser asks.</div>
                     </div>
 
-                    <hr class="sep" />
+<hr class="sep" />
 
                     <h3 class="subhead">Sponsor Bug</h3>
                     <div class="small" style="margin-bottom:8px; opacity:.85;">Overlay logo/watermark. Max size is capped by % of the Viewer viewport (tight) to keep layouts safe.</div>
@@ -652,17 +562,81 @@
                             <div class="small mono" id="setSponsorSafeMarginVal">16px</div>
                         </div>
                     </div>
+</section>
 
+                            <section class="settingsPanel" data-panel="timer" hidden>
 
-                    <div class="readyStrip">
-                        <div class="readyCol">
-                            <div class="small">Next Up</div>
-                            <div class="readyName">—</div>
+                    <h3 class="subhead">Timer</h3>
+                    <div class="row wrap" style="align-items:flex-end; margin-bottom:10px;">
+                        <span class="pill" title="Show the progress bar under the main timer">
+                            Progress bar
+                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="setShowProgressBar" />
+                                <span class="small">on</span>
+                            </label>
+                        </span>
+                        <span class="pill" title="Show the overtime chip after the timer hits 0:00">
+                            Overtime chip
+                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="setShowOvertime" />
+                                <span class="small">on</span>
+                            </label>
+                        </span>
+                    </div>
+
+                    <div class="row wrap" style="margin-bottom:10px;">
+                        <div class="field" style="flex:1 1 220px;">
+                            <label>Warn pulse starts at (sec remaining)</label>
+                            <input id="setWarnAtSec" type="number" min="0" max="600" step="5" />
+                            <div class="small mono" id="setWarnAtSecVal">2:00</div>
                         </div>
-                        <div class="readyCol right">
-                            <div class="small">On Deck</div>
-                            <div class="readyName">—</div>
+                        <div class="field" style="flex:1 1 220px;">
+                            <label>Final pulse starts at (sec remaining)</label>
+                            <input id="setFinalAtSec" type="number" min="0" max="600" step="5" />
+                            <div class="small mono" id="setFinalAtSecVal">0:30</div>
                         </div>
+                    </div>
+
+                    <hr class="sep" />
+
+<h3 class="subhead">Viewer time cues</h3>
+                    <div class="row wrap">
+                        <div class="field" style="flex:1 1 180px;">
+                            <label>2:00 Pulse Color</label>
+                            <input id="setWarnColor" type="color" />
+                        </div>
+                        <div class="field" style="flex:1 1 220px;">
+                            <label>2:00 Pulse Speed (sec)</label>
+                            <input id="setWarnSpeed" type="number" min="0.6" step="0.1" />
+                        </div>
+                        <div class="field" style="flex:1 1 240px;">
+                            <label>2:00 Pulse Opacity</label>
+                            <input id="setWarnAlpha" type="range" min="0" max="1" step="0.01" />
+                            <div class="small mono" id="setWarnAlphaVal">0.12</div>
+                        </div>
+
+                        <div class="field" style="flex:1 1 180px;">
+                            <label>0:30 Pulse Color</label>
+                            <input id="setFinalColor" type="color" />
+                        </div>
+                        <div class="field" style="flex:1 1 220px;">
+                            <label>0:30 Pulse Speed (sec)</label>
+                            <input id="setFinalSpeed" type="number" min="0.4" step="0.1" />
+                        </div>
+                        <div class="field" style="flex:1 1 240px;">
+                            <label>0:30 Pulse Opacity</label>
+                            <input id="setFinalAlpha" type="range" min="0" max="1" step="0.01" />
+                            <div class="small mono" id="setFinalAlphaVal">0.18</div>
+                        </div>
+                        <div class="field" style="flex:1 1 180px;">
+                            <label>Overtime Flash Color</label>
+                            <input id="setOvertimeColor" type="color" />
+                        </div>
+                    </div>
+                    <div class="field" style="flex:1 1 240px;">
+                        <label>Overtime Flash Opacity</label>
+                        <input id="setOvertimeAlpha" type="range" min="0" max="1" step="0.01" />
+                        <div class="small mono" id="setOvertimeAlphaVal">0.85</div>
                     </div>
 
                     <hr class="sep" />
@@ -670,16 +644,102 @@
                     <h3 class="subhead">Slot types</h3>
                     <div class="small" style="margin-bottom:8px;">Defaults for new signups. You can still override minutes per performer.</div>
                     <div id="slotTypesEditor" class="slotTypesEditor"></div>
+</section>
 
-                    <div class="readyStrip">
-                        <div class="readyCol">
-                            <div class="small">Next Up</div>
-                            <div class="readyName">—</div>
+                            <section class="settingsPanel" data-panel="visualizer" hidden>
+<h3 class="subhead">Audio visualizer</h3>
+                    <div class="row wrap">
+                        <span class="pill" title="Mic-based visualizer shown during LIVE only">
+                            Audio visualizer
+                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="setVizEnabled" />
+                                <span class="small">on</span>
+                            </label>
+                        </span>
+                        <div class="field" style="flex:1 1 320px;">
+                            <label>Sensitivity (start at 1.0×)</label>
+                            <input id="setVizSensitivity" type="range" min="0.25" max="4" step="0.05" />
+                            <div class="small mono" id="setVizSensitivityVal">1.00×</div>
                         </div>
-                        <div class="readyCol right">
-                            <div class="small">On Deck</div>
-                            <div class="readyName">—</div>
+                        
+                        <div class="field" style="flex:1 1 220px;">
+                            <label>Visualizer type</label>
+                            <select id="setVizMode">
+                                <option value="eq">EQ (music-style)</option>
+                                <option value="volume">Volume (simple bounce)</option>
+                            </select>
                         </div>
+                        <div class="field" style="flex:1 1 220px;">
+                            <label>Direction</label>
+                            <select id="setVizDirection">
+                                <option value="mirror">Mirror (from center)</option>
+                                <option value="ltr">Left to right</option>
+                            </select>
+                        </div>
+                        <div class="small" style="opacity:.85;">Tip: open the Viewer once before showtime and click “Enable Mic Visualizer” if your browser asks.</div>
+                    </div>
+                            </section>
+
+                            <section class="settingsPanel" data-panel="crowd" hidden>
+                    <h3 class="subhead">Crowd Prompts</h3>
+                    <div class="small" style="margin-bottom:10px; opacity:.9;">
+                      Crowd Prompts are full-screen messages (House Rules, CHEER, etc.) shown on the Viewer.
+                      You can turn them on/off with the Crowd buttons on the main Operator screen.
+                    </div>
+                    <div class="row wrap" style="gap:12px; align-items:flex-end; margin: 8px 0 14px;">
+  <span class="pill" title="Turns the selected Crowd Prompt ON/OFF on the Viewer">
+    Enabled
+    <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+      <input type="checkbox" id="setCrowdEnabled" />
+      <span class="small">on</span>
+    </label>
+  </span>
+
+  <div class="field" style="flex:1 1 260px; min-width:220px;">
+    <label>Preset</label>
+    <select id="setCrowdPreset"></select>
+  </div>
+
+  <button class="btn small good" id="btnCrowdShowNow" type="button" title="Show the selected prompt now">Show now</button>
+  <button class="btn small" id="btnCrowdHide" type="button" title="Hide crowd prompt">Hide</button>
+
+  <div class="small" id="crowdPromptStatus" style="opacity:.85;"></div>
+</div>
+
+<div class="row wrap" style="align-items:center;">
+                      <button class="btn small" id="btnSettingsOpenCrowdEditor" type="button">Open Crowd Prompt Editor</button>
+                      <div class="small" style="opacity:.85;">Tip: edit presets + auto-hide time there.</div>
+                    </div>
+                            </section>
+
+                            <section class="settingsPanel" data-panel="advanced" hidden>
+<h3 class="subhead">Safety & hotkeys</h3>
+                    <div class="row" style="margin-bottom:10px;">
+                        <span class="pill" title="Prevents accidental starts">
+                            Start Confirm
+                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="startGuard" />
+                                <span class="small">on</span>
+                            </label>
+                        </span>
+
+                        <span class="pill" title="Prevents accidental end-to-splash while live">
+                            End Confirm
+                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="endGuard" />
+                                <span class="small">on</span>
+                            </label>
+                        </span>
+
+                        <span class="pill" title="Keyboard shortcuts for fast hosting">
+                            Hotkeys
+                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="hotkeysEnabled" />
+                                <span class="small">on</span>
+                            </label>
+                        </span>
+                        <div class="spacer"></div>
+                        <div class="small">Shortcuts: Space Start/Pause/Resume · N End · Ctrl+Z Undo</div>
                     </div>
 
                     <hr class="sep" />
@@ -693,15 +753,16 @@
                         <div class="spacer"></div>
                         <div class="small">Move your theme and slot defaults to a new computer.</div>
                     </div>
+                            </section>
+                        </div>
+                    </div>
 
                 </div>
             </div>
         </div>
     </div>
 
-
-
-    <div class="modalOverlay" id="timerUpModal" hidden>
+<div class="modalOverlay" id="timerUpModal" hidden>
         <div class="modalPanel timerUpPanel" role="dialog" aria-modal="true" aria-labelledby="timerUpTitle">
             <div class="modalHeader timerUpHeader">
                 <div class="modalTitle">
@@ -740,6 +801,161 @@
             </div>
         </div>
     </div>
+
+<!-- Intermission Builder Modal -->
+    <div class="modalOverlay" id="intermissionModal" hidden>
+        <div class="modalPanel imBuildPanel" role="dialog" aria-modal="true" aria-labelledby="imTitle">
+            <div class="modalHeader">
+                <div class="modalTitle">
+                    <h2 id="imTitle">Add Intermission</h2>
+                    <div class="small">Set a timer + on-screen message</div>
+                </div>
+                <div class="modalActions">
+                    <button class="btn small" id="btnImClose" type="button">Close</button>
+                </div>
+            </div>
+            <div class="modalBody">
+                <div class="row wrap" style="gap:12px; align-items:flex-end;">
+                    <div class="field" style="flex:1 1 220px;">
+                        <label>Title</label>
+                        <input id="imName" type="text" placeholder="INTERMISSION" />
+                    </div>
+
+                    <div class="field" style="flex:0 0 260px;">
+                        <label>Duration</label>
+                        <div class="row wrap" style="gap:8px;">
+                            <button class="btn tiny" id="imDur5" type="button" data-mins="5">5m</button>
+                            <button class="btn tiny" id="imDur10" type="button" data-mins="10">10m</button>
+                            <button class="btn tiny" id="imDur15" type="button" data-mins="15">15m</button>
+                            <button class="btn tiny" id="imDurCustom" type="button" data-mins="custom">Custom</button>
+                        </div>
+                        <div class="row" id="imCustomWrap" style="gap:8px; margin-top:8px; display:none;">
+                            <input id="imCustomMins" type="number" min="1" step="1" placeholder="Minutes" style="width:120px;" />
+                            <div class="small" style="opacity:.85;">min</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field" style="margin-top:12px;">
+                    <label>Message on screen</label>
+                    <textarea id="imMsg" rows="3" placeholder="WE'LL BE RIGHT BACK"></textarea>
+                </div>
+
+                <div class="row" style="justify-content:flex-end; gap:10px; margin-top:14px;">
+                    <button class="btn" id="btnImCancel" type="button">Cancel</button>
+                    <button class="btn accent" id="btnImAdd" type="button">Add to Queue</button>
+                </div>
+
+                <div class="small" style="margin-top:10px; opacity:.85;">
+                    Tip: You can edit it later from the queue (Title / Duration / Message).
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+        <!-- Graphic Ad Builder Modal -->
+    <div class="modalOverlay" id="adModal" hidden>
+        <div class="modalPanel" style="max-width:820px;" role="dialog" aria-modal="true" aria-labelledby="adModalTitle">
+            <div class="modalHeader">
+                <div class="modalTitle">
+                    <h2 id="adModalTitle">Graphic Ad</h2>
+                    <div class="small" id="adModalSub">Full-screen on the viewer while LIVE.</div>
+                </div>
+                <div class="modalActions">
+                    <button class="btn small" id="btnAdClose" type="button">Close</button>
+                </div>
+            </div>
+
+            <div class="modalBody">
+                <div class="row wrap" style="gap:12px; align-items:flex-end;">
+                    <div class="field" style="flex:1 1 260px;">
+                        <label for="adLabel">Label</label>
+                        <input id="adLabel" type="text" placeholder="Optional label (defaults from preset/file)" />
+                    </div>
+
+                    <div class="field" style="flex:0 0 200px;">
+                        <label for="adKind">Type</label>
+                        <select id="adKind">
+                            <option value="graphic">Graphic (Image)</option>
+                            <option value="video">Video</option>
+                        </select>
+                    </div>
+
+                    <div class="field" style="flex:0 0 260px;">
+                        <label for="adSource">Source</label>
+                        <select id="adSource">
+                            <option value="preset">Preset</option>
+                            <option value="upload">Upload</option>
+                            <option value="url">URL</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row wrap" id="adVideoOptions" style="gap:12px; align-items:center; margin-top:10px; display:none;">
+                    <label class="chk"><input type="checkbox" id="adVideoLoop" /> Loop video</label>
+                    <label class="chk"><input type="checkbox" id="adVideoAudio" /> Audio on (may require click / autoplay limits)</label>
+                </div>
+
+                <div class="field" id="adPresetWrap" style="margin-top:12px; display:none;">
+                    <label>Preset ads</label>
+
+                    <!-- Hidden select used for compatibility (selection is driven by list UI) -->
+                    <select id="adPreset" style="display:none;"></select>
+
+                    <div class="adPresetTools" style="margin-top:6px;">
+                        <input id="adPresetSearch" class="adPresetSearch" type="text" placeholder="Search presets…" autocomplete="off" />
+                        <button class="btn tiny" id="btnAdPresetRefresh" type="button">Refresh</button>
+                    </div>
+
+                    <div id="adPresetList" class="adPresetList" style="margin-top:8px;"></div>
+
+                    <div class="small muted" id="adPresetStatus" style="margin-top:8px; display:none;"></div>
+
+                    <div class="row wrap" id="adManifestLocalRow" style="gap:10px; align-items:center; margin-top:10px; display:none;">
+                        <input id="adManifestFile" type="file" accept="application/json" />
+                        <button class="btn tiny" id="btnLoadAdManifest" type="button">Load manifest</button>
+                    </div>
+
+                    <div class="small" style="margin-top:8px; opacity:.85;">
+                        Loaded from <span class="mono">ads_manifest.json</span> (or <span class="mono">ads_manifest.example.json</span>)
+                    </div>
+                </div>
+
+                <div class="field" id="adUploadWrap" style="margin-top:12px; display:none;">
+                    <label for="adFile">Upload file</label>
+                    <input id="adFile" type="file" accept="image/*,video/*" />
+                    <div class="small" style="margin-top:8px; opacity:.85;">
+                        Stored locally in your browser for this device (IndexedDB).
+                    </div>
+                </div>
+
+                <div class="field" id="adUrlWrap" style="margin-top:12px; display:none;">
+                    <label for="adUrl">Media URL</label>
+                    <input id="adUrl" type="text" placeholder="https://... (image or direct mp4/webm)" />
+                </div>
+
+                <div class="field" id="adPreviewWrap" style="margin-top:12px; display:none;">
+                    <label>Preview</label>
+                    <div style="border:1px solid rgba(255,255,255,.12); border-radius:12px; overflow:hidden; background:rgba(0,0,0,.35);">
+                        <img id="adPreviewImg" alt="" style="display:none; width:100%; max-height:320px; object-fit:contain;" />
+                        <video id="adPreviewVideo" style="display:none; width:100%; max-height:320px; object-fit:contain;" muted playsinline controls></video>
+                    </div>
+                </div>
+
+                <div class="row" style="justify-content:flex-end; gap:10px; margin-top:14px;">
+                    <button class="btn" id="btnAdCancel" type="button">Cancel</button>
+                    <button class="btn accent" id="btnAdSave" type="button">Add to Queue</button>
+                    <button class="btn good" id="btnAdLive" type="button">Go Live</button>
+                </div>
+
+                <div class="small" style="margin-top:10px; opacity:.85;">
+                    Tip: Graphic ads have no set duration. When you’re done, hit End → Splash.
+                </div>
+            </div>
+        </div>
+    </div>
+
 
 
     <!-- House Band Set Builder Modal -->

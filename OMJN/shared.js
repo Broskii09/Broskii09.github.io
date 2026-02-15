@@ -67,7 +67,7 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
       lastSavedAt: null,
       showTitle: "Open Mic & Jam Night",
       phase: "SPLASH", // SPLASH | LIVE | PAUSED
-operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false },
+operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false, quickAddStickyType:false, quickAddLastTypeId:"", armedNextSlotId:null },
       profiles: {},
         splash: { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true },
       viewerPrefs: {
@@ -80,6 +80,10 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         // Mic-based audio visualizer (Viewer)
         visualizerEnabled: false,
         visualizerSensitivity: 1.0,
+        // eq (spectrum) or volume (level)
+        visualizerMode: "eq",
+        // mirror (center-out) or ltr (left-to-right)
+        visualizerDirection: "mirror",
 
         sponsorBug: {
           enabled: false,
@@ -163,6 +167,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         { id:"comedian", label:"Comedian", defaultMinutes:10, isJamMode:false, color:"#2dd4bf", enabled:true },
         { id:"poetry", label:"Poetry", defaultMinutes:10, isJamMode:false, color:"#fbbf24", enabled:true },
         { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
+        { id:"ad_graphic", label:"Ad (Graphic)", defaultMinutes:0, isJamMode:false, color:"#ef4444", enabled:false, special:true },
         { id:"houseband", label:"House Band", defaultMinutes:15, isJamMode:false, color:"#22c55e", enabled:false, special:true },
         { id:"intermission", label:"Intermission", defaultMinutes:10, isJamMode:false, color:"#a855f7", enabled:false, special:true },
       ],
@@ -208,14 +213,19 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
 
       if(!s.version) s.version = 1;
       if(s.lastSavedAt === undefined) s.lastSavedAt = null;
-if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false };
+if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false, quickAddStickyType:false, quickAddLastTypeId:"", armedNextSlotId:null };
       if(s.operatorPrefs.editCollapsed === undefined) s.operatorPrefs.editCollapsed = false;
+      if(s.operatorPrefs.quickAddStickyType === undefined) s.operatorPrefs.quickAddStickyType = false;
+      if(s.operatorPrefs.quickAddLastTypeId === undefined) s.operatorPrefs.quickAddLastTypeId = "";
+      if(s.operatorPrefs.armedNextSlotId === undefined) s.operatorPrefs.armedNextSlotId = null;
 
       if(!s.profiles) s.profiles = {};
       if (!s.splash) s.splash = { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true };
       if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
       if(s.viewerPrefs.visualizerEnabled === undefined) s.viewerPrefs.visualizerEnabled = false;
       if(s.viewerPrefs.visualizerSensitivity === undefined) s.viewerPrefs.visualizerSensitivity = 1.0;
+      if(s.viewerPrefs.visualizerMode === undefined) s.viewerPrefs.visualizerMode = "eq";
+      if(s.viewerPrefs.visualizerDirection === undefined) s.viewerPrefs.visualizerDirection = "mirror";
       if(!s.viewerPrefs.sponsorBug) s.viewerPrefs.sponsorBug = d.viewerPrefs.sponsorBug;
       else {
         const b = s.viewerPrefs.sponsorBug;
@@ -682,21 +692,7 @@ function houseBandActiveMembersByCategory(state){
   return out;
 }
 
-function houseBandSuggestedInCategory(state, categoryKey){
-  // Suggested = first ACTIVE member in the category's current order
-  const list = houseBandMembersInCategory(state, categoryKey, { activeOnly: true });
-  return list[0] || null;
-}
 
-function houseBandActiveMembersByCategory(state){
-  // Map categoryKey -> array of {categoryKey, categoryLabel, member}
-  ensureHouseBandQueues(state);
-  const out = {};
-  for(const cat of HOUSE_BAND_CATEGORIES){
-    out[cat.key] = houseBandMembersInCategory(state, cat.key, { activeOnly: true });
-  }
-  return out;
-}
 
   // Reorder a category so the selected member is FIRST, and the previously suggested
   // (first active) member becomes SECOND ("skipped → next").
@@ -999,6 +995,8 @@ async function loadBitmapFromFile(f){
 
 
   return {
+		// Expose env scope so Operator/Viewer can namespace non-state localStorage keys.
+		appScope: APP_SCOPE,
     uid, defaultState, loadState, saveState, publish, subscribe,
     getSlotType, effectiveMinutes, displaySlotTypeLabel, normalizeSlot,
     // House Band

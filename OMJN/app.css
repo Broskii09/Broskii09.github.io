@@ -214,6 +214,17 @@ select option{ background: var(--panel); color: var(--text); }
   background:rgba(0,0,0,.16);
 }
 
+/* Make Intermission stand out more in the queue */
+.queueItem[data-slot-type="intermission"]{
+  background: rgba(255, 204, 102, .14);
+  border-color: rgba(255, 204, 102, .30);
+}
+.queueItem[data-slot-type="intermission"] .badge.gold{
+  border-color: rgba(255, 204, 102, .35);
+  color: var(--amber);
+  background: rgba(255, 204, 102, .12);
+}
+
 .queueItem.isSelected{outline:2px solid rgba(255,255,255,.18);}
 .queueItem.isEditing{outline:2px solid rgba(212,175,55,.28);}
 .queueItem[draggable="true"]{cursor:grab}
@@ -398,10 +409,17 @@ hr.sep{
 }
 
 /* Center the chip row */
-#vMainCard .vStateRow{ justify-content:center; }
+#vMainCard .vStateRow{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:12px;
+  margin-top:14px;
+}
 /* When the LIVE House Band footer bar is visible, reserve vertical space so it never overlaps the cards */
 .hasHbFooter .viewerOverlay{
-  padding-bottom:160px;
+  padding-bottom:260px;
 }
 
 /* Viewer mic visualizer (LIVE-only, below cards) */
@@ -420,6 +438,26 @@ hr.sep{
   display:block;
 }
 
+
+/* Visualizer hint (shown when enabled but mic not granted yet) */
+.vVizWrap{ position: relative; }
+.vVizWrap.needsMic{ cursor: pointer; }
+.vVizHint{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 0 18px;
+  text-align:center;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: .10em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.82);
+  text-shadow: 0 2px 12px rgba(0,0,0,.65);
+  pointer-events:none;
+}
 /* Setup button (Splash only) */
 .vMicEnable{
   position:absolute;
@@ -639,6 +677,15 @@ hr.sep{
 .vChip.warn{background:rgba(255,204,102,.16); border-color:rgba(255,204,102,.30); color:var(--amber)}
 .vChip.final{background:rgba(255,90,95,.14); border-color:rgba(255,90,95,.30); color:var(--red)}
 .vChip.good{background:rgba(85,209,122,.12); border-color:rgba(85,209,122,.25); color:var(--green)}
+
+/* Viewer: emphasize the slot type chip and remove the redundant LIVE pill */
+#chipState{ display:none !important; }
+#chipType{
+  font-size: clamp(22px, 3vw, 38px);
+  padding: 14px 22px;
+  font-weight: 950;
+  letter-spacing: .02em;
+}
 .vNext{
   margin-top:18px;
   font-size:20px;
@@ -714,8 +761,8 @@ hr.sep{
   font-size:14px;
 }
 .hbChipFooter{
-  padding:6px 10px;
-  font-size:12px;
+  padding:10px 14px;
+  font-size:20px;
   font-weight:850;
 }
 .hbChip.cooling{opacity:.55;}
@@ -740,17 +787,17 @@ hr.sep{
 
 .vLiveFooterBar{
   position:absolute;
-  left:28px;
-  right:28px;
-  bottom:18px;
-  padding:12px 14px;
-  border-radius:24px;
+  left:22px;
+  right:22px;
+  bottom:16px;
+  padding:22px 22px;
+  border-radius:34px;
   background:rgba(0,0,0,.42);
   border:1px solid rgba(255,255,255,.10);
   backdrop-filter: blur(8px);
   display:flex;
   align-items:center;
-  gap:14px;
+  gap:18px;
   overflow:hidden;
   white-space:nowrap;
 }
@@ -784,7 +831,7 @@ hr.sep{
   overflow:hidden;
 }
 .vFooterBandTitle{
-  font-size:12px;
+  font-size:22px;
   color:var(--muted);
   font-weight:850;
   flex:0 0 auto;
@@ -2548,3 +2595,117 @@ details.hbAcc .hbCatList{
 }
 .hbPreviewNames{ margin-top:4px; font-size:24px; font-weight:950; text-transform:uppercase; }
 .hbPreviewRoles{ margin-top:2px; font-size:18px; font-weight:800; text-transform:uppercase; opacity:.85; }
+
+
+/* ===== Settings (tabbed) ===== */
+.settingsPanelShell{
+  max-width: 1080px;
+}
+.settingsTabs{
+  display:flex;
+  gap:14px;
+  align-items:stretch;
+}
+.settingsNav{
+  flex:0 0 190px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding-right:8px;
+  border-right: 1px solid rgba(255,255,255,.08);
+}
+.settingsTabBtn{
+  width:100%;
+  text-align:left;
+  padding:10px 12px;
+  border-radius:12px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.10);
+  color: inherit;
+  cursor:pointer;
+}
+.settingsTabBtn:hover{
+  background: rgba(255,255,255,.05);
+}
+.settingsTabBtn.isActive{
+  background: rgba(255,255,255,.07);
+  border-color: rgba(255,255,255,.18);
+  box-shadow: 0 6px 18px rgba(0,0,0,.22);
+}
+.settingsPanels{
+  flex:1 1 auto;
+  min-width:0;
+  padding-left:6px;
+}
+.settingsPanel[hidden]{ display:none !important; }
+
+@media (max-width: 920px){
+  .settingsTabs{ flex-direction:column; }
+  .settingsNav{
+    flex:0 0 auto;
+    flex-direction:row;
+    overflow:auto;
+    padding-right:0;
+    padding-bottom:8px;
+    border-right:none;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .settingsTabBtn{
+    width:auto;
+    white-space:nowrap;
+  }
+  .settingsPanels{ padding-left:0; }
+}
+
+
+/* Viewer Ad Layer */
+.vAdLayer{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:4vmin;
+  background:#000;
+  z-index:40;
+}
+.vAdLayer img,
+.vAdLayer video{
+  max-width:100%;
+  max-height:100%;
+  width:auto;
+  height:auto;
+  object-fit:contain;
+}
+.vAdLayer video{
+  background:#000;
+}
+.vAdFail{
+  position:absolute;
+  left:50%;
+  bottom:3vmin;
+  transform:translateX(-50%);
+  padding:10px 14px;
+  border-radius:12px;
+  background:rgba(0,0,0,.7);
+  border:1px solid rgba(255,255,255,.22);
+  color:#fff;
+  font-size:16px;
+}
+
+/* Hide main viewer UI while an Ad is showing */
+.viewerRoot.isAd .viewerOverlay{ display:none; }
+.viewerRoot.isAd .vSponsorLayer{ display:none !important; }
+.viewerRoot.isAd .vCrowdLayer{ display:none !important; }
+
+/* Operator Ad presets badge */
+.adKindBadge{
+  display:inline-flex;
+  margin-left:8px;
+  padding:2px 6px;
+  border-radius:999px;
+  font-size:10px;
+  letter-spacing:.08em;
+  border:1px solid rgba(255,255,255,.18);
+  opacity:.9;
+}

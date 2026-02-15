@@ -3,12 +3,20 @@
   let state = OMJN.loadState();
   OMJN.applyThemeToDocument(document, state);
 
+  let adBlobUrl = null;
+
   // ---- Element refs ----
   const el = {
     bg: document.getElementById("bg"),
     root: document.getElementById("root"),
     overlay: document.getElementById("overlay"),
     splashInfo: document.getElementById("splashInfo"),
+
+    // Ads
+    adLayer: document.getElementById("adLayer"),
+    adImg: document.getElementById("adImg"),
+    adVideo: document.getElementById("adVideo"),
+    adFail: document.getElementById("adFail"),
     liveFooterBar: document.getElementById("liveFooterBar"),
 
     // Start intro
@@ -66,6 +74,7 @@
     // Mic visualizer
     vVizWrap: document.getElementById("vVizWrap"),
     vViz: document.getElementById("vViz"),
+    vVizHint: document.getElementById("vVizHint"),
     btnVizMic: document.getElementById("btnVizMic"),
   };
 
@@ -153,7 +162,8 @@
     stream: null,
     audioCtx: null,
     analyser: null,
-    data: null,
+    dataFreq: null,
+    dataTime: null,
     raf: null,
     running: false,
     dpr: 1,
@@ -166,8 +176,19 @@
     const n = Number(state.viewerPrefs?.visualizerSensitivity);
     return Number.isFinite(n) ? Math.max(0.25, Math.min(4, n)) : 1.0;
   }
-  function vizShouldRender() {
-    return state.phase === "LIVE" && vizEnabled() && !!viz.analyser && !!el.vVizWrap;
+  function vizMode(){
+    const m = String(state.viewerPrefs?.visualizerMode || "eq").toLowerCase();
+    return (m === "volume") ? "volume" : "eq";
+  }
+  function vizDirection(){
+    const d = String(state.viewerPrefs?.visualizerDirection || "mirror").toLowerCase();
+    return (d === "ltr") ? "ltr" : "mirror";
+  }
+  function vizShouldShowWrap(){
+    return state.phase === "LIVE" && vizEnabled() && !!el.vVizWrap;
+  }
+  function vizCanRender(){
+    return vizShouldShowWrap() && !!viz.analyser;
   }
 
   function resizeVizCanvas() {
@@ -179,6 +200,8 @@
     const h = Math.max(1, Math.round(rect.height * dpr));
     if (el.vViz.width !== w) el.vViz.width = w;
     if (el.vViz.height !== h) el.vViz.height = h;
+  
+    viz.layoutDirty = true;
   }
 
   function getAccent() {
@@ -208,8 +231,28 @@
     ctx.fill();
   }
 
+  function buildVizBandRanges(binCount, sampleRate, bands){
+    const nyq = (sampleRate || 48000) / 2;
+    const minF = 50;
+    const maxF = Math.min(16000, nyq * 0.95);
+    const ranges = [];
+    const ratio = maxF / minF;
+
+    for(let i=0;i<bands;i++){
+      const t0 = i / bands;
+      const t1 = (i + 1) / bands;
+      const f0 = minF * Math.pow(ratio, t0);
+      const f1 = minF * Math.pow(ratio, t1);
+
+      const b0 = Math.max(0, Math.min(binCount - 1, Math.floor((f0 / nyq) * binCount)));
+      const b1 = Math.max(0, Math.min(binCount - 1, Math.floor((f1 / nyq) * binCount)));
+      ranges.push([b0, Math.max(b0, b1)]);
+    }
+    return ranges;
+  }
+
   function renderVizFrame() {
-    if (!vizShouldRender()) {
+    if (!vizCanRender()) {
       viz.running = false;
       viz.raf = null;
       return;
@@ -224,31 +267,137 @@
 
     const w = el.vViz.width;
     const h = el.vViz.height;
+
+    // Clear
     ctx.clearRect(0, 0, w, h);
+    // Pull visualizer data
 
-    viz.analyser.getByteFrequencyData(viz.data);
-
-    const bars = 64; // TV-friendly
-    const mid = h / 2;
-    const gap = Math.max(1, Math.round(2 * viz.dpr));
-    const barW = Math.max(1, Math.floor((w - gap * (bars - 1)) / bars));
-    const stride = Math.max(1, Math.floor(viz.data.length / bars));
-
-    ctx.fillStyle = getAccent();
-
+    const dpr = viz.dpr || 1;
     const sens = vizSensitivity();
-    const maxHalf = Math.max(1, Math.floor(mid - 6 * viz.dpr));
-    const radius = Math.max(2, Math.round(6 * viz.dpr));
+    const mode = vizMode();
+    const dir = vizDirection();
 
-    for (let i = 0; i < bars; i++) {
-      const v = viz.data[i * stride] / 255; // 0..1
-      const curved = Math.pow(v, 0.65);
-      const amp = Math.min(1, curved * sens);
-      const bh = Math.max(1, Math.floor(amp * maxHalf));
-      const x = i * (barW + gap);
-      drawRoundedRect(ctx, x, mid - bh, barW, bh, radius);
-      drawRoundedRect(ctx, x, mid, barW, bh, radius);
+    const padX = Math.round(10 * dpr);
+    const padY = Math.round(10 * dpr);
+    const baseY = h - padY;
+    const maxH = Math.max(1, (h - padY - padY));
+
+    // --- Club-style EQ sizing ---
+    const availW = Math.max(1, w - padX * 2);
+    const barStep = Math.max(10, Math.round(18 * dpr)); // target px per bar+gap
+    let totalBars = Math.max(25, Math.floor(availW / barStep));
+
+    if (dir === "mirror") {
+      totalBars = Math.max(31, Math.min(121, totalBars));
+      if (totalBars % 2 === 0) totalBars -= 1; // keep odd so we have a true center bar
+    } else {
+      totalBars = Math.max(24, Math.min(96, totalBars));
     }
+
+    const bands = (dir === "mirror") ? ((totalBars + 1) >> 1) : totalBars;
+
+    // Rebuild per-band buffers when layout/mode changes
+    const layoutKey = `${mode}:${dir}:${bands}:${w}x${h}:${dpr}`;
+    if (viz.layoutDirty || viz.lastLayoutKey !== layoutKey) {
+      viz.lastLayoutKey = layoutKey;
+      viz.layoutDirty = false;
+      viz.bands = bands;
+      viz.levels = new Float32Array(bands);
+      viz.bandRanges = null;     // rebuilt lazily for EQ
+      viz.volWeights = null;     // rebuilt lazily for volume
+    }
+
+    // Compute volume or EQ data
+    let volumeRms = 0;
+    if (mode === "volume") {
+      if (!viz.dataTime || viz.dataTime.length !== (viz.analyser?.fftSize || 2048)) {
+        viz.dataTime = new Uint8Array(viz.analyser?.fftSize || 2048);
+      }
+      viz.analyser.getByteTimeDomainData(viz.dataTime);
+      let sum = 0;
+      for (let i = 0; i < viz.dataTime.length; i++) {
+        const x = (viz.dataTime[i] - 128) / 128; // -1..1
+        sum += x * x;
+      }
+      volumeRms = Math.sqrt(sum / Math.max(1, viz.dataTime.length));
+      // Club-ish curve: boost quieter levels, soft-limit loud levels
+      volumeRms = Math.min(1, Math.pow(volumeRms, 0.55) * sens * 2.1);
+    } else {
+      if (!viz.dataFreq || viz.dataFreq.length !== viz.analyser.frequencyBinCount) {
+        viz.dataFreq = new Uint8Array(viz.analyser.frequencyBinCount);
+      }
+      viz.analyser.getByteFrequencyData(viz.dataFreq);
+
+      if (!viz.bandRanges || !Array.isArray(viz.bandRanges) || viz.bandRanges.length !== bands) {
+        viz.bandRanges = buildVizBandRanges(viz.analyser.frequencyBinCount, viz.audioCtx?.sampleRate || 48000, bands);
+      }
+    }
+
+    // Calculate target levels per band with club-style "smile" weighting
+    for (let i = 0; i < bands; i++) {
+      const t = (bands > 1) ? (i / (bands - 1)) : 0; // 0=low, 1=high
+      let target = 0;
+
+      if (mode === "volume") {
+        if (!viz.volWeights || viz.volWeights.length !== bands) {
+          viz.volWeights = new Float32Array(bands);
+          for (let k = 0; k < bands; k++) {
+            const tt = (bands > 1) ? (k / (bands - 1)) : 0;
+            // subtle arc (keeps the center-ish bands a bit taller)
+            viz.volWeights[k] = 0.75 + 0.35 * Math.sin(tt * Math.PI);
+          }
+        }
+        target = volumeRms * (viz.volWeights[i] || 1);
+      } else {
+        const r = (viz.bandRanges && viz.bandRanges[i]) ? viz.bandRanges[i] : [0, 0];
+        const b0 = r[0] | 0;
+        const b1 = r[1] | 0;
+
+        let sum = 0;
+        let count = 0;
+        for (let b = b0; b <= b1; b++) {
+          const vv = (viz.dataFreq[b] || 0) / 255; // 0..1
+          sum += vv * vv;
+          count++;
+        }
+        const rms = count ? Math.sqrt(sum / count) : 0;
+
+        // More club-like bounce: lower exponent boosts quieter bands
+        target = Math.min(1, Math.pow(rms, 0.42) * sens * 1.25);
+
+        // "Smile" weighting: bass strongest, treble moderate, mids a bit lower
+        const bass = Math.pow(1 - t, 1.55);
+        const treble = Math.pow(t, 1.35);
+        const smileW = 0.85 + 0.95 * (bass + 0.65 * treble);
+        target = Math.min(1, target * smileW);
+      }
+
+      const cur = viz.levels[i] || 0;
+      // Snappier highs
+      const attack = 0.62 + 0.22 * t; // 0.62..0.84
+      const decay  = 0.12 + 0.06 * t; // 0.12..0.18
+      viz.levels[i] = target > cur ? (cur + (target - cur) * attack) : (cur + (target - cur) * decay);
+    }
+
+    // Draw bars
+    const gap = Math.max(1, Math.round(2 * dpr));
+    const barW = Math.max(1, Math.floor((availW - gap * (totalBars - 1)) / totalBars));
+    const radius = Math.max(2, Math.round(6 * dpr));
+
+    const accent = getAccent();
+    ctx.fillStyle = accent;
+
+    const centerPos = (totalBars - 1) / 2;
+
+    for (let pos = 0; pos < totalBars; pos++) {
+      const bandIndex = (dir === "mirror") ? Math.abs(pos - centerPos) | 0 : pos;
+      const amp = viz.levels[bandIndex] || 0;
+      const bh = Math.max(1, Math.floor(amp * maxH));
+      const x = padX + pos * (barW + gap);
+      drawRoundedRect(ctx, x, baseY - bh, barW, bh, radius);
+    }
+
+
 
     viz.raf = requestAnimationFrame(renderVizFrame);
   }
@@ -261,12 +410,22 @@
 
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       viz.audioCtx = new AudioCtx();
+      try{ await viz.audioCtx.resume(); }catch(_){ }
       const src = viz.audioCtx.createMediaStreamSource(stream);
       viz.analyser = viz.audioCtx.createAnalyser();
-      viz.analyser.fftSize = 1024;
-      viz.analyser.smoothingTimeConstant = 0.85;
+      // EQ-style spectrum
+      viz.analyser.fftSize = 2048;
+      viz.analyser.smoothingTimeConstant = 0.45;
+      viz.analyser.minDecibels = -95;
+      viz.analyser.maxDecibels = -25;
+
       src.connect(viz.analyser);
-      viz.data = new Uint8Array(viz.analyser.frequencyBinCount);
+      viz.dataFreq = new Uint8Array(viz.analyser.frequencyBinCount);
+      viz.dataTime = new Uint8Array(viz.analyser.fftSize);
+      viz.levels = null;
+      viz.bandRanges = null;
+      viz.volWeights = null;
+      viz.layoutDirty = true;
 
       resizeVizCanvas();
       window.addEventListener("resize", resizeVizCanvas);
@@ -282,8 +441,11 @@
   function maybeStartViz() {
     if (!el.vVizWrap) return;
 
-    if (!vizShouldRender()) {
+    const shouldShowWrap = vizShouldShowWrap();
+    if (!shouldShowWrap) {
       el.vVizWrap.style.display = "none";
+      el.vVizWrap.classList.remove("needsMic");
+      if (el.vVizHint) el.vVizHint.style.display = "none";
       if (viz.running && viz.raf) {
         cancelAnimationFrame(viz.raf);
         viz.raf = null;
@@ -292,7 +454,35 @@
       return;
     }
 
+    // Show wrap even if mic isn't enabled yet — so the user knows it's “on”
     el.vVizWrap.style.display = "block";
+
+    const needsMic = vizEnabled() && !viz.stream;
+    if (needsMic) {
+      el.vVizWrap.classList.add("needsMic");
+      if (el.vVizHint) el.vVizHint.style.display = "flex";
+      // Don't run a render loop until we have an analyser
+      if (viz.running && viz.raf) {
+        cancelAnimationFrame(viz.raf);
+        viz.raf = null;
+      }
+      viz.running = false;
+      // Clear canvas
+      try{
+        const ctx = el.vViz?.getContext?.("2d", { alpha: true });
+        if(ctx) ctx.clearRect(0,0,el.vViz.width, el.vViz.height);
+      }catch(_){}
+      return;
+    }
+
+    el.vVizWrap.classList.remove("needsMic");
+    if (el.vVizHint) el.vVizHint.style.display = "none";
+
+    if (!vizCanRender()) {
+      // mic granted but analyser not ready yet
+      return;
+    }
+
     if (!viz.running) {
       viz.running = true;
       viz.raf = requestAnimationFrame(renderVizFrame);
@@ -301,7 +491,8 @@
 
   function updateVizSetupButton() {
     if (!el.btnVizMic) return;
-    const shouldShow = state.phase === "SPLASH" && vizEnabled() && !viz.stream;
+    // Show whenever visualizer is enabled but mic isn't granted yet.
+    const shouldShow = vizEnabled() && !viz.stream;
     el.btnVizMic.style.display = shouldShow ? "inline-flex" : "none";
   }
 
@@ -1102,7 +1293,7 @@
 
     const warnShow = remainingMs > 0 && remainingMs <= warnAtMs && remainingMs > finalAtMs;
     const finalShow = remainingMs > 0 && remainingMs <= finalAtMs;
-    const overShow = overtimeMs > 0;
+    const overShow = overtimeMs > 0 && (state.viewerPrefs?.showOvertime !== false);
 
     const warnFinalKey = JSON.stringify({ warnShow, finalShow, overShow, overtimeText: overShow ? OMJN.formatMMSS(overtimeMs) : "" });
     if (warnFinalKey !== lastWarnFinalKey) {
@@ -1142,13 +1333,119 @@
   }
 
   // ---- Main render (state-driven) ----
-  function renderStateDriven() {
+  
+  // ---- Ads (Graphic + Video) ----
+  async function setAdVisible(on){
+    if(!el.adLayer) return;
+    el.adLayer.style.display = on ? "" : "none";
+    el.root?.classList.toggle("isAd", !!on);
+
+    if(!on){
+      if(el.adFail) el.adFail.style.display = "none";
+
+      if(el.adImg){
+        el.adImg.style.display = "none";
+        el.adImg.removeAttribute("src");
+      }
+      if(el.adVideo){
+        try{ el.adVideo.pause(); }catch(_){}
+        el.adVideo.style.display = "none";
+        el.adVideo.removeAttribute("src");
+        el.adVideo.loop = false;
+        el.adVideo.muted = true;
+      }
+
+      if(adBlobUrl){
+        try{ URL.revokeObjectURL(adBlobUrl); }catch(_){}
+        adBlobUrl = null;
+      }
+    }
+  }
+
+  async function renderAdSlot(slot){
+    const ad = slot?.ad || {};
+    const kind = (String(ad.kind || "").toLowerCase() === "video" || String(slot?.slotTypeId || "") === "ad_video") ? "video" : "graphic";
+    const source = String(ad.source || ad.sourceMode || "").toLowerCase();
+    let src = "";
+
+    if(source === "upload" && ad.assetId){
+      try{
+        const blob = await OMJN.getAsset(ad.assetId);
+        if(blob){
+          if(adBlobUrl){
+            try{ URL.revokeObjectURL(adBlobUrl); }catch(_){}
+            adBlobUrl = null;
+          }
+          adBlobUrl = URL.createObjectURL(blob);
+          src = adBlobUrl;
+        }
+      }catch(_){ /* ignore */ }
+    } else {
+      src = String(ad.url || "").trim();
+    }
+
+    if(!src){
+      if(el.adFail) el.adFail.style.display = "";
+      return;
+    }
+    if(el.adFail) el.adFail.style.display = "none";
+
+    // Video
+    if(kind === "video" && el.adVideo){
+      if(el.adImg){
+        el.adImg.style.display = "none";
+        el.adImg.removeAttribute("src");
+      }
+
+      el.adVideo.style.display = "";
+      el.adVideo.loop = !!ad.loop;
+      el.adVideo.muted = !(ad.audioOn === true);
+      el.adVideo.onerror = () => { if(el.adFail) el.adFail.style.display = ""; };
+      el.adVideo.src = src;
+      try{ el.adVideo.load(); }catch(_){}
+      const p = el.adVideo.play?.();
+      if(p && typeof p.catch === "function") p.catch(() => {});
+      return;
+    }
+
+    // Image
+    if(el.adVideo){
+      try{ el.adVideo.pause(); }catch(_){}
+      el.adVideo.style.display = "none";
+      el.adVideo.removeAttribute("src");
+    }
+
+    if(!el.adImg) return;
+    el.adImg.style.display = "";
+
+    await new Promise((resolve) => {
+      if(!el.adImg) return resolve();
+      el.adImg.onerror = () => {
+        if(el.adFail) el.adFail.style.display = "";
+        resolve();
+      };
+      el.adImg.onload = () => resolve();
+      el.adImg.src = src;
+    });
+  }
+
+function renderStateDriven() {
     renderPhaseShell();
 
     const isLiveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
+    const cur = isLiveish ? (state.queue || []).find(x => x && x.id === state.currentSlotId) : null;
+    const isAd = !!cur && (String(cur.slotTypeId || "") === "ad_graphic" || String(cur.slotTypeId || "") === "ad_video");
+
     if (!isLiveish) {
+      setAdVisible(false);
       renderSplashStatic();
+    } else if (isAd) {
+      // Ad mode: full-screen image, no timer/next/deck/sponsor/viz/footer
+      showLiveShell(false);
+      setAdVisible(true);
+      renderAdSlot(cur).catch(() => {});
     } else {
+      setAdVisible(false);
       // Footer visibility may change if HB changes (toggle handled by state)
       const hbHasAny = OMJN.getHouseBandTopPerCategory(state).length > 0;
       const footerEnabled = state.viewerPrefs?.showHouseBandFooter !== false;
@@ -1169,6 +1466,8 @@
     // Apply theme
     OMJN.applyThemeToDocument(document, state);
 
+  let adBlobUrl = null;
+
     // Ensure timer UI is correct immediately
     updateTimerAndCues();
   }
@@ -1188,6 +1487,14 @@
   // ---- Boot ----
   if (el.btnVizMic) {
     el.btnVizMic.addEventListener("click", async () => {
+      const ok = await enableMicForVisualizer();
+      if (ok) updateVizSetupButton();
+    });
+  }
+  // Also allow clicking the visualizer area itself to grant mic access.
+  if (el.vVizWrap) {
+    el.vVizWrap.addEventListener("click", async () => {
+      if (!vizEnabled() || viz.stream) return;
       const ok = await enableMicForVisualizer();
       if (ok) updateVizSetupButton();
     });
