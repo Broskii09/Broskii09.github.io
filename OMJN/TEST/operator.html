@@ -472,35 +472,6 @@
                         </span>
                     </div>
 
-                    <h3 class="subhead">Legibility</h3>
-                    <div class="small" style="margin-bottom:8px; opacity:.85;">Helps keep the Viewer readable across TVs/projectors and odd aspect ratios.</div>
-
-                    <div class="row wrap" style="align-items:flex-end; margin-bottom:10px;">
-                        <span class="pill" title="Automatically scale the Viewer UI based on screen size and aspect ratio">
-                            Auto Scale
-                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-                                <input type="checkbox" id="setAutoScale" />
-                                <span class="small">on</span>
-                            </label>
-                        </span>
-
-                        <div class="field" style="flex:1 1 260px;">
-                            <label>Scale Bias</label>
-                            <input id="setScaleBias" type="range" min="0.90" max="1.40" step="0.01" />
-                            <div class="small mono" id="setScaleBiasVal">1.00×</div>
-                        </div>
-
-                        <div class="field" style="width:220px;">
-                            <label>Safe Area</label>
-                            <select id="setSafeArea">
-                                <option value="0">Off (0%)</option>
-                                <option value="0.03">TV Safe (3%)</option>
-                                <option value="0.06">Projector Safe (6%)</option>
-                                <option value="0.09">Extreme (9%)</option>
-                            </select>
-                        </div>
-                    </div>
-
 <hr class="sep" />
 
                     <h3 class="subhead">Sponsor Bug</h3>
@@ -899,18 +870,31 @@
             <div class="modalBody">
                 <div class="row wrap" style="gap:12px; align-items:flex-end;">
                     <div class="field" style="flex:1 1 260px;">
-                        <label>Label</label>
+                        <label for="adLabel">Label</label>
                         <input id="adLabel" type="text" placeholder="Optional label (defaults from preset/file)" />
                     </div>
 
+                    <div class="field" style="flex:0 0 200px;">
+                        <label for="adKind">Type</label>
+                        <select id="adKind">
+                            <option value="graphic">Graphic (Image)</option>
+                            <option value="video">Video</option>
+                        </select>
+                    </div>
+
                     <div class="field" style="flex:0 0 260px;">
-                        <label>Source</label>
+                        <label for="adSource">Source</label>
                         <select id="adSource">
                             <option value="preset">Preset</option>
                             <option value="upload">Upload</option>
                             <option value="url">URL</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="row wrap" id="adVideoOptions" style="gap:12px; align-items:center; margin-top:10px; display:none;">
+                    <label class="chk"><input type="checkbox" id="adVideoLoop" /> Loop video</label>
+                    <label class="chk"><input type="checkbox" id="adVideoAudio" /> Audio on (may require click / autoplay limits)</label>
                 </div>
 
                 <div class="field" id="adPresetWrap" style="margin-top:12px; display:none;">
@@ -939,22 +923,23 @@
                 </div>
 
                 <div class="field" id="adUploadWrap" style="margin-top:12px; display:none;">
-                    <label>Upload image</label>
-                    <input id="adFile" type="file" accept="image/*" />
+                    <label for="adFile">Upload file</label>
+                    <input id="adFile" type="file" accept="image/*,video/*" />
                     <div class="small" style="margin-top:8px; opacity:.85;">
                         Stored locally in your browser for this device (IndexedDB).
                     </div>
                 </div>
 
                 <div class="field" id="adUrlWrap" style="margin-top:12px; display:none;">
-                    <label>Image URL</label>
-                    <input id="adUrl" type="text" placeholder="https://..." />
+                    <label for="adUrl">Media URL</label>
+                    <input id="adUrl" type="text" placeholder="https://... (image or direct mp4/webm)" />
                 </div>
 
                 <div class="field" id="adPreviewWrap" style="margin-top:12px; display:none;">
                     <label>Preview</label>
                     <div style="border:1px solid rgba(255,255,255,.12); border-radius:12px; overflow:hidden; background:rgba(0,0,0,.35);">
-                        <img id="adPreviewImg" alt="" style="display:block; width:100%; max-height:320px; object-fit:contain;" />
+                        <img id="adPreviewImg" alt="" style="display:none; width:100%; max-height:320px; object-fit:contain;" />
+                        <video id="adPreviewVideo" style="display:none; width:100%; max-height:320px; object-fit:contain;" muted playsinline controls></video>
                     </div>
                 </div>
 

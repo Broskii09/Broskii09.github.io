@@ -67,7 +67,7 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
       lastSavedAt: null,
       showTitle: "Open Mic & Jam Night",
       phase: "SPLASH", // SPLASH | LIVE | PAUSED
-operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false },
+operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false, quickAddStickyType:false, quickAddLastTypeId:"", armedNextSlotId:null },
       profiles: {},
         splash: { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true },
       viewerPrefs: {
@@ -75,11 +75,6 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         finalAtSec: 30,
         showOvertime: true,
         showProgressBar: true,
-        // Viewer legibility
-        autoScale: true,
-        scaleBias: 1.0,
-        // 0 / 0.03 / 0.06 / 0.09
-        safeAreaPct: 0.03,
         showHouseBandFooter:true,
         hbFooterFormat:"categoryFirst",
         // Mic-based audio visualizer (Viewer)
@@ -172,9 +167,9 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         { id:"comedian", label:"Comedian", defaultMinutes:10, isJamMode:false, color:"#2dd4bf", enabled:true },
         { id:"poetry", label:"Poetry", defaultMinutes:10, isJamMode:false, color:"#fbbf24", enabled:true },
         { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
+        { id:"ad_graphic", label:"Ad (Graphic)", defaultMinutes:0, isJamMode:false, color:"#ef4444", enabled:false, special:true },
         { id:"houseband", label:"House Band", defaultMinutes:15, isJamMode:false, color:"#22c55e", enabled:false, special:true },
         { id:"intermission", label:"Intermission", defaultMinutes:10, isJamMode:false, color:"#a855f7", enabled:false, special:true },
-        { id:"ad_graphic", label:"Ad (Graphic)", defaultMinutes:1, isJamMode:false, color:"#f97316", enabled:false, special:true },
       ],
       // House Band: independent per-instrument queues.
       // Viewer footer shows the FIRST active person from each category.
@@ -218,26 +213,15 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
 
       if(!s.version) s.version = 1;
       if(s.lastSavedAt === undefined) s.lastSavedAt = null;
-if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false };
+if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false, quickAddStickyType:false, quickAddLastTypeId:"", armedNextSlotId:null };
       if(s.operatorPrefs.editCollapsed === undefined) s.operatorPrefs.editCollapsed = false;
+      if(s.operatorPrefs.quickAddStickyType === undefined) s.operatorPrefs.quickAddStickyType = false;
+      if(s.operatorPrefs.quickAddLastTypeId === undefined) s.operatorPrefs.quickAddLastTypeId = "";
+      if(s.operatorPrefs.armedNextSlotId === undefined) s.operatorPrefs.armedNextSlotId = null;
 
       if(!s.profiles) s.profiles = {};
       if (!s.splash) s.splash = { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true };
       if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
-      // Viewer legibility prefs
-      if(s.viewerPrefs.autoScale === undefined) s.viewerPrefs.autoScale = (d.viewerPrefs.autoScale !== false);
-      if(s.viewerPrefs.scaleBias === undefined) s.viewerPrefs.scaleBias = Number(d.viewerPrefs.scaleBias ?? 1.0);
-      else {
-        const b = Number(s.viewerPrefs.scaleBias);
-        s.viewerPrefs.scaleBias = Number.isFinite(b) ? Math.max(0.90, Math.min(1.40, b)) : 1.0;
-      }
-      if(s.viewerPrefs.safeAreaPct === undefined) s.viewerPrefs.safeAreaPct = Number(d.viewerPrefs.safeAreaPct ?? 0.03);
-      else {
-        const raw = Number(s.viewerPrefs.safeAreaPct);
-        const allowed = [0, 0.03, 0.06, 0.09];
-        const v = Number.isFinite(raw) ? raw : 0;
-        s.viewerPrefs.safeAreaPct = allowed.reduce((best, cur) => (Math.abs(cur - v) < Math.abs(best - v) ? cur : best), allowed[0]);
-      }
       if(s.viewerPrefs.visualizerEnabled === undefined) s.viewerPrefs.visualizerEnabled = false;
       if(s.viewerPrefs.visualizerSensitivity === undefined) s.viewerPrefs.visualizerSensitivity = 1.0;
       if(s.viewerPrefs.visualizerMode === undefined) s.viewerPrefs.visualizerMode = "eq";
@@ -344,58 +328,6 @@ if(!s.history) s.history = { undo:[], redo:[] };
           if(map[slot.slotTypeId]) slot.slotTypeId = map[slot.slotTypeId];
           if(!s.slotTypes.find(t=>t.id===slot.slotTypeId)){
             slot.slotTypeId = "musician";
-          }
-        }
-      }
-
-      // Consolidate legacy special slot types (prevents duplicates like "Graphic Ad" vs "Ad (Graphic)")
-      {
-        const alias = new Map([
-          ["adGraphic", "ad_graphic"],
-          ["graphicAd", "ad_graphic"],
-          ["graphic_ad", "ad_graphic"],
-          ["houseBand", "houseband"],
-          ["house_band", "houseband"],
-          ["intermissionBreak", "intermission"],
-          ["break", "intermission"],
-        ]);
-
-        // Alias by label for older builds that used different IDs.
-        for(const t of (s.slotTypes || [])){
-          const id = String(t?.id || "");
-          const label = String(t?.label || "");
-          if(!id || alias.has(id)) continue;
-          if(/ad\s*\(\s*graphic\s*\)/i.test(label) || /graphic\s*ad/i.test(label)){
-            alias.set(id, "ad_graphic");
-            continue;
-          }
-          if(/house\s*band/i.test(label)){
-            alias.set(id, "houseband");
-            continue;
-          }
-          if(/intermission/i.test(label)){
-            alias.set(id, "intermission");
-            continue;
-          }
-        }
-
-        // Remap existing queue items to canonical IDs.
-        for(const slot of (s.queue || [])){
-          const mapped = alias.get(String(slot?.slotTypeId || ""));
-          if(mapped) slot.slotTypeId = mapped;
-        }
-
-        // Remove aliased slotTypes if the canonical type exists.
-        const coreIds = new Set((d.slotTypes || []).map(t => t.id));
-        if(Array.isArray(s.slotTypes)){
-          const present = new Set(s.slotTypes.map(t => t?.id).filter(Boolean));
-          const toRemove = new Set();
-          for(const [from, to] of alias.entries()){
-            if(from === to) continue;
-            if(coreIds.has(to) && present.has(from) && present.has(to)) toRemove.add(from);
-          }
-          if(toRemove.size){
-            s.slotTypes = s.slotTypes.filter(t => t && t.id && !toRemove.has(t.id));
           }
         }
       }
@@ -760,21 +692,7 @@ function houseBandActiveMembersByCategory(state){
   return out;
 }
 
-function houseBandSuggestedInCategory(state, categoryKey){
-  // Suggested = first ACTIVE member in the category's current order
-  const list = houseBandMembersInCategory(state, categoryKey, { activeOnly: true });
-  return list[0] || null;
-}
 
-function houseBandActiveMembersByCategory(state){
-  // Map categoryKey -> array of {categoryKey, categoryLabel, member}
-  ensureHouseBandQueues(state);
-  const out = {};
-  for(const cat of HOUSE_BAND_CATEGORIES){
-    out[cat.key] = houseBandMembersInCategory(state, cat.key, { activeOnly: true });
-  }
-  return out;
-}
 
   // Reorder a category so the selected member is FIRST, and the previously suggested
   // (first active) member becomes SECOND ("skipped → next").
@@ -1077,6 +995,8 @@ async function loadBitmapFromFile(f){
 
 
   return {
+		// Expose env scope so Operator/Viewer can namespace non-state localStorage keys.
+		appScope: APP_SCOPE,
     uid, defaultState, loadState, saveState, publish, subscribe,
     getSlotType, effectiveMinutes, displaySlotTypeLabel, normalizeSlot,
     // House Band

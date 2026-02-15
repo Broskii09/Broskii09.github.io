@@ -10,6 +10,13 @@
   <div class="viewerRoot" id="root">
     <div class="viewerBg" id="bg"></div>
 
+    <!-- Full-screen Ad layer -->
+    <div class="vAdLayer" id="adLayer" aria-hidden="true" style="display:none;">
+      <img id="adImg" alt="" decoding="async" loading="eager" />
+      <video id="adVideo" playsinline muted></video>
+      <div class="vAdFail" id="adFail" style="display:none;">Ad failed to load</div>
+    </div>
+
     <!-- Sponsor bug overlay (absolute; does not affect layout) -->
     <div class="vSponsorLayer" id="sponsorLayer" aria-hidden="true" style="display:none;">
       <div class="vSponsorBug posTR" id="sponsorBug">
