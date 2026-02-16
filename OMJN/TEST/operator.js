@@ -15,8 +15,6 @@ let adSelectedPresetId = null;
     queue: document.getElementById("queue"),
     addName: document.getElementById("addName"),
     addType: document.getElementById("addType"),
-    quickAddStickyType: document.getElementById("quickAddStickyType"),
-    addTypeHint: document.getElementById("addTypeHint"),
     btnAdd: document.getElementById("btnAdd"),
     btnAddIntermission: document.getElementById("btnAddIntermission"),
     btnAddAd: document.getElementById("btnAddAd"),
@@ -363,15 +361,12 @@ setBgColor: document.getElementById("setBgColor"),
     }, { recordHistory:false }); // profile updates shouldn't spam undo
   }
 
-  function applyProfileDefaultsToSlot(s, slot, profile, opts = {}){
+  function applyProfileDefaultsToSlot(s, slot, profile){
     if(!profile) return;
 
-    // Slot type + minutes usually apply, but Quick Add can preserve an explicit operator choice.
-    const applyTypeAndMinutes = (opts.applyTypeAndMinutes !== false);
-    if(applyTypeAndMinutes){
-      slot.slotTypeId = profile.defaultSlotTypeId || slot.slotTypeId;
-      slot.minutesOverride = profile.defaultMinutesOverride ?? slot.minutesOverride ?? null;
-    }
+    // Slot type + minutes always apply
+    slot.slotTypeId = profile.defaultSlotTypeId || slot.slotTypeId;
+    slot.minutesOverride = profile.defaultMinutesOverride ?? slot.minutesOverride ?? null;
 
     // Media defaults: only apply if the profile has an explicit media preference.
     // This lets "new performer" defaults (QR) take effect for legacy profiles that never set media.
@@ -2119,16 +2114,17 @@ function escapeHtml(s){
 
   function fillTypeSelect(selectEl, opts = {}){
     if(!selectEl) return;
+
     const prev = String(selectEl.value || "");
     selectEl.innerHTML = "";
 
-    if(opts.placeholder){
-      const ph = document.createElement("option");
-      ph.value = "";
-      ph.textContent = opts.placeholder;
-      ph.disabled = true;
-      ph.selected = true;
-      selectEl.appendChild(ph);
+    const placeholderText = String(opts.placeholderText || "");
+    if(placeholderText){
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = placeholderText;
+      opt.disabled = true;
+      selectEl.appendChild(opt);
     }
 
     for(const t of slotTypesForSelect(opts)){
@@ -2138,12 +2134,10 @@ function escapeHtml(s){
       selectEl.appendChild(opt);
     }
 
-    // Restore prior selection if it still exists; otherwise keep placeholder (if any).
-    if(prev && Array.from(selectEl.options).some(o => o.value === prev)){
-      selectEl.value = prev;
-    }else if(!prev && opts.placeholder){
-      selectEl.value = "";
-    }
+    // Restore prior selection if still present; otherwise keep the placeholder (if any).
+    const hasPrev = prev && Array.from(selectEl.options).some(o => o.value === prev);
+    if(hasPrev) selectEl.value = prev;
+    else if(placeholderText) selectEl.value = "";
   }
 
   function slotBadge(slot){
@@ -3176,7 +3170,7 @@ function render(){
       }
     }
 
-    fillTypeSelect(els.addType, { excludeSpecial:true });
+    fillTypeSelect(els.addType, { excludeSpecial:true, placeholderText:"- CHOOSE A SLOT -" });
 toggleCustomAddFields();
     // House Band add controls
     if(els.hbAddInstrument){
@@ -3194,34 +3188,24 @@ renderHouseBandCategories();
   }
 
   // ---- Actions ----
+  function promptChooseSlotType(){
+    if(!els.addType) return;
+    els.addType.classList.add("needsChoice");
+    try{ els.addType.focus(); }catch(_){/* ignore */}
+    setTimeout(() => { try{ els.addType.classList.remove("needsChoice"); }catch(_){/* ignore */} }, 900);
+  }
+
   function addPerformer(){
     const name = OMJN.sanitizeText(els.addName.value);
     if(!name) return;
 
+    const slotTypeId = String(els.addType.value || "");
+    if(!slotTypeId){
+      promptChooseSlotType();
+      return;
+    }
+
     updateState(s => {
-      const typedTypeId = String(els.addType.value || "").trim();
-
-      // If operator didn't pick a type, try to fall back to the performer's saved default.
-      // If still missing, prompt (forces selection instead of silently defaulting to Musician).
-      let slotTypeId = typedTypeId;
-      if(!slotTypeId){
-        const prof0 = s.profiles?.[normNameKey(name)] || null;
-        if(prof0?.defaultSlotTypeId) slotTypeId = prof0.defaultSlotTypeId;
-      }
-      if(!slotTypeId){
-        const last = String(s.operatorPrefs?.quickAddLastTypeId || "");
-        if(!!els.quickAddStickyType?.checked && last) slotTypeId = last;
-      }
-      if(!slotTypeId){
-        // Don't mutate state; just prompt
-        setTimeout(promptQuickAddSlotType, 0);
-        return;
-      }
-
-      // Remember last used for sticky mode
-      s.operatorPrefs = s.operatorPrefs || {};
-      s.operatorPrefs.quickAddLastTypeId = slotTypeId;
-
       const isCustom = slotTypeId === "custom";
       const customTypeLabel = isCustom ? OMJN.sanitizeText(els.addCustomLabel.value) : "";
       const customMinutesRaw = isCustom ? els.addCustomMinutes.value : "";
@@ -3238,7 +3222,7 @@ renderHouseBandCategories();
         media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
       };
       const prof = s.profiles?.[normNameKey(slot.displayName)] || null;
-        if(prof) applyProfileDefaultsToSlot(s, slot, prof, { applyTypeAndMinutes: !typedTypeId });
+        if(prof) applyProfileDefaultsToSlot(s, slot, prof);
         s.queue.push(slot);
         // create/update profile for future auto-fill
         if(slot.displayName){
@@ -3252,13 +3236,6 @@ renderHouseBandCategories();
           };
         }
     });
-
-    // Reset type unless Sticky is enabled
-    if(!els.quickAddStickyType?.checked){
-      if(els.addType) els.addType.value = "";
-      toggleCustomAddFields();
-    }
-    showQuickAddTypeHint(false);
 
     els.addName.value = "";
     els.addName.focus();
@@ -4323,60 +4300,6 @@ function start(){
     els.addCustomMinutesWrap.style.display = isCustom ? "block" : "none";
   }
 
-  function showQuickAddTypeHint(show){
-    if(!els.addTypeHint) return;
-    els.addTypeHint.style.display = show ? "block" : "none";
-  }
-
-  function nudgeForAttention(el){
-    if(!el || typeof el.animate !== "function") return;
-    try{
-      el.animate(
-        [
-          { transform:"translateX(0)" },
-          { transform:"translateX(-6px)" },
-          { transform:"translateX(6px)" },
-          { transform:"translateX(-4px)" },
-          { transform:"translateX(4px)" },
-          { transform:"translateX(0)" }
-        ],
-        { duration: 380, easing:"ease-in-out" }
-      );
-    }catch(_){}
-  }
-
-  function promptQuickAddSlotType(){
-    showQuickAddTypeHint(true);
-    if(els.addType){
-      els.addType.focus();
-      nudgeForAttention(els.addType);
-    }
-    setTimeout(() => showQuickAddTypeHint(false), 1800);
-  }
-
-  function syncQuickAddControls(){
-    if(els.quickAddStickyType){
-      els.quickAddStickyType.checked = !!state.operatorPrefs?.quickAddStickyType;
-    }
-    fillTypeSelect(els.addType, { excludeSpecial:true, placeholder:"Select slot type…" });
-
-    // If nothing is selected, choose a sensible default:
-    // - Sticky ON => last used type (if valid)
-    // - Sticky OFF => placeholder (forces operator selection)
-    if(els.addType && !els.addType.value){
-      const sticky = !!state.operatorPrefs?.quickAddStickyType;
-      const last = String(state.operatorPrefs?.quickAddLastTypeId || "");
-      if(sticky && last && Array.from(els.addType.options).some(o => o.value === last)){
-        els.addType.value = last;
-      }else{
-        els.addType.value = "";
-      }
-    }
-
-    toggleCustomAddFields();
-  }
-
-
   
   function openSettingsModal(){
     if(!els.settingsModal) return;
@@ -4401,7 +4324,7 @@ function start(){
 
 function bind(){
     // initial select options
-    fillTypeSelect(els.addType, { excludeSpecial:true });
+    fillTypeSelect(els.addType, { excludeSpecial:true, placeholderText:"- CHOOSE A SLOT -" });
 toggleCustomAddFields();
     bindSettings();
     bindPerformerDnD();
@@ -4422,30 +4345,7 @@ toggleCustomAddFields();
     if(els.crowdEditorPanel) closeCrowdEditor(true);
 
 
-    els.addType.addEventListener("change", () => {
-      toggleCustomAddFields();
-      showQuickAddTypeHint(false);
-      updateState(s => {
-        s.operatorPrefs = s.operatorPrefs || {};
-        s.operatorPrefs.quickAddLastTypeId = els.addType.value || null;
-      }, { recordHistory:false });
-    });
-
-    if(els.quickAddStickyType){
-      els.quickAddStickyType.addEventListener("change", () => {
-        const on = !!els.quickAddStickyType.checked;
-        updateState(s => {
-          s.operatorPrefs = s.operatorPrefs || {};
-          s.operatorPrefs.quickAddStickyType = on;
-        }, { recordHistory:false });
-        // UI should react immediately too
-        if(!on){
-          els.addType.value = "";
-          toggleCustomAddFields();
-          showQuickAddTypeHint(false);
-        }
-      });
-    }
+    els.addType.addEventListener("change", toggleCustomAddFields);
 
     els.addName.addEventListener("keydown", (e) => {
       if(e.key === "Enter"){ e.preventDefault(); addPerformer(); }
