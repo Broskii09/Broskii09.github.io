@@ -1,20 +1,21 @@
-# OMJN Patch Notes — Video Ads Hotfix (2026-02-14)
+# PATCH_NOTES
 
 ## Summary
-Fixes a JavaScript syntax error in `operator.js` that prevented the Operator app from initializing (which also caused the Crowd Prompt Viewer Preview panel to appear missing/non-functional).
+- Quick Add Slot Type now defaults to a placeholder (“- CHOOSE A SLOT -”) on page load/refresh (no more auto-default to Musician).
+- Prevents adding a performer unless a Slot Type is chosen; focuses the Slot Type dropdown and briefly highlights it.
 
-## Files
-- `operator.js`
+## Files changed
+- operator.js
+- app.css
 
-## Install
-Replace your existing file with the one in this zip:
-- `./operator.js`
+## Install steps
+1. Replace these files in your OMJN directory (or TEST directory):
+   - operator.js
+   - app.css
+2. Hard refresh the Operator page (Ctrl+F5) to clear cached JS/CSS.
 
 ## Smoke test checklist
-1. Open `operator.html` and confirm **no console errors**.
-2. Confirm **Crowd Prompts** preview renders again (main Operator screen).
-3. Open Ad modal and change **Source** (Upload/URL) — confirm no errors.
-4. Add a Video Ad and Go Live — confirm Viewer plays full-screen.
-
-## Notes / limitations
-- The Crowd Preview issue was a side effect of the Operator script failing to load; fixing the syntax error restores it.
+- Load Operator → Slot Type shows “- CHOOSE A SLOT -”.
+- Type a performer name and press Enter without selecting Slot Type → no slot added; Slot Type field highlights/focuses.
+- Select “Comedian (5m)” (or any type) → add performer → correct type/minutes applied.
+- Change state (start/pause/etc.) → Slot Type selection should not reset unexpectedly.

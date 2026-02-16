@@ -2,12 +2,11 @@
 (() => {
   let state = OMJN.loadState();
 
-// Ads (Graphic + Video)
+// Ads (Graphic-only v1)
 let adCtx = null; // { mode:"add"|"edit", slotId }
 let adPresetsTried = false;
 let adPresets = [];
 let adSelectedPresetId = null;
-let adPreviewBlobUrl = null;
   OMJN.applyThemeToDocument(document, state);
   ensureProfilesShape(state);
   OMJN.ensureHouseBandQueues(state);
@@ -199,11 +198,6 @@ setBgColor: document.getElementById("setBgColor"),
     btnAdLive: document.getElementById("btnAdLive"),
     adLabel: document.getElementById("adLabel"),
     adSource: document.getElementById("adSource"),
-    adKind: document.getElementById("adKind"),
-    adVideoOptions: document.getElementById("adVideoOptions"),
-    adVideoLoop: document.getElementById("adVideoLoop"),
-    adVideoAudio: document.getElementById("adVideoAudio"),
-
     adPresetWrap: document.getElementById("adPresetWrap"),
     adPreset: document.getElementById("adPreset"),
     adPresetSearch: document.getElementById("adPresetSearch"),
@@ -219,7 +213,6 @@ setBgColor: document.getElementById("setBgColor"),
     adUrl: document.getElementById("adUrl"),
     adPreviewWrap: document.getElementById("adPreviewWrap"),
     adPreviewImg: document.getElementById("adPreviewImg"),
-    adPreviewVideo: document.getElementById("adPreviewVideo"),
     hbBuildList: document.getElementById("hbBuildList"),
     hbPreviewNames: document.getElementById("hbPreviewNames"),
     hbPreviewRoles: document.getElementById("hbPreviewRoles"),
@@ -1026,7 +1019,7 @@ function escapeHtml(s){
   function renderSlotTypesEditor(){
     if(!els.slotTypesEditor) return;
     els.slotTypesEditor.innerHTML = "";
-    const order = ["musician","comedian","poetry","custom"];
+    const order = ["musician","comedian","comedian5","poetry","custom"];
     const types = [...(state.slotTypes||[])].sort((a,b)=>{
       const ia = order.indexOf(a.id); const ib = order.indexOf(b.id);
       if(ia===-1 && ib===-1) return String(a.label).localeCompare(String(b.label));
@@ -2121,13 +2114,30 @@ function escapeHtml(s){
 
   function fillTypeSelect(selectEl, opts = {}){
     if(!selectEl) return;
+
+    const prev = String(selectEl.value || "");
     selectEl.innerHTML = "";
+
+    const placeholderText = String(opts.placeholderText || "");
+    if(placeholderText){
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = placeholderText;
+      opt.disabled = true;
+      selectEl.appendChild(opt);
+    }
+
     for(const t of slotTypesForSelect(opts)){
       const opt = document.createElement("option");
       opt.value = t.id;
       opt.textContent = `${t.label} (${t.defaultMinutes}m)`;
       selectEl.appendChild(opt);
     }
+
+    // Restore prior selection if still present; otherwise keep the placeholder (if any).
+    const hasPrev = prev && Array.from(selectEl.options).some(o => o.value === prev);
+    if(hasPrev) selectEl.value = prev;
+    else if(placeholderText) selectEl.value = "";
   }
 
   function slotBadge(slot){
@@ -2276,7 +2286,7 @@ function escapeHtml(s){
       btnEdit.textContent = isOpen ? "Close" : "Edit";
       btnEdit.addEventListener("click", (e) => {
         e.stopPropagation();
-        if(isAdSlotType(slot.slotTypeId)){ openAdModal(slot.id); return; }
+        if(String(slot.slotTypeId||"")==="ad_graphic"){ openAdModal(slot.id); return; }
 
         toggleInlineEdit(slot.id);
       });
@@ -3160,7 +3170,7 @@ function render(){
       }
     }
 
-    fillTypeSelect(els.addType, { excludeSpecial:true });
+    fillTypeSelect(els.addType, { excludeSpecial:true, placeholderText:"- CHOOSE A SLOT -" });
 toggleCustomAddFields();
     // House Band add controls
     if(els.hbAddInstrument){
@@ -3178,12 +3188,24 @@ renderHouseBandCategories();
   }
 
   // ---- Actions ----
+  function promptChooseSlotType(){
+    if(!els.addType) return;
+    els.addType.classList.add("needsChoice");
+    try{ els.addType.focus(); }catch(_){/* ignore */}
+    setTimeout(() => { try{ els.addType.classList.remove("needsChoice"); }catch(_){/* ignore */} }, 900);
+  }
+
   function addPerformer(){
     const name = OMJN.sanitizeText(els.addName.value);
     if(!name) return;
 
+    const slotTypeId = String(els.addType.value || "");
+    if(!slotTypeId){
+      promptChooseSlotType();
+      return;
+    }
+
     updateState(s => {
-      const slotTypeId = els.addType.value || "musician";
       const isCustom = slotTypeId === "custom";
       const customTypeLabel = isCustom ? OMJN.sanitizeText(els.addCustomLabel.value) : "";
       const customMinutesRaw = isCustom ? els.addCustomMinutes.value : "";
@@ -3490,24 +3512,18 @@ renderHouseBandCategories();
     const out = [];
     const addItem = (it) => {
       if(!it) return;
-      const raw = String(it.url || it.src || it.path || "").trim();
-      if(!raw) return;
+      const url = String(it.url || it.src || it.path || "").trim();
+      if(!url) return;
+      // Graphic-only v1: accept only images (or items explicitly type=image)
+      const type = String(it.type || "").toLowerCase();
+      if(type && type !== "image") return;
+      if(!type && !isProbablyImageUrl(url)) return;
 
-      const type = String(it.type || it.kind || "").toLowerCase();
-      let kind = "graphic";
-
-      if(type === "video") kind = "video";
-      else if(type === "image" || type === "graphic") kind = "graphic";
-      else {
-        if(isProbablyVideoUrl(raw)) kind = "video";
-        else if(isProbablyImageUrl(raw)) kind = "graphic";
-        else return; // unknown media type
-      }
-
-      const abs = (new URL(raw, baseUrl)).href;
+      const abs = (new URL(url, baseUrl)).href;
       const id = String(it.id || abs || OMJN.uid("adp")).trim();
-      const label = String(it.label || it.name || deriveLabelFromPath(raw) || "Ad").trim();
-      out.push({ id, label, url: abs, kind });
+      const label = String(it.label || it.name || deriveLabelFromPath(url) || "Ad").trim();
+
+      out.push({ id, label, url: abs });
     };
 
     if(Array.isArray(json)){
@@ -3581,16 +3597,12 @@ renderHouseBandCategories();
     const q = String(els.adPresetSearch?.value || "").trim().toLowerCase();
 
     els.adPresetList.innerHTML = "";
-    const kind = getAdKind();
-    const items = (adPresets || [])
-      .filter(it => String(it.kind || "graphic") === kind)
-      .filter(it => !q || it.label.toLowerCase().includes(q) || it.url.toLowerCase().includes(q));
+    const items = (adPresets || []).filter(it => !q || it.label.toLowerCase().includes(q) || it.url.toLowerCase().includes(q));
     if(!items.length){
-      const hasAnyOfKind = (adPresets || []).some(it => String(it.kind || "graphic") === kind);
       const empty = document.createElement("div");
       empty.className = "small muted";
       empty.style.padding = "10px";
-      empty.textContent = hasAnyOfKind ? "No matches." : (kind === "video" ? "No video presets loaded." : "No image presets loaded.");
+      empty.textContent = adPresets.length ? "No matches." : "No presets loaded.";
       els.adPresetList.appendChild(empty);
       return;
     }
@@ -3605,12 +3617,6 @@ renderHouseBandCategories();
       const lbl = document.createElement("div");
       lbl.className = "adPresetLabel";
       lbl.textContent = it.label;
-      if(String(it.kind || "graphic") === "video"){
-        const b = document.createElement("span");
-        b.className = "adKindBadge";
-        b.textContent = "VIDEO";
-        lbl.appendChild(b);
-      }
       const meta = document.createElement("div");
       meta.className = "adPresetMeta mono";
       meta.textContent = it.url.replace(location.origin, "");
@@ -3666,7 +3672,6 @@ renderHouseBandCategories();
 
   function showAdSourceUI(){
     const mode = String(els.adSource?.value || "preset");
-    syncAdKindUI();
     if(els.adPresetWrap) els.adPresetWrap.style.display = (mode === "preset") ? "" : "none";
     if(els.adUploadWrap) els.adUploadWrap.style.display = (mode === "upload") ? "" : "none";
     if(els.adUrlWrap) els.adUrlWrap.style.display = (mode === "url") ? "" : "none";
@@ -3709,68 +3714,11 @@ renderHouseBandCategories();
     return (adPresets || []).find(x => x.id === id) || null;
   }
 
-  
-  function getAdKind(){
-    const k = String(els.adKind?.value || "graphic").toLowerCase();
-    return (k === "video") ? "video" : "graphic";
-  }
-
-  function isAdSlotType(t){
-    const x = String(t || "");
-    return x === "ad_graphic" || x === "ad_video";
-  }
-
-  function isProbablyVideoUrl(u){
-    const s = String(u || "").toLowerCase();
-    return /\.(mp4|webm|ogv|ogg)(\?|#|$)/.test(s);
-  }
-
-  function syncAdKindUI(){
-    const kind = getAdKind();
-    const isVid = (kind === "video");
-
-    if(els.adVideoOptions) els.adVideoOptions.style.display = isVid ? "" : "none";
-    if(els.adFile) els.adFile.accept = isVid ? "video/*" : "image/*";
-
-    if(els.adModalTitle) els.adModalTitle.textContent = isVid ? "Video Ad" : "Graphic Ad";
-    if(els.adModalSub) els.adModalSub.textContent = isVid ? "Full-screen video on the viewer while LIVE." : "Full-screen on the viewer while LIVE.";
-
-    try{
-      if(els.adUploadWrap){
-        const lab = els.adUploadWrap.querySelector('label[for="adFile"]') || els.adUploadWrap.querySelector("label");
-        if(lab) lab.textContent = isVid ? "Upload video" : "Upload image";
-      }
-      if(els.adUrlWrap){
-        const lab = els.adUrlWrap.querySelector('label[for="adUrl"]') || els.adUrlWrap.querySelector("label");
-        if(lab) lab.textContent = isVid ? "Video URL" : "Image URL";
-      }
-      if(els.adUrl){
-        els.adUrl.placeholder = isVid ? "https://... (direct mp4/webm)" : "https://... (image URL)";
-      }
-    }catch(_){}
-
-    const sel = getSelectedPreset();
-    if(sel && String(sel.kind || "graphic") !== kind){
-      adSelectedPresetId = null;
-      if(els.adPreset) els.adPreset.value = "";
-    }
-  }
-
-  function clearAdPreviewBlob(){
-    if(adPreviewBlobUrl){
-      try{ URL.revokeObjectURL(adPreviewBlobUrl); }catch(_){}
-      adPreviewBlobUrl = null;
-    }
-  }
-
-function updateAdPreview(){
-    if(!els.adPreviewWrap) return;
+  function updateAdPreview(){
+    if(!els.adPreviewImg || !els.adPreviewWrap) return;
     const mode = String(els.adSource?.value || "preset");
-    const kind = getAdKind();
 
     let url = "";
-    clearAdPreviewBlob();
-
     if(mode === "preset"){
       const it = getSelectedPreset();
       url = it?.url || "";
@@ -3779,54 +3727,18 @@ function updateAdPreview(){
     } else if(mode === "upload"){
       const f = els.adFile?.files?.[0] || null;
       if(f){
-        try{
-          adPreviewBlobUrl = URL.createObjectURL(f);
-          url = adPreviewBlobUrl;
-        }catch(_){ url = ""; }
+        try{ url = URL.createObjectURL(f); }catch(_){ url = ""; }
       }
     }
 
-    if(!url){
-      if(els.adPreviewImg){
-        els.adPreviewImg.style.display = "none";
-        els.adPreviewImg.removeAttribute("src");
-      }
-      if(els.adPreviewVideo){
-        try{ els.adPreviewVideo.pause(); }catch(_){}
-        els.adPreviewVideo.style.display = "none";
-        els.adPreviewVideo.removeAttribute("src");
-      }
-      els.adPreviewWrap.style.display = "none";
-      return;
-    }
-
-    els.adPreviewWrap.style.display = "";
-
-    if(kind === "graphic"){
-      if(els.adPreviewVideo){
-        try{ els.adPreviewVideo.pause(); }catch(_){}
-        els.adPreviewVideo.style.display = "none";
-        els.adPreviewVideo.removeAttribute("src");
-      }
-      if(els.adPreviewImg){
-        els.adPreviewImg.style.display = "";
-        els.adPreviewImg.src = url;
-      }
+    if(url){
+      els.adPreviewImg.style.display = "";
+      els.adPreviewImg.src = url;
+      els.adPreviewWrap.style.display = "";
     } else {
-      if(els.adPreviewImg){
-        els.adPreviewImg.style.display = "none";
-        els.adPreviewImg.removeAttribute("src");
-      }
-      if(els.adPreviewVideo){
-        els.adPreviewVideo.style.display = "";
-        els.adPreviewVideo.loop = !!els.adVideoLoop?.checked;
-        const audioOn = !!els.adVideoAudio?.checked;
-        els.adPreviewVideo.muted = !audioOn;
-        els.adPreviewVideo.src = url;
-        try{ els.adPreviewVideo.load(); }catch(_){}
-        const p = els.adPreviewVideo.play?.();
-        if(p && typeof p.catch === "function") p.catch(() => {});
-      }
+      els.adPreviewImg.style.display = "none";
+      els.adPreviewImg.removeAttribute("src");
+      els.adPreviewWrap.style.display = "none";
     }
   }
 
@@ -3839,11 +3751,6 @@ function updateAdPreview(){
     if(els.adUrl) els.adUrl.value = "";
     if(els.adFile) els.adFile.value = "";
     adSelectedPresetId = null;
-    if(els.adKind) els.adKind.value = "graphic";
-    if(els.adVideoLoop) els.adVideoLoop.checked = false;
-    if(els.adVideoAudio) els.adVideoAudio.checked = false;
-    clearAdPreviewBlob();
-
 
     // load presets list (async; doesn't block opening)
     ensureAdPresets().catch(() => {});
@@ -3854,24 +3761,10 @@ function updateAdPreview(){
       const ad = slot?.ad || {};
       if(els.adLabel) els.adLabel.value = String(slot?.displayName || ad.label || "").trim();
 
-      const kind = (String(ad.kind || "").toLowerCase() === "video" || String(slot?.slotTypeId || "") === "ad_video") ? "video" : "graphic";
-      if(els.adKind) els.adKind.value = kind;
-      if(kind === "video"){
-        if(els.adVideoLoop) els.adVideoLoop.checked = !!ad.loop;
-        if(els.adVideoAudio) els.adVideoAudio.checked = !!ad.audioOn;
-      }
-
       const srcMode = String(ad.source || ad.sourceMode || "").toLowerCase();
       if(srcMode === "upload"){
         if(els.adSource) els.adSource.value = "upload";
-      } else if(srcMode === "preset"){
-        if(els.adSource) els.adSource.value = "preset";
-        const u = String(ad.url || "").trim();
-        if(u){
-          const match = (adPresets || []).find(p => String(p.url || "") === u && String(p.kind || "graphic") === kind);
-          if(match) adSelectedPresetId = match.id;
-        }
-      } else if(srcMode === "url"){
+      } else if(srcMode === "url" || srcMode === "preset"){
         if(els.adSource) els.adSource.value = "url";
         if(els.adUrl) els.adUrl.value = String(ad.url || "").trim();
       } else {
@@ -3888,53 +3781,30 @@ function updateAdPreview(){
 
   function closeAdModal(){
     adCtx = null;
-    clearAdPreviewBlob();
     setAdModalVisible(false);
   }
 
   async function buildAdSlotFromModal(){
-    const kind = getAdKind();
     const mode = String(els.adSource?.value || "preset");
     let label = OMJN.sanitizeText(els.adLabel?.value || "");
-
-    const ad = {
-      kind,
-      source: "",
-      url: "",
-      assetId: "",
-      loop: false,
-      audioOn: false,
-    };
-
-    if(kind === "video"){
-      ad.loop = !!els.adVideoLoop?.checked;
-      ad.audioOn = !!els.adVideoAudio?.checked;
-    }
+    let ad = { kind:"graphic", source:"", url:"", assetId:"" };
 
     if(mode === "preset"){
       const it = getSelectedPreset();
       if(!it) throw new Error("Select a preset.");
-      if(String(it.kind || "graphic") !== kind) throw new Error("Selected preset does not match the ad type.");
       ad.source = "preset";
       ad.url = it.url;
       if(!label) label = it.label || deriveLabelFromPath(it.url) || "Ad";
     } else if(mode === "url"){
       const url = String(els.adUrl?.value || "").trim();
-      if(!url) throw new Error(kind === "video" ? "Enter a video URL." : "Enter an image URL.");
+      if(!url) throw new Error("Enter an image URL.");
       ad.source = "url";
       ad.url = url;
       if(!label) label = deriveLabelFromPath(url) || "Ad";
     } else if(mode === "upload"){
       const f = els.adFile?.files?.[0] || null;
-      if(!f) throw new Error(kind === "video" ? "Choose a video file to upload." : "Choose an image file to upload.");
-
-      const isVid = /^video\//.test(String(f.type || ""));
-      const isImg = /^image\//.test(String(f.type || ""));
-
-      if(kind === "video" && !isVid) throw new Error("That file does not look like a video.");
-      if(kind === "graphic" && !isImg) throw new Error("That file does not look like an image.");
-
-      const assetId = OMJN.uid(kind === "video" ? "advid" : "adimg");
+      if(!f) throw new Error("Choose an image file to upload.");
+      const assetId = OMJN.uid("adimg");
       await OMJN.putAsset(assetId, f);
       ad.source = "upload";
       ad.assetId = assetId;
@@ -3945,7 +3815,7 @@ function updateAdPreview(){
       id: OMJN.uid("slot"),
       createdAt: Date.now(),
       displayName: label || "Ad",
-      slotTypeId: (kind === "video") ? "ad_video" : "ad_graphic",
+      slotTypeId: "ad_graphic",
       minutesOverride: 0,
       customTypeLabel: "",
       status: "QUEUED",
@@ -3982,40 +3852,29 @@ function updateAdPreview(){
 
       if(adCtx?.mode === "edit" && adCtx.slotId){
         // Update existing slot in-place
-        const kind = getAdKind();
         const mode = String(els.adSource?.value || "preset");
         const label = OMJN.sanitizeText(els.adLabel?.value || "");
-
-        const videoOpts = (kind === "video") ? { loop: !!els.adVideoLoop?.checked, audioOn: !!els.adVideoAudio?.checked } : {};
         let newAd = null;
-
         if(mode === "preset"){
           const it = getSelectedPreset();
           if(!it) throw new Error("Select a preset.");
-          if(String(it.kind || "graphic") !== kind) throw new Error("Selected preset does not match the ad type.");
-          newAd = { kind, source:"preset", url: it.url, ...videoOpts };
+          newAd = { kind:"graphic", source:"preset", url: it.url };
         } else if(mode === "url"){
           const url = String(els.adUrl?.value || "").trim();
-          if(!url) throw new Error(kind === "video" ? "Enter a video URL." : "Enter an image URL.");
-          newAd = { kind, source:"url", url, ...videoOpts };
+          if(!url) throw new Error("Enter an image URL.");
+          newAd = { kind:"graphic", source:"url", url };
         } else if(mode === "upload"){
           const f = els.adFile?.files?.[0] || null;
-          if(!f) throw new Error(kind === "video" ? "Choose a video file to upload." : "Choose an image file to upload.");
-
-          const isVid = /^video\//.test(String(f.type || ""));
-          const isImg = /^image\//.test(String(f.type || ""));
-
-          if(kind === "video" && !isVid) throw new Error("That file does not look like a video.");
-          if(kind === "graphic" && !isImg) throw new Error("That file does not look like an image.");
-
-          const assetId = OMJN.uid(kind === "video" ? "advid" : "adimg");
+          if(!f) throw new Error("Choose an image file to upload.");
+          const assetId = OMJN.uid("adimg");
           await OMJN.putAsset(assetId, f);
-          newAd = { kind, source:"upload", assetId, ...videoOpts };
+          newAd = { kind:"graphic", source:"upload", assetId };
         }
-updateState(s => {
+
+        updateState(s => {
           const slot = s.queue.find(x => x.id === adCtx.slotId);
           if(!slot) return;
-          slot.slotTypeId = (newAd && newAd.kind === "video") ? "ad_video" : "ad_graphic";
+          slot.slotTypeId = "ad_graphic";
           slot.displayName = label || slot.displayName || "Ad";
           slot.ad = newAd || slot.ad;
         });
@@ -4188,7 +4047,7 @@ function start(){
       s.currentSlotId = pick.id;
       s.phase = "LIVE";
 
-      const isAd = isAdSlotType(pick.slotTypeId);
+      const isAd = String(pick.slotTypeId || "") === "ad_graphic";
       if(isAd){
         // Untimed (viewer hides timer); operator can End → Splash to return.
         s.timer.running = false;
@@ -4465,7 +4324,7 @@ function start(){
 
 function bind(){
     // initial select options
-    fillTypeSelect(els.addType, { excludeSpecial:true });
+    fillTypeSelect(els.addType, { excludeSpecial:true, placeholderText:"- CHOOSE A SLOT -" });
 toggleCustomAddFields();
     bindSettings();
     bindPerformerDnD();
@@ -4525,10 +4384,7 @@ if(els.btnAddHouseBandSlot){
     if(els.btnAdCancel) els.btnAdCancel.addEventListener("click", (e) => { e.preventDefault(); closeAdModal(); });
     if(els.btnAdSave) els.btnAdSave.addEventListener("click", (e) => { e.preventDefault(); submitAdModal({ goLive:false }); });
     if(els.btnAdLive) els.btnAdLive.addEventListener("click", (e) => { e.preventDefault(); submitAdModal({ goLive:true }); });
-    if(els.adKind) els.adKind.addEventListener("change", () => { syncAdKindUI(); renderAdPresetList(); updateAdPreview(); });
-    if(els.adVideoLoop) els.adVideoLoop.addEventListener("change", () => { updateAdPreview(); });
-    if(els.adVideoAudio) els.adVideoAudio.addEventListener("change", () => { updateAdPreview(); });
-    if(els.adSource) els.adSource.addEventListener("change", () => { showAdSourceUI(); updateAdPreview(); });
+    if(els.adSource) els.adSource.addEventListener("change", () => { showAdSourceUI(); });
     if(els.adUrl) els.adUrl.addEventListener("input", () => { if(!els.adLabel.value) els.adLabel.value = deriveLabelFromPath(els.adUrl.value); updateAdPreview(); });
     if(els.adFile) els.adFile.addEventListener("change", () => { const f = els.adFile.files?.[0]; if(f && !els.adLabel.value) els.adLabel.value = deriveLabelFromPath(f.name); updateAdPreview(); });
     if(els.adPresetSearch) els.adPresetSearch.addEventListener("input", () => { renderAdPresetList(); });

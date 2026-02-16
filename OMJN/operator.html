@@ -61,9 +61,19 @@
                         <datalist id="profileNames"></datalist>
                     </div>
 
-                    <div class="field" style="width:200px;">
-                        <label>Slot Type</label>
-                        <select id="addType"></select>
+                    <div class="field" style="width:240px;">
+                        <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <label for="addType" style="margin:0;">Slot Type</label>
+                            <label class="small" style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;"
+                                   title="Keep your last slot type selection for faster entry">
+                                <input type="checkbox" id="quickAddStickyType" />
+                                <span>Sticky</span>
+                            </label>
+                        </div>
+                        <select id="addType" aria-describedby="addTypeHint"></select>
+                        <div class="small" id="addTypeHint" style="margin-top:6px; opacity:.85; display:none;">
+                            Select a slot type to add.
+                        </div>
                     </div>
 
                     <div class="field" id="addCustomWrap" style="flex:1 1 240px; display:none;">

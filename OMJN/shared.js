@@ -165,6 +165,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
       slotTypes: [
         { id:"musician", label:"Musician", defaultMinutes:15, isJamMode:false, color:"#00c2ff", enabled:true },
         { id:"comedian", label:"Comedian", defaultMinutes:10, isJamMode:false, color:"#2dd4bf", enabled:true },
+        { id:"comedian5", label:"Comedian", defaultMinutes:5, isJamMode:false, color:"#2dd4bf", enabled:true },
         { id:"poetry", label:"Poetry", defaultMinutes:10, isJamMode:false, color:"#fbbf24", enabled:true },
         { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
         { id:"ad_graphic", label:"Ad (Graphic)", defaultMinutes:0, isJamMode:false, color:"#ef4444", enabled:false, special:true },
@@ -692,7 +693,21 @@ function houseBandActiveMembersByCategory(state){
   return out;
 }
 
+function houseBandSuggestedInCategory(state, categoryKey){
+  // Suggested = first ACTIVE member in the category's current order
+  const list = houseBandMembersInCategory(state, categoryKey, { activeOnly: true });
+  return list[0] || null;
+}
 
+function houseBandActiveMembersByCategory(state){
+  // Map categoryKey -> array of {categoryKey, categoryLabel, member}
+  ensureHouseBandQueues(state);
+  const out = {};
+  for(const cat of HOUSE_BAND_CATEGORIES){
+    out[cat.key] = houseBandMembersInCategory(state, cat.key, { activeOnly: true });
+  }
+  return out;
+}
 
   // Reorder a category so the selected member is FIRST, and the previously suggested
   // (first active) member becomes SECOND ("skipped → next").
@@ -995,8 +1010,6 @@ async function loadBitmapFromFile(f){
 
 
   return {
-		// Expose env scope so Operator/Viewer can namespace non-state localStorage keys.
-		appScope: APP_SCOPE,
     uid, defaultState, loadState, saveState, publish, subscribe,
     getSlotType, effectiveMinutes, displaySlotTypeLabel, normalizeSlot,
     // House Band
