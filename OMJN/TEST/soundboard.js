@@ -1,10 +1,7 @@
 
 
 // ---- UI scope (separate /TEST vs /OMJN) ----
-const SB_UI_SCOPE = (() => {
-  const p = (location.pathname || "").toLowerCase();
-  return p.includes("/omjn/test") ? "test" : "prod";
-})();
+const SB_UI_SCOPE = (typeof OMJN !== "undefined" && OMJN.appScope) ? OMJN.appScope : "prod";
 
 /* Soundboard page (public Google Drive folder or local) */
 (() => {
@@ -1671,10 +1668,7 @@ els.refresh.addEventListener("click", refreshFromDrive);
   
 
 // ---- Music embed pane ----
-const SB_SCOPE = (() => {
-  const p = (location.pathname || "").toLowerCase();
-  return p.includes("/omjn/test") ? "test" : "prod";
-})();
+const SB_SCOPE = SB_UI_SCOPE;
 
 const EMBED_STORE_KEY = `omjn.sb.embeds.v1.${SB_SCOPE}`;
 const EMBED_WIDTH_KEY = `omjn.sb.embedWidth.v1.${SB_SCOPE}`;

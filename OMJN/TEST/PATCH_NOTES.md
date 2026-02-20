@@ -1,21 +1,22 @@
 # PATCH_NOTES
 
 ## Summary
-- Quick Add Slot Type now defaults to a placeholder (“- CHOOSE A SLOT -”) on page load/refresh (no more auto-default to Musician).
-- Prevents adding a performer unless a Slot Type is chosen; focuses the Slot Type dropdown and briefly highlights it.
+Fixes a load-breaking error introduced in the prior patch where `ensureFormA11y()` was accidentally declared inside `applyThemeToDocument()`, causing `shared.js` to throw on load and preventing `OMJN` from being defined.
 
-## Files changed
-- operator.js
-- app.css
+## Files
+- `shared.js`
 
 ## Install steps
-1. Replace these files in your OMJN directory (or TEST directory):
-   - operator.js
-   - app.css
-2. Hard refresh the Operator page (Ctrl+F5) to clear cached JS/CSS.
+1. Replace `shared.js` in your OMJN directory with the one from this zip.
 
 ## Smoke test checklist
-- Load Operator → Slot Type shows “- CHOOSE A SLOT -”.
-- Type a performer name and press Enter without selecting Slot Type → no slot added; Slot Type field highlights/focuses.
-- Select “Comedian (5m)” (or any type) → add performer → correct type/minutes applied.
-- Change state (start/pause/etc.) → Slot Type selection should not reset unexpectedly.
+- Load `operator.html`:
+  - No console errors (`OMJN is not defined` / `ensureFormA11y is not defined` should be gone).
+  - Operator UI renders normally.
+- Load `viewer.html`:
+  - No console errors.
+- Chrome DevTools → Issues:
+  - “Interactive element inside <summary>” should remain fixed if you installed the prior UI patch too.
+
+## Known risks / limitations
+- This patch only fixes the load-breaking scoping error in `shared.js`. It does not change any behaviors beyond restoring normal execution.

@@ -95,7 +95,7 @@
   const DEFAULT_QR_SRC = "./assets/OMJN-QR.png";
 
   // Operator uses this to show Viewer connection status
-  const VIEWER_HEARTBEAT_KEY = "omjn.viewerHeartbeat.v1";
+  const VIEWER_HEARTBEAT_KEY = OMJN.scopedKey("viewerHeartbeat.v1");
   setInterval(() => {
     try { localStorage.setItem(VIEWER_HEARTBEAT_KEY, String(Date.now())); } catch (_) {}
   }, 1000);
@@ -147,7 +147,7 @@
   }
 
   // Sponsor bug runtime
-  const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
+  const SPONSOR_VIEWER_STATUS_KEY = OMJN.scopedKey("sponsorBug.viewerStatus.v1");
   let currentSponsorObjectUrl = null;
   let lastSponsorKey = null;
   let sponsorLoadToken = 0;
@@ -1465,8 +1465,6 @@ function renderStateDriven() {
 
     // Apply theme
     OMJN.applyThemeToDocument(document, state);
-
-  let adBlobUrl = null;
 
     // Ensure timer UI is correct immediately
     updateTimerAndCues();

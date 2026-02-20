@@ -211,8 +211,18 @@ select option{ background: var(--panel); color: var(--text); }
   padding:12px;
   border-radius:16px;
   border:1px solid rgba(255,255,255,.10);
-  background:rgba(0,0,0,.16);
+  background: radial-gradient(120% 120% at 18% 40%, var(--qGlow, rgba(255,255,255,.06)) 0%, rgba(0,0,0,.18) 72%);
 }
+
+/* Broadcast-style role color system for the Show Queue */
+.queueItem.role-live{ --qBar: rgba(239, 68, 68, .55); --qGlow: rgba(239, 68, 68, .18); }
+.queueItem.role-next{ --qBar: rgba(249, 115, 22, .55); --qGlow: rgba(249, 115, 22, .18); }
+.queueItem.role-deck{ --qBar: rgba(34, 197, 94, .50); --qGlow: rgba(34, 197, 94, .16); }
+.queueItem.role-intermission{ --qBar: rgba(245, 158, 11, .48); --qGlow: rgba(245, 158, 11, .14); }
+.queueItem.role-houseband{ --qBar: rgba(99, 102, 241, .48); --qGlow: rgba(99, 102, 241, .14); }
+.queueItem.role-ad{ --qBar: rgba(236, 72, 153, .48); --qGlow: rgba(236, 72, 153, .14); }
+.queueItem.role-done{ --qBar: rgba(148, 163, 184, .35); --qGlow: rgba(148, 163, 184, .10); }
+.queueItem.role-queued{ --qBar: rgba(148, 163, 184, .18); --qGlow: rgba(148, 163, 184, .06); }
 
 /* Make Intermission stand out more in the queue */
 .queueItem[data-slot-type="intermission"]{
@@ -237,9 +247,55 @@ select option{ background: var(--panel); color: var(--text); }
   border:1px solid rgba(255,255,255,.10);
   user-select:none;
 }
-.qMain{  grid-area: main; display:flex; flex-direction:column; gap:6px;}
-.qTop{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
-.qName{font-size:16px; font-weight:800;}
+.qMain{  grid-area: main; display:flex; flex-direction:column; gap:8px; min-width:0;}
+
+/* Top status band */
+.qBar{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:10px;
+  padding:8px 10px;
+  border-radius:12px;
+  background: linear-gradient(90deg, var(--qBar, rgba(255,255,255,.10)) 0%, rgba(0,0,0,.12) 100%);
+  border:1px solid rgba(255,255,255,.10);
+}
+.qBarLeft{display:flex; align-items:center; gap:10px; min-width:0;}
+.qRole{
+  font-size:12px;
+  font-weight:950;
+  letter-spacing:.10em;
+  text-transform:uppercase;
+  color: rgba(255,255,255,.92);
+  white-space:nowrap;
+}
+.qPills{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-start;}
+.qPill{
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:12px;
+  background:rgba(0,0,0,.18);
+  border:1px solid rgba(255,255,255,.12);
+  color:rgba(255,255,255,.84);
+}
+.qPillMins{color:rgba(255,255,255,.92); font-weight:800;}
+
+/* Name row */
+.qNameRow{display:flex; align-items:center; gap:10px; min-width:0;}
+.qIcon{
+  width:28px;
+  height:28px;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.10);
+  font-size:16px;
+  flex:0 0 auto;
+}
+.qIcon i{font-size:16px; line-height:1;}
+.qName{font-size:18px; font-weight:900; letter-spacing:.01em; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .badge{
   padding:4px 8px;
   border-radius:999px;
@@ -1093,6 +1149,10 @@ body.modalOpen{ overflow:hidden; }
 
 /* Accordion stack */
 .hbAccWrap{ display:flex; flex-direction:column; gap:10px; }
+
+.hbAccRow{ display:flex; gap:10px; align-items:flex-start; }
+.hbAccRow > details.hbAcc{ flex:1 1 auto; }
+.hbAccRow .hbRotateTopBtn{ margin-top:6px; white-space:nowrap; }
 
 details.hbAcc {
     flex: 0 0 auto; /* prevents flexbox from squishing open categories */
@@ -2708,20 +2768,4 @@ details.hbAcc .hbCatList{
   letter-spacing:.08em;
   border:1px solid rgba(255,255,255,.18);
   opacity:.9;
-}
-
-/* Operator quick-add: prompt for slot type selection */
-#addType.needsChoice{
-  outline: 3px solid rgba(255, 153, 0, 0.95);
-  box-shadow: 0 0 0 6px rgba(255, 153, 0, 0.25);
-  border-radius: 10px;
-  animation: omjnWiggle 0.9s ease-out 1;
-}
-@keyframes omjnWiggle{
-  0%{ transform: translateX(0); }
-  20%{ transform: translateX(-3px); }
-  40%{ transform: translateX(3px); }
-  60%{ transform: translateX(-2px); }
-  80%{ transform: translateX(2px); }
-  100%{ transform: translateX(0); }
 }

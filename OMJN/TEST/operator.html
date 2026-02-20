@@ -4,6 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>OMJN — Operator</title>
+    <!-- Font Awesome (icons used in the queue list) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <link rel="stylesheet" href="./app.css" />
 </head>
 <body class="operatorPage">
@@ -61,19 +63,9 @@
                         <datalist id="profileNames"></datalist>
                     </div>
 
-                    <div class="field" style="width:240px;">
-                        <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:6px;">
-                            <label for="addType" style="margin:0;">Slot Type</label>
-                            <label class="small" style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;"
-                                   title="Keep your last slot type selection for faster entry">
-                                <input type="checkbox" id="quickAddStickyType" />
-                                <span>Sticky</span>
-                            </label>
-                        </div>
-                        <select id="addType" aria-describedby="addTypeHint"></select>
-                        <div class="small" id="addTypeHint" style="margin-top:6px; opacity:.85; display:none;">
-                            Select a slot type to add.
-                        </div>
+                    <div class="field" style="width:200px;">
+                        <label>Slot Type</label>
+                        <select id="addType"></select>
                     </div>
 
                     <div class="field" id="addCustomWrap" style="flex:1 1 240px; display:none;">
@@ -162,76 +154,91 @@
                     </div>
 
                     <div class="hbCats hbAccWrap" id="hbCats">
+                        <div class="hbAccRow" data-hbcatrow="drums">
+                            <details class="hbAcc" data-hbcat="drums" open>
+                                <summary class="hbAccSummary">
+                                    <span class="hbAccTitle">Drums</span>
+                                    <span class="hbAccCount" id="hbCount_drums"></span>
+                                    <span class="hbAccChev" aria-hidden="true"></span>
+                                </summary>
+                                <div class="queue hbCatList" id="hbCat_drums" data-hbcat="drums"></div>
+                            </details>
+                            <button class="btn tiny hbRotateTopBtn" type="button" data-rotate-top="drums" title="Rotate top of drums" aria-label="Rotate top of drums">Rotate top</button>
+                        </div>
 
-                        <details class="hbAcc" data-hbcat="drums" open>
-                            <summary class="hbAccSummary">
-                                <span class="hbAccTitle">Drums</span>
-                                <span class="hbAccCount" id="hbCount_drums"></span>
-                                <button class="btn tiny hbRotateTopBtn" type="button" data-rotate-top="drums" title="Rotate top of drums">Rotate top</button>
-                                <span class="hbAccChev" aria-hidden="true"></span>
-                            </summary>
-                            <div class="queue hbCatList" id="hbCat_drums" data-hbcat="drums"></div>
-                        </details>
+                        <div class="hbAccRow" data-hbcatrow="vocals">
+                            <details class="hbAcc" data-hbcat="vocals">
+                                <summary class="hbAccSummary">
+                                    <span class="hbAccTitle">Vocals</span>
+                                    <span class="hbAccCount" id="hbCount_vocals"></span>
+                                    <span class="hbAccChev" aria-hidden="true"></span>
+                                </summary>
+                                <div class="queue hbCatList" id="hbCat_vocals" data-hbcat="vocals"></div>
+                            </details>
+                            <button class="btn tiny hbRotateTopBtn" type="button" data-rotate-top="vocals" title="Rotate top of vocals" aria-label="Rotate top of vocals">Rotate top</button>
+                        </div>
 
-                        <details class="hbAcc" data-hbcat="vocals">
-                            <summary class="hbAccSummary">
-                                <span class="hbAccTitle">Vocals</span>
-                                <span class="hbAccCount" id="hbCount_vocals"></span>
-                                <button class="btn tiny hbRotateTopBtn" type="button" data-rotate-top="vocals" title="Rotate top of vocals">Rotate top</button>
-                                <span class="hbAccChev" aria-hidden="true"></span>
-                            </summary>
-                            <div class="queue hbCatList" id="hbCat_vocals" data-hbcat="vocals"></div>
-                        </details>
+                        <div class="hbAccRow" data-hbcatrow="keys">
+                            <details class="hbAcc" data-hbcat="keys">
+                                <summary class="hbAccSummary">
+                                    <span class="hbAccTitle">Keys</span>
+                                    <span class="hbAccCount" id="hbCount_keys"></span>
+                                    <span class="hbAccChev" aria-hidden="true"></span>
+                                </summary>
+                                <div class="queue hbCatList" id="hbCat_keys" data-hbcat="keys"></div>
+                            </details>
+                            <button class="btn tiny hbRotateTopBtn" type="button" data-rotate-top="keys" title="Rotate top of keys" aria-label="Rotate top of keys">Rotate top</button>
+                        </div>
 
-                        <details class="hbAcc" data-hbcat="keys">
-                            <summary class="hbAccSummary">
-                                <span class="hbAccTitle">Keys</span>
-                                <span class="hbAccCount" id="hbCount_keys"></span>
-                                <button class="btn tiny hbRotateTopBtn" type="button" data-rotate-top="keys" title="Rotate top of keys">Rotate top</button>
-                                <span class="hbAccChev" aria-hidden="true"></span>
-                            </summary>
-                            <div class="queue hbCatList" id="hbCat_keys" data-hbcat="keys"></div>
-                        </details>
+                        <div class="hbAccRow" data-hbcatrow="guitar">
+                            <details class="hbAcc" data-hbcat="guitar">
+                                <summary class="hbAccSummary">
+                                    <span class="hbAccTitle">Guitar</span>
+                                    <span class="hbAccCount" id="hbCount_guitar"></span>
+                                    <span class="hbAccChev" aria-hidden="true"></span>
+                                </summary>
+                                <div class="queue hbCatList" id="hbCat_guitar" data-hbcat="guitar"></div>
+                            </details>
+                            <button class="btn tiny hbRotateTopBtn" type="button" data-rotate-top="guitar" title="Rotate top of guitar" aria-label="Rotate top of guitar">Rotate top</button>
+                        </div>
 
-                        <details class="hbAcc" data-hbcat="guitar">
-                            <summary class="hbAccSummary">
-                                <span class="hbAccTitle">Guitar</span>
-                                <span class="hbAccCount" id="hbCount_guitar"></span>
-                                <button class="btn tiny hbRotateTopBtn" type="button" data-rotate-top="guitar" title="Rotate top of guitar">Rotate top</button>
-                                <span class="hbAccChev" aria-hidden="true"></span>
-                            </summary>
-                            <div class="queue hbCatList" id="hbCat_guitar" data-hbcat="guitar"></div>
-                        </details>
+                        <div class="hbAccRow" data-hbcatrow="bass">
+                            <details class="hbAcc" data-hbcat="bass">
+                                <summary class="hbAccSummary">
+                                    <span class="hbAccTitle">Bass</span>
+                                    <span class="hbAccCount" id="hbCount_bass"></span>
+                                    <span class="hbAccChev" aria-hidden="true"></span>
+                                </summary>
+                                <div class="queue hbCatList" id="hbCat_bass" data-hbcat="bass"></div>
+                            </details>
+                            <button class="btn tiny hbRotateTopBtn" type="button" data-rotate-top="bass" title="Rotate top of bass" aria-label="Rotate top of bass">Rotate top</button>
+                        </div>
 
-                        <details class="hbAcc" data-hbcat="bass">
-                            <summary class="hbAccSummary">
-                                <span class="hbAccTitle">Bass</span>
-                                <span class="hbAccCount" id="hbCount_bass"></span>
-                                <button class="btn tiny hbRotateTopBtn" type="button" data-rotate-top="bass" title="Rotate top of bass">Rotate top</button>
-                                <span class="hbAccChev" aria-hidden="true"></span>
-                            </summary>
-                            <div class="queue hbCatList" id="hbCat_bass" data-hbcat="bass"></div>
-                        </details>
+                        <div class="hbAccRow" data-hbcatrow="percussion">
+                            <details class="hbAcc" data-hbcat="percussion">
+                                <summary class="hbAccSummary">
+                                    <span class="hbAccTitle">Percussion</span>
+                                    <span class="hbAccCount" id="hbCount_percussion"></span>
+                                    <span class="hbAccChev" aria-hidden="true"></span>
+                                </summary>
+                                <div class="queue hbCatList" id="hbCat_percussion" data-hbcat="percussion"></div>
+                            </details>
+                            <button class="btn tiny hbRotateTopBtn" type="button" data-rotate-top="percussion" title="Rotate top of percussion" aria-label="Rotate top of percussion">Rotate top</button>
+                        </div>
 
-                        <details class="hbAcc" data-hbcat="percussion">
-                            <summary class="hbAccSummary">
-                                <span class="hbAccTitle">Percussion</span>
-                                <span class="hbAccCount" id="hbCount_percussion"></span>
-                                <button class="btn tiny hbRotateTopBtn" type="button" data-rotate-top="percussion" title="Rotate top of percussion">Rotate top</button>
-                                <span class="hbAccChev" aria-hidden="true"></span>
-                            </summary>
-                            <div class="queue hbCatList" id="hbCat_percussion" data-hbcat="percussion"></div>
-                        </details>
+                        <div class="hbAccRow" data-hbcatrow="other">
+                            <details class="hbAcc" data-hbcat="other">
+                                <summary class="hbAccSummary">
+                                    <span class="hbAccTitle">Other</span>
+                                    <span class="hbAccCount" id="hbCount_other"></span>
+                                    <span class="hbAccChev" aria-hidden="true"></span>
+                                </summary>
+                                <div class="queue hbCatList" id="hbCat_other" data-hbcat="other"></div>
+                            </details>
+                            <button class="btn tiny hbRotateTopBtn" type="button" data-rotate-top="other" title="Rotate top of other" aria-label="Rotate top of other">Rotate top</button>
+                        </div>
 
-                        <details class="hbAcc" data-hbcat="other">
-                            <summary class="hbAccSummary">
-                                <span class="hbAccTitle">Other</span>
-                                <span class="hbAccCount" id="hbCount_other"></span>
-                                <button class="btn tiny hbRotateTopBtn" type="button" data-rotate-top="other" title="Rotate top of other">Rotate top</button>
-                                <span class="hbAccChev" aria-hidden="true"></span>
-                            </summary>
-                            <div class="queue hbCatList" id="hbCat_other" data-hbcat="other"></div>
-                        </details>
+
 
                     </div>
                 </div>

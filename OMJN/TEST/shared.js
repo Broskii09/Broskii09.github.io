@@ -21,6 +21,12 @@ const CHANNEL_NAME = `omjn_${APP_SCOPE}_channel_v1`;
 const STORAGE_KEY = `omjn.${APP_SCOPE}.showState.v1`;
 const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
 
+  function scopedKey(suffix){
+    const s = String(suffix || "").replace(/^\.+/, "");
+    return "omjn." + APP_SCOPE + "." + s;
+  }
+
+
   // ---- House Band ----
   // Default instrument list (intentionally excludes fiddle/violin and horns).
   // UI should offer a "Custom" option that uses member.customInstrument.
@@ -169,6 +175,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         { id:"poetry", label:"Poetry", defaultMinutes:10, isJamMode:false, color:"#fbbf24", enabled:true },
         { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
         { id:"ad_graphic", label:"Ad (Graphic)", defaultMinutes:0, isJamMode:false, color:"#ef4444", enabled:false, special:true },
+        { id:"ad_video", label:"Ad (Video)", defaultMinutes:0, isJamMode:false, color:"#ef4444", enabled:false, special:true },
         { id:"houseband", label:"House Band", defaultMinutes:15, isJamMode:false, color:"#22c55e", enabled:false, special:true },
         { id:"intermission", label:"Intermission", defaultMinutes:10, isJamMode:false, color:"#a855f7", enabled:false, special:true },
       ],
@@ -693,22 +700,6 @@ function houseBandActiveMembersByCategory(state){
   return out;
 }
 
-function houseBandSuggestedInCategory(state, categoryKey){
-  // Suggested = first ACTIVE member in the category's current order
-  const list = houseBandMembersInCategory(state, categoryKey, { activeOnly: true });
-  return list[0] || null;
-}
-
-function houseBandActiveMembersByCategory(state){
-  // Map categoryKey -> array of {categoryKey, categoryLabel, member}
-  ensureHouseBandQueues(state);
-  const out = {};
-  for(const cat of HOUSE_BAND_CATEGORIES){
-    out[cat.key] = houseBandMembersInCategory(state, cat.key, { activeOnly: true });
-  }
-  return out;
-}
-
   // Reorder a category so the selected member is FIRST, and the previously suggested
   // (first active) member becomes SECOND ("skipped → next").
   // This avoids sending a skipped player to the back; they become the next opportunity.
@@ -781,18 +772,24 @@ function houseBandActiveMembersByCategory(state){
     return out;
   }
 
+  function isAdSlotType(slotTypeId){
+    const x = String(slotTypeId || "").toLowerCase();
+    if(!x) return false;
+    // Ads are queue items but should NOT appear in Viewer Next/On Deck.
+    return x.startsWith("ad_");
+  }
 
   function computeNextTwo(state){
     const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
     const q = Array.isArray(state.queue) ? state.queue : [];
     if(hasCurrent){
       const idx = q.findIndex(s => s && s.id === state.currentSlotId);
-      const tail = (idx >= 0 ? q.slice(idx+1) : q).filter(s => s && s.status === "QUEUED");
+      const tail = (idx >= 0 ? q.slice(idx+1) : q).filter(s => s && s.status === "QUEUED" && !isAdSlotType(s.slotTypeId));
       const next1 = tail[0] || null;
       const next2 = tail[1] || null;
       return [next1, next2];
     }
-    const head = q.filter(s => s && s.status === "QUEUED");
+    const head = q.filter(s => s && s.status === "QUEUED" && !isAdSlotType(s.slotTypeId));
     return [head[0] || null, head[1] || null];
   }
 
@@ -978,6 +975,84 @@ async function loadBitmapFromFile(f){
     return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
   }
 
+  // ---- Accessibility helpers (forms) ----
+  // Chrome DevTools will flag inputs without id/name and labels without a matching for=.
+  // We don't submit these forms, but wiring improves autofill + keyboard/screen reader UX.
+  function ensureFormA11y(root){
+    try{
+      const r = root || document;
+      if(!r || !r.querySelectorAll) return;
+
+      let autoN = 0;
+      const makeId = () => `omjn_auto_${Date.now().toString(36)}_${(++autoN)}`;
+
+      const labels = Array.from(r.querySelectorAll("label"));
+      const labelFor = new Map();
+      for(const lab of labels){
+        const f = (lab.getAttribute("for") || "").trim();
+        if(f) labelFor.set(f, lab);
+      }
+
+      const controls = Array.from(r.querySelectorAll("input, select, textarea"))
+        .filter(el => {
+          if(el.tagName === "INPUT"){
+            const t = String(el.getAttribute("type") || "text").toLowerCase();
+            if(["button","submit","reset"].includes(t)) return false;
+          }
+          return true;
+        });
+
+      for(const el of controls){
+        if(el.tagName === "INPUT" && String(el.getAttribute("type") || "").toLowerCase() === "hidden") continue;
+
+        if(!el.id && !el.name){
+          const id = makeId();
+          el.id = id;
+          el.name = id;
+        }else if(el.id && !el.name){
+          el.name = el.id;
+        }else if(!el.id && el.name){
+          // Avoid collisions with repeated names
+          const existing = (document && document.getElementById) ? document.getElementById(el.name) : null;
+          el.id = existing ? makeId() : el.name;
+        }
+
+        const hasForLabel = !!(el.id && labelFor.has(el.id));
+        const nestedLabel = !!(el.closest && el.closest("label"));
+        if(!hasForLabel && !nestedLabel){
+          if(!el.getAttribute("aria-label") && !el.getAttribute("aria-labelledby")){
+            const ph = String(el.getAttribute("placeholder") || "").trim();
+            if(ph) el.setAttribute("aria-label", ph);
+          }
+        }
+      }
+
+      // Wire labels that are visually adjacent to a control.
+      for(const lab of labels){
+        if((lab.getAttribute("for") || "").trim()) continue;
+        if(lab.querySelector("input, select, textarea")) continue; // nesting already associates
+
+        let target = null;
+        const parent = lab.parentElement;
+        if(parent){
+          const cand = Array.from(parent.querySelectorAll("input, select, textarea"))
+            .find(el => !lab.contains(el));
+          target = cand || null;
+        }
+        if(!target){
+          const next = lab.nextElementSibling;
+          if(next && /^(INPUT|SELECT|TEXTAREA)$/.test(next.tagName)) target = next;
+        }
+        if(target){
+          if(!target.id) target.id = makeId();
+          if(!target.name) target.name = target.id;
+          lab.setAttribute("for", target.id);
+          labelFor.set(target.id, lab);
+        }
+      }
+    }catch(_){ }
+  }
+
   function applyThemeToDocument(doc, state){
     try{
       const root = doc?.documentElement;
@@ -1010,6 +1085,7 @@ async function loadBitmapFromFile(f){
 
 
   return {
+    appScope: APP_SCOPE, scopedKey, isAdSlotType, ensureFormA11y,
     uid, defaultState, loadState, saveState, publish, subscribe,
     getSlotType, effectiveMinutes, displaySlotTypeLabel, normalizeSlot,
     // House Band
