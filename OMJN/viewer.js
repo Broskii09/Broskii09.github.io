@@ -1,6 +1,7 @@
 /* Viewer UI */
 (() => {
-  let state = OMJN.loadState();
+  let realState = OMJN.loadState();
+  let state = realState;
   OMJN.applyThemeToDocument(document, state);
 
   let adBlobUrl = null;
@@ -50,11 +51,20 @@
     mediaImg: document.getElementById("mediaImg"),
     mediaEmpty: document.getElementById("mediaEmpty"),
 
+    // Splash layout
+    splashLayout: document.getElementById("splashLayout"),
+    splashLeftImg: document.getElementById("splashLeftImg"),
+    splashLeft: document.getElementById("splashLeft"),
+    splashRight: document.getElementById("splashRight"),
+    splashHBCard: document.getElementById("splashHBCard"),
+
     // Splash cards
     sNext: document.getElementById("sNext"),
     sDeck: document.getElementById("sDeck"),
+    sHole: document.getElementById("sHole"),
     sNextSub: document.getElementById("sNextSub"),
     sDeckSub: document.getElementById("sDeckSub"),
+    sHoleSub: document.getElementById("sHoleSub"),
 
     // House band
     hbLineup: document.getElementById("hbLineup"),
@@ -91,14 +101,64 @@
     }
   })();
 
+
+  function setupSplashLeftFallback(){
+    try{
+      if(!el.splashLeftImg || !el.splashLayout) return;
+      el.splashLeftImg.onerror = () => {
+        try{ el.splashLayout.classList.add("noLeft"); }catch(_){ }
+        try{ el.splashLeft.style.display = "none"; }catch(_){ }
+      };
+    }catch(_){ }
+  }
+
   // Default QR image shown when a performer uses a QR layout but has no custom upload.
   const DEFAULT_QR_SRC = "./assets/OMJN-QR.png";
 
   // Operator uses this to show Viewer connection status
-  const VIEWER_HEARTBEAT_KEY = "omjn.viewerHeartbeat.v1";
+  const VIEWER_HEARTBEAT_KEY = OMJN.scopedKey("viewerHeartbeat.v1");
   setInterval(() => {
     try { localStorage.setItem(VIEWER_HEARTBEAT_KEY, String(Date.now())); } catch (_) {}
   }, 1000);
+
+  setupSplashLeftFallback();
+  applyViewerScale();
+  window.addEventListener('resize', () => applyViewerScale());
+
+
+
+  // ---- Viewer scaling (auto + manual) ----
+  function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+
+  function computeAutoScale(){
+    const w = window.innerWidth || 1280;
+    const h = window.innerHeight || 720;
+    const shortSide = Math.max(1, Math.min(w, h));
+    const ar = w / h;
+
+    // Base scale from resolution (tuned to stay readable on small projectors)
+    let s = shortSide / 900; // 900px short-side ~= 1.0
+    s = clamp(s, 0.75, 1.35);
+
+    // Aspect ratio nudge
+    if(ar > 1.80) s *= clamp(1 + (ar - 1.80) * 0.06, 1.0, 1.12);
+    if(ar < 1.55) s *= clamp(1 - (1.55 - ar) * 0.10, 0.85, 1.0);
+
+    return clamp(s, 0.75, 1.35);
+  }
+
+  function applyViewerScale(){
+    try{
+      const manual = Number(state?.viewerPrefs?.uiScale ?? 1.0);
+      const uiScale = Number.isFinite(manual) ? clamp(manual, 0.80, 1.40) : 1.0;
+      const autoScale = computeAutoScale();
+      const vScale = clamp(autoScale * uiScale, 0.70, 1.50);
+      document.documentElement.style.setProperty('--vScale', String(vScale));
+
+      // A few places need the inverse (for transforms if ever used)
+      document.documentElement.style.setProperty('--vScaleInv', String(1 / vScale));
+    }catch(_){ }
+  }
 
   // ---- Render caches ----
   let lastPhaseKey = null;
@@ -128,6 +188,125 @@
   let startIntroPending = false;
   let startIntroTimeout = null;
 
+  
+  // ---- Broadcast transition (Splash -> Live): Flash + Zoom (no video assets) ----
+
+  function transitionEnabled(){
+    // Default ON
+    return state?.viewerPrefs?.transitionEnabled !== false;
+  }
+
+  function transitionStyle(){
+    const raw = String(state?.viewerPrefs?.transitionStyle || 'flashZoom');
+    if(raw === 'off') return 'off';
+    if(raw === 'flashZoom') return 'flashZoom';
+    const v = raw.toLowerCase();
+    if(v === 'off') return 'off';
+    if(v === 'flashzoom') return 'flashZoom';
+    // Legacy: treat 'video' as flashZoom
+    return 'flashZoom';
+  }
+
+  function transitionDurSec(){
+    const n = Number(state?.viewerPrefs?.transitionDurSec);
+    if(!Number.isFinite(n)) return 0.65;
+    return Math.max(0.20, Math.min(10, n));
+  }
+
+  function transitionCutSec(){
+    const n = Number(state?.viewerPrefs?.transitionCutSec);
+    if(!Number.isFinite(n)) return 0.22;
+    return Math.max(0, Math.min(10, n));
+  }
+
+  // Transition runtime (Splash -> Live): keep UI on splash until a cut point in the animation.
+  let transitionCtx = null;
+  let transitionSuppressStartIntro = false;
+
+  // Flash + Zoom (CSS) transition runtime
+  const fx = {
+    overlay: null,
+    cutTimer: null,
+    doneTimer: null,
+    running: false,
+  };
+
+  function prefersReducedMotion() {
+    try { return !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; }
+  }
+
+  function initFxOverlay(){
+    if(fx.overlay) return;
+    const o = document.createElement('div');
+    o.id = 'fxTransitionOverlay';
+    o.className = '';
+    o.setAttribute('aria-hidden', 'true');
+    try{ document.body.appendChild(o); }catch(_){ /* ignore */ }
+    fx.overlay = o;
+  }
+
+  function hideFxTransition(){
+    if(fx.cutTimer){ clearTimeout(fx.cutTimer); fx.cutTimer = null; }
+    if(fx.doneTimer){ clearTimeout(fx.doneTimer); fx.doneTimer = null; }
+    fx.running = false;
+    const o = fx.overlay;
+    if(!o) return;
+    o.style.removeProperty('--fxDur');
+    o.classList.remove('fxActive');
+    o.classList.remove('fxRun');
+    o.setAttribute('aria-hidden', 'true');
+  }
+
+  function runFlashZoomTransition(opts = {}){
+    if(prefersReducedMotion()){
+      try{ if(typeof opts.onCut === 'function') opts.onCut(); }catch(_){ }
+      try{ if(typeof opts.onDone === 'function') opts.onDone(true); }catch(_){ }
+      return () => {};
+    }
+
+    initFxOverlay();
+    const o = fx.overlay;
+    if(!o){
+      try{ if(typeof opts.onCut === 'function') opts.onCut(); }catch(_){ }
+      try{ if(typeof opts.onDone === 'function') opts.onDone(false); }catch(_){ }
+      return () => {};
+    }
+
+    // Cancel any in-progress FX transition.
+    hideFxTransition();
+
+    const durMs = Math.max(200, Math.min(10000, Math.round(Number(opts.durMs) || 650)));
+    const cutMsRaw = Math.round(Number(opts.cutMs) || 0);
+    const cutMs = Math.max(0, Math.min(durMs, cutMsRaw));
+
+    fx.running = true;
+
+    o.style.setProperty('--fxDur', `${durMs}ms`);
+    o.classList.add('fxActive');
+    o.setAttribute('aria-hidden', 'false');
+
+    // Restart keyframes
+    o.classList.remove('fxRun');
+    // force reflow
+    void o.offsetHeight;
+    o.classList.add('fxRun');
+
+    fx.cutTimer = setTimeout(() => {
+      try{ if(typeof opts.onCut === 'function') opts.onCut(); }catch(_){ }
+    }, cutMs);
+
+    fx.doneTimer = setTimeout(() => {
+      hideFxTransition();
+      try{ if(typeof opts.onDone === 'function') opts.onDone(true); }catch(_){ }
+    }, durMs);
+
+    return () => {
+      hideFxTransition();
+      try{ if(typeof opts.onDone === 'function') opts.onDone(false); }catch(_){ }
+    };
+  }
+
+
   // Media runtime
   let currentAssetUrl = null;
   let lastMediaKey = null;
@@ -147,7 +326,7 @@
   }
 
   // Sponsor bug runtime
-  const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
+  const SPONSOR_VIEWER_STATUS_KEY = OMJN.scopedKey("sponsorBug.viewerStatus.v1");
   let currentSponsorObjectUrl = null;
   let lastSponsorKey = null;
   let sponsorLoadToken = 0;
@@ -498,10 +677,16 @@
 
   // ---- Background ----
   function setBg() {
-    const path = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
+    const path = state.splash?.backgroundAssetPath || null;
     if (path === lastBgPath) return;
     lastBgPath = path;
-    if (el.bg) el.bg.style.backgroundImage = `url('${path}')`;
+    if (!el.bg) return;
+    // If no custom background is set, fall back to CSS (animated gradient).
+    if (!path) {
+      el.bg.style.removeProperty("background-image");
+      return;
+    }
+    el.bg.style.backgroundImage = `url('${path}')`;
   }
 
   // ---- House Band ----
@@ -633,6 +818,19 @@
       el.root.classList.remove("startIntro");
       startIntroTimeout = null;
     }, 650);
+  }
+
+  function triggerFxZoomBurst(){
+    const card = el.vMainCard;
+    if(!card) return;
+    try{
+      card.classList.remove('fxZoomBurst');
+      void card.offsetHeight;
+      card.classList.add('fxZoomBurst');
+      setTimeout(() => {
+        try{ card.classList.remove('fxZoomBurst'); }catch(_){ }
+      }, 900);
+    }catch(_){ /* ignore */ }
   }
 
   // ---- Media ----
@@ -1051,41 +1249,45 @@
   }
 
   // ---- Splash render (state-driven) ----
+
+  // ---- Splash render (state-driven) ----
   function renderSplashStatic() {
-    const [n1, n2] = OMJN.computeNextTwo(state);
-    const showNextTwo = state.splash?.showNextTwo !== false;
+    const [n1, n2, n3] = OMJN.computeNextThree(state);
+    const showUpcoming = state.splash?.showNextTwo !== false; // legacy key: showNextTwo
 
     const key = JSON.stringify({
-      showNextTwo,
+      showUpcoming,
       n1: n1 ? { id: n1.id, n: n1.displayName, t: OMJN.displaySlotTypeLabel(state, n1), m: OMJN.effectiveMinutes(state, n1) } : null,
       n2: n2 ? { id: n2.id, n: n2.displayName, t: OMJN.displaySlotTypeLabel(state, n2), m: OMJN.effectiveMinutes(state, n2) } : null,
+      n3: n3 ? { id: n3.id, n: n3.displayName, t: OMJN.displaySlotTypeLabel(state, n3), m: OMJN.effectiveMinutes(state, n3) } : null,
       hb: hbKey(),
       hbEnabled: state.viewerPrefs?.showHouseBandFooter !== false,
     });
     if (key === lastSplashKey) return;
     lastSplashKey = key;
 
-    // Next / Deck cards
-    if (el.sNext) el.sNext.textContent = showNextTwo ? (n1 ? slotName(n1) : "TBD") : "";
-    if (el.sDeck) el.sDeck.textContent = showNextTwo ? (n2 ? slotName(n2) : "TBD") : "";
+    // Upcoming cards
+    if (el.sNext) el.sNext.textContent = showUpcoming ? (n1 ? slotName(n1) : "TBD") : "";
+    if (el.sDeck) el.sDeck.textContent = showUpcoming ? (n2 ? slotName(n2) : "TBD") : "";
+    if (el.sHole) el.sHole.textContent = showUpcoming ? (n3 ? slotName(n3) : "TBD") : "";
 
     const sub1 = n1 ? `${OMJN.displaySlotTypeLabel(state, n1)} • ${OMJN.effectiveMinutes(state, n1)}m` : "Sign ups open";
     const sub2 = n2 ? `${OMJN.displaySlotTypeLabel(state, n2)} • ${OMJN.effectiveMinutes(state, n2)}m` : "Get ready";
-    if (el.sNextSub) el.sNextSub.textContent = showNextTwo ? sub1 : "";
-    if (el.sDeckSub) el.sDeckSub.textContent = showNextTwo ? sub2 : "";
+    const sub3 = n3 ? `${OMJN.displaySlotTypeLabel(state, n3)} • ${OMJN.effectiveMinutes(state, n3)}m` : "You’re up soon";
 
-    // Optionally hide the Next/Deck cards entirely
-    try {
-      const nextCard = el.sNext?.closest?.(".vSplashCard");
-      const deckCard = el.sDeck?.closest?.(".vSplashCard");
-      if (nextCard) nextCard.style.display = showNextTwo ? "" : "none";
-      if (deckCard) deckCard.style.display = showNextTwo ? "" : "none";
-    } catch (_) {}
+    if (el.sNextSub) el.sNextSub.textContent = showUpcoming ? sub1 : "";
+    if (el.sDeckSub) el.sDeckSub.textContent = showUpcoming ? sub2 : "";
+    if (el.sHoleSub) el.sHoleSub.textContent = showUpcoming ? sub3 : "";
 
-    // House Band card on Splash
+    // Optionally hide the Upcoming stack entirely
+    try{
+      if(el.splashRight) el.splashRight.style.display = showUpcoming ? "" : "none";
+      if(el.splashLayout) el.splashLayout.classList.toggle('noUpcoming', !showUpcoming);
+    }catch(_){ }
+
+    // House Band row on Splash (full width)
     const footerEnabled = state.viewerPrefs?.showHouseBandFooter !== false;
     const hbTop = OMJN.getHouseBandTopPerCategory(state);
-    const hbCard = el.hbLineup?.closest?.(".vBandCard");
 
     const hbK = hbKey();
     if (hbK !== lastHbSplashKey) {
@@ -1094,10 +1296,14 @@
     }
 
     const hasHB = !!(el.hbLineup && el.hbLineup.childElementCount);
-    if (hbCard) hbCard.style.display = footerEnabled && hbTop.length && hasHB ? "" : "none";
+    if (el.splashHBCard) el.splashHBCard.style.display = (footerEnabled && hbTop.length && hasHB) ? "" : "none";
+
+    // If HB is hidden, slightly bump the upcoming card scale
+    try{ if(el.root) el.root.classList.toggle('splashNoHB', !(footerEnabled && hbTop.length && hasHB)); }catch(_){ }
 
     setBg();
   }
+
 
   // ---- LIVE render (state-driven, no timer tick) ----
   function renderNextDeckStatic() {
@@ -1196,11 +1402,14 @@
         el.hbInstruments.textContent = show ? hbInstrumentsText : "";
       }
       if (el.chipType) el.chipType.textContent = chipTypeText;
-
       if (startIntroPending) {
-        // For special screens, animate the headline name (message/member).
-        triggerStartIntro(nowNameText);
+        // If a transition is queued, it handles the visual transition instead of the punch-in.
+        if (!transitionSuppressStartIntro) {
+          // For special screens, animate the headline name (message/member).
+          triggerStartIntro(nowNameText);
+        }
         startIntroPending = false;
+        transitionSuppressStartIntro = false;
       }
 
       // Donation
@@ -1353,6 +1562,7 @@
         el.adVideo.removeAttribute("src");
         el.adVideo.loop = false;
         el.adVideo.muted = true;
+        el.adVideo.onended = null;
       }
 
       if(adBlobUrl){
@@ -1398,9 +1608,12 @@
       }
 
       el.adVideo.style.display = "";
-      el.adVideo.loop = !!ad.loop;
+      el.adVideo.loop = false;
       el.adVideo.muted = !(ad.audioOn === true);
       el.adVideo.onerror = () => { if(el.adFail) el.adFail.style.display = ""; };
+      el.adVideo.onended = () => {
+        try{ OMJN.sendCommand?.("AD_ENDED", { slotId: slot?.id || null }); }catch(_){ }
+      };
       el.adVideo.src = src;
       try{ el.adVideo.load(); }catch(_){}
       const p = el.adVideo.play?.();
@@ -1466,20 +1679,96 @@ function renderStateDriven() {
     // Apply theme
     OMJN.applyThemeToDocument(document, state);
 
-  let adBlobUrl = null;
-
     // Ensure timer UI is correct immediately
     updateTimerAndCues();
   }
 
   // ---- Subscribe to state updates ----
   OMJN.subscribe((s) => {
-    const prevPhase = state?.phase;
-    state = s;
+    const prevReal = realState;
+    realState = s;
 
-    if (prevPhase === "SPLASH" && (state.phase === "LIVE" || state.phase === "PAUSED") && state.currentSlotId) {
-      startIntroPending = true;
+    const enteringLive = prevReal?.phase === "SPLASH" && (realState.phase === "LIVE" || realState.phase === "PAUSED") && realState.currentSlotId;
+
+    // If we are mid-transition and the show drops back to SPLASH, cancel the transition.
+    if(transitionCtx && transitionCtx.active && !transitionCtx.cutDone){
+      const stillLive = (realState.phase === "LIVE" || realState.phase === "PAUSED") && realState.currentSlotId;
+      if(!stillLive){
+        const ctx = transitionCtx;
+        transitionCtx = null;
+        try{ if(ctx && typeof ctx.cancel === 'function') ctx.cancel(); }catch(_){ }
+        hideFxTransition();
+      }
     }
+
+    if (enteringLive) {
+      // Transition only for non-ad slots
+      const cur = (realState.queue || []).find(x => x && x.id === realState.currentSlotId);
+      const t = String(cur?.slotTypeId || "");
+      const isAd = (t === "ad_graphic" || t === "ad_video");
+
+      const style = transitionStyle();
+      const enabled = transitionEnabled() && style !== "off";
+
+      if (!isAd && enabled && style === "flashZoom") {
+        const cutSec = transitionCutSec();
+
+        // Hold UI on SPLASH until cut point
+        transitionCtx = {
+          active: true,
+          cutDone: false,
+          cutSec,
+          preState: prevReal,
+          kind: "flashZoom",
+          cancel: null,
+        };
+
+        // UI remains on the prior SPLASH state until cut
+        state = prevReal;
+
+        const durSec = transitionDurSec();
+        const durMs = Math.round(durSec * 1000);
+        const cutMs = Math.round(cutSec * 1000);
+
+        transitionCtx.cancel = runFlashZoomTransition({
+          durMs,
+          cutMs,
+          onCut: () => {
+            if(!transitionCtx || !transitionCtx.active) return;
+            transitionCtx.cutDone = true;
+            state = realState;
+            applyViewerScale();
+            renderStateDriven();
+            // Zoom settle on the LIVE card after the cut.
+            requestAnimationFrame(() => triggerFxZoomBurst());
+          },
+          onDone: () => {
+            // After FX ends, resume normal rendering
+            transitionCtx = null;
+            state = realState;
+            applyViewerScale();
+            renderStateDriven();
+          }
+        });
+
+        // Render SPLASH immediately under the overlay
+        renderStateDriven();
+        return;
+      }
+
+      // Default behavior: punch-in
+      startIntroPending = true;
+      transitionSuppressStartIntro = false;
+    }
+
+    // If we are mid-transition before cut, keep rendering SPLASH
+    if(transitionCtx && transitionCtx.active && !transitionCtx.cutDone){
+      state = transitionCtx.preState || prevReal || realState;
+    } else {
+      state = realState;
+    }
+
+    applyViewerScale();
 
     renderStateDriven();
   });

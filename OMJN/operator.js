@@ -2,13 +2,13 @@
 (() => {
   let state = OMJN.loadState();
 
-// Ads (Graphic-only v1)
+// Ads (Graphic + Video)
 let adCtx = null; // { mode:"add"|"edit", slotId }
 let adPresetsTried = false;
 let adPresets = [];
 let adSelectedPresetId = null;
+let adPreviewBlobUrl = null;
   OMJN.applyThemeToDocument(document, state);
-  ensureProfilesShape(state);
   OMJN.ensureHouseBandQueues(state);
   const els = {
     statusBanner: document.getElementById("statusBanner"),
@@ -19,7 +19,6 @@ let adSelectedPresetId = null;
     btnAddIntermission: document.getElementById("btnAddIntermission"),
     btnAddAd: document.getElementById("btnAddAd"),
     btnAddHouseBandSlot: document.getElementById("btnAddHouseBandSlot"),
-    profileNames: document.getElementById("profileNames"),
     addCustomWrap: document.getElementById("addCustomWrap"),
     addCustomLabel: document.getElementById("addCustomLabel"),
     addCustomMinutesWrap: document.getElementById("addCustomMinutesWrap"),
@@ -41,6 +40,14 @@ setBgColor: document.getElementById("setBgColor"),
     setCardOpacity: document.getElementById("setCardOpacity"),
     setCardOpacityVal: document.getElementById("setCardOpacityVal"),
     setSplashShowNextTwo: document.getElementById("setSplashShowNextTwo"),
+    setViewerUiScale: document.getElementById("setViewerUiScale"),
+    setViewerUiScaleVal: document.getElementById("setViewerUiScaleVal"),
+    setTransitionEnabled: document.getElementById("setTransitionEnabled"),
+    setTransitionStyle: document.getElementById("setTransitionStyle"),
+    setTransitionDurSec: document.getElementById("setTransitionDurSec"),
+    setTransitionDurVal: document.getElementById("setTransitionDurVal"),
+    setTransitionCutSec: document.getElementById("setTransitionCutSec"),
+    setTransitionCutVal: document.getElementById("setTransitionCutVal"),
     setShowProgressBar: document.getElementById("setShowProgressBar"),
     setShowOvertime: document.getElementById("setShowOvertime"),
     setWarnAtSec: document.getElementById("setWarnAtSec"),
@@ -198,6 +205,11 @@ setBgColor: document.getElementById("setBgColor"),
     btnAdLive: document.getElementById("btnAdLive"),
     adLabel: document.getElementById("adLabel"),
     adSource: document.getElementById("adSource"),
+    adKind: document.getElementById("adKind"),
+    adVideoOptions: document.getElementById("adVideoOptions"),
+    adVideoLoop: document.getElementById("adVideoLoop"),
+    adVideoAudio: document.getElementById("adVideoAudio"),
+
     adPresetWrap: document.getElementById("adPresetWrap"),
     adPreset: document.getElementById("adPreset"),
     adPresetSearch: document.getElementById("adPresetSearch"),
@@ -213,6 +225,7 @@ setBgColor: document.getElementById("setBgColor"),
     adUrl: document.getElementById("adUrl"),
     adPreviewWrap: document.getElementById("adPreviewWrap"),
     adPreviewImg: document.getElementById("adPreviewImg"),
+    adPreviewVideo: document.getElementById("adPreviewVideo"),
     hbBuildList: document.getElementById("hbBuildList"),
     hbPreviewNames: document.getElementById("hbPreviewNames"),
     hbPreviewRoles: document.getElementById("hbPreviewRoles"),
@@ -250,7 +263,7 @@ setBgColor: document.getElementById("setBgColor"),
   let imDraft = null; // { minutes: number | 'custom' }
 
 
-  const VIEWER_HEARTBEAT_KEY = "omjn.viewerHeartbeat.v1";
+  const VIEWER_HEARTBEAT_KEY = OMJN.scopedKey("viewerHeartbeat.v1");
 
   // ---- Undo/Redo (operator-only) ----
   const HISTORY_KEY = "OMJN_HISTORY_V1";
@@ -323,67 +336,9 @@ setBgColor: document.getElementById("setBgColor"),
         });
     }
 
-  // ---- Performer profiles (stored in state) ----
-  function ensureProfilesShape(s){
-    if(!s.profiles) s.profiles = {};
-    if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeysEnabled:true };
-  }
+  // ---- House Band shape ----
 
   // ---- House Band shape ----
-  
-  function normNameKey(name){
-    return OMJN.sanitizeText(name).toLowerCase();
-  }
-
-  function getProfileForName(name){
-    const key = normNameKey(name);
-    if(!key) return null;
-    return state.profiles?.[key] || null;
-  }
-
-  function upsertProfileFromSlot(slot){
-    const key = normNameKey(slot.displayName);
-    if(!key) return;
-
-    updateState(s => {
-      ensureProfilesShape(s);
-      s.profiles[key] = {
-        displayName: slot.displayName,
-        defaultSlotTypeId: slot.slotTypeId || "musician",
-        defaultMinutesOverride: slot.minutesOverride ?? null,
-        media: {
-          donationUrl: slot?.media?.donationUrl ?? null,
-          imageAssetId: slot?.media?.imageAssetId ?? null,
-          mediaLayout: slot?.media?.mediaLayout ?? "NONE"
-        },
-        updatedAt: Date.now()
-      };
-    }, { recordHistory:false }); // profile updates shouldn't spam undo
-  }
-
-  function applyProfileDefaultsToSlot(s, slot, profile){
-    if(!profile) return;
-
-    // Slot type + minutes always apply
-    slot.slotTypeId = profile.defaultSlotTypeId || slot.slotTypeId;
-    slot.minutesOverride = profile.defaultMinutesOverride ?? slot.minutesOverride ?? null;
-
-    // Media defaults: only apply if the profile has an explicit media preference.
-    // This lets "new performer" defaults (QR) take effect for legacy profiles that never set media.
-    slot.media = slot.media || { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
-
-    const pm = profile.media || {};
-    const profileHasMedia =
-      (!!pm.imageAssetId) ||
-      (typeof pm.donationUrl === "string" && pm.donationUrl.trim() !== "") ||
-      (typeof pm.mediaLayout === "string" && pm.mediaLayout !== "NONE");
-
-    if(profileHasMedia){
-      slot.media.donationUrl = pm.donationUrl ?? slot.media.donationUrl ?? null;
-      slot.media.imageAssetId = pm.imageAssetId ?? slot.media.imageAssetId ?? null;
-      slot.media.mediaLayout = pm.mediaLayout ?? slot.media.mediaLayout ?? "NONE";
-    }
-  }
 
   function slotTypesForSelect(opts = {}){
     const includeDisabled = !!opts.includeDisabled;
@@ -485,14 +440,39 @@ setBgColor: document.getElementById("setBgColor"),
     updateState(s => {
       const slot = s.queue.find(x => x.id === slotId);
       if(!slot) return;
+      const prevName = OMJN.sanitizeText(slot.displayName || "");
+      const prevType = String(slot.slotTypeId || "");
+      const prevMedia = slot.media || { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
+      const prevUrl = OMJN.sanitizeText(prevMedia.donationUrl || "");
+      const prevLayout = String(prevMedia.mediaLayout || "NONE");
+
+      const identityChanged = (prevName !== name) || (prevType !== slotTypeId);
+
       slot.displayName = name;
       slot.slotTypeId = slotTypeId;
       slot.minutesOverride = minutesOverride;
       slot.customTypeLabel = (slotTypeId === "custom") ? customLabel : "";
       slot.notes = notes;
+
       if(!slot.media) slot.media = { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
-      slot.media.donationUrl = url || null;
-      slot.media.mediaLayout = layout;
+
+      if(identityChanged){
+        // Idiot-proofing: if identity changes (even spelling), prevent stale performer media from carrying over.
+        // - always clear image uploads
+        // - clear donation URL unless operator explicitly changed it
+        // - reset layout to QR_ONLY unless operator explicitly changed it
+        slot.media.imageAssetId = null;
+
+        const draftUrl = url;
+        slot.media.donationUrl = (draftUrl && draftUrl !== prevUrl) ? draftUrl : null;
+
+        const draftLayout = layout;
+        slot.media.mediaLayout = (draftLayout && draftLayout !== prevLayout) ? draftLayout : "QR_ONLY";
+      }else{
+        slot.media.donationUrl = url || null;
+        slot.media.mediaLayout = layout;
+      }
+
 
       // Special screens
       if(slotTypeId === "houseband"){
@@ -507,18 +487,6 @@ setBgColor: document.getElementById("setBgColor"),
         slot.intermissionMessage = intermissionMessage || "WE'LL BE RIGHT BACK";
       }else{
         try{ delete slot.intermissionMessage; }catch(_){ }
-      }
-
-      // profile auto-save (keep existing behavior)
-      const key = normNameKey(slot.displayName);
-      if(key){
-        s.profiles[key] = {
-          displayName: slot.displayName,
-          defaultSlotTypeId: slot.slotTypeId || "musician",
-          defaultMinutesOverride: slot.minutesOverride ?? null,
-          media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-          updatedAt: Date.now()
-        };
       }
     });
 
@@ -953,7 +921,6 @@ setBgColor: document.getElementById("setBgColor"),
   }
 
   function setState(next){
-    ensureProfilesShape(next);
     OMJN.ensureHouseBandQueues(next);
 
     state = next;
@@ -974,7 +941,6 @@ setBgColor: document.getElementById("setBgColor"),
     const recordHistory = opts.recordHistory !== false;
     if(recordHistory && !isApplyingHistory) pushUndoSnapshot();
     const s = cloneState(state);
-    ensureProfilesShape(s);
     OMJN.ensureHouseBandQueues(s);
     // Ensure performer queue exists so mutators can push safely
     if(!Array.isArray(s.queue)) s.queue = [];
@@ -1006,6 +972,17 @@ setBgColor: document.getElementById("setBgColor"),
 
 function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
 
+function formatCutSeconds(sec){
+  const s = Math.max(0, Number(sec)||0);
+  const m = Math.floor(s / 60);
+  const r = s - m*60;
+  const mm = String(m);
+  const ss = String(Math.floor(r)).padStart(2, "0");
+  const ms = String(Math.round((r - Math.floor(r)) * 100)).padStart(2, "0");
+  return `${s.toFixed(2)}s ( ${mm}:${ss}.${ms} )`;
+}
+
+
 // HTML-escape helper used by renderSettings()
 function escapeHtml(s){
   return String(s || "")
@@ -1019,7 +996,7 @@ function escapeHtml(s){
   function renderSlotTypesEditor(){
     if(!els.slotTypesEditor) return;
     els.slotTypesEditor.innerHTML = "";
-    const order = ["musician","comedian","comedian5","poetry","custom"];
+    const order = ["musician","comedian","poetry","custom"];
     const types = [...(state.slotTypes||[])].sort((a,b)=>{
       const ia = order.indexOf(a.id); const ib = order.indexOf(b.id);
       if(ia===-1 && ib===-1) return String(a.label).localeCompare(String(b.label));
@@ -1476,6 +1453,40 @@ function escapeHtml(s){
 
     // Splash + timer prefs
     if(els.setSplashShowNextTwo) els.setSplashShowNextTwo.checked = (state.splash?.showNextTwo !== false);
+
+    if(els.setViewerUiScale){
+      const raw = Number(state.viewerPrefs?.uiScale ?? 1.0);
+      const v = Number.isFinite(raw) ? clamp(raw, 0.80, 1.40) : 1.0;
+      els.setViewerUiScale.value = String(v);
+      if(els.setViewerUiScaleVal) els.setViewerUiScaleVal.textContent = `${v.toFixed(2)}×`;
+    }
+
+    // Transition (Splash -> Live stinger)
+    if(els.setTransitionEnabled){
+      els.setTransitionEnabled.checked = (state.viewerPrefs?.transitionEnabled !== false);
+    }
+
+    if(els.setTransitionStyle){
+      const raw = String(state.viewerPrefs?.transitionStyle || "flashZoom");
+      const v = (raw === "flashZoom" || raw === "off") ? raw : (raw === "video" ? "flashZoom" : "flashZoom");
+      els.setTransitionStyle.value = v;
+    }
+
+    if(els.setTransitionDurSec){
+      const raw = Number(state.viewerPrefs?.transitionDurSec);
+      const v = Number.isFinite(raw) ? clamp(raw, 0.20, 10) : 0.65;
+      els.setTransitionDurSec.value = String(v);
+      if(els.setTransitionDurVal) els.setTransitionDurVal.textContent = formatCutSeconds(v);
+    }
+
+    if(els.setTransitionCutSec){
+      const style = String(state.viewerPrefs?.transitionStyle || "flashZoom");
+      const raw = Number(state.viewerPrefs?.transitionCutSec);
+      const def = 0.22;
+      const v = Number.isFinite(raw) ? clamp(raw, 0, 30) : def;
+      els.setTransitionCutSec.value = String(v);
+      if(els.setTransitionCutVal) els.setTransitionCutVal.textContent = formatCutSeconds(v);
+    }
     if(els.setShowProgressBar) els.setShowProgressBar.checked = (state.viewerPrefs?.showProgressBar !== false);
     if(els.setShowOvertime) els.setShowOvertime.checked = (state.viewerPrefs?.showOvertime !== false);
 
@@ -1707,6 +1718,80 @@ function escapeHtml(s){
           s.splash.showNextTwo = !!els.setSplashShowNextTwo.checked;
         }, { recordHistory:false });
       });
+    }
+
+    // Viewer scale
+    if(els.setViewerUiScale){
+      const onInput = () => {
+        const v = clamp(parseFloat(String(els.setViewerUiScale.value||"1")), 0.80, 1.40);
+        els.setViewerUiScale.value = String(v);
+        if(els.setViewerUiScaleVal) els.setViewerUiScaleVal.textContent = `${v.toFixed(2)}×`;
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.uiScale = v;
+        }, { recordHistory:false });
+      };
+      els.setViewerUiScale.addEventListener("input", onInput);
+      els.setViewerUiScale.addEventListener("change", onInput);
+    }
+
+    // Transition (Splash -> Live stinger)
+    if(els.setTransitionEnabled){
+      els.setTransitionEnabled.addEventListener("change", () => {
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.transitionEnabled = !!els.setTransitionEnabled.checked;
+        }, { recordHistory:false });
+      });
+    }
+
+    if(els.setTransitionStyle){
+      els.setTransitionStyle.addEventListener("change", () => {
+        const v = String(els.setTransitionStyle.value || "flashZoom");
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          const style = (v === "flashZoom" || v === "off") ? v : (v === "video" ? "flashZoom" : "flashZoom");
+          s.viewerPrefs.transitionStyle = style;
+
+          // Convenience defaults when switching styles (keeps the cut point reasonable).
+          if(style === "flashZoom"){
+            const cut = Number(s.viewerPrefs.transitionCutSec);
+            if(!Number.isFinite(cut) || cut > 1.5) s.viewerPrefs.transitionCutSec = 0.22;
+            const dur = Number(s.viewerPrefs.transitionDurSec);
+            if(!Number.isFinite(dur) || dur < 0.20 || dur > 10) s.viewerPrefs.transitionDurSec = 0.65;
+          }
+        }, { recordHistory:false });
+        // Refresh the settings UI so defaults (cut/duration) display sensibly.
+        renderSettings();
+      });
+    }
+
+    if(els.setTransitionDurSec){
+      const onDur = () => {
+        const v = clamp(parseFloat(String(els.setTransitionDurSec.value || "")), 0.20, 10);
+        els.setTransitionDurSec.value = String(v);
+        if(els.setTransitionDurVal) els.setTransitionDurVal.textContent = formatCutSeconds(v);
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.transitionDurSec = v;
+        }, { recordHistory:false });
+      };
+      els.setTransitionDurSec.addEventListener("input", onDur);
+      els.setTransitionDurSec.addEventListener("change", onDur);
+    }
+
+    if(els.setTransitionCutSec){
+      const onCut = () => {
+        const v = clamp(parseFloat(String(els.setTransitionCutSec.value || "")), 0, 30);
+        els.setTransitionCutSec.value = String(v);
+        if(els.setTransitionCutVal) els.setTransitionCutVal.textContent = formatCutSeconds(v);
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.transitionCutSec = v;
+        }, { recordHistory:false });
+      };
+      els.setTransitionCutSec.addEventListener("input", onCut);
+      els.setTransitionCutSec.addEventListener("change", onCut);
     }
 
     // Timer display prefs
@@ -2114,30 +2199,22 @@ function escapeHtml(s){
 
   function fillTypeSelect(selectEl, opts = {}){
     if(!selectEl) return;
-
-    const prev = String(selectEl.value || "");
     selectEl.innerHTML = "";
 
-    const placeholderText = String(opts.placeholderText || "");
-    if(placeholderText){
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = placeholderText;
-      opt.disabled = true;
-      selectEl.appendChild(opt);
+    // Quick Add performer slot type should always prompt.
+    // Only apply this placeholder to the Quick Add select (id="addType").
+    if(selectEl.id === "addType"){
+      const ph = document.createElement("option");
+      ph.value = "";
+      ph.textContent = "- CHOOSE A SLOT -";
+      selectEl.appendChild(ph);
     }
-
     for(const t of slotTypesForSelect(opts)){
       const opt = document.createElement("option");
       opt.value = t.id;
       opt.textContent = `${t.label} (${t.defaultMinutes}m)`;
       selectEl.appendChild(opt);
     }
-
-    // Restore prior selection if still present; otherwise keep the placeholder (if any).
-    const hasPrev = prev && Array.from(selectEl.options).some(o => o.value === prev);
-    if(hasPrev) selectEl.value = prev;
-    else if(placeholderText) selectEl.value = "";
   }
 
   function slotBadge(slot){
@@ -2150,6 +2227,19 @@ function escapeHtml(s){
     if(media.imageAssetId) icons.push("🖼️");
     if(media.donationUrl) icons.push("🔗");
     return { t, mins, icons, typeLabel };
+  }
+
+  // Queue visuals: font-awesome icons for consistent rendering.
+  // Requires font-awesome CSS to be loaded in operator.html.
+  function slotTypeIconClass(slotTypeId){
+    const id = String(slotTypeId || "");
+    if(id === "musician") return "fa-solid fa-music";
+    if(id === "comedian" || id === "comedian5") return "fa-solid fa-microphone-lines";
+    if(id === "poetry") return "fa-solid fa-masks-theater";
+    if(id === "houseband") return "fa-solid fa-guitar";
+    if(id === "intermission") return "fa-solid fa-pause";
+    if(id.startsWith("ad_")) return "fa-solid fa-bullhorn";
+    return "fa-solid fa-wand-magic-sparkles";
   }
 
   function queueRow(slot){
@@ -2177,6 +2267,20 @@ function escapeHtml(s){
     div.dataset.id = slot.id;
     div.dataset.slotType = String(slot.slotTypeId || "");
     if(t?.color) div.style.borderLeft = `6px solid ${t.color}`;
+
+    // Role-based styling for quick scanning (broadcast-style)
+    const slotTypeId = String(slot.slotTypeId || "");
+    const isIntermission = slotTypeId === "intermission";
+    const isHouseBand = slotTypeId === "houseband";
+    const isAd = slotTypeId.startsWith("ad_");
+    if(isLive) div.classList.add("role-live");
+    else if(isNext) div.classList.add("role-next");
+    else if(isDeck) div.classList.add("role-deck");
+    else if(isDone) div.classList.add("role-done");
+    else if(isIntermission) div.classList.add("role-intermission");
+    else if(isHouseBand) div.classList.add("role-houseband");
+    else if(isAd) div.classList.add("role-ad");
+    else div.classList.add("role-queued");
 
     if(div.draggable){
       div.addEventListener("dragstart", (e) => {
@@ -2206,52 +2310,59 @@ function escapeHtml(s){
 
     const main = document.createElement("div");
     main.className = "qMain";
-    const top = document.createElement("div");
-    top.className = "qTop";
+    // Status bar (solid role color band)
+    const bar = document.createElement("div");
+    bar.className = "qBar";
+
+    const barLeft = document.createElement("div");
+    barLeft.className = "qBarLeft";
+
+    const role = document.createElement("span");
+    role.className = "qRole";
+    if(isLive) role.textContent = "LIVE";
+    else if(isNext) role.textContent = "UP NEXT";
+    else if(isDeck) role.textContent = "ON DECK";
+    else if(slotTypeId === "intermission") role.textContent = "INTERMISSION";
+    else if(slotTypeId === "houseband") role.textContent = "HOUSE BAND SET";
+    else if(slotTypeId.startsWith("ad_")) role.textContent = "AD";
+    else if(isDone) role.textContent = (slot.status === "SKIPPED" ? (slot.noShow ? "NO-SHOW" : "SKIPPED") : "DONE");
+    else role.textContent = "QUEUED";
+
+    barLeft.appendChild(role);
+
+    const pills = document.createElement("div");
+    pills.className = "qPills";
+
+    const pillType = document.createElement("span");
+    pillType.className = "qPill";
+    pillType.textContent = typeLabel;
+    pills.appendChild(pillType);
+
+    const pillMins = document.createElement("span");
+    pillMins.className = "qPill qPillMins";
+    pillMins.textContent = `${mins}m`;
+    pills.appendChild(pillMins);
+
+    // Requested: keep pills left, next to the status role label.
+    barLeft.appendChild(pills);
+
+    bar.appendChild(barLeft);
+
+    // Name row (icon + name)
+    const nameRow = document.createElement("div");
+    nameRow.className = "qNameRow";
+
+    const ico = document.createElement("span");
+    ico.className = "qIcon";
+    const icls = slotTypeIconClass(slotTypeId);
+    ico.innerHTML = `<i class="${icls}" aria-hidden="true"></i>`;
+
     const name = document.createElement("div");
     name.className = "qName";
     name.textContent = slot.displayName || "—";
 
-    const bType = document.createElement("span");
-    bType.className = "badge gold";
-    bType.textContent = typeLabel;
-
-    const bMins = document.createElement("span");
-    bMins.className = "badge";
-    bMins.textContent = `${mins}m`;
-
-    top.appendChild(name);
-    top.appendChild(bType);
-    top.appendChild(bMins);
-
-    if(isLive){
-      const live = document.createElement("span");
-      live.className = "badge badgeLive";
-      live.textContent = "LIVE";
-      top.appendChild(live);
-    }
-    if(isNext){
-      const nx = document.createElement("span");
-      nx.className = "badge badgeNext";
-      nx.textContent = "NEXT";
-      top.appendChild(nx);
-    }
-    if(isDeck){
-      const dk = document.createElement("span");
-      dk.className = "badge badgeDeck";
-      dk.textContent = "ON DECK";
-      top.appendChild(dk);
-    }
-    if(isDone){
-      const dn = document.createElement("span");
-      dn.className = "badge badgeDone";
-      if(slot.status === "SKIPPED"){
-        dn.textContent = slot.noShow ? "NO-SHOW" : "SKIPPED";
-      }else{
-        dn.textContent = "DONE";
-      }
-      top.appendChild(dn);
-    }
+    nameRow.appendChild(ico);
+    nameRow.appendChild(name);
 
     const meta = document.createElement("div");
     meta.className = "qMeta";
@@ -2265,7 +2376,8 @@ function escapeHtml(s){
       meta.appendChild(ic);
     }
 
-    main.appendChild(top);
+    main.appendChild(bar);
+    main.appendChild(nameRow);
     const notesLine = firstLineOfNotes(slot.notes);
     if(notesLine){
       const sub = document.createElement("div");
@@ -2286,7 +2398,7 @@ function escapeHtml(s){
       btnEdit.textContent = isOpen ? "Close" : "Edit";
       btnEdit.addEventListener("click", (e) => {
         e.stopPropagation();
-        if(String(slot.slotTypeId||"")==="ad_graphic"){ openAdModal(slot.id); return; }
+        if(isAdSlotType(slot.slotTypeId)){ openAdModal(slot.id); return; }
 
         toggleInlineEdit(slot.id);
       });
@@ -3135,7 +3247,8 @@ function renderTimerLine(){
 function render(){
     // sync header inputs
     els.showTitle.value = state.showTitle || "";
-    els.splashPath.value = state.splash?.backgroundAssetPath || "./assets/splash_BG.jpg";
+    // Optional; blank means Viewer uses animated gradient.
+    els.splashPath.value = state.splash?.backgroundAssetPath || "";
 
     renderStatusBanner();
 
@@ -3156,22 +3269,9 @@ function render(){
     els.btnUndo.disabled = !undoStack.length;
     els.btnRedo.disabled = !redoStack.length;
 
-    // Profiles datalist
-    if(els.profileNames){
-      const opts = Object.values(state.profiles || {})
-        .map(p => p?.displayName)
-        .filter(Boolean)
-        .sort((a,b)=>a.localeCompare(b));
-      els.profileNames.innerHTML = "";
-      for(const n of opts){
-        const opt = document.createElement("option");
-        opt.value = n;
-        els.profileNames.appendChild(opt);
-      }
-    }
-
-    fillTypeSelect(els.addType, { excludeSpecial:true, placeholderText:"- CHOOSE A SLOT -" });
-toggleCustomAddFields();
+    fillTypeSelect(els.addType, { excludeSpecial:true });
+    if(els.addType) els.addType.value = "";
+    toggleCustomAddFields();
     // House Band add controls
     if(els.hbAddInstrument){
       fillHBInstrumentSelect(els.hbAddInstrument);
@@ -3188,24 +3288,23 @@ renderHouseBandCategories();
   }
 
   // ---- Actions ----
-  function promptChooseSlotType(){
-    if(!els.addType) return;
-    els.addType.classList.add("needsChoice");
-    try{ els.addType.focus(); }catch(_){/* ignore */}
-    setTimeout(() => { try{ els.addType.classList.remove("needsChoice"); }catch(_){/* ignore */} }, 900);
-  }
-
   function addPerformer(){
     const name = OMJN.sanitizeText(els.addName.value);
     if(!name) return;
 
-    const slotTypeId = String(els.addType.value || "");
-    if(!slotTypeId){
-      promptChooseSlotType();
+    // Enforce explicit slot selection (no silent default to Musician).
+    const chosenType = String(els.addType?.value || "");
+    if(!chosenType){
+      try{
+        els.addType?.focus?.();
+        els.addType?.classList?.add("nudge");
+        setTimeout(() => els.addType?.classList?.remove("nudge"), 650);
+      }catch(_){ }
       return;
     }
 
     updateState(s => {
+      const slotTypeId = chosenType;
       const isCustom = slotTypeId === "custom";
       const customTypeLabel = isCustom ? OMJN.sanitizeText(els.addCustomLabel.value) : "";
       const customMinutesRaw = isCustom ? els.addCustomMinutes.value : "";
@@ -3221,24 +3320,15 @@ renderHouseBandCategories();
         notes: "",
         media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
       };
-      const prof = s.profiles?.[normNameKey(slot.displayName)] || null;
-        if(prof) applyProfileDefaultsToSlot(s, slot, prof);
-        s.queue.push(slot);
-        // create/update profile for future auto-fill
-        if(slot.displayName){
-          const key = normNameKey(slot.displayName);
-          s.profiles[key] = {
-            displayName: slot.displayName,
-            defaultSlotTypeId: slot.slotTypeId,
-            defaultMinutesOverride: slot.minutesOverride ?? null,
-            media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-            updatedAt: Date.now()
-          };
-        }
+      s.queue.push(slot);
     });
 
     els.addName.value = "";
     els.addName.focus();
+
+    // Always prompt again after a successful add.
+    if(els.addType) els.addType.value = "";
+    toggleCustomAddFields();
   }
 
 
@@ -3512,18 +3602,24 @@ renderHouseBandCategories();
     const out = [];
     const addItem = (it) => {
       if(!it) return;
-      const url = String(it.url || it.src || it.path || "").trim();
-      if(!url) return;
-      // Graphic-only v1: accept only images (or items explicitly type=image)
-      const type = String(it.type || "").toLowerCase();
-      if(type && type !== "image") return;
-      if(!type && !isProbablyImageUrl(url)) return;
+      const raw = String(it.url || it.src || it.path || "").trim();
+      if(!raw) return;
 
-      const abs = (new URL(url, baseUrl)).href;
+      const type = String(it.type || it.kind || "").toLowerCase();
+      let kind = "graphic";
+
+      if(type === "video") kind = "video";
+      else if(type === "image" || type === "graphic") kind = "graphic";
+      else {
+        if(isProbablyVideoUrl(raw)) kind = "video";
+        else if(isProbablyImageUrl(raw)) kind = "graphic";
+        else return; // unknown media type
+      }
+
+      const abs = (new URL(raw, baseUrl)).href;
       const id = String(it.id || abs || OMJN.uid("adp")).trim();
-      const label = String(it.label || it.name || deriveLabelFromPath(url) || "Ad").trim();
-
-      out.push({ id, label, url: abs });
+      const label = String(it.label || it.name || deriveLabelFromPath(raw) || "Ad").trim();
+      out.push({ id, label, url: abs, kind });
     };
 
     if(Array.isArray(json)){
@@ -3597,12 +3693,16 @@ renderHouseBandCategories();
     const q = String(els.adPresetSearch?.value || "").trim().toLowerCase();
 
     els.adPresetList.innerHTML = "";
-    const items = (adPresets || []).filter(it => !q || it.label.toLowerCase().includes(q) || it.url.toLowerCase().includes(q));
+    const kind = getAdKind();
+    const items = (adPresets || [])
+      .filter(it => String(it.kind || "graphic") === kind)
+      .filter(it => !q || it.label.toLowerCase().includes(q) || it.url.toLowerCase().includes(q));
     if(!items.length){
+      const hasAnyOfKind = (adPresets || []).some(it => String(it.kind || "graphic") === kind);
       const empty = document.createElement("div");
       empty.className = "small muted";
       empty.style.padding = "10px";
-      empty.textContent = adPresets.length ? "No matches." : "No presets loaded.";
+      empty.textContent = hasAnyOfKind ? "No matches." : (kind === "video" ? "No video presets loaded." : "No image presets loaded.");
       els.adPresetList.appendChild(empty);
       return;
     }
@@ -3617,6 +3717,12 @@ renderHouseBandCategories();
       const lbl = document.createElement("div");
       lbl.className = "adPresetLabel";
       lbl.textContent = it.label;
+      if(String(it.kind || "graphic") === "video"){
+        const b = document.createElement("span");
+        b.className = "adKindBadge";
+        b.textContent = "VIDEO";
+        lbl.appendChild(b);
+      }
       const meta = document.createElement("div");
       meta.className = "adPresetMeta mono";
       meta.textContent = it.url.replace(location.origin, "");
@@ -3672,6 +3778,7 @@ renderHouseBandCategories();
 
   function showAdSourceUI(){
     const mode = String(els.adSource?.value || "preset");
+    syncAdKindUI();
     if(els.adPresetWrap) els.adPresetWrap.style.display = (mode === "preset") ? "" : "none";
     if(els.adUploadWrap) els.adUploadWrap.style.display = (mode === "upload") ? "" : "none";
     if(els.adUrlWrap) els.adUrlWrap.style.display = (mode === "url") ? "" : "none";
@@ -3714,11 +3821,68 @@ renderHouseBandCategories();
     return (adPresets || []).find(x => x.id === id) || null;
   }
 
-  function updateAdPreview(){
-    if(!els.adPreviewImg || !els.adPreviewWrap) return;
+  
+  function getAdKind(){
+    const k = String(els.adKind?.value || "graphic").toLowerCase();
+    return (k === "video") ? "video" : "graphic";
+  }
+
+  function isAdSlotType(t){
+    const x = String(t || "");
+    return x === "ad_graphic" || x === "ad_video";
+  }
+
+  function isProbablyVideoUrl(u){
+    const s = String(u || "").toLowerCase();
+    return /\.(mp4|webm|ogv|ogg)(\?|#|$)/.test(s);
+  }
+
+  function syncAdKindUI(){
+    const kind = getAdKind();
+    const isVid = (kind === "video");
+
+    if(els.adVideoOptions) els.adVideoOptions.style.display = isVid ? "" : "none";
+    if(els.adFile) els.adFile.accept = isVid ? "video/*" : "image/*";
+
+    if(els.adModalTitle) els.adModalTitle.textContent = isVid ? "Video Ad" : "Graphic Ad";
+    if(els.adModalSub) els.adModalSub.textContent = isVid ? "Full-screen video on the viewer while LIVE." : "Full-screen on the viewer while LIVE.";
+
+    try{
+      if(els.adUploadWrap){
+        const lab = els.adUploadWrap.querySelector('label[for="adFile"]') || els.adUploadWrap.querySelector("label");
+        if(lab) lab.textContent = isVid ? "Upload video" : "Upload image";
+      }
+      if(els.adUrlWrap){
+        const lab = els.adUrlWrap.querySelector('label[for="adUrl"]') || els.adUrlWrap.querySelector("label");
+        if(lab) lab.textContent = isVid ? "Video URL" : "Image URL";
+      }
+      if(els.adUrl){
+        els.adUrl.placeholder = isVid ? "https://... (direct mp4/webm)" : "https://... (image URL)";
+      }
+    }catch(_){}
+
+    const sel = getSelectedPreset();
+    if(sel && String(sel.kind || "graphic") !== kind){
+      adSelectedPresetId = null;
+      if(els.adPreset) els.adPreset.value = "";
+    }
+  }
+
+  function clearAdPreviewBlob(){
+    if(adPreviewBlobUrl){
+      try{ URL.revokeObjectURL(adPreviewBlobUrl); }catch(_){}
+      adPreviewBlobUrl = null;
+    }
+  }
+
+function updateAdPreview(){
+    if(!els.adPreviewWrap) return;
     const mode = String(els.adSource?.value || "preset");
+    const kind = getAdKind();
 
     let url = "";
+    clearAdPreviewBlob();
+
     if(mode === "preset"){
       const it = getSelectedPreset();
       url = it?.url || "";
@@ -3727,18 +3891,54 @@ renderHouseBandCategories();
     } else if(mode === "upload"){
       const f = els.adFile?.files?.[0] || null;
       if(f){
-        try{ url = URL.createObjectURL(f); }catch(_){ url = ""; }
+        try{
+          adPreviewBlobUrl = URL.createObjectURL(f);
+          url = adPreviewBlobUrl;
+        }catch(_){ url = ""; }
       }
     }
 
-    if(url){
-      els.adPreviewImg.style.display = "";
-      els.adPreviewImg.src = url;
-      els.adPreviewWrap.style.display = "";
-    } else {
-      els.adPreviewImg.style.display = "none";
-      els.adPreviewImg.removeAttribute("src");
+    if(!url){
+      if(els.adPreviewImg){
+        els.adPreviewImg.style.display = "none";
+        els.adPreviewImg.removeAttribute("src");
+      }
+      if(els.adPreviewVideo){
+        try{ els.adPreviewVideo.pause(); }catch(_){}
+        els.adPreviewVideo.style.display = "none";
+        els.adPreviewVideo.removeAttribute("src");
+      }
       els.adPreviewWrap.style.display = "none";
+      return;
+    }
+
+    els.adPreviewWrap.style.display = "";
+
+    if(kind === "graphic"){
+      if(els.adPreviewVideo){
+        try{ els.adPreviewVideo.pause(); }catch(_){}
+        els.adPreviewVideo.style.display = "none";
+        els.adPreviewVideo.removeAttribute("src");
+      }
+      if(els.adPreviewImg){
+        els.adPreviewImg.style.display = "";
+        els.adPreviewImg.src = url;
+      }
+    } else {
+      if(els.adPreviewImg){
+        els.adPreviewImg.style.display = "none";
+        els.adPreviewImg.removeAttribute("src");
+      }
+      if(els.adPreviewVideo){
+        els.adPreviewVideo.style.display = "";
+        els.adPreviewVideo.loop = !!els.adVideoLoop?.checked;
+        const audioOn = !!els.adVideoAudio?.checked;
+        els.adPreviewVideo.muted = !audioOn;
+        els.adPreviewVideo.src = url;
+        try{ els.adPreviewVideo.load(); }catch(_){}
+        const p = els.adPreviewVideo.play?.();
+        if(p && typeof p.catch === "function") p.catch(() => {});
+      }
     }
   }
 
@@ -3751,6 +3951,11 @@ renderHouseBandCategories();
     if(els.adUrl) els.adUrl.value = "";
     if(els.adFile) els.adFile.value = "";
     adSelectedPresetId = null;
+    if(els.adKind) els.adKind.value = "graphic";
+    if(els.adVideoLoop) els.adVideoLoop.checked = false;
+    if(els.adVideoAudio) els.adVideoAudio.checked = false;
+    clearAdPreviewBlob();
+
 
     // load presets list (async; doesn't block opening)
     ensureAdPresets().catch(() => {});
@@ -3761,10 +3966,24 @@ renderHouseBandCategories();
       const ad = slot?.ad || {};
       if(els.adLabel) els.adLabel.value = String(slot?.displayName || ad.label || "").trim();
 
+      const kind = (String(ad.kind || "").toLowerCase() === "video" || String(slot?.slotTypeId || "") === "ad_video") ? "video" : "graphic";
+      if(els.adKind) els.adKind.value = kind;
+      if(kind === "video"){
+        if(els.adVideoLoop) els.adVideoLoop.checked = !!ad.loop;
+        if(els.adVideoAudio) els.adVideoAudio.checked = !!ad.audioOn;
+      }
+
       const srcMode = String(ad.source || ad.sourceMode || "").toLowerCase();
       if(srcMode === "upload"){
         if(els.adSource) els.adSource.value = "upload";
-      } else if(srcMode === "url" || srcMode === "preset"){
+      } else if(srcMode === "preset"){
+        if(els.adSource) els.adSource.value = "preset";
+        const u = String(ad.url || "").trim();
+        if(u){
+          const match = (adPresets || []).find(p => String(p.url || "") === u && String(p.kind || "graphic") === kind);
+          if(match) adSelectedPresetId = match.id;
+        }
+      } else if(srcMode === "url"){
         if(els.adSource) els.adSource.value = "url";
         if(els.adUrl) els.adUrl.value = String(ad.url || "").trim();
       } else {
@@ -3781,30 +4000,53 @@ renderHouseBandCategories();
 
   function closeAdModal(){
     adCtx = null;
+    clearAdPreviewBlob();
     setAdModalVisible(false);
   }
 
   async function buildAdSlotFromModal(){
+    const kind = getAdKind();
     const mode = String(els.adSource?.value || "preset");
     let label = OMJN.sanitizeText(els.adLabel?.value || "");
-    let ad = { kind:"graphic", source:"", url:"", assetId:"" };
+
+    const ad = {
+      kind,
+      source: "",
+      url: "",
+      assetId: "",
+      loop: false,
+      audioOn: false,
+    };
+
+    if(kind === "video"){
+      ad.loop = !!els.adVideoLoop?.checked;
+      ad.audioOn = !!els.adVideoAudio?.checked;
+    }
 
     if(mode === "preset"){
       const it = getSelectedPreset();
       if(!it) throw new Error("Select a preset.");
+      if(String(it.kind || "graphic") !== kind) throw new Error("Selected preset does not match the ad type.");
       ad.source = "preset";
       ad.url = it.url;
       if(!label) label = it.label || deriveLabelFromPath(it.url) || "Ad";
     } else if(mode === "url"){
       const url = String(els.adUrl?.value || "").trim();
-      if(!url) throw new Error("Enter an image URL.");
+      if(!url) throw new Error(kind === "video" ? "Enter a video URL." : "Enter an image URL.");
       ad.source = "url";
       ad.url = url;
       if(!label) label = deriveLabelFromPath(url) || "Ad";
     } else if(mode === "upload"){
       const f = els.adFile?.files?.[0] || null;
-      if(!f) throw new Error("Choose an image file to upload.");
-      const assetId = OMJN.uid("adimg");
+      if(!f) throw new Error(kind === "video" ? "Choose a video file to upload." : "Choose an image file to upload.");
+
+      const isVid = /^video\//.test(String(f.type || ""));
+      const isImg = /^image\//.test(String(f.type || ""));
+
+      if(kind === "video" && !isVid) throw new Error("That file does not look like a video.");
+      if(kind === "graphic" && !isImg) throw new Error("That file does not look like an image.");
+
+      const assetId = OMJN.uid(kind === "video" ? "advid" : "adimg");
       await OMJN.putAsset(assetId, f);
       ad.source = "upload";
       ad.assetId = assetId;
@@ -3815,7 +4057,7 @@ renderHouseBandCategories();
       id: OMJN.uid("slot"),
       createdAt: Date.now(),
       displayName: label || "Ad",
-      slotTypeId: "ad_graphic",
+      slotTypeId: (kind === "video") ? "ad_video" : "ad_graphic",
       minutesOverride: 0,
       customTypeLabel: "",
       status: "QUEUED",
@@ -3852,29 +4094,40 @@ renderHouseBandCategories();
 
       if(adCtx?.mode === "edit" && adCtx.slotId){
         // Update existing slot in-place
+        const kind = getAdKind();
         const mode = String(els.adSource?.value || "preset");
         const label = OMJN.sanitizeText(els.adLabel?.value || "");
+
+        const videoOpts = (kind === "video") ? { loop: !!els.adVideoLoop?.checked, audioOn: !!els.adVideoAudio?.checked } : {};
         let newAd = null;
+
         if(mode === "preset"){
           const it = getSelectedPreset();
           if(!it) throw new Error("Select a preset.");
-          newAd = { kind:"graphic", source:"preset", url: it.url };
+          if(String(it.kind || "graphic") !== kind) throw new Error("Selected preset does not match the ad type.");
+          newAd = { kind, source:"preset", url: it.url, ...videoOpts };
         } else if(mode === "url"){
           const url = String(els.adUrl?.value || "").trim();
-          if(!url) throw new Error("Enter an image URL.");
-          newAd = { kind:"graphic", source:"url", url };
+          if(!url) throw new Error(kind === "video" ? "Enter a video URL." : "Enter an image URL.");
+          newAd = { kind, source:"url", url, ...videoOpts };
         } else if(mode === "upload"){
           const f = els.adFile?.files?.[0] || null;
-          if(!f) throw new Error("Choose an image file to upload.");
-          const assetId = OMJN.uid("adimg");
-          await OMJN.putAsset(assetId, f);
-          newAd = { kind:"graphic", source:"upload", assetId };
-        }
+          if(!f) throw new Error(kind === "video" ? "Choose a video file to upload." : "Choose an image file to upload.");
 
-        updateState(s => {
+          const isVid = /^video\//.test(String(f.type || ""));
+          const isImg = /^image\//.test(String(f.type || ""));
+
+          if(kind === "video" && !isVid) throw new Error("That file does not look like a video.");
+          if(kind === "graphic" && !isImg) throw new Error("That file does not look like an image.");
+
+          const assetId = OMJN.uid(kind === "video" ? "advid" : "adimg");
+          await OMJN.putAsset(assetId, f);
+          newAd = { kind, source:"upload", assetId, ...videoOpts };
+        }
+updateState(s => {
           const slot = s.queue.find(x => x.id === adCtx.slotId);
           if(!slot) return;
-          slot.slotTypeId = "ad_graphic";
+          slot.slotTypeId = (newAd && newAd.kind === "video") ? "ad_video" : "ad_graphic";
           slot.displayName = label || slot.displayName || "Ad";
           slot.ad = newAd || slot.ad;
         });
@@ -4047,7 +4300,7 @@ function start(){
       s.currentSlotId = pick.id;
       s.phase = "LIVE";
 
-      const isAd = String(pick.slotTypeId || "") === "ad_graphic";
+      const isAd = isAdSlotType(pick.slotTypeId);
       if(isAd){
         // Untimed (viewer hides timer); operator can End → Splash to return.
         s.timer.running = false;
@@ -4168,16 +4421,14 @@ function start(){
     if(!ok) return;
     const fresh = OMJN.defaultState();
     // Preserve user configuration, but CLEAR both queues (performers + house band)
-    // - keep profiles for autocomplete
-    // - keep slot types + theme/prefs
-    try{ fresh.profiles = JSON.parse(JSON.stringify(state.profiles || fresh.profiles)); }catch(_){ }
+    // Preserve slot types + theme/prefs
     try{ fresh.slotTypes = JSON.parse(JSON.stringify(state.slotTypes || fresh.slotTypes)); }catch(_){ }
     try{ fresh.settings = JSON.parse(JSON.stringify(state.settings || fresh.settings)); }catch(_){ }
     try{ fresh.viewerPrefs = JSON.parse(JSON.stringify(state.viewerPrefs || fresh.viewerPrefs)); }catch(_){ }
     try{ fresh.operatorPrefs = JSON.parse(JSON.stringify(state.operatorPrefs || fresh.operatorPrefs)); }catch(_){ }
     // preserve show title + splash path if user changed them
     fresh.showTitle = state.showTitle || fresh.showTitle;
-    fresh.splash.backgroundAssetPath = state.splash?.backgroundAssetPath || fresh.splash.backgroundAssetPath;
+    fresh.splash.backgroundAssetPath = (state.splash?.backgroundAssetPath ?? fresh.splash.backgroundAssetPath);
     setState(fresh);
     selectedId = null;
   }
@@ -4204,17 +4455,6 @@ function start(){
       if(!slot.media.mediaLayout || slot.media.mediaLayout === "NONE"){
         slot.media.mediaLayout = "IMAGE_ONLY";
       }
-      // profile auto-save
-      const key = normNameKey(slot.displayName);
-      if(key){
-        s.profiles[key] = {
-          displayName: slot.displayName,
-          defaultSlotTypeId: slot.slotTypeId || "musician",
-          defaultMinutesOverride: slot.minutesOverride ?? null,
-          media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-          updatedAt: Date.now()
-        };
-      }
 
     });
   }
@@ -4227,18 +4467,6 @@ function start(){
       if(!slot?.media?.imageAssetId) return;
       const assetId = slot.media.imageAssetId;
       slot.media.imageAssetId = null;
-
-      // profile auto-save
-      const key = normNameKey(slot.displayName);
-      if(key){
-        s.profiles[key] = {
-          displayName: slot.displayName,
-          defaultSlotTypeId: slot.slotTypeId || "musician",
-          defaultMinutesOverride: slot.minutesOverride ?? null,
-          media: { donationUrl: slot?.media?.donationUrl ?? null, imageAssetId: slot?.media?.imageAssetId ?? null, mediaLayout: slot?.media?.mediaLayout ?? "NONE" },
-          updatedAt: Date.now()
-        };
-      }
 
       delete s.assetsIndex[assetId];
       // async delete in background (best-effort)
@@ -4263,11 +4491,14 @@ function start(){
     reader.onload = () => {
       try{
         const imported = JSON.parse(reader.result);
+        try{ delete imported.profiles; }catch(_){ }
         if(!imported || typeof imported !== "object") throw new Error("Invalid JSON");
         // light validation
         imported.version = imported.version ?? 1;
         imported.features = imported.features ?? {};
-        imported.splash = imported.splash ?? { backgroundAssetPath:"./assets/splash_BG.jpg", showNextTwo:true };
+        imported.splash = imported.splash ?? { backgroundAssetPath:null, showNextTwo:true };
+        if(imported.splash.backgroundAssetPath === "./assets/splash_BG.jpg") imported.splash.backgroundAssetPath = null;
+        if(imported.splash.backgroundAssetPath === "") imported.splash.backgroundAssetPath = null;
         imported.viewerPrefs = imported.viewerPrefs ?? { warnAtSec:120, finalAtSec:30, showOvertime:true, showProgressBar:true, showHouseBandFooter:true };
         imported.assetsIndex = imported.assetsIndex ?? {};
         // Drop legacy Jam mode data (Lineup-only)
@@ -4324,7 +4555,7 @@ function start(){
 
 function bind(){
     // initial select options
-    fillTypeSelect(els.addType, { excludeSpecial:true, placeholderText:"- CHOOSE A SLOT -" });
+    fillTypeSelect(els.addType, { excludeSpecial:true });
 toggleCustomAddFields();
     bindSettings();
     bindPerformerDnD();
@@ -4384,7 +4615,10 @@ if(els.btnAddHouseBandSlot){
     if(els.btnAdCancel) els.btnAdCancel.addEventListener("click", (e) => { e.preventDefault(); closeAdModal(); });
     if(els.btnAdSave) els.btnAdSave.addEventListener("click", (e) => { e.preventDefault(); submitAdModal({ goLive:false }); });
     if(els.btnAdLive) els.btnAdLive.addEventListener("click", (e) => { e.preventDefault(); submitAdModal({ goLive:true }); });
-    if(els.adSource) els.adSource.addEventListener("change", () => { showAdSourceUI(); });
+    if(els.adKind) els.adKind.addEventListener("change", () => { syncAdKindUI(); renderAdPresetList(); updateAdPreview(); });
+    if(els.adVideoLoop) els.adVideoLoop.addEventListener("change", () => { updateAdPreview(); });
+    if(els.adVideoAudio) els.adVideoAudio.addEventListener("change", () => { updateAdPreview(); });
+    if(els.adSource) els.adSource.addEventListener("change", () => { showAdSourceUI(); updateAdPreview(); });
     if(els.adUrl) els.adUrl.addEventListener("input", () => { if(!els.adLabel.value) els.adLabel.value = deriveLabelFromPath(els.adUrl.value); updateAdPreview(); });
     if(els.adFile) els.adFile.addEventListener("change", () => { const f = els.adFile.files?.[0]; if(f && !els.adLabel.value) els.adLabel.value = deriveLabelFromPath(f.name); updateAdPreview(); });
     if(els.adPresetSearch) els.adPresetSearch.addEventListener("input", () => { renderAdPresetList(); });
@@ -4556,7 +4790,7 @@ els.showTitle.addEventListener("input", () => {
 
     els.splashPath.addEventListener("input", () => {
       const v = OMJN.sanitizeText(els.splashPath.value);
-        updateState(s => { s.splash.backgroundAssetPath = v || "./assets/splash_BG.jpg"; });
+        updateState(s => { s.splash.backgroundAssetPath = v ? v : null; });
     });
 
     els.btnStart.addEventListener("click", guardedStart);
@@ -4771,11 +5005,30 @@ els.showTitle.addEventListener("input", () => {
 
   // Subscribe to changes from other tabs (in case operator is duplicated)
   OMJN.subscribe((s) => {
-    ensureProfilesShape(s);
     OMJN.ensureHouseBandQueues(s);
     state = s;
     render();
   });
+
+  // Commands from other tabs (Viewer -> Operator), used for video-ad auto-end.
+  if(typeof OMJN.subscribeCommand === "function"){
+    OMJN.subscribeCommand((msg) => {
+      try{
+        if(!msg || msg.type !== "CMD") return;
+        const cmd = String(msg.cmd || "");
+        if(cmd !== "AD_ENDED") return;
+        const slotId = msg.payload?.slotId || null;
+        if(!slotId) return;
+        if(state.phase !== "LIVE" && state.phase !== "PAUSED") return;
+        if(state.currentSlotId !== slotId) return;
+        const cur = (state.queue || []).find(x => x && x.id === slotId) || null;
+        if(!cur) return;
+        const st = String(cur.slotTypeId || "");
+        if(st !== "ad_video" && st !== "ad_graphic") return;
+        endToSplash();
+      }catch(_){ }
+    });
+  }
 
     loadHistory();
 // Boot

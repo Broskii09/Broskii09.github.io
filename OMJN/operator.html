@@ -4,6 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>OMJN — Operator</title>
+    <!-- Font Awesome (icons used in the queue list) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <link rel="stylesheet" href="./app.css" />
 </head>
 <body class="operatorPage">
@@ -30,7 +32,7 @@
                         <input id="showTitle" type="text" placeholder="Open Mic &amp; Jam Night" autocomplete="off" />
                     </div>
                     <div class="field" style="flex:1 1 340px;">
-                        <label>Enter URL of Custom Background Image</label>
+                        <label>Optional: Custom Background Image URL (leave blank for animated gradient)</label>
                         <input id="splashPath" type="text" placeholder="Paste URL here." autocomplete="off" />
                     </div>
                 </div>
@@ -57,23 +59,12 @@
                 <div class="row">
                     <div class="field" style="flex:1 1 240px;">
                         <label>Quick Add Performer</label>
-                        <input id="addName" type="text" placeholder="Type name and press Enter" autocomplete="off" list="profileNames" />
-                        <datalist id="profileNames"></datalist>
+                        <input id="addName" type="text" placeholder="Type name and press Enter" autocomplete="off" />
                     </div>
 
-                    <div class="field" style="width:240px;">
-                        <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:6px;">
-                            <label for="addType" style="margin:0;">Slot Type</label>
-                            <label class="small" style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;"
-                                   title="Keep your last slot type selection for faster entry">
-                                <input type="checkbox" id="quickAddStickyType" />
-                                <span>Sticky</span>
-                            </label>
-                        </div>
-                        <select id="addType" aria-describedby="addTypeHint"></select>
-                        <div class="small" id="addTypeHint" style="margin-top:6px; opacity:.85; display:none;">
-                            Select a slot type to add.
-                        </div>
+                    <div class="field" style="width:200px;">
+                        <label>Slot Type</label>
+                        <select id="addType"></select>
                     </div>
 
                     <div class="field" id="addCustomWrap" style="flex:1 1 240px; display:none;">
@@ -473,13 +464,58 @@
 
                     <h3 class="subhead">Splash</h3>
                     <div class="row wrap" style="align-items:flex-end; margin-bottom:10px;">
-                        <span class="pill" title="Show or hide the Next Up / On Deck cards on the SPLASH screen">
-                            Next Up / On Deck cards
+                        <span class="pill" title="Show or hide the Upcoming cards on the SPLASH screen">
+                            Upcoming cards
                             <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
                                 <input type="checkbox" id="setSplashShowNextTwo" />
                                 <span class="small">on</span>
                             </label>
                         </span>
+                    </div>
+
+                    <h3 class="subhead">Scale</h3>
+                    <div class="row wrap" style="align-items:flex-end; margin-bottom:10px;">
+                        <div class="field" style="flex:1 1 320px;">
+                            <label>Viewer font scale</label>
+                            <input id="setViewerUiScale" type="range" min="0.80" max="1.40" step="0.01" />
+                            <div class="small mono" id="setViewerUiScaleVal">1.00×</div>
+                        </div>
+                        <div class="small" style="opacity:.85; max-width:520px; line-height:1.25;">
+                          Tip: this stacks with automatic scaling, so you usually only touch it if a TV/projector is unusually big/small.
+                        </div>
+                    </div>
+
+                    <h3 class="subhead">Transition</h3>
+                    <div class="small" style="margin-bottom:8px; opacity:.85;">Splash → LIVE transition. <b>Flash + Zoom</b> is a browser-native broadcast stinger (no video files required).</div>
+
+                    <div class="row wrap" style="align-items:flex-end; margin-bottom:10px;">
+                        <span class="pill" title="Enable the stinger transition when going from SPLASH to LIVE">
+                            Enabled
+                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="setTransitionEnabled" />
+                                <span class="small">on</span>
+                            </label>
+                        </span>
+
+                        <div class="field" style="width:220px;">
+                            <label>Style</label>
+                            <select id="setTransitionStyle">
+                                <option value="flashZoom">Flash + Zoom</option>
+                                <option value="off">Off</option>
+                            </select>
+                        </div>
+
+                        <div class="field" style="width:220px;">
+                            <label>Duration (sec)</label>
+                            <input id="setTransitionDurSec" type="number" min="0.20" max="10" step="0.01" />
+                            <div class="small mono" id="setTransitionDurVal">0.65s</div>
+                        </div>
+
+                        <div class="field" style="flex:1 1 220px;">
+                            <label>Cut to LIVE at (seconds)</label>
+                            <input id="setTransitionCutSec" type="number" min="0" max="30" step="0.01" />
+                            <div class="small mono" id="setTransitionCutVal">4.18s</div>
+                        </div>
                     </div>
 
 <hr class="sep" />

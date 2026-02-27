@@ -92,27 +92,42 @@
 
     <!-- Setup-only button (shown on SPLASH when visualizer is enabled but mic isn't granted yet) -->
     <button class="btn small vMicEnable" id="btnVizMic" type="button" style="display:none;">Enable Mic Visualizer</button>
-
     <!-- Splash overlay -->
     <div class="vSplashInfo" id="splashInfo">
-      <div class="vCard vSplashCard">
-        <h3>Next Up</h3>
-        <p class="who" id="sNext">TBD</p>
-        <div class="sub" id="sNextSub">Sign ups open</div>
-      </div>
-      <div class="vCard vSplashCard">
-        <h3>On Deck</h3>
-        <p class="who" id="sDeck">TBD</p>
-        <div class="sub" id="sDeckSub">Get ready</div>
-      </div>
+      <div class="vSplashLayout" id="splashLayout">
+        <div class="vSplashLeft" id="splashLeft">
+          <div class="vCard vSplashLeftCard">
+            <img id="splashLeftImg" alt="" decoding="async" loading="eager" src="./assets/splash_left.png" />
+          </div>
+        </div>
 
-      <div class="vCard vBandCard">
-        <h3>House Band</h3>
-        <div class="vBandLine" id="hbLineup"></div>
+        <div class="vSplashRight" id="splashRight">
+          <div class="vCard vSplashCard">
+            <h3>Up Next</h3>
+            <p class="who" id="sNext">TBD</p>
+            <div class="sub" id="sNextSub">Sign ups open</div>
+          </div>
+          <div class="vCard vSplashCard">
+            <h3>On Deck</h3>
+            <p class="who" id="sDeck">TBD</p>
+            <div class="sub" id="sDeckSub">Get ready</div>
+          </div>
+          <div class="vCard vSplashCard">
+            <h3>In The Hole</h3>
+            <p class="who" id="sHole">TBD</p>
+            <div class="sub" id="sHoleSub">You’re up soon</div>
+          </div>
+        </div>
+
+        <!-- House Band row (full-width, below left+right) -->
+        <div class="vCard vBandCard vSplashHB" id="splashHBCard">
+          <h3>House Band</h3>
+          <div class="vBandLine" id="hbLineup"></div>
+        </div>
       </div>
     </div>
 
-    <!-- House Band footer during LIVE (single-line bar) -->
+    <!-- House Band footer during LIVE (single-line bar) --><!-- House Band footer during LIVE (single-line bar) -->
     <div class="vLiveFooterBar" id="liveFooterBar" style="display:none;">
       <span class="vFooterBand">
         <span class="vFooterBandTitle">House Band</span>

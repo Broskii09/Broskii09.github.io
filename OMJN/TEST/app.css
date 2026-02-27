@@ -342,6 +342,43 @@ select option{ background: var(--panel); color: var(--text); }
 .qExpGrid .field{margin:0;}
 .qExpActions{display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-top:10px;}
 
+/* Operator: darker blue + higher contrast */
+body.operatorPage{
+  --bg:#061023;
+  --panel:#081a34;
+  --panel2:#0b2347;
+  --muted:#b8c6ea;
+  background:linear-gradient(120deg, #040a16, #071a35, #040a16);
+  background-size:400% 400%;
+  background-position:0% 50%;
+  animation:omjnGradientShift 18s ease infinite;
+}
+
+body.operatorPage .card{
+  background:linear-gradient(180deg, rgba(8,26,52,.92), rgba(4,10,22,.92));
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow: 0 12px 34px rgba(0,0,0,.50);
+}
+
+body.operatorPage .cardHeader{
+  background:rgba(0,0,0,.28);
+  border-bottom:1px solid rgba(255,255,255,.12);
+}
+
+body.operatorPage .btn{
+  background:rgba(0,0,0,.20);
+  border:1px solid rgba(255,255,255,.18);
+}
+body.operatorPage .btn:hover{background:rgba(255,255,255,.10)}
+
+body.operatorPage .field input[type="text"],
+body.operatorPage .field input[type="number"],
+body.operatorPage .field textarea,
+body.operatorPage .field select{
+  background:rgba(0,0,0,.26);
+  border:1px solid rgba(255,255,255,.14);
+}
+
 /* Keep the legacy right-drawer editor out of the way in Stage 2 */
 .operatorPage #editCard{display:none;}
 .icon{

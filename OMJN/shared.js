@@ -21,6 +21,12 @@ const CHANNEL_NAME = `omjn_${APP_SCOPE}_channel_v1`;
 const STORAGE_KEY = `omjn.${APP_SCOPE}.showState.v1`;
 const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
 
+  function scopedKey(suffix){
+    const s = String(suffix || "").replace(/^\.+/, "");
+    return "omjn." + APP_SCOPE + "." + s;
+  }
+
+
   // ---- House Band ----
   // Default instrument list (intentionally excludes fiddle/violin and horns).
   // UI should offer a "Custom" option that uses member.customInstrument.
@@ -68,8 +74,8 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
       showTitle: "Open Mic & Jam Night",
       phase: "SPLASH", // SPLASH | LIVE | PAUSED
 operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false, quickAddStickyType:false, quickAddLastTypeId:"", armedNextSlotId:null },
-      profiles: {},
-        splash: { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true },
+        // Optional: custom splash background image URL/path. If null/empty, Viewer uses animated gradient.
+        splash: { backgroundAssetPath: null, showNextTwo: true },
       viewerPrefs: {
         warnAtSec: 120,
         finalAtSec: 30,
@@ -77,6 +83,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         showProgressBar: true,
         showHouseBandFooter:true,
         hbFooterFormat:"categoryFirst",
+        uiScale: 1.0, // manual font scale multiplier (Operator slider)
         // Mic-based audio visualizer (Viewer)
         visualizerEnabled: false,
         visualizerSensitivity: 1.0,
@@ -169,6 +176,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         { id:"poetry", label:"Poetry", defaultMinutes:10, isJamMode:false, color:"#fbbf24", enabled:true },
         { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
         { id:"ad_graphic", label:"Ad (Graphic)", defaultMinutes:0, isJamMode:false, color:"#ef4444", enabled:false, special:true },
+        { id:"ad_video", label:"Ad (Video)", defaultMinutes:0, isJamMode:false, color:"#ef4444", enabled:false, special:true },
         { id:"houseband", label:"House Band", defaultMinutes:15, isJamMode:false, color:"#22c55e", enabled:false, special:true },
         { id:"intermission", label:"Intermission", defaultMinutes:10, isJamMode:false, color:"#a855f7", enabled:false, special:true },
       ],
@@ -211,6 +219,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
     if(!effectiveRaw) return d;
 
     const s = JSON.parse(effectiveRaw);
+    try{ delete s.profiles; }catch(_){ }
 
       if(!s.version) s.version = 1;
       if(s.lastSavedAt === undefined) s.lastSavedAt = null;
@@ -220,13 +229,31 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(s.operatorPrefs.quickAddLastTypeId === undefined) s.operatorPrefs.quickAddLastTypeId = "";
       if(s.operatorPrefs.armedNextSlotId === undefined) s.operatorPrefs.armedNextSlotId = null;
 
-      if(!s.profiles) s.profiles = {};
-      if (!s.splash) s.splash = { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true };
+      if (!s.splash) s.splash = { backgroundAssetPath: null, showNextTwo: true };
+      // Legacy default background (removed)
+      if (s.splash.backgroundAssetPath === "./assets/splash_BG.jpg") s.splash.backgroundAssetPath = null;
+      if (s.splash.backgroundAssetPath === "") s.splash.backgroundAssetPath = null;
       if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
       if(s.viewerPrefs.visualizerEnabled === undefined) s.viewerPrefs.visualizerEnabled = false;
       if(s.viewerPrefs.visualizerSensitivity === undefined) s.viewerPrefs.visualizerSensitivity = 1.0;
       if(s.viewerPrefs.visualizerMode === undefined) s.viewerPrefs.visualizerMode = "eq";
       if(s.viewerPrefs.visualizerDirection === undefined) s.viewerPrefs.visualizerDirection = "mirror";
+      if(s.viewerPrefs.uiScale === undefined) s.viewerPrefs.uiScale = 1.0;
+
+      // Transition (Splash -> Live)
+      // Video stinger support removed; defaults target the CSS stinger.
+      if(s.viewerPrefs.transitionEnabled === undefined) s.viewerPrefs.transitionEnabled = true;
+      if(s.viewerPrefs.transitionStyle === undefined) s.viewerPrefs.transitionStyle = "flashZoom"; // flashZoom | off
+      // Legacy: video-based stinger removed; treat old value as flashZoom
+      if(String(s.viewerPrefs.transitionStyle).toLowerCase() == "video") s.viewerPrefs.transitionStyle = "flashZoom";
+      if(s.viewerPrefs.transitionDurSec === undefined) s.viewerPrefs.transitionDurSec = 0.65; // used for flashZoom
+      if(s.viewerPrefs.transitionCutSec === undefined) s.viewerPrefs.transitionCutSec = 0.22;
+      // If cut time is an old long stinger value, normalize to a sensible CSS stinger cut.
+      {
+        const cs = Number(s.viewerPrefs.transitionCutSec);
+        if(!Number.isFinite(cs) || cs > 1.5) s.viewerPrefs.transitionCutSec = 0.22;
+      }
+
       if(!s.viewerPrefs.sponsorBug) s.viewerPrefs.sponsorBug = d.viewerPrefs.sponsorBug;
       else {
         const b = s.viewerPrefs.sponsorBug;
@@ -693,22 +720,6 @@ function houseBandActiveMembersByCategory(state){
   return out;
 }
 
-function houseBandSuggestedInCategory(state, categoryKey){
-  // Suggested = first ACTIVE member in the category's current order
-  const list = houseBandMembersInCategory(state, categoryKey, { activeOnly: true });
-  return list[0] || null;
-}
-
-function houseBandActiveMembersByCategory(state){
-  // Map categoryKey -> array of {categoryKey, categoryLabel, member}
-  ensureHouseBandQueues(state);
-  const out = {};
-  for(const cat of HOUSE_BAND_CATEGORIES){
-    out[cat.key] = houseBandMembersInCategory(state, cat.key, { activeOnly: true });
-  }
-  return out;
-}
-
   // Reorder a category so the selected member is FIRST, and the previously suggested
   // (first active) member becomes SECOND ("skipped → next").
   // This avoids sending a skipped player to the back; they become the next opportunity.
@@ -781,19 +792,38 @@ function houseBandActiveMembersByCategory(state){
     return out;
   }
 
-
-  function computeNextTwo(state){
+  function isAdSlotType(slotTypeId){
+    const x = String(slotTypeId || "").toLowerCase();
+    if(!x) return false;
+    // Ads are queue items but should NOT appear in Viewer Next/On Deck.
+    return x.startsWith("ad_");
+  }
+  function computeNextN(state, n){
+    const count = Math.max(0, Math.floor(Number(n) || 0));
     const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
     const q = Array.isArray(state.queue) ? state.queue : [];
-    if(hasCurrent){
-      const idx = q.findIndex(s => s && s.id === state.currentSlotId);
-      const tail = (idx >= 0 ? q.slice(idx+1) : q).filter(s => s && s.status === "QUEUED");
-      const next1 = tail[0] || null;
-      const next2 = tail[1] || null;
-      return [next1, next2];
-    }
-    const head = q.filter(s => s && s.status === "QUEUED");
-    return [head[0] || null, head[1] || null];
+
+    const candidates = (() => {
+      if(hasCurrent){
+        const idx = q.findIndex(s => s && s.id === state.currentSlotId);
+        return (idx >= 0 ? q.slice(idx+1) : q).filter(s => s && s.status === "QUEUED" && !isAdSlotType(s.slotTypeId));
+      }
+      return q.filter(s => s && s.status === "QUEUED" && !isAdSlotType(s.slotTypeId));
+    })();
+
+    const out = [];
+    for(let i=0;i<count;i++) out.push(candidates[i] || null);
+    return out;
+  }
+
+  function computeNextTwo(state){
+    const out = computeNextN(state, 2);
+    return [out[0] || null, out[1] || null];
+  }
+
+  function computeNextThree(state){
+    const out = computeNextN(state, 3);
+    return [out[0] || null, out[1] || null, out[2] || null];
   }
 
   function computeCurrent(state){
@@ -909,9 +939,23 @@ async function loadBitmapFromFile(f){
 
     return { blob, meta: { mime: blob?.type || outMime, w, h, bytes, createdAt: now() } };
   }
-
   // ---- BroadcastChannel pub/sub ----
   const bc = ("BroadcastChannel" in window) ? new BroadcastChannel(CHANNEL_NAME) : null;
+
+  let _onState = null;
+  let _onCommand = null;
+
+  if(bc){
+    bc.onmessage = (ev) => {
+      const d = ev?.data || {};
+      if(d.type === "STATE" && d.payload && typeof _onState === "function"){
+        _onState(d.payload);
+      }
+      if(d.type === "CMD" && typeof _onCommand === "function"){
+        _onCommand(d);
+      }
+    };
+  }
 
   function publish(state){
     try{
@@ -928,19 +972,26 @@ async function loadBitmapFromFile(f){
     }
   }
 
-  function subscribe(onState){
-    if(bc){
-      bc.onmessage = (ev) => {
-        if(ev?.data?.type === "STATE" && ev.data.payload){
-          onState(ev.data.payload);
-        }
-      };
+  function sendCommand(cmd, payload){
+    try{
+      if(!bc) return;
+      bc.postMessage({ type:"CMD", cmd: String(cmd || ""), payload: (payload === undefined ? null : payload) });
+    }catch(e){
+      console.error("Command send failed:", e);
     }
+  }
+
+  function subscribe(onState){
+    _onState = onState;
     window.addEventListener("storage", (e) => {
       if(e.key === STORAGE_KEY && e.newValue){
         try{ onState(JSON.parse(e.newValue)); } catch(_){}
       }
     });
+  }
+
+  function subscribeCommand(onCmd){
+    _onCommand = onCmd;
   }
 
   // ---- Pure helpers ----
@@ -978,6 +1029,84 @@ async function loadBitmapFromFile(f){
     return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
   }
 
+  // ---- Accessibility helpers (forms) ----
+  // Chrome DevTools will flag inputs without id/name and labels without a matching for=.
+  // We don't submit these forms, but wiring improves autofill + keyboard/screen reader UX.
+  function ensureFormA11y(root){
+    try{
+      const r = root || document;
+      if(!r || !r.querySelectorAll) return;
+
+      let autoN = 0;
+      const makeId = () => `omjn_auto_${Date.now().toString(36)}_${(++autoN)}`;
+
+      const labels = Array.from(r.querySelectorAll("label"));
+      const labelFor = new Map();
+      for(const lab of labels){
+        const f = (lab.getAttribute("for") || "").trim();
+        if(f) labelFor.set(f, lab);
+      }
+
+      const controls = Array.from(r.querySelectorAll("input, select, textarea"))
+        .filter(el => {
+          if(el.tagName === "INPUT"){
+            const t = String(el.getAttribute("type") || "text").toLowerCase();
+            if(["button","submit","reset"].includes(t)) return false;
+          }
+          return true;
+        });
+
+      for(const el of controls){
+        if(el.tagName === "INPUT" && String(el.getAttribute("type") || "").toLowerCase() === "hidden") continue;
+
+        if(!el.id && !el.name){
+          const id = makeId();
+          el.id = id;
+          el.name = id;
+        }else if(el.id && !el.name){
+          el.name = el.id;
+        }else if(!el.id && el.name){
+          // Avoid collisions with repeated names
+          const existing = (document && document.getElementById) ? document.getElementById(el.name) : null;
+          el.id = existing ? makeId() : el.name;
+        }
+
+        const hasForLabel = !!(el.id && labelFor.has(el.id));
+        const nestedLabel = !!(el.closest && el.closest("label"));
+        if(!hasForLabel && !nestedLabel){
+          if(!el.getAttribute("aria-label") && !el.getAttribute("aria-labelledby")){
+            const ph = String(el.getAttribute("placeholder") || "").trim();
+            if(ph) el.setAttribute("aria-label", ph);
+          }
+        }
+      }
+
+      // Wire labels that are visually adjacent to a control.
+      for(const lab of labels){
+        if((lab.getAttribute("for") || "").trim()) continue;
+        if(lab.querySelector("input, select, textarea")) continue; // nesting already associates
+
+        let target = null;
+        const parent = lab.parentElement;
+        if(parent){
+          const cand = Array.from(parent.querySelectorAll("input, select, textarea"))
+            .find(el => !lab.contains(el));
+          target = cand || null;
+        }
+        if(!target){
+          const next = lab.nextElementSibling;
+          if(next && /^(INPUT|SELECT|TEXTAREA)$/.test(next.tagName)) target = next;
+        }
+        if(target){
+          if(!target.id) target.id = makeId();
+          if(!target.name) target.name = target.id;
+          lab.setAttribute("for", target.id);
+          labelFor.set(target.id, lab);
+        }
+      }
+    }catch(_){ }
+  }
+
   function applyThemeToDocument(doc, state){
     try{
       const root = doc?.documentElement;
@@ -1010,7 +1139,8 @@ async function loadBitmapFromFile(f){
 
 
   return {
-    uid, defaultState, loadState, saveState, publish, subscribe,
+    appScope: APP_SCOPE, scopedKey, isAdSlotType, ensureFormA11y,
+    uid, defaultState, loadState, saveState, publish, subscribe, sendCommand, subscribeCommand,
     getSlotType, effectiveMinutes, displaySlotTypeLabel, normalizeSlot,
     // House Band
     houseBandInstrumentOptions, houseBandCategories,
@@ -1024,7 +1154,7 @@ async function loadBitmapFromFile(f){
 
     
 
-    computeNextTwo, computeCurrent, computeTimer,
+    computeNextTwo, computeNextThree, computeCurrent, computeTimer,
     openAssetDB, putAsset, getAsset, deleteAsset, compressImageFile,
     formatMMSS, sanitizeText, applyThemeToDocument
   };

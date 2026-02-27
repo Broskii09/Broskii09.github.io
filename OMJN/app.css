@@ -23,7 +23,13 @@
 }
 
 *{box-sizing:border-box}
-html,body{height:100%; margin:0; background:var(--bg); color:var(--text); font-family:var(--font);}
+html,body{height:100%; margin:0; background:linear-gradient(120deg, #142c54, #1f4c8f, #142c54); background-size:400% 400%; background-position:0% 50%; animation:omjnGradientShift 18s ease infinite; color:var(--text); font-family:var(--font);}
+
+@keyframes omjnGradientShift{
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
 a{color:inherit}
 button, input, select, textarea {font-family:inherit}
 
@@ -211,8 +217,18 @@ select option{ background: var(--panel); color: var(--text); }
   padding:12px;
   border-radius:16px;
   border:1px solid rgba(255,255,255,.10);
-  background:rgba(0,0,0,.16);
+  background: radial-gradient(120% 120% at 18% 40%, var(--qGlow, rgba(255,255,255,.06)) 0%, rgba(0,0,0,.18) 72%);
 }
+
+/* Broadcast-style role color system for the Show Queue */
+.queueItem.role-live{ --qBar: rgba(239, 68, 68, .55); --qGlow: rgba(239, 68, 68, .18); }
+.queueItem.role-next{ --qBar: rgba(249, 115, 22, .55); --qGlow: rgba(249, 115, 22, .18); }
+.queueItem.role-deck{ --qBar: rgba(34, 197, 94, .50); --qGlow: rgba(34, 197, 94, .16); }
+.queueItem.role-intermission{ --qBar: rgba(245, 158, 11, .48); --qGlow: rgba(245, 158, 11, .14); }
+.queueItem.role-houseband{ --qBar: rgba(99, 102, 241, .48); --qGlow: rgba(99, 102, 241, .14); }
+.queueItem.role-ad{ --qBar: rgba(236, 72, 153, .48); --qGlow: rgba(236, 72, 153, .14); }
+.queueItem.role-done{ --qBar: rgba(148, 163, 184, .35); --qGlow: rgba(148, 163, 184, .10); }
+.queueItem.role-queued{ --qBar: rgba(148, 163, 184, .18); --qGlow: rgba(148, 163, 184, .06); }
 
 /* Make Intermission stand out more in the queue */
 .queueItem[data-slot-type="intermission"]{
@@ -237,9 +253,55 @@ select option{ background: var(--panel); color: var(--text); }
   border:1px solid rgba(255,255,255,.10);
   user-select:none;
 }
-.qMain{  grid-area: main; display:flex; flex-direction:column; gap:6px;}
-.qTop{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
-.qName{font-size:16px; font-weight:800;}
+.qMain{  grid-area: main; display:flex; flex-direction:column; gap:8px; min-width:0;}
+
+/* Top status band */
+.qBar{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:10px;
+  padding:8px 10px;
+  border-radius:12px;
+  background: linear-gradient(90deg, var(--qBar, rgba(255,255,255,.10)) 0%, rgba(0,0,0,.12) 100%);
+  border:1px solid rgba(255,255,255,.10);
+}
+.qBarLeft{display:flex; align-items:center; gap:10px; min-width:0;}
+.qRole{
+  font-size:12px;
+  font-weight:950;
+  letter-spacing:.10em;
+  text-transform:uppercase;
+  color: rgba(255,255,255,.92);
+  white-space:nowrap;
+}
+.qPills{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-start;}
+.qPill{
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:12px;
+  background:rgba(0,0,0,.18);
+  border:1px solid rgba(255,255,255,.12);
+  color:rgba(255,255,255,.84);
+}
+.qPillMins{color:rgba(255,255,255,.92); font-weight:800;}
+
+/* Name row */
+.qNameRow{display:flex; align-items:center; gap:10px; min-width:0;}
+.qIcon{
+  width:28px;
+  height:28px;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.10);
+  font-size:16px;
+  flex:0 0 auto;
+}
+.qIcon i{font-size:16px; line-height:1;}
+.qName{font-size:18px; font-weight:900; letter-spacing:.01em; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .badge{
   padding:4px 8px;
   border-radius:999px;
@@ -279,6 +341,43 @@ select option{ background: var(--panel); color: var(--text); }
 .qExpGrid{display:grid; grid-template-columns: 1fr 240px; gap:10px;}
 .qExpGrid .field{margin:0;}
 .qExpActions{display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-top:10px;}
+
+/* Operator: darker blue + higher contrast */
+body.operatorPage{
+  --bg:#061023;
+  --panel:#081a34;
+  --panel2:#0b2347;
+  --muted:#b8c6ea;
+  background:linear-gradient(120deg, #040a16, #071a35, #040a16);
+  background-size:400% 400%;
+  background-position:0% 50%;
+  animation:omjnGradientShift 18s ease infinite;
+}
+
+body.operatorPage .card{
+  background:linear-gradient(180deg, rgba(8,26,52,.92), rgba(4,10,22,.92));
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow: 0 12px 34px rgba(0,0,0,.50);
+}
+
+body.operatorPage .cardHeader{
+  background:rgba(0,0,0,.28);
+  border-bottom:1px solid rgba(255,255,255,.12);
+}
+
+body.operatorPage .btn{
+  background:rgba(0,0,0,.20);
+  border:1px solid rgba(255,255,255,.18);
+}
+body.operatorPage .btn:hover{background:rgba(255,255,255,.10)}
+
+body.operatorPage .field input[type="text"],
+body.operatorPage .field input[type="number"],
+body.operatorPage .field textarea,
+body.operatorPage .field select{
+  background:rgba(0,0,0,.26);
+  border:1px solid rgba(255,255,255,.14);
+}
 
 /* Keep the legacy right-drawer editor out of the way in Stage 2 */
 .operatorPage #editCard{display:none;}
@@ -320,13 +419,17 @@ hr.sep{
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
+  --vScale: 1;
+  --vScaleInv: 1;
+  --splashBoost: 1;
 }
 
 .viewerBg{
   position:absolute; inset:0;
-  background:var(--bg);
-  background-position:center;
-  background-size:cover;
+  background:linear-gradient(120deg, #142c54, #1f4c8f, #142c54);
+  background-size:400% 400%;
+  background-position:0% 50%;
+  animation:omjnGradientShift 18s ease infinite;
   filter:saturate(1.05);
   transform:scale(1);
   transition:filter 280ms ease, transform 280ms ease;
@@ -345,6 +448,8 @@ hr.sep{
 }
 
 /* Crowd Prompts: always use LIVE-style dim/blur for readability */
+.viewerRoot.splashNoHB{ --splashBoost: 1.08; }
+
 .viewerRoot.isCrowd .viewerBg{
   filter:saturate(1.05) brightness(.45) blur(6px);
   transform:scale(1.06);
@@ -523,7 +628,7 @@ hr.sep{
   text-align:center;
 }
 .vCrowdTitle{
-  font-size: clamp(44px, 6vw, 72px);
+  font-size: calc(clamp(44px, 6vw, 72px) * var(--vScale));
   font-weight: 950;
   letter-spacing: .5px;
   line-height:1.05;
@@ -572,7 +677,7 @@ hr.sep{
 }
 
 .vNowName{
-  font-size: clamp(44px, 6vw, 72px);
+  font-size: calc(clamp(44px, 6vw, 72px) * var(--vScale));
   font-weight:950;
   line-height:1.05;
   letter-spacing:.2px;
@@ -587,7 +692,7 @@ hr.sep{
 
 .vHBInstruments{
   margin-top: 8px;
-  font-size: clamp(18px, 2.2vw, 30px);
+  font-size: calc(clamp(18px, 2.2vw, 30px) * var(--vScale));
   font-weight: 850;
   letter-spacing: .8px;
   color: var(--muted);
@@ -607,7 +712,7 @@ hr.sep{
 
 .vTimer{
   margin-top:18px;
-  font-size: clamp(72px, 10vw, 120px);
+  font-size: calc(clamp(72px, 10vw, 120px) * var(--vScale));
   font-weight:1000;
   letter-spacing:1px;
   display:inline-block;
@@ -726,18 +831,55 @@ hr.sep{
   position:absolute;
   left: calc(var(--vPad) + var(--safe-left));
   right: calc(var(--vPad) + var(--safe-right));
+  top: calc(var(--vPad) + var(--safe-top));
   bottom: calc(var(--vPad) + var(--safe-bottom));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.vSplashLayout{
   display:grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 2fr 1fr;
+  grid-template-areas:
+    "left right"
+    "hb hb";
   gap:18px;
   align-items:stretch;
+  width:100%;
+  max-height:100%;
 }
+
+.vSplashLeft{ grid-area:left; min-width:0; }
+.vSplashRight{ grid-area:right; min-width:0; display:grid; grid-template-columns:1fr; gap:18px; align-content:center; }
+.vSplashHB{ grid-area:hb; padding:16px 18px; }
+
+.vSplashLeftCard{ padding:0; border-radius:24px; display:flex; align-items:center; justify-content:center; overflow:hidden; background:transparent; border:none; box-shadow:none; }
+.vSplashLeftCard img{ width:100%; height:100%; object-fit:contain; border-radius:18px; }
+
+.vSplashLayout.noLeft{
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "right"
+    "hb";
+}
+.vSplashLayout.noLeft .vSplashLeft{ display:none; }
+
+.vSplashLayout.noUpcoming{
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "left"
+    "hb";
+}
+.vSplashLayout.noUpcoming .vSplashRight{ display:none; }
+
 .vSplashInfo .vCard{padding:18px 20px; border-radius:24px;}
-.vSplashCard{min-height:150px;}
-.vBandCard{grid-column: 1 / -1; padding:16px 18px;}
-.vSplashInfo h3{margin:0 0 6px; font-size:18px; color:var(--muted); font-weight:850;}
-.vSplashInfo .who{font-size: clamp(22px, 3vw, 30px); font-weight:950; margin:0;}
-.vSplashInfo .sub{margin-top:6px; font-size:14px; color:var(--muted);}
+.vSplashInfo .vSplashLeftCard.vCard{ padding:0 !important; background:transparent !important; border:none !important; box-shadow:none !important; }
+.vSplashCard{min-height:120px;}
+
+.vSplashInfo h3{margin:0 0 6px; font-size: calc(18px * var(--vScale)); color:var(--muted); font-weight:850;}
+.vSplashInfo .who{font-size: calc(clamp(22px, 3vw, 30px) * var(--vScale) * var(--splashBoost)); font-weight:950; margin:0;}
+.vSplashInfo .sub{margin-top:6px; font-size: calc(14px * var(--vScale)); color:var(--muted);}
 
 .vBandLine{
   display:flex;
@@ -813,7 +955,7 @@ hr.sep{
   font-weight:850;
 }
 .vFooterName{
-  font-size:18px;
+  font-size: calc(18px * var(--vScale));
   font-weight:950;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -831,7 +973,7 @@ hr.sep{
   overflow:hidden;
 }
 .vFooterBandTitle{
-  font-size:22px;
+  font-size: calc(22px * var(--vScale));
   color:var(--muted);
   font-weight:850;
   flex:0 0 auto;
@@ -1093,6 +1235,10 @@ body.modalOpen{ overflow:hidden; }
 
 /* Accordion stack */
 .hbAccWrap{ display:flex; flex-direction:column; gap:10px; }
+
+.hbAccRow{ display:flex; gap:10px; align-items:flex-start; }
+.hbAccRow > details.hbAcc{ flex:1 1 auto; }
+.hbAccRow .hbRotateTopBtn{ margin-top:6px; white-space:nowrap; }
 
 details.hbAcc {
     flex: 0 0 auto; /* prevents flexbox from squishing open categories */
@@ -2710,18 +2856,77 @@ details.hbAcc .hbCatList{
   opacity:.9;
 }
 
-/* Operator quick-add: prompt for slot type selection */
-#addType.needsChoice{
-  outline: 3px solid rgba(255, 153, 0, 0.95);
-  box-shadow: 0 0 0 6px rgba(255, 153, 0, 0.25);
-  border-radius: 10px;
-  animation: omjnWiggle 0.9s ease-out 1;
+/* =============================
+   Viewer Transition: Flash + Zoom
+   ============================= */
+
+#fxTransitionOverlay{
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  display: none;
 }
-@keyframes omjnWiggle{
-  0%{ transform: translateX(0); }
-  20%{ transform: translateX(-3px); }
-  40%{ transform: translateX(3px); }
-  60%{ transform: translateX(-2px); }
-  80%{ transform: translateX(2px); }
-  100%{ transform: translateX(0); }
+
+#fxTransitionOverlay.fxActive{
+  display: block;
+}
+
+/* White flash (short pulse) */
+#fxTransitionOverlay::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #ffffff;
+  opacity: 0;
+}
+
+/* Subtle dark edge vignette to feel more broadcast-y */
+#fxTransitionOverlay::after{
+  content: "";
+  position: absolute;
+  inset: -6%;
+  background: radial-gradient(circle at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.35) 100%);
+  opacity: 0;
+}
+
+#fxTransitionOverlay.fxRun::before{
+  animation: fxFlashPulse var(--fxDur, 650ms) ease-out forwards;
+}
+
+#fxTransitionOverlay.fxRun::after{
+  animation: fxVignetteSweep var(--fxDur, 650ms) ease-out forwards;
+}
+
+@keyframes fxFlashPulse{
+  0%{ opacity: 0; }
+  8%{ opacity: 0.85; }
+  22%{ opacity: 0; }
+  100%{ opacity: 0; }
+}
+
+@keyframes fxVignetteSweep{
+  0%{ opacity: 0; transform: scale(1.03); }
+  10%{ opacity: 0.75; transform: scale(1.00); }
+  70%{ opacity: 0.15; transform: scale(1.00); }
+  100%{ opacity: 0; transform: scale(1.00); }
+}
+
+/* Apply a quick zoom settle on the LIVE card at the cut */
+.fxZoomBurst{
+  transform-origin: center;
+  animation: fxZoomSettle var(--fxZoomDur, 420ms) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fxZoomSettle{
+  0%{ transform: scale(1.06); opacity: 0.92; }
+  55%{ transform: scale(1.00); opacity: 1; }
+  100%{ transform: scale(1.00); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  #fxTransitionOverlay{ display: none !important; }
+  #fxTransitionOverlay::before,
+  #fxTransitionOverlay::after{ animation: none !important; }
+  .fxZoomBurst{ animation: none !important; }
 }
