@@ -74,8 +74,8 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
       showTitle: "Open Mic & Jam Night",
       phase: "SPLASH", // SPLASH | LIVE | PAUSED
 operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false, quickAddStickyType:false, quickAddLastTypeId:"", armedNextSlotId:null },
-      profiles: {},
-        splash: { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true },
+        // Optional: custom splash background image URL/path. If null/empty, Viewer uses animated gradient.
+        splash: { backgroundAssetPath: null, showNextTwo: true },
       viewerPrefs: {
         warnAtSec: 120,
         finalAtSec: 30,
@@ -83,6 +83,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         showProgressBar: true,
         showHouseBandFooter:true,
         hbFooterFormat:"categoryFirst",
+        uiScale: 1.0, // manual font scale multiplier (Operator slider)
         // Mic-based audio visualizer (Viewer)
         visualizerEnabled: false,
         visualizerSensitivity: 1.0,
@@ -218,6 +219,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
     if(!effectiveRaw) return d;
 
     const s = JSON.parse(effectiveRaw);
+    try{ delete s.profiles; }catch(_){ }
 
       if(!s.version) s.version = 1;
       if(s.lastSavedAt === undefined) s.lastSavedAt = null;
@@ -227,13 +229,31 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(s.operatorPrefs.quickAddLastTypeId === undefined) s.operatorPrefs.quickAddLastTypeId = "";
       if(s.operatorPrefs.armedNextSlotId === undefined) s.operatorPrefs.armedNextSlotId = null;
 
-      if(!s.profiles) s.profiles = {};
-      if (!s.splash) s.splash = { backgroundAssetPath: "./assets/splash_BG.jpg", showNextTwo: true };
+      if (!s.splash) s.splash = { backgroundAssetPath: null, showNextTwo: true };
+      // Legacy default background (removed)
+      if (s.splash.backgroundAssetPath === "./assets/splash_BG.jpg") s.splash.backgroundAssetPath = null;
+      if (s.splash.backgroundAssetPath === "") s.splash.backgroundAssetPath = null;
       if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
       if(s.viewerPrefs.visualizerEnabled === undefined) s.viewerPrefs.visualizerEnabled = false;
       if(s.viewerPrefs.visualizerSensitivity === undefined) s.viewerPrefs.visualizerSensitivity = 1.0;
       if(s.viewerPrefs.visualizerMode === undefined) s.viewerPrefs.visualizerMode = "eq";
       if(s.viewerPrefs.visualizerDirection === undefined) s.viewerPrefs.visualizerDirection = "mirror";
+      if(s.viewerPrefs.uiScale === undefined) s.viewerPrefs.uiScale = 1.0;
+
+      // Transition (Splash -> Live)
+      // Video stinger support removed; defaults target the CSS stinger.
+      if(s.viewerPrefs.transitionEnabled === undefined) s.viewerPrefs.transitionEnabled = true;
+      if(s.viewerPrefs.transitionStyle === undefined) s.viewerPrefs.transitionStyle = "flashZoom"; // flashZoom | off
+      // Legacy: video-based stinger removed; treat old value as flashZoom
+      if(String(s.viewerPrefs.transitionStyle).toLowerCase() == "video") s.viewerPrefs.transitionStyle = "flashZoom";
+      if(s.viewerPrefs.transitionDurSec === undefined) s.viewerPrefs.transitionDurSec = 0.65; // used for flashZoom
+      if(s.viewerPrefs.transitionCutSec === undefined) s.viewerPrefs.transitionCutSec = 0.22;
+      // If cut time is an old long stinger value, normalize to a sensible CSS stinger cut.
+      {
+        const cs = Number(s.viewerPrefs.transitionCutSec);
+        if(!Number.isFinite(cs) || cs > 1.5) s.viewerPrefs.transitionCutSec = 0.22;
+      }
+
       if(!s.viewerPrefs.sponsorBug) s.viewerPrefs.sponsorBug = d.viewerPrefs.sponsorBug;
       else {
         const b = s.viewerPrefs.sponsorBug;
@@ -778,19 +798,32 @@ function houseBandActiveMembersByCategory(state){
     // Ads are queue items but should NOT appear in Viewer Next/On Deck.
     return x.startsWith("ad_");
   }
-
-  function computeNextTwo(state){
+  function computeNextN(state, n){
+    const count = Math.max(0, Math.floor(Number(n) || 0));
     const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
     const q = Array.isArray(state.queue) ? state.queue : [];
-    if(hasCurrent){
-      const idx = q.findIndex(s => s && s.id === state.currentSlotId);
-      const tail = (idx >= 0 ? q.slice(idx+1) : q).filter(s => s && s.status === "QUEUED" && !isAdSlotType(s.slotTypeId));
-      const next1 = tail[0] || null;
-      const next2 = tail[1] || null;
-      return [next1, next2];
-    }
-    const head = q.filter(s => s && s.status === "QUEUED" && !isAdSlotType(s.slotTypeId));
-    return [head[0] || null, head[1] || null];
+
+    const candidates = (() => {
+      if(hasCurrent){
+        const idx = q.findIndex(s => s && s.id === state.currentSlotId);
+        return (idx >= 0 ? q.slice(idx+1) : q).filter(s => s && s.status === "QUEUED" && !isAdSlotType(s.slotTypeId));
+      }
+      return q.filter(s => s && s.status === "QUEUED" && !isAdSlotType(s.slotTypeId));
+    })();
+
+    const out = [];
+    for(let i=0;i<count;i++) out.push(candidates[i] || null);
+    return out;
+  }
+
+  function computeNextTwo(state){
+    const out = computeNextN(state, 2);
+    return [out[0] || null, out[1] || null];
+  }
+
+  function computeNextThree(state){
+    const out = computeNextN(state, 3);
+    return [out[0] || null, out[1] || null, out[2] || null];
   }
 
   function computeCurrent(state){
@@ -906,9 +939,23 @@ async function loadBitmapFromFile(f){
 
     return { blob, meta: { mime: blob?.type || outMime, w, h, bytes, createdAt: now() } };
   }
-
   // ---- BroadcastChannel pub/sub ----
   const bc = ("BroadcastChannel" in window) ? new BroadcastChannel(CHANNEL_NAME) : null;
+
+  let _onState = null;
+  let _onCommand = null;
+
+  if(bc){
+    bc.onmessage = (ev) => {
+      const d = ev?.data || {};
+      if(d.type === "STATE" && d.payload && typeof _onState === "function"){
+        _onState(d.payload);
+      }
+      if(d.type === "CMD" && typeof _onCommand === "function"){
+        _onCommand(d);
+      }
+    };
+  }
 
   function publish(state){
     try{
@@ -925,19 +972,26 @@ async function loadBitmapFromFile(f){
     }
   }
 
-  function subscribe(onState){
-    if(bc){
-      bc.onmessage = (ev) => {
-        if(ev?.data?.type === "STATE" && ev.data.payload){
-          onState(ev.data.payload);
-        }
-      };
+  function sendCommand(cmd, payload){
+    try{
+      if(!bc) return;
+      bc.postMessage({ type:"CMD", cmd: String(cmd || ""), payload: (payload === undefined ? null : payload) });
+    }catch(e){
+      console.error("Command send failed:", e);
     }
+  }
+
+  function subscribe(onState){
+    _onState = onState;
     window.addEventListener("storage", (e) => {
       if(e.key === STORAGE_KEY && e.newValue){
         try{ onState(JSON.parse(e.newValue)); } catch(_){}
       }
     });
+  }
+
+  function subscribeCommand(onCmd){
+    _onCommand = onCmd;
   }
 
   // ---- Pure helpers ----
@@ -1086,7 +1140,7 @@ async function loadBitmapFromFile(f){
 
   return {
     appScope: APP_SCOPE, scopedKey, isAdSlotType, ensureFormA11y,
-    uid, defaultState, loadState, saveState, publish, subscribe,
+    uid, defaultState, loadState, saveState, publish, subscribe, sendCommand, subscribeCommand,
     getSlotType, effectiveMinutes, displaySlotTypeLabel, normalizeSlot,
     // House Band
     houseBandInstrumentOptions, houseBandCategories,
@@ -1100,7 +1154,7 @@ async function loadBitmapFromFile(f){
 
     
 
-    computeNextTwo, computeCurrent, computeTimer,
+    computeNextTwo, computeNextThree, computeCurrent, computeTimer,
     openAssetDB, putAsset, getAsset, deleteAsset, compressImageFile,
     formatMMSS, sanitizeText, applyThemeToDocument
   };
