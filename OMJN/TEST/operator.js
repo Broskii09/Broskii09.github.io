@@ -42,6 +42,10 @@ setBgColor: document.getElementById("setBgColor"),
     setSplashShowNextTwo: document.getElementById("setSplashShowNextTwo"),
     setViewerUiScale: document.getElementById("setViewerUiScale"),
     setViewerUiScaleVal: document.getElementById("setViewerUiScaleVal"),
+    setViewerNameScale: document.getElementById("setViewerNameScale"),
+    setViewerNameScaleVal: document.getElementById("setViewerNameScaleVal"),
+    setViewerHBScale: document.getElementById("setViewerHBScale"),
+    setViewerHBScaleVal: document.getElementById("setViewerHBScaleVal"),
     setTransitionEnabled: document.getElementById("setTransitionEnabled"),
     setTransitionStyle: document.getElementById("setTransitionStyle"),
     setTransitionDurSec: document.getElementById("setTransitionDurSec"),
@@ -1461,6 +1465,21 @@ function escapeHtml(s){
       if(els.setViewerUiScaleVal) els.setViewerUiScaleVal.textContent = `${v.toFixed(2)}×`;
     }
 
+    if(els.setViewerNameScale){
+      const raw = Number(state.viewerPrefs?.nameScale ?? 2.10);
+      const v = Number.isFinite(raw) ? clamp(raw, 1.00, 2.50) : 2.10;
+      els.setViewerNameScale.value = String(v);
+      if(els.setViewerNameScaleVal) els.setViewerNameScaleVal.textContent = `${v.toFixed(2)}×`;
+    }
+
+    if(els.setViewerHBScale){
+      const raw = Number(state.viewerPrefs?.hbLineupScale ?? 1.00);
+      const v = Number.isFinite(raw) ? clamp(raw, 0.70, 2.00) : 1.00;
+      els.setViewerHBScale.value = String(v);
+      if(els.setViewerHBScaleVal) els.setViewerHBScaleVal.textContent = `${v.toFixed(2)}×`;
+    }
+
+
     // Transition (Splash -> Live stinger)
     if(els.setTransitionEnabled){
       els.setTransitionEnabled.checked = (state.viewerPrefs?.transitionEnabled !== false);
@@ -1735,7 +1754,35 @@ function escapeHtml(s){
       els.setViewerUiScale.addEventListener("change", onInput);
     }
 
-    // Transition (Splash -> Live stinger)
+    if(els.setViewerNameScale){
+      const onInput = () => {
+        const v = clamp(parseFloat(String(els.setViewerNameScale.value||"2.10")), 1.00, 2.50);
+        els.setViewerNameScale.value = String(v);
+        if(els.setViewerNameScaleVal) els.setViewerNameScaleVal.textContent = `${v.toFixed(2)}×`;
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.nameScale = v;
+        }, { recordHistory:false });
+      };
+      els.setViewerNameScale.addEventListener("input", onInput);
+      els.setViewerNameScale.addEventListener("change", onInput);
+    }
+
+    if(els.setViewerHBScale){
+      const onInput = () => {
+        const v = clamp(parseFloat(String(els.setViewerHBScale.value||"1.00")), 0.70, 2.00);
+        els.setViewerHBScale.value = String(v);
+        if(els.setViewerHBScaleVal) els.setViewerHBScaleVal.textContent = `${v.toFixed(2)}×`;
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.hbLineupScale = v;
+        }, { recordHistory:false });
+      };
+      els.setViewerHBScale.addEventListener("input", onInput);
+      els.setViewerHBScale.addEventListener("change", onInput);
+    }
+
+// Transition (Splash -> Live stinger)
     if(els.setTransitionEnabled){
       els.setTransitionEnabled.addEventListener("change", () => {
         updateState(s => {

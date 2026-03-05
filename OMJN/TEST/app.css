@@ -365,16 +365,53 @@ body.operatorPage .cardHeader{
   border-bottom:1px solid rgba(255,255,255,.12);
 }
 
-body.operatorPage .btn{
+body.operatorPage .btn:not(.primary):not(.good):not(.danger){
   background:rgba(0,0,0,.20);
   border:1px solid rgba(255,255,255,.18);
 }
-body.operatorPage .btn:hover{background:rgba(255,255,255,.10)}
+body.operatorPage .btn:not(.primary):not(.good):not(.danger):hover{background:rgba(255,255,255,.10)}
 
 body.operatorPage .field input[type="text"],
 body.operatorPage .field input[type="number"],
 body.operatorPage .field textarea,
 body.operatorPage .field select{
+  background:rgba(0,0,0,.26);
+  border:1px solid rgba(255,255,255,.14);
+}
+
+/* Soundboard: match Operator dark + high contrast (keep colored buttons) */
+body.soundboardPage{
+  --bg:#061023;
+  --panel:#081a34;
+  --panel2:#0b2347;
+  --muted:#b8c6ea;
+  background:linear-gradient(120deg, #040a16, #071a35, #040a16);
+  background-size:400% 400%;
+  background-position:0% 50%;
+  animation:omjnGradientShift 18s ease infinite;
+}
+
+body.soundboardPage .card{
+  background:linear-gradient(180deg, rgba(8,26,52,.92), rgba(4,10,22,.92));
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow: 0 12px 34px rgba(0,0,0,.50);
+}
+
+body.soundboardPage .cardHeader{
+  background:rgba(0,0,0,.28);
+  border-bottom:1px solid rgba(255,255,255,.12);
+}
+
+body.soundboardPage .btn:not(.primary):not(.good):not(.danger){
+  background:rgba(0,0,0,.20);
+  border:1px solid rgba(255,255,255,.18);
+}
+body.soundboardPage .btn:not(.primary):not(.good):not(.danger):hover{background:rgba(255,255,255,.10)}
+
+body.soundboardPage .field input[type="text"],
+body.soundboardPage .field input[type="number"],
+body.soundboardPage .field textarea,
+body.soundboardPage .field select{
   background:rgba(0,0,0,.26);
   border:1px solid rgba(255,255,255,.14);
 }
@@ -399,7 +436,7 @@ hr.sep{
   letter-spacing:.6px;
 }
 .timerSub{
-  font-size:14px;
+  font-size: calc(14px * var(--hbLineupScale));
   color:var(--muted);
 }
 .kpi{
@@ -421,6 +458,8 @@ hr.sep{
   --safe-left: env(safe-area-inset-left, 0px);
   --vScale: 1;
   --vScaleInv: 1;
+  --nameScale: 2.10;
+  --hbLineupScale: 1.00;
   --splashBoost: 1;
 }
 
@@ -628,7 +667,7 @@ hr.sep{
   text-align:center;
 }
 .vCrowdTitle{
-  font-size: calc(clamp(44px, 6vw, 72px) * var(--vScale));
+  font-size: calc(clamp(44px, 6vw, 72px) * var(--vScale) * var(--nameScale));
   font-weight: 950;
   letter-spacing: .5px;
   line-height:1.05;
@@ -677,7 +716,7 @@ hr.sep{
 }
 
 .vNowName{
-  font-size: calc(clamp(44px, 6vw, 72px) * var(--vScale));
+  font-size: calc(clamp(44px, 6vw, 72px) * var(--vScale) * var(--nameScale));
   font-weight:950;
   line-height:1.05;
   letter-spacing:.2px;
@@ -692,7 +731,7 @@ hr.sep{
 
 .vHBInstruments{
   margin-top: 8px;
-  font-size: calc(clamp(18px, 2.2vw, 30px) * var(--vScale));
+  font-size: calc(clamp(18px, 2.2vw, 30px) * var(--vScale) * var(--hbLineupScale));
   font-weight: 850;
   letter-spacing: .8px;
   color: var(--muted);
@@ -765,7 +804,7 @@ hr.sep{
 .vNextDeckCell.right{ text-align:right; }
 .vNextDeckName{
   margin-top:6px;
-  font-size: clamp(20px, 2.4vw, 26px);
+  font-size: calc(clamp(20px, 2.4vw, 26px) * var(--vScale) * var(--nameScale));
   font-weight:950;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -793,7 +832,7 @@ hr.sep{
 }
 .vNext{
   margin-top:18px;
-  font-size:20px;
+  font-size: calc(20px * var(--hbLineupScale));
   color:var(--muted);
 }
 .vNext strong{color:var(--text)}
@@ -878,7 +917,7 @@ hr.sep{
 .vSplashCard{min-height:120px;}
 
 .vSplashInfo h3{margin:0 0 6px; font-size: calc(18px * var(--vScale)); color:var(--muted); font-weight:850;}
-.vSplashInfo .who{font-size: calc(clamp(22px, 3vw, 30px) * var(--vScale) * var(--splashBoost)); font-weight:950; margin:0;}
+.vSplashInfo .who{font-size: calc(clamp(22px, 3vw, 30px) * var(--vScale) * var(--nameScale) * var(--splashBoost)); font-weight:950; margin:0;}
 .vSplashInfo .sub{margin-top:6px; font-size: calc(14px * var(--vScale)); color:var(--muted);}
 
 .vBandLine{
@@ -900,11 +939,11 @@ hr.sep{
   background:rgba(255,255,255,.06);
   border:1px solid rgba(255,255,255,.10);
   font-weight:850;
-  font-size:14px;
+  font-size: calc(14px * var(--hbLineupScale));
 }
 .hbChipFooter{
   padding:10px 14px;
-  font-size:20px;
+  font-size: calc(20px * var(--hbLineupScale));
   font-weight:850;
 }
 .hbChip.cooling{opacity:.55;}
@@ -1320,26 +1359,10 @@ details.hbAcc .hbCatList{
               0 0 34px rgba(var(--cueRGB), var(--cueGlowA));
 }
 
-/* Looping gradient shimmer (subtle) */
-#vMainCard::before{
-  content:"";
-  position:absolute;
-  inset:-60% -80%;
-  pointer-events:none;
-  mix-blend-mode: screen;
-  opacity:.30;
-  background: linear-gradient(115deg,
-      transparent 0%,
-      rgba(255,255,255,.06) 18%,
-      rgba(var(--cueRGB), .16) 34%,
-      rgba(255,255,255,.05) 48%,
-      transparent 62%);
-  transform: translateX(-35%);
-  animation: vShimmer 4.8s linear infinite;
-}
-@keyframes vShimmer{
-  0%{ transform: translateX(-45%); }
-  100%{ transform: translateX(45%); }
+/* Main card visuals: static (no shimmer). Cues still apply via border/glow/background. */
+#vMainCard::before{ content:none; }
+
+100%{ transform: translateX(45%); }
 }
 
 /* Corner accents (4 corners using layered backgrounds) */
@@ -1373,8 +1396,8 @@ details.hbAcc .hbCatList{
 }
 
 /* High-energy corner animation during cues */
-#vMainCard.cue-warn::after{ animation: cornerBeat 1.8s ease-in-out infinite; }
-#vMainCard.cue-final::after{ animation: cornerBeat 1.1s ease-in-out infinite; }
+#vMainCard.cue-warn::after{ animation:none; opacity:1; }
+#vMainCard.cue-final::after{ animation:none; opacity:1; }
 #vMainCard.cue-overtime::after{ animation: cornerBeat .9s ease-in-out infinite; }
 
 /* Color shift + gentle glow at thresholds */
@@ -1467,21 +1490,7 @@ details.hbAcc .hbCatList{
   position:relative;
   box-shadow: 0 18px 50px rgba(0,0,0,.45);
 }
-.vStartBannerInner::before{
-  content:"";
-  position:absolute;
-  inset:-60% -80%;
-  background: linear-gradient(115deg,
-    transparent 0%,
-    rgba(255,255,255,.06) 18%,
-    rgba(var(--cueRGB), .22) 34%,
-    rgba(255,255,255,.05) 48%,
-    transparent 62%);
-  transform: translateX(-35%);
-  opacity:.22;
-  animation: vShimmer 6.5s linear infinite;
-  pointer-events:none;
-}
+.vStartBannerInner::before{ content:none; }
 .vStartSmall{
   font-size:12px;
   letter-spacing:.12em;
@@ -1491,7 +1500,7 @@ details.hbAcc .hbCatList{
 }
 .vStartName{
   margin-top:6px;
-  font-size:42px;
+  font-size: calc(42px * var(--vScale) * var(--nameScale));
   font-weight:1000;
   line-height:1.05;
   overflow:hidden;
@@ -1572,7 +1581,7 @@ details.hbAcc .hbCatList{
 .readyCol.right{ text-align:right; }
 .readyName{
   margin-top:6px;
-  font-size:20px;
+  font-size: calc(20px * var(--hbLineupScale));
   font-weight:1000;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -1743,7 +1752,7 @@ details.hbAcc .hbCatList{
 }
 .sbNowName, .sbNextName, .sbDeckName{
   margin-top:6px;
-  font-size:20px;
+  font-size: calc(20px * var(--hbLineupScale));
   font-weight:950;
   overflow:hidden;
   text-overflow:ellipsis;

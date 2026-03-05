@@ -153,10 +153,23 @@
       const uiScale = Number.isFinite(manual) ? clamp(manual, 0.80, 1.40) : 1.0;
       const autoScale = computeAutoScale();
       const vScale = clamp(autoScale * uiScale, 0.70, 1.50);
-      document.documentElement.style.setProperty('--vScale', String(vScale));
+
+      const rootEl = document.getElementById('root') || document.querySelector('.viewerRoot');
+      const targets = [document.documentElement, rootEl].filter(Boolean);
+      const setVar = (k, v) => { for(const t of targets){ t.style.setProperty(k, v); } };
+
+      setVar('--vScale', String(vScale));
+
+      const nameScaleRaw = Number(state?.viewerPrefs?.nameScale ?? 2.10);
+      const nameScale = Number.isFinite(nameScaleRaw) ? clamp(nameScaleRaw, 1.00, 2.50) : 2.10;
+      setVar('--nameScale', String(nameScale));
+
+      const hbScaleRaw = Number(state?.viewerPrefs?.hbLineupScale ?? 1.00);
+      const hbScale = Number.isFinite(hbScaleRaw) ? clamp(hbScaleRaw, 0.70, 2.00) : 1.00;
+      setVar('--hbLineupScale', String(hbScale));
 
       // A few places need the inverse (for transforms if ever used)
-      document.documentElement.style.setProperty('--vScaleInv', String(1 / vScale));
+      setVar('--vScaleInv', String(1 / vScale));
     }catch(_){ }
   }
 
