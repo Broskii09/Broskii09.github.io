@@ -84,6 +84,9 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         showHouseBandFooter:true,
         hbFooterFormat:"categoryFirst",
         uiScale: 1.0, // manual font scale multiplier (Operator slider)
+        nameScale: 2.10, // performer names multiplier (default ~2.1×)
+        hbLineupScale: 1.00, // house band lineup text multiplier
+
         // Mic-based audio visualizer (Viewer)
         visualizerEnabled: false,
         visualizerSensitivity: 1.0,
@@ -239,6 +242,8 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(s.viewerPrefs.visualizerMode === undefined) s.viewerPrefs.visualizerMode = "eq";
       if(s.viewerPrefs.visualizerDirection === undefined) s.viewerPrefs.visualizerDirection = "mirror";
       if(s.viewerPrefs.uiScale === undefined) s.viewerPrefs.uiScale = 1.0;
+      if(s.viewerPrefs.nameScale === undefined) s.viewerPrefs.nameScale = 2.10;
+      if(s.viewerPrefs.hbLineupScale === undefined) s.viewerPrefs.hbLineupScale = 1.00;
 
       // Transition (Splash -> Live)
       // Video stinger support removed; defaults target the CSS stinger.
