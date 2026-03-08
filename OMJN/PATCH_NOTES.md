@@ -1,34 +1,45 @@
-# OMJN Patch Notes — Settings Fix + Slider Reliability
+# PATCH_NOTES.md
 
 ## Summary
-This patch fixes the Operator crash that broke the Settings button (syntax error in `operator.js`) and makes the Viewer scaling sliders apply reliably.
+Adds two Operator-side time features:
+- **Approx showtime (ETA)** displayed on the right side of each queued performer’s status bar (`qBar`) as `h:mm AM/PM (≈)`.
+- **Current time** shown on the far-right of the Live Control KPI row.
 
-## What changed
-- **Fixed `operator.js` syntax/structure**: corrected a brace/nesting issue in the Settings → Viewer scale binding block that caused `Unexpected token 'function'` in the broken patch.
-- **Viewer scale vars now apply more robustly**: `viewer.js` sets `--vScale`, `--nameScale`, and `--hbLineupScale` on both `:root` (documentElement) and the Viewer root container, so font-size changes reliably propagate even if Viewer styles are scoped.
+ETA rules (per your spec):
+- Only shown for **non-ad queued performers**.
+- **Ads count as 0** in the ETA calculation (ignored).
+- When the current performer is in **overtime**, ETAs **do not shift earlier** (remaining time clamps at 0).
 
-## Files
-- `operator.js`
-- `viewer.js`
+## Files changed
 - `operator.html`
-- `shared.js`
+- `operator.js`
 - `app.css`
 
-## Install (exact paths)
-1. Copy these files into:
-   - `Broskii09.github.io/OMJN/TEST/` (overwrite existing)
-2. Hard refresh pages:
-   - Windows/Chrome: `Ctrl + F5`
-   - macOS/Safari: `Cmd + Shift + R`
+## Install steps
+1) Copy these files into your GitHub Pages **TEST** directory (overwrite):
+   - `operator.html`
+   - `operator.js`
+   - `app.css`
+2) Hard refresh:
+   - Chrome/Edge: `Ctrl+F5`
+   - Safari: `Cmd+Shift+R`
+
+After validating in `/OMJN/TEST/`, copy the same files into `/OMJN/` (live).
 
 ## Smoke test checklist
-- Operator loads with **no console errors**.
-- Settings modal opens.
-- Settings → Viewer:
-  - Moving **Viewer font scale** changes Viewer immediately.
-  - Moving **Performer name size** changes LIVE + Splash names immediately.
-  - Moving **House Band text size** changes HB lineup text immediately.
-- Viewer shows **Connected** on Operator.
 
-## Known risks / limitations
-- This patch cannot remove stale browser caches automatically. If you still see old behavior after replacing files, do a hard refresh.
+### Local test
+- Open Operator, add several queued performers with different minute values.
+- Start the show (LIVE).
+- Confirm each **queued performer** row shows a time label like `8:42 PM (≈)` on the right of the `qBar`.
+- Add an **ad** between performers and confirm it does **not** change the ETAs.
+- Let the current performer run into overtime and confirm future ETAs do **not** jump earlier.
+- Confirm the KPI row shows **Now** time on the far right and updates over time.
+
+### Internet-side test (TEST dir)
+- Repeat the checks in `.../OMJN/TEST/`.
+- Verify TEST changes do not affect the live `.../OMJN/` page.
+
+## Known limitations / notes
+- ETAs are approximate and assume each queued slot runs its configured minutes (except ads = 0).
+- If the Operator page is left open in a background tab, some browsers may throttle timers; the “Now” clock and ETAs may update less frequently until the tab is focused again.

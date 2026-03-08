@@ -267,6 +267,8 @@ select option{ background: var(--panel); color: var(--text); }
   border:1px solid rgba(255,255,255,.10);
 }
 .qBarLeft{display:flex; align-items:center; gap:10px; min-width:0;}
+.qBarRight{margin-left:auto; display:flex; align-items:center; gap:6px; min-width:0;}
+.qEta{font-size:12px; font-weight:900; opacity:.92; white-space:nowrap;}
 .qRole{
   font-size:12px;
   font-weight:950;
@@ -444,6 +446,8 @@ hr.sep{
 }
 .kpi .label{color:var(--muted); font-size:12px;}
 .kpi .value{font-size:18px; font-weight:800;}
+.kpiNow{margin-left:auto; text-align:right;}
+.kpiNow .label{text-align:right;}
 
 /* Viewer */
 .viewerRoot{
