@@ -1,45 +1,41 @@
-# PATCH_NOTES.md
+# OMJN Patch Notes — Viewer Timer Toggle Button (Operator → Viewer)
 
 ## Summary
-Adds two Operator-side time features:
-- **Approx showtime (ETA)** displayed on the right side of each queued performer’s status bar (`qBar`) as `h:mm AM/PM (≈)`.
-- **Current time** shown on the far-right of the Live Control KPI row.
+Adds a **Hide/Show Viewer Timer** button next to the Operator timer line. Clicking it hides/shows the Viewer’s big timer readout (and the progress bar, if enabled). The button label reflects the current state.
 
-ETA rules (per your spec):
-- Only shown for **non-ad queued performers**.
-- **Ads count as 0** in the ETA calculation (ignored).
-- When the current performer is in **overtime**, ETAs **do not shift earlier** (remaining time clamps at 0).
+## What changed
+- **Operator Live Control**: added a small toggle button beside the `Elapsed / Remaining` readout.
+- **State**: introduced `viewerPrefs.showTimer` (defaults to `true`).
+- **Viewer**: respects `viewerPrefs.showTimer` by hiding the timer text + progress bar when off.
+- **CSS**: minor layout helper for the new timer row + Viewer `timerHidden` style.
 
 ## Files changed
 - `operator.html`
 - `operator.js`
+- `viewer.js`
+- `shared.js`
 - `app.css`
 
-## Install steps
-1) Copy these files into your GitHub Pages **TEST** directory (overwrite):
-   - `operator.html`
-   - `operator.js`
-   - `app.css`
-2) Hard refresh:
-   - Chrome/Edge: `Ctrl+F5`
-   - Safari: `Cmd+Shift+R`
+## Install steps (exact paths)
+Copy these files into your **TEST** directory (and later into live when ready):
+- `Broskii09.github.io/OMJN/TEST/operator.html`
+- `Broskii09.github.io/OMJN/TEST/operator.js`
+- `Broskii09.github.io/OMJN/TEST/viewer.js`
+- `Broskii09.github.io/OMJN/TEST/shared.js`
+- `Broskii09.github.io/OMJN/TEST/app.css`
 
-After validating in `/OMJN/TEST/`, copy the same files into `/OMJN/` (live).
+(Repeat for `Broskii09.github.io/OMJN/` when promoting to live.)
 
 ## Smoke test checklist
+1. Open `TEST/operator.html`.
+2. In **Live Control**, confirm a button appears next to the `0:00 / 0:00` timer line: **Hide Viewer Timer**.
+3. Click it:
+   - Button changes to **Show Viewer Timer**
+   - Open `TEST/viewer.html` and confirm the big timer number is hidden.
+   - If Progress Bar is enabled in Settings → Timer, confirm it is also hidden when timer is hidden.
+4. Click again and confirm the timer returns.
+5. Refresh Operator + Viewer and confirm the setting persists (and stays in sync).
 
-### Local test
-- Open Operator, add several queued performers with different minute values.
-- Start the show (LIVE).
-- Confirm each **queued performer** row shows a time label like `8:42 PM (≈)` on the right of the `qBar`.
-- Add an **ad** between performers and confirm it does **not** change the ETAs.
-- Let the current performer run into overtime and confirm future ETAs do **not** jump earlier.
-- Confirm the KPI row shows **Now** time on the far right and updates over time.
-
-### Internet-side test (TEST dir)
-- Repeat the checks in `.../OMJN/TEST/`.
-- Verify TEST changes do not affect the live `.../OMJN/` page.
-
-## Known limitations / notes
-- ETAs are approximate and assume each queued slot runs its configured minutes (except ads = 0).
-- If the Operator page is left open in a background tab, some browsers may throttle timers; the “Now” clock and ETAs may update less frequently until the tab is focused again.
+## Known risks / notes
+- If you don’t see the new button after copying files, do a hard refresh (Ctrl+F5) to bypass cache.
+- Viewer timer hiding does **not** affect cue chips (Overtime/Warn/Final); it only hides the timer digits + progress bar.

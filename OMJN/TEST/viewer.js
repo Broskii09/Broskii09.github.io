@@ -1458,8 +1458,13 @@
         if (el.vMedia) el.vMedia.style.display = showMedia ? "flex" : "none";
       }
 
-      // Progress bar visibility toggle (static) (static)
-      const showProgress = state.viewerPrefs?.showProgressBar !== false;
+      // Timer visibility toggle (Operator quick button)
+      const showTimer = state.viewerPrefs?.showTimer !== false;
+      if (el.root) el.root.classList.toggle("timerHidden", !showTimer);
+      if (el.timer) el.timer.style.display = showTimer ? "" : "none";
+
+      // Progress bar visibility toggle (static)
+      const showProgress = (state.viewerPrefs?.showProgressBar !== false) && showTimer;
       if (el.progress) {
         el.progress.hidden = !showProgress;
         el.progress.setAttribute("aria-hidden", showProgress ? "false" : "true");
