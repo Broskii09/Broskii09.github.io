@@ -160,7 +160,6 @@ setBgColor: document.getElementById("setBgColor"),
     kpiNext: document.getElementById("kpiNext"),
     kpiLeft: document.getElementById("kpiLeft"),
     kpiEstEnd: document.getElementById("kpiEstEnd"),
-    kpiNowTime: document.getElementById("kpiNowTime"),
 
     btnStart: document.getElementById("btnStart"),
     btnPause: document.getElementById("btnPause"),
@@ -179,6 +178,7 @@ setBgColor: document.getElementById("setBgColor"),
     btnPlus30: document.getElementById("btnPlus30"),
     btnResetTime: document.getElementById("btnResetTime"),
     timerLine: document.getElementById("timerLine"),
+    btnToggleViewerTimer: document.getElementById("btnToggleViewerTimer"),
 // Tabs
     tabBtnPerformers: document.getElementById("tabBtnPerformers"),
     tabBtnHouseBand: document.getElementById("tabBtnHouseBand"),
@@ -2396,18 +2396,6 @@ function escapeHtml(s){
 
     bar.appendChild(barLeft);
 
-    // Approximate showtime for queued performers (non-ad). Updated by updateQueueEtaLabels().
-    if(slot.status === "QUEUED" && !isAd && !isIntermission && !isHouseBand){
-      const barRight = document.createElement("div");
-      barRight.className = "qBarRight";
-      const eta = document.createElement("span");
-      eta.className = "qEta mono";
-      eta.dataset.slotId = slot.id;
-      eta.hidden = true;
-      barRight.appendChild(eta);
-      bar.appendChild(barRight);
-    }
-
     // Name row (icon + name)
     const nameRow = document.createElement("div");
     nameRow.className = "qNameRow";
@@ -2591,98 +2579,7 @@ function escapeHtml(s){
         els.queue.appendChild(queueRow(slot));
       }
     }
-
-    // Keep approximate showtimes current
-    updateQueueEtaLabels();
   }
-
-  // ---- Queue ETA (approx showtime) ----
-  let queueEtaMap = new Map();
-
-  function formatApproxTime(tsMs){
-    const t = new Date(tsMs);
-    return `${t.toLocaleTimeString([], { hour:"numeric", minute:"2-digit" })} (≈)`;
-  }
-
-  function computeQueueEtaMap(nowMs){
-    const map = new Map();
-
-    const phase = state.phase || "SPLASH";
-    const hasCurrent = (phase === "LIVE" || phase === "PAUSED") && !!state.currentSlotId;
-
-    const isDone = (x) => x && (x.status === "DONE" || x.status === "SKIPPED");
-    const active = (state.queue || []).filter(x => x && !isDone(x));
-    const curIdx = hasCurrent ? active.findIndex(x => x.id === state.currentSlotId) : -1;
-
-    // Cursor represents the estimated start time for the next queued item.
-    let cursor = nowMs;
-
-    // If we're LIVE/PAUSED on a non-ad current slot, include remaining time.
-    if(curIdx !== -1){
-      try{
-        const cur = active[curIdx];
-        const curTypeId = String(cur?.slotTypeId || "");
-        const curIsAd = curTypeId.startsWith("ad_");
-        if(!curIsAd){
-          const t = OMJN.computeTimer(state);
-          cursor += Math.max(t.remainingMs || 0, 0);
-        }
-      }catch(_){}
-    }
-
-    // Start after current (if present), otherwise from the top (SPLASH or no current).
-    const start = (curIdx === -1) ? 0 : (curIdx + 1);
-
-    for(let i = start; i < active.length; i++){
-      const s = active[i];
-      OMJN.normalizeSlot(s);
-      if(s.status !== "QUEUED") continue;
-
-      const typeId = String(s.slotTypeId || "");
-      const isAd = typeId.startsWith("ad_");
-      const isIntermission = typeId === "intermission";
-      const isHouseBand = typeId === "houseband";
-
-      // Display ETA only for non-ad queued performers.
-      if(!isAd && !isIntermission && !isHouseBand){
-        map.set(s.id, cursor);
-      }
-
-      // Advance cursor (ads count as 0)
-      const durMs = isAd ? 0 : (OMJN.effectiveMinutes(state, s) * 60 * 1000);
-      cursor += durMs;
-    }
-
-    return map;
-  }
-
-  function updateQueueEtaLabels(){
-    let nodes;
-    try{
-      queueEtaMap = computeQueueEtaMap(Date.now());
-      nodes = document.querySelectorAll(".qEta[data-slot-id]");
-      for(const node of nodes){
-        const id = node.dataset.slotId;
-        const ts = queueEtaMap.get(id);
-        if(ts){
-          node.textContent = formatApproxTime(ts);
-          node.hidden = false;
-        }else{
-          node.textContent = "";
-          node.hidden = true;
-        }
-      }
-    }catch(_){
-      try{
-        nodes = nodes || document.querySelectorAll(".qEta[data-slot-id]");
-        for(const node of nodes){
-          node.textContent = "";
-          node.hidden = true;
-        }
-      }catch(__){}
-    }
-  }
-
 
 function getDragAfterElement(container, y){
     const items = [...container.querySelectorAll('.queueItem:not(.dragging)')];
@@ -3167,16 +3064,6 @@ function renderKPIs(){
         els.kpiEstEnd.textContent = "—";
       }
     }
-    renderNowTime();
-  }
-
-  function renderNowTime(){
-    if(!els.kpiNowTime) return;
-    try{
-      els.kpiNowTime.textContent = new Date().toLocaleTimeString([], { hour:"numeric", minute:"2-digit" });
-    }catch(_){
-      els.kpiNowTime.textContent = "—";
-    }
   }
 
   function renderStatusBanner(){
@@ -3388,8 +3275,7 @@ function renderKPIs(){
     uiTickHandle = setInterval(() => {
       try{
         if(els.timerLine) renderTimerLine();
-        renderNowTime();
-        updateQueueEtaLabels();
+    renderViewerTimerToggle();
         renderLiveStatusBanner();
         updateCrowdQuickButtons();
         renderCrowdPromptPreview();
@@ -3401,9 +3287,20 @@ function renderKPIs(){
     }, 250);
   }
 
+let _lastShowTimer = null;
+  function renderViewerTimerToggle(){
+    if(!els.btnToggleViewerTimer) return;
+    const show = (state.viewerPrefs?.showTimer !== false);
+    if(show === _lastShowTimer) return;
+    _lastShowTimer = show;
+    els.btnToggleViewerTimer.textContent = show ? "Hide Viewer Timer" : "Show Viewer Timer";
+    els.btnToggleViewerTimer.classList.toggle("good", !show);
+  }
+
 function renderTimerLine(){
     const t = OMJN.computeTimer(state);
     els.timerLine.textContent = `${OMJN.formatMMSS(t.elapsedMs)} / ${OMJN.formatMMSS(t.remainingMs)}`;
+    renderViewerTimerToggle();
   }
 
 
@@ -5023,6 +4920,19 @@ els.showTitle.addEventListener("input", () => {
     els.btnMinus30.addEventListener("click", () => addSeconds(-30));
     els.btnPlus30.addEventListener("click", () => addSeconds(30));
     els.btnResetTime.addEventListener("click", resetTimer);
+
+    // Viewer timer visibility toggle (quick access)
+    if(els.btnToggleViewerTimer){
+      els.btnToggleViewerTimer.addEventListener("click", (e) => {
+        e.preventDefault();
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          const show = (s.viewerPrefs.showTimer !== false);
+          s.viewerPrefs.showTimer = !show;
+        }, { recordHistory:false });
+      });
+    }
+
 
 
     // Timer-up modal bindings (operator reminder when time hits 0:00)

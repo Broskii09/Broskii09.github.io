@@ -81,6 +81,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         finalAtSec: 30,
         showOvertime: true,
         showProgressBar: true,
+        showTimer: true,
         showHouseBandFooter:true,
         hbFooterFormat:"categoryFirst",
         uiScale: 1.0, // manual font scale multiplier (Operator slider)
@@ -244,6 +245,7 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(s.viewerPrefs.uiScale === undefined) s.viewerPrefs.uiScale = 1.0;
       if(s.viewerPrefs.nameScale === undefined) s.viewerPrefs.nameScale = 2.10;
       if(s.viewerPrefs.hbLineupScale === undefined) s.viewerPrefs.hbLineupScale = 1.00;
+      if(s.viewerPrefs.showTimer === undefined) s.viewerPrefs.showTimer = true;
 
       // Transition (Splash -> Live)
       // Video stinger support removed; defaults target the CSS stinger.
