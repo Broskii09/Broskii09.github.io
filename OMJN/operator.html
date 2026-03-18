@@ -282,8 +282,10 @@
 
                     <div class="row">
                         <button class="btn primary" id="btnStart">Start</button>
-                        <button class="btn" id="btnPause">Pause</button>
-                        <button class="btn" id="btnResume">Resume</button>
+                        <button class="btn pauseResume" id="btnPauseResume" aria-pressed="false">
+                            <span class="pauseResumeLabel" id="btnPauseResumeLabel">Pause</span>
+                            <span class="pill pausedBadge inline" id="livePauseBadge" hidden>Paused</span>
+                        </button>
                         <button class="btn danger" id="btnEnd">End → Splash</button>
                         <button class="btn" id="btnUndo" title="Undo (Ctrl+Z)">Undo</button>
                         <button class="btn" id="btnRedo" title="Redo (Ctrl+Shift+Z)">Redo</button>
@@ -294,7 +296,7 @@
 
                     <hr class="sep">
 
-                    <div class="row" style="margin-top:10px; justify-content:flex-start;">
+                    <div class="row timerControlsRow" style="margin-top:10px; justify-content:flex-start;">
                         <button class="btn tiny" id="btnMinus30">-:30</button>
                         <button class="btn tiny" id="btnPlus30">+:30</button>
                         <button class="btn tiny" id="btnMinus1">-1m</button>
@@ -302,6 +304,7 @@
                         <button class="btn tiny" id="btnPlus1">+1m</button>
                         <button class="btn tiny" id="btnPlus5">+5m</button>
                         <button class="btn tiny" id="btnResetTime">Reset Time</button>
+                        <button class="btn tiny" id="btnViewerTimerToggle" aria-pressed="false" title="Hide the Viewer timer and progress bar">Hide Viewer Timer</button>
                     </div>
 
 
@@ -908,13 +911,14 @@
                     <textarea id="imMsg" rows="3" placeholder="WE'LL BE RIGHT BACK"></textarea>
                 </div>
 
-                <div class="row" style="justify-content:flex-end; gap:10px; margin-top:14px;">
+                <div class="row wrap" style="justify-content:flex-end; gap:10px; margin-top:14px;">
                     <button class="btn" id="btnImCancel" type="button">Cancel</button>
-                    <button class="btn accent" id="btnImAdd" type="button">Add to Queue</button>
+                    <button class="btn" id="btnImLive" type="button">Go Live Now</button>
+                    <button class="btn accent" id="btnImAdd" type="button">Add Next</button>
                 </div>
 
                 <div class="small" style="margin-top:10px; opacity:.85;">
-                    Tip: You can edit it later from the queue (Title / Duration / Message).
+                    Tip: Add places Intermission at the top when you are on Splash, or directly after the current live act when the show is already running.
                 </div>
             </div>
         </div>

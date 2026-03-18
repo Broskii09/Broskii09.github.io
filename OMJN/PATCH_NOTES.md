@@ -1,45 +1,49 @@
-# PATCH_NOTES.md
+# PATCH_NOTES
 
 ## Summary
-Adds two Operator-side time features:
-- **Approx showtime (ETA)** displayed on the right side of each queued performer’s status bar (`qBar`) as `h:mm AM/PM (≈)`.
-- **Current time** shown on the far-right of the Live Control KPI row.
+Added a new **Jamaoke** slot type to the current uploaded baseline.
 
-ETA rules (per your spec):
-- Only shown for **non-ad queued performers**.
-- **Ads count as 0** in the ETA calculation (ignored).
-- When the current performer is in **overtime**, ETAs **do not shift earlier** (remaining time clamps at 0).
+This implementation keeps **planning minutes** for queue ETA / estimated end calculations, while treating Jamaoke as **untimed on the Viewer** so the audience screen does not show a countdown or progress bar during those live slots.
 
 ## Files changed
-- `operator.html`
+- `shared.js`
 - `operator.js`
+- `viewer.js`
 - `app.css`
+- `REGRESSION_LEDGER.md`
 
 ## Install steps
-1) Copy these files into your GitHub Pages **TEST** directory (overwrite):
-   - `operator.html`
-   - `operator.js`
-   - `app.css`
-2) Hard refresh:
-   - Chrome/Edge: `Ctrl+F5`
-   - Safari: `Cmd+Shift+R`
+Replace these files in your current working build:
+- `shared.js`
+- `operator.js`
+- `viewer.js`
+- `app.css`
+- `REGRESSION_LEDGER.md`
 
-After validating in `/OMJN/TEST/`, copy the same files into `/OMJN/` (live).
+## Behavior added
+- New slot type: `Jamaoke`
+- Default planning duration: **10 minutes**
+- Enabled by default in slot-type settings and quick-add selection
+- Distinct queue color / icon
+- Viewer live card shows **JAMAOKE** as the label/chip type
+- Viewer **hides timer + progress bar** automatically for Jamaoke live slots
+- Viewer suppresses warn/final/overtime chips and timer-driven card cues during Jamaoke
+- Queue ETA / estimated end still use Jamaoke planning minutes
 
 ## Smoke test checklist
-
 ### Local test
-- Open Operator, add several queued performers with different minute values.
-- Start the show (LIVE).
-- Confirm each **queued performer** row shows a time label like `8:42 PM (≈)` on the right of the `qBar`.
-- Add an **ad** between performers and confirm it does **not** change the ETAs.
-- Let the current performer run into overtime and confirm future ETAs do **not** jump earlier.
-- Confirm the KPI row shows **Now** time on the far right and updates over time.
+- Open Operator and confirm **Jamaoke** appears in the add-slot dropdown.
+- Confirm **Jamaoke** appears in the slot-types editor.
+- Add a Jamaoke slot and confirm it lands in the queue with its own label/color.
+- Start a Jamaoke slot live and confirm the Viewer shows the live card but **no timer/progress bar**.
+- Confirm the Viewer still shows the performer name and **JAMAOKE** labeling.
+- End Jamaoke and confirm the next slot flow still works normally.
+- Confirm queue ETA / estimated end still include Jamaoke in schedule math.
 
 ### Internet-side test (TEST dir)
-- Repeat the checks in `.../OMJN/TEST/`.
-- Verify TEST changes do not affect the live `.../OMJN/` page.
+- Repeat the same checks on the `/TEST` deployment.
+- Verify Operator and Viewer stay in sync without refresh.
 
-## Known limitations / notes
-- ETAs are approximate and assume each queued slot runs its configured minutes (except ads = 0).
-- If the Operator page is left open in a background tab, some browsers may throttle timers; the “Now” clock and ETAs may update less frequently until the tab is focused again.
+## Known risks / limitations
+- Jamaoke is implemented as **Viewer-untimed** rather than fully timerless internally. The Operator still retains planning duration under the hood so ETA math stays useful.
+- Pause/Resume remains available for Jamaoke because the internal planning timer still exists. That preserves existing timing math and minimizes regression risk.
