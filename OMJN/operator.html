@@ -255,6 +255,10 @@
                             <div class="label">Est End</div>
                             <div class="value" id="kpiEstEnd">—</div>
                         </div>
+                        <div class="kpiNow">
+                            <div class="label">Now</div>
+                            <div class="value mono" id="kpiNowTime">—</div>
+                        </div>
                     </div>
 
                     <div class="statusBanner liveStatusBanner" id="liveStatusBanner">
@@ -303,10 +307,7 @@
 
                     <div style="margin-top:10px;">
                         <div class="timerSub">Elapsed / Remaining</div>
-                        <div class="row timerLineRow">
-                            <div class="timerBig mono" id="timerLine">0:00 / 0:00</div>
-                            <button class="btn tiny" id="btnToggleViewerTimer" type="button" title="Hide/show the timer on the Viewer screen">Hide Viewer Timer</button>
-                        </div>
+                        <div class="timerBig mono" id="timerLine">0:00 / 0:00</div>
                         <div class="small" id="timerHint">Hard stop at 0:00. Overtime shown on viewer.</div>
                     </div>
                 </div>
