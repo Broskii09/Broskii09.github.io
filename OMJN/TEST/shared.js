@@ -81,6 +81,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         finalAtSec: 30,
         showOvertime: true,
         showProgressBar: true,
+        showTimer: true,
         showHouseBandFooter:true,
         hbFooterFormat:"categoryFirst",
         uiScale: 1.0, // manual font scale multiplier (Operator slider)
@@ -174,6 +175,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
       },
       slotTypes: [
         { id:"musician", label:"Musician", defaultMinutes:15, isJamMode:false, color:"#00c2ff", enabled:true },
+        { id:"jamaoke", label:"Jamaoke", defaultMinutes:10, isJamMode:false, color:"#f472b6", enabled:true },
         { id:"comedian", label:"Comedian", defaultMinutes:10, isJamMode:false, color:"#2dd4bf", enabled:true },
         { id:"comedian5", label:"Comedian", defaultMinutes:5, isJamMode:false, color:"#2dd4bf", enabled:true },
         { id:"poetry", label:"Poetry", defaultMinutes:10, isJamMode:false, color:"#fbbf24", enabled:true },
@@ -237,6 +239,7 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if (s.splash.backgroundAssetPath === "./assets/splash_BG.jpg") s.splash.backgroundAssetPath = null;
       if (s.splash.backgroundAssetPath === "") s.splash.backgroundAssetPath = null;
       if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
+      if(s.viewerPrefs.showTimer === undefined) s.viewerPrefs.showTimer = true;
       if(s.viewerPrefs.visualizerEnabled === undefined) s.viewerPrefs.visualizerEnabled = false;
       if(s.viewerPrefs.visualizerSensitivity === undefined) s.viewerPrefs.visualizerSensitivity = 1.0;
       if(s.viewerPrefs.visualizerMode === undefined) s.viewerPrefs.visualizerMode = "eq";
