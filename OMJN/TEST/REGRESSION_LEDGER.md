@@ -1,30 +1,28 @@
-# REGRESSION_LEDGER
+# Regression ledger
 
-## Preserve list
-These items must be re-verified after every future patch.
-
-- Adaptive Viewer main-name fit
-- Intermission modal: `Go Live Now / Arm Next`
-- Intermission modal: `Add to Top / Add Next`
+## Preserved / expected in this baseline
 - Combined Pause/Resume button in Operator
-- Paused badge inside the Resume button
-- Viewer PAUSED chip visibility
+- PAUSED badge inside Resume button without row shift
 - Viewer timer/progress hide-show toggle
-- 5-minute changeover buffer in queue ETA / estimated end
-- Sponsor bug hide/restore behavior
-- Crowd prompt suspend/restore during ads
+- Viewer PAUSED chip
+- Adaptive Viewer main-name fitting
+- Intermission Go Live / Arm Next
+- Intermission Add to Top / Add Next
+- 5-minute changeover buffer in ETA / Estimated End
+- Sponsor bug hide/restore across crowd prompts and ads
+- Crowd prompt suspension/restoration during ad mode
 - Jamaoke slot type
-- Jamaoke Viewer timer/progress suppression
 
-## Current status after this patch
-### Verified present
-- Jamaoke slot type exists in shared defaults
-- Jamaoke appears in Operator slot ordering and queue visuals
-- Jamaoke hides timer/progress on Viewer
-- Jamaoke keeps planning minutes for ETA math
+## Re-verified in code
+- operator.js syntax OK
+- viewer.js syntax OK
+- shared.js syntax OK
+- soundboard.js syntax OK
+- operator.html contains btnPauseResume
+- viewer.html contains chipState
+- shared.js contains viewerPrefs.showTimer and Jamaoke slot type
 
-### Not changed by this patch
-- Intermission flow
-- Adaptive Viewer name fit
-- Ad / sponsor / crowd prompt hardening
-- Existing timer toggle behavior
+## UI polish pass (no logic changes)
+- Operator live-control row spacing tightened
+- Viewer chip row given reserved height to reduce layout jump
+- Viewer timer toggle button given stable width and responsive wrap behavior

@@ -219,6 +219,40 @@ select option{ background: var(--panel); color: var(--text); }
 .timerControlsRow{
   flex-wrap: wrap;
 }
+.liveActionRow{
+  align-items:stretch;
+  gap:10px;
+}
+.liveActionRow > .btn{
+  min-height:44px;
+}
+.liveActionRow #btnStart,
+.liveActionRow #btnPauseResume,
+.liveActionRow #btnEnd{
+  min-width:148px;
+}
+.liveTimerRow{
+  margin-top:10px;
+  justify-content:flex-start;
+  align-items:stretch;
+  gap:8px;
+}
+.liveTimerRow > .btn{
+  min-height:36px;
+}
+#btnViewerTimerToggle{
+  margin-left:auto;
+  min-width:170px;
+}
+.timerReadout{
+  margin-top:10px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.timerReadout .small{
+  line-height:1.35;
+}
 @keyframes pauseStroke{
   0%{ background-position: 200% 0; }
   100%{ background-position: -20% 0; }
@@ -501,6 +535,10 @@ hr.sep{
 @media (max-width: 1100px){
   .timerControlsRow > .btn{
     flex: 1 1 auto;
+  }
+  #btnViewerTimerToggle{
+    margin-left:0;
+    flex: 1 1 190px;
   }
 }
 .kpi{
@@ -847,7 +885,8 @@ hr.sep{
 }
 .vStateRow{
   margin-top:10px;
-  display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+  display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap;
+  min-height:52px;
 }
 
 /* Next / On Deck row inside the LIVE main card */
@@ -877,7 +916,8 @@ hr.sep{
   white-space:nowrap;
 }
 .vChip{
-  display:inline-flex; align-items:center;
+  display:inline-flex; align-items:center; justify-content:center;
+  min-height:48px;
   padding:10px 14px;
   border-radius:999px;
   font-weight:800;
@@ -895,6 +935,12 @@ hr.sep{
   padding: 14px 22px;
   font-weight: 950;
   letter-spacing: .02em;
+  min-width: min(18ch, 100%);
+  justify-content:center;
+}
+#chipState{
+  min-width: 108px;
+  justify-content:center;
 }
 .vNext{
   margin-top:18px;
@@ -2765,6 +2811,16 @@ details.hbAcc .hbCatList{
 .viewerRoot .vNextDeckCell{ padding: 10px 12px; }
 .viewerRoot .vNextDeckName{ margin-top: 4px; font-size: clamp(18px, 2.2vw, 24px); }
 
+@media (max-width: 900px){
+  .vStateRow{
+    gap:10px;
+    min-height:44px;
+  }
+  .vChip{
+    min-height:42px;
+    padding:8px 12px;
+  }
+}
 /* Media block inside hero card: size the box so images can fit (no % height ambiguity) */
 .viewerRoot .vMedia{ margin-top: 0; gap: 12px; align-items: stretch; }
 .viewerRoot .vMediaBox{ padding: 14px; overflow: hidden; }
