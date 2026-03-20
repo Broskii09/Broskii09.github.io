@@ -282,8 +282,10 @@
 
                     <div class="row">
                         <button class="btn primary" id="btnStart">Start</button>
-                        <button class="btn" id="btnPause">Pause</button>
-                        <button class="btn" id="btnResume">Resume</button>
+                        <button class="btn pauseResume" id="btnPauseResume" aria-pressed="false">
+                            <span class="pauseResumeLabel" id="btnPauseResumeLabel">Pause</span>
+                            <span class="pill pausedBadge inline" id="livePauseBadge" hidden>Paused</span>
+                        </button>
                         <button class="btn danger" id="btnEnd">End → Splash</button>
                         <button class="btn" id="btnUndo" title="Undo (Ctrl+Z)">Undo</button>
                         <button class="btn" id="btnRedo" title="Redo (Ctrl+Shift+Z)">Redo</button>
@@ -302,12 +304,11 @@
                         <button class="btn tiny" id="btnPlus1">+1m</button>
                         <button class="btn tiny" id="btnPlus5">+5m</button>
                         <button class="btn tiny" id="btnResetTime">Reset Time</button>
-                        <div class="spacer"></div>
-                        <button class="btn tiny" id="btnViewerTimerToggle" title="Hide or show the Viewer timer and progress bar">Hide Viewer Timer</button>
+                        <button class="btn tiny" id="btnViewerTimerToggle" aria-pressed="false" title="Hide the Viewer timer and progress bar">Hide Viewer Timer</button>
                     </div>
 
 
-                    <div class="timerReadoutBlock" style="margin-top:10px;">
+                    <div style="margin-top:10px;">
                         <div class="timerSub">Elapsed / Remaining</div>
                         <div class="timerBig mono" id="timerLine">0:00 / 0:00</div>
                         <div class="small" id="timerHint">Hard stop at 0:00. Overtime shown on viewer.</div>
@@ -315,91 +316,122 @@
                 </div>
             </div>
         <div class="card" id="crowdPromptCard">
-            <div class="cardHeader">
-                <h2>Crowd Prompts</h2>
+            <div class="cardHeader crowdConsoleHeader">
+                <div class="crowdHeaderCopy">
+                    <h2>Crowd Prompts</h2>
+                    <div class="small">Fast full-screen Viewer prompts for rules, hype, sponsor reads, and audience direction.</div>
+                </div>
 
                 <div class="crowdStatusStrip" id="crowdStatusStrip" aria-live="polite">
                     <span class="pill off" id="crowdStatusPill">OFF</span>
                     <span class="mono crowdStatusName" id="crowdStatusName">—</span>
-                    <span class="mono crowdStatusMeta" id="crowdStatusMeta">—</span>
-                    <span class="mono crowdStatusMeta" id="crowdStatusAutoHide">Auto-hide: —</span>
-                    <span class="pill draft" id="crowdDraftBadge" hidden>DRAFT</span>
+                    <span class="pill crowdMetaPill" id="crowdStatusMeta">Preset —</span>
+                    <span class="pill crowdMetaPill" id="crowdStatusAutoHide">Auto-hide off</span>
+                    <span class="pill draft" id="crowdDraftBadge" hidden>Unsaved</span>
                 </div>
             </div>
 
-            <div class="cardBody">
-                <div class="row crowdControlsRow" style="gap:8px; justify-content:flex-start; align-items:center;">
-                    <button class="btn tiny" id="btnCrowdPrev" title="Previous crowd prompt">◀</button>
-                    <button class="btn tiny" id="btnCrowdToggle" title="Toggle crowd prompt">Crowd: Off</button>
-                    <button class="btn tiny" id="btnCrowdNext" title="Next crowd prompt">▶</button>
+            <div class="cardBody crowdConsoleBody">
+                <div class="crowdRunBar">
+                    <button class="btn crowdNavBtn" id="btnCrowdPrev" type="button" title="Previous crowd prompt">◀</button>
+                    <button class="btn primary crowdLiveBtn" id="btnCrowdToggle" type="button" title="Show or hide the current crowd prompt">Show Prompt</button>
+                    <button class="btn crowdNavBtn" id="btnCrowdNext" type="button" title="Next crowd prompt">▶</button>
 
-                    <div class="spacer"></div>
+                    <div class="field crowdPresetPicker">
+                        <label>Preset</label>
+                        <select id="crowdPresetQuick"></select>
+                    </div>
 
-                    <button class="btn tiny" id="btnCrowdEditToggle" type="button" title="Edit the currently selected preset">
-                        Edit preset
+                    <button class="btn crowdEditBtn" id="btnCrowdEditToggle" type="button" title="Open crowd prompt editor">
+                        Edit Prompts
                     </button>
                 </div>
 
-                <div class="crowdPromptGrid">
-                    <div class="crowdPromptEditorCol">
-                        <div class="crowdEditorClosedHint" id="crowdEditorClosedHint">
-                            <div class="mono" style="font-weight:900; letter-spacing:.2px;">Edit the selected prompt</div>
-                            <div class="small" style="opacity:.85; margin-top:4px;">
-                                Change title, lines, footer, and auto-hide. Use the preview on the right to see what viewers will see.
-                            </div>
+                <div class="crowdConsoleGrid">
+                    <div class="crowdConsolePreviewCard">
+                        <div class="crowdConsoleSectionHead">Viewer preview</div>
+                        <div class="crowdPromptPreview isMini" id="crowdPromptPreviewMini" aria-label="Crowd prompt preview"></div>
+                    </div>
+
+                    <div class="crowdConsoleInfoCard">
+                        <div class="crowdConsoleSectionHead">Operator notes</div>
+                        <div class="crowdInfoList">
+                            <div class="crowdInfoItem"><strong>Show / Hide:</strong> one-tap control for the selected preset.</div>
+                            <div class="crowdInfoItem"><strong>Preset select:</strong> choose directly or step with the arrow buttons.</div>
+                            <div class="crowdInfoItem"><strong>Edit Prompts:</strong> opens a dedicated modal editor with live preview.</div>
+                            <div class="crowdInfoItem"><strong>Viewer behavior:</strong> active prompts hide the sponsor bug while they are on-screen.</div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                        <div class="crowdEditorPanel" id="crowdEditorPanel" hidden>
-                            <div class="row wrap" style="align-items:flex-end;">
-                                <div class="field" style="flex:1 1 240px;">
-                                    <label>Preset name (operator only)</label>
-                                    <input id="crowdPresetName" type="text" autocomplete="off" />
-                                </div>
-                                <div class="field" style="flex:1 1 240px;">
-                                    <label>Title</label>
-                                    <input id="crowdTitle" type="text" autocomplete="off" />
-                                </div>
-                                <div class="field" style="width:170px;">
-                                    <label>Auto-hide (sec)</label>
-                                    <input id="crowdAutoHide" type="number" min="0" max="60" step="1" />
-                                    <div class="small" style="opacity:.8;">0 = off</div>
-                                </div>
+        <div class="modalOverlay" id="crowdPromptModal" hidden>
+            <div class="modalPanel crowdModalPanel" role="dialog" aria-modal="true" aria-labelledby="crowdPromptModalTitle">
+                <div class="modalHeader">
+                    <div class="modalTitle">
+                        <h2 id="crowdPromptModalTitle">Crowd Prompt Editor</h2>
+                        <div class="small">Edit the selected preset and preview exactly what the Viewer will show.</div>
+                    </div>
+                    <div class="modalActions">
+                        <button class="btn small" id="btnCrowdModalClose" type="button">Close</button>
+                    </div>
+                </div>
+
+                <div class="modalBody crowdModalBody">
+                    <div class="crowdEditorLayout">
+                        <aside class="crowdPresetSidebar">
+                            <div class="crowdConsoleSectionHead">Presets</div>
+                            <div class="crowdPresetToolbar">
+                                <button class="btn small" id="btnCrowdAdd" type="button">Add</button>
+                                <button class="btn small" id="btnCrowdDuplicate" type="button">Duplicate</button>
+                                <button class="btn small danger" id="btnCrowdDelete" type="button">Delete</button>
                             </div>
+                            <div class="crowdPresetList" id="crowdPresetList"></div>
+                        </aside>
 
-                            <div class="field">
-                                <label>Lines (one per line)</label>
-                                <textarea id="crowdLines" rows="6" placeholder="One line per rule / prompt"></textarea>
-                            </div>
+                        <section class="crowdEditorMain">
+                            <div class="crowdEditorFields">
+                                <div class="row wrap" style="align-items:flex-end;">
+                                    <div class="field" style="flex:1 1 220px;">
+                                        <label>Preset name (operator only)</label>
+                                        <input id="crowdPresetName" type="text" autocomplete="off" />
+                                    </div>
+                                    <div class="field" style="flex:1 1 220px;">
+                                        <label>Title</label>
+                                        <input id="crowdTitle" type="text" autocomplete="off" />
+                                    </div>
+                                    <div class="field" style="width:170px;">
+                                        <label>Auto-hide (sec)</label>
+                                        <input id="crowdAutoHide" type="number" min="0" max="60" step="1" />
+                                        <div class="small" style="opacity:.8;">0 = off</div>
+                                    </div>
+                                </div>
 
-                            <div class="row wrap" style="align-items:flex-end;">
-                                <div class="field" style="flex:1 1 320px;">
+                                <div class="field">
+                                    <label>Lines (one per line)</label>
+                                    <textarea id="crowdLines" rows="9" placeholder="One line per rule / prompt"></textarea>
+                                </div>
+
+                                <div class="field">
                                     <label>Footer (optional)</label>
                                     <input id="crowdFooter" type="text" autocomplete="off" />
                                 </div>
-                                <div class="spacer"></div>
-
-                                <button class="btn small" id="btnCrowdCancel" type="button">Cancel</button>
-                                <button class="btn small primary" id="btnCrowdSave" type="button">Save</button>
                             </div>
 
-                            <details class="crowdAdv" id="crowdAdv">
-                                <summary class="small">Manage presets</summary>
-                                <div class="row wrap" style="align-items:flex-end; margin-top:10px;">
-                                    <button class="btn small" id="btnCrowdAdd" type="button">Add</button>
-                                    <button class="btn small" id="btnCrowdDuplicate" type="button">Duplicate</button>
-                                    <button class="btn small danger" id="btnCrowdDelete" type="button">Delete</button>
+                            <div class="crowdEditorFooter">
+                                <div class="small" style="opacity:.85;">Use presets for rules, hype, sponsor reads, applause cues, or short stage directions.</div>
+                                <div class="crowdEditorActions">
+                                    <button class="btn small" id="btnCrowdCancel" type="button">Cancel</button>
+                                    <button class="btn small primary" id="btnCrowdSave" type="button">Save</button>
                                 </div>
-                            </details>
-                        </div>
+                            </div>
+                        </section>
 
-                        <div class="small crowdPromptHelp">
-                            Show-control interstitial overlays (House Rules + hype prompts). Prompts hide the sponsor bug while active.
-                        </div>
-                    </div>
-
-                    <div class="crowdPromptPreviewCol">
-                        <div class="small" style="margin-bottom:6px; opacity:.85;">Viewer Preview</div>
-                        <div class="crowdPromptPreview" id="crowdPromptPreview" aria-label="Crowd prompt preview"></div>
+                        <aside class="crowdEditorPreviewCol">
+                            <div class="crowdConsoleSectionHead">Viewer preview</div>
+                            <div class="crowdPromptPreview" id="crowdPromptPreview" aria-label="Crowd prompt preview"></div>
+                        </aside>
                     </div>
                 </div>
             </div>
@@ -751,33 +783,13 @@
 
                             <section class="settingsPanel" data-panel="crowd" hidden>
                     <h3 class="subhead">Crowd Prompts</h3>
-                    <div class="small" style="margin-bottom:10px; opacity:.9;">
-                      Crowd Prompts are full-screen messages (House Rules, CHEER, etc.) shown on the Viewer.
-                      You can turn them on/off with the Crowd buttons on the main Operator screen.
+                    <div class="small" style="margin-bottom:12px; opacity:.9;">
+                      Crowd Prompt run controls now live on the main Operator screen for faster show operation.
+                      Use the editor modal to manage presets, copy them, and adjust auto-hide timing.
                     </div>
-                    <div class="row wrap" style="gap:12px; align-items:flex-end; margin: 8px 0 14px;">
-  <span class="pill" title="Turns the selected Crowd Prompt ON/OFF on the Viewer">
-    Enabled
-    <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-      <input type="checkbox" id="setCrowdEnabled" />
-      <span class="small">on</span>
-    </label>
-  </span>
-
-  <div class="field" style="flex:1 1 260px; min-width:220px;">
-    <label>Preset</label>
-    <select id="setCrowdPreset"></select>
-  </div>
-
-  <button class="btn small good" id="btnCrowdShowNow" type="button" title="Show the selected prompt now">Show now</button>
-  <button class="btn small" id="btnCrowdHide" type="button" title="Hide crowd prompt">Hide</button>
-
-  <div class="small" id="crowdPromptStatus" style="opacity:.85;"></div>
-</div>
-
-<div class="row wrap" style="align-items:center;">
+                    <div class="row wrap" style="align-items:center; gap:10px;">
                       <button class="btn small" id="btnSettingsOpenCrowdEditor" type="button">Open Crowd Prompt Editor</button>
-                      <div class="small" style="opacity:.85;">Tip: edit presets + auto-hide time there.</div>
+                      <div class="small" style="opacity:.85;">Tip: pick a preset on the main card, then edit it here.</div>
                     </div>
                             </section>
 
@@ -910,13 +922,14 @@
                     <textarea id="imMsg" rows="3" placeholder="WE'LL BE RIGHT BACK"></textarea>
                 </div>
 
-                <div class="row" style="justify-content:flex-end; gap:10px; margin-top:14px;">
+                <div class="row wrap" style="justify-content:flex-end; gap:10px; margin-top:14px;">
                     <button class="btn" id="btnImCancel" type="button">Cancel</button>
-                    <button class="btn accent" id="btnImAdd" type="button">Add to Queue</button>
+                    <button class="btn" id="btnImLive" type="button">Go Live Now</button>
+                    <button class="btn accent" id="btnImAdd" type="button">Add Next</button>
                 </div>
 
                 <div class="small" style="margin-top:10px; opacity:.85;">
-                    Tip: You can edit it later from the queue (Title / Duration / Message).
+                    Tip: Add places Intermission at the top when you are on Splash, or directly after the current live act when the show is already running.
                 </div>
             </div>
         </div>

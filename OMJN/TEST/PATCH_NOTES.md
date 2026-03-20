@@ -1,33 +1,40 @@
-# PATCH_NOTES.md
+# PATCH_NOTES
 
 ## Summary
-Restored the missing Operator-side Viewer timer toggle and wired it to hide/show both the Viewer timer and the Viewer progress bar. Also hardened the Viewer media fallback so performer slots with blank/legacy media layouts default to QR presentation instead of unexpectedly collapsing the media pane when a new act goes live.
+Consolidation patch restoring the recent feature set onto the latest uploaded baseline without rolling back Crowd Prompt UX.
 
-The recurring `A listener indicated an asynchronous response...` console error is not caused by the OMJN app code. It is characteristic of a browser extension/service-worker message listener, not BroadcastChannel/localStorage sync inside this project.
+Restored in this patch:
+- Crowd Prompt run-console + modal editor redesign
+- Combined Pause/Resume button with inline PAUSED badge
+- Viewer Hide Timer toggle (timer + progress)
+- 5-minute changeover buffer in ETA / Estimated End math
+- Jamaoke slot type with Viewer timer/progress suppression
+- Viewer PAUSED chip visibility
+- Intermission Go Live / Arm Next and Add Top / Add Next behavior
+- Adaptive Viewer name fit retained
 
 ## File list
 - operator.html
 - operator.js
+- viewer.html
 - viewer.js
 - shared.js
 - app.css
+- PATCH_NOTES.md
+- REGRESSION_LEDGER.md
 
-## Install steps (exact paths)
-Replace these files at your project root:
-- `/operator.html`
-- `/operator.js`
-- `/viewer.js`
-- `/shared.js`
-- `/app.css`
+## Install steps
+Replace the matching files in your project root with the versions from this zip.
 
 ## Smoke test checklist
-- Operator shows a `Hide Viewer Timer` button in the timer controls row.
-- Clicking it hides the Viewer timer immediately.
-- Clicking it also hides the Viewer progress bar immediately.
-- Clicking it again restores both.
-- Advancing from one performer to the next no longer collapses the Viewer media pane for legacy/blank-layout performer slots.
-- No syntax errors in `operator.js`, `viewer.js`, or `shared.js`.
+- Operator shows a single Pause/Resume button with the Paused badge inside the button
+- Hide Viewer Timer hides both timer and progress immediately
+- Crowd Prompt card is a compact run console and Edit Prompts opens a modal
+- Crowd Prompt preset dropdown on the main card switches presets
+- Intermission modal shows Go Live Now / Arm Next and Add Top / Add Next correctly
+- Jamaoke appears in slot types and hides timer/progress on Viewer when live
+- Viewer shows PAUSED chip only while paused
+- Queue ETA labels and Estimated End include the 5-minute changeover buffer
 
 ## Known risks / limitations
-- The async-response console error can still appear until the responsible browser extension is disabled.
-- This patch is a targeted regression repair on the current uploaded baseline. It does not pull in unrelated older experimental branches.
+- Browser-only behaviors such as real media playback, exact font fitting, and extension-related console noise still need manual in-browser verification.
