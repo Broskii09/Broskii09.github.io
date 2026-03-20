@@ -1566,6 +1566,7 @@
         const paused = state.phase === "PAUSED";
         el.chipState.textContent = paused ? "PAUSED" : "LIVE";
         el.chipState.className = "vChip " + (paused ? "warn" : "good");
+        el.chipState.hidden = !paused;
         el.chipState.style.display = paused ? "inline-flex" : "none";
       }
     }

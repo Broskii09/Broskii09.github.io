@@ -86,10 +86,14 @@ setBgColor: document.getElementById("setBgColor"),
     crowdFooter: document.getElementById("crowdFooter"),
     crowdAutoHide: document.getElementById("crowdAutoHide"),
     btnCrowdSave: document.getElementById("btnCrowdSave"),
+    btnCrowdSaveClose: document.getElementById("btnCrowdSaveClose"),
+    btnPauseResume: document.getElementById("btnPauseResume"),
+    pauseResumeLabel: document.getElementById("pauseResumeLabel"),
+    pauseResumeBadge: document.getElementById("pauseResumeBadge"),
+    btnViewerTimerToggle: document.getElementById("btnViewerTimerToggle"),
     btnCrowdAdd: document.getElementById("btnCrowdAdd"),
     btnCrowdDuplicate: document.getElementById("btnCrowdDuplicate"),
     btnCrowdDelete: document.getElementById("btnCrowdDelete"),
-    btnCrowdSaveClose: document.getElementById("btnCrowdSaveClose"),
 
     // Sponsor Bug
     setSponsorEnabled: document.getElementById("setSponsorEnabled"),
@@ -130,7 +134,6 @@ setBgColor: document.getElementById("setBgColor"),
     crowdStatusAutoHide: document.getElementById("crowdStatusAutoHide"),
     crowdDraftBadge: document.getElementById("crowdDraftBadge"),
     btnCrowdEditToggle: document.getElementById("btnCrowdEditToggle"),
-    btnSettingsOpenCrowdEditor: document.getElementById("btnSettingsOpenCrowdEditor"),
     crowdEditorPanel: document.getElementById("crowdEditorPanel"),
     crowdEditorClosedHint: document.getElementById("crowdEditorClosedHint"),
     btnCrowdCancel: document.getElementById("btnCrowdCancel"),
@@ -165,9 +168,8 @@ setBgColor: document.getElementById("setBgColor"),
     kpiNowTime: document.getElementById("kpiNowTime"),
 
     btnStart: document.getElementById("btnStart"),
-    btnPauseResume: document.getElementById("btnPauseResume"),
-    pauseResumeLabel: document.getElementById("pauseResumeLabel"),
-    pauseResumeBadge: document.getElementById("pauseResumeBadge"),
+    btnPause: document.getElementById("btnPause"),
+    btnResume: document.getElementById("btnResume"),
     btnEnd: document.getElementById("btnEnd"),
     btnUndo: document.getElementById("btnUndo"),
     btnRedo: document.getElementById("btnRedo"),
@@ -181,7 +183,6 @@ setBgColor: document.getElementById("setBgColor"),
     btnMinus30: document.getElementById("btnMinus30"),
     btnPlus30: document.getElementById("btnPlus30"),
     btnResetTime: document.getElementById("btnResetTime"),
-    btnViewerTimerToggle: document.getElementById("btnViewerTimerToggle"),
     timerLine: document.getElementById("timerLine"),
 // Tabs
     tabBtnPerformers: document.getElementById("tabBtnPerformers"),
@@ -1003,6 +1004,71 @@ function escapeHtml(s){
     .replace(/'/g, "&#39;");
 }
 
+
+  const CHANGEOVER_BUFFER_MS = 5 * 60 * 1000;
+
+  function toast(message, opts = {}){
+    try{
+      const text = String(message || '').trim();
+      if(!text) return;
+      let host = document.getElementById('toastHost');
+      if(!host){
+        host = document.createElement('div');
+        host.id = 'toastHost';
+        host.style.position = 'fixed';
+        host.style.right = '18px';
+        host.style.bottom = '18px';
+        host.style.zIndex = '9999';
+        host.style.display = 'flex';
+        host.style.flexDirection = 'column';
+        host.style.gap = '10px';
+        document.body.appendChild(host);
+      }
+      const tone = String(opts.tone || 'good');
+      const item = document.createElement('div');
+      item.textContent = text;
+      item.style.maxWidth = '420px';
+      item.style.padding = '12px 14px';
+      item.style.borderRadius = '14px';
+      item.style.border = '1px solid rgba(255,255,255,.18)';
+      item.style.boxShadow = '0 12px 34px rgba(0,0,0,.45)';
+      item.style.background = tone === 'bad' ? 'rgba(127,29,29,.96)' : 'rgba(8,26,52,.96)';
+      item.style.color = 'var(--text)';
+      item.style.fontWeight = '700';
+      host.appendChild(item);
+      setTimeout(() => { item.style.transition = 'opacity .18s ease, transform .18s ease'; item.style.opacity='0'; item.style.transform='translateY(6px)'; }, 2200);
+      setTimeout(() => { try{ item.remove(); }catch(_){} }, 2450);
+    }catch(_){ }
+  }
+
+  function isJamaokeSlot(slot){
+    return String(slot?.slotTypeId || '') === 'jamaoke';
+  }
+
+  function isLiveishState(s = state){
+    return !!((s?.phase === 'LIVE' || s?.phase === 'PAUSED') && s?.currentSlotId);
+  }
+
+  function isUntimedLiveSlot(slot){
+    return isAdSlotType(slot?.slotTypeId) || isJamaokeSlot(slot);
+  }
+
+  function isTimedLiveSlot(slot){
+    return !!slot && !isUntimedLiveSlot(slot);
+  }
+
+  function isBufferedPerformanceSlot(slot){
+    if(!slot) return false;
+    const typeId = String(slot.slotTypeId || '');
+    if(typeId.startsWith('ad_')) return false;
+    if(typeId === 'intermission') return false;
+    return true;
+  }
+
+  function getChangeoverBufferMs(prevSlot, nextSlot){
+    return (isBufferedPerformanceSlot(prevSlot) && isBufferedPerformanceSlot(nextSlot)) ? CHANGEOVER_BUFFER_MS : 0;
+  }
+
   function renderSlotTypesEditor(){
     if(!els.slotTypesEditor) return;
     els.slotTypesEditor.innerHTML = "";
@@ -1308,10 +1374,9 @@ function escapeHtml(s){
       }
       els.crowdEditorPanel.hidden = true;
       if(els.crowdEditorClosedHint) els.crowdEditorClosedHint.hidden = false;
-      if(els.btnCrowdEditToggle) els.btnCrowdEditToggle.textContent = "Edit Prompt";
+      if(els.btnCrowdEditToggle) els.btnCrowdEditToggle.textContent = "Edit preset";
       setCrowdEditorDirty(false);
       renderCrowdPromptPreview();
-      if(closeAfter) closeCrowdEditor(true);
     }
 
 
@@ -1319,7 +1384,7 @@ function escapeHtml(s){
       if(!els.crowdEditorPanel) return;
       els.crowdEditorPanel.hidden = false;
       if(els.crowdEditorClosedHint) els.crowdEditorClosedHint.hidden = true;
-      if(els.btnCrowdEditToggle) els.btnCrowdEditToggle.textContent = "Close Editor";
+      if(els.btnCrowdEditToggle) els.btnCrowdEditToggle.textContent = "Close";
       loadCrowdEditorFromActivePreset();
       setCrowdEditorDirty(false);
       renderCrowdPromptPreview();
@@ -1960,6 +2025,7 @@ function escapeHtml(s){
       setCrowdEditorDirty(false);
       updateCrowdQuickButtons();
       renderCrowdPromptPreview();
+      if(closeAfter) closeCrowdEditor(true);
     }
 
     function addCrowdPreset(fromPreset=null){
@@ -2293,7 +2359,6 @@ function escapeHtml(s){
     if(id === "poetry") return "fa-solid fa-masks-theater";
     if(id === "houseband") return "fa-solid fa-guitar";
     if(id === "intermission") return "fa-solid fa-pause";
-    if(id === "jamaoke") return "fa-solid fa-music";
     if(id.startsWith("ad_")) return "fa-solid fa-bullhorn";
     return "fa-solid fa-wand-magic-sparkles";
   }
@@ -2622,23 +2687,18 @@ function escapeHtml(s){
     const active = (state.queue || []).filter(x => x && !isDone(x));
     const curIdx = hasCurrent ? active.findIndex(x => x.id === state.currentSlotId) : -1;
 
-    // Cursor represents the estimated start time for the next queued item.
     let cursor = nowMs;
 
-    // If we're LIVE/PAUSED on a non-ad current slot, include remaining time.
     if(curIdx !== -1){
       try{
         const cur = active[curIdx];
-        const curTypeId = String(cur?.slotTypeId || "");
-        const curIsAd = curTypeId.startsWith("ad_");
-        if(!curIsAd){
+        if(!isAdSlotType(cur?.slotTypeId)){
           const t = OMJN.computeTimer(state);
           cursor += Math.max(t.remainingMs || 0, 0);
         }
-      }catch(_){}
+      }catch(_){ }
     }
 
-    // Start after current (if present), otherwise from the top (SPLASH or no current).
     const start = (curIdx === -1) ? 0 : (curIdx + 1);
     let prevForBuffer = (curIdx !== -1) ? active[curIdx] : null;
 
@@ -2652,12 +2712,10 @@ function escapeHtml(s){
       const isIntermission = typeId === "intermission";
       const isHouseBand = typeId === "houseband";
 
-      // Display ETA only for non-ad queued performers.
       if(!isAd && !isIntermission && !isHouseBand){
         map.set(s.id, cursor);
       }
 
-      // Apply changeover buffer between eligible acts, then add slot duration (ads count as 0)
       cursor += getChangeoverBufferMs(prevForBuffer, s);
       const durMs = isAd ? 0 : (OMJN.effectiveMinutes(state, s) * 60 * 1000);
       cursor += durMs;
@@ -3150,25 +3208,24 @@ function renderKPIs(){
     if(els.readyNext) els.readyNext.textContent = next ? next.displayName : "—";
     if(els.readyDeck) els.readyDeck.textContent = deck ? deck.displayName : "—";
 
-    // Performers left = current (if LIVE/PAUSED) + queued
     const queued = (state.queue || []).filter(x => x && x.status === "QUEUED");
     const hasCurrent = !!current && (state.phase === "LIVE" || state.phase === "PAUSED");
     const left = queued.length + (hasCurrent ? 1 : 0);
     if(els.kpiLeft) els.kpiLeft.textContent = String(left);
 
-    // Estimated end time based on remaining LIVE time + queued slots
     if(els.kpiEstEnd){
       try{
         let totalMs = 0;
-        let prevForBuffer = hasCurrent ? current : null;
+        let prevForBuffer = null;
         if(hasCurrent){
           const t = OMJN.computeTimer(state);
           totalMs += Math.max(t.remainingMs || 0, 0);
+          prevForBuffer = current;
         }
         for(const s of queued){
           OMJN.normalizeSlot(s);
           totalMs += getChangeoverBufferMs(prevForBuffer, s);
-          totalMs += (OMJN.effectiveMinutes(state, s) * 60 * 1000);
+          totalMs += (isAdSlotType(s.slotTypeId) ? 0 : (OMJN.effectiveMinutes(state, s) * 60 * 1000));
           prevForBuffer = s;
         }
         if(totalMs <= 0){
@@ -3433,6 +3490,23 @@ function renderTimerLine(){
     els.btnViewerTimerToggle.title = on
       ? "Hide the Viewer timer and progress bar immediately."
       : "Show the Viewer timer and progress bar immediately.";
+  }
+
+  function renderTransportControls(){
+    const cur = state.currentSlotId ? (state.queue || []).find(x => x && x.id === state.currentSlotId) : null;
+    const timed = isTimedLiveSlot(cur);
+    if(els.btnPauseResume){
+      const paused = state.phase === 'PAUSED';
+      const liveish = state.phase === 'LIVE' || state.phase === 'PAUSED';
+      els.btnPauseResume.disabled = !(liveish && timed);
+      if(els.pauseResumeLabel) els.pauseResumeLabel.textContent = paused ? 'Resume' : 'Pause';
+      if(els.pauseResumeBadge){
+        els.pauseResumeBadge.hidden = !paused;
+      }
+      els.btnPauseResume.classList.toggle('isPaused', paused);
+      els.btnPauseResume.setAttribute('aria-pressed', paused ? 'true' : 'false');
+      els.btnPauseResume.title = paused ? 'Resume the current timed slot.' : 'Pause the current timed slot.';
+    }
   }
 
 
@@ -3739,12 +3813,6 @@ renderHouseBandCategories();
     return addIntermissionSlotWithOptions({});
   }
 
-  function updateIntermissionModalActions(){
-    const liveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
-    if(els.btnImLive) els.btnImLive.textContent = liveish ? "Arm Next" : "Go Live Now";
-    if(els.btnImAdd) els.btnImAdd.textContent = liveish ? "Add Next" : "Add to Top";
-  }
-
   function openIntermissionModal(){
     if(!els.intermissionModal) return;
     imDraft = { minutes: 10 };
@@ -3755,7 +3823,10 @@ renderHouseBandCategories();
     if(els.imCustomWrap) els.imCustomWrap.style.display = "none";
     setIntermissionPresetActive(10);
 
-    updateIntermissionModalActions();
+    const liveish = isLiveishState(state);
+    if(els.btnImLive) els.btnImLive.textContent = liveish ? "Arm Next" : "Go Live Now";
+    if(els.btnImAdd) els.btnImAdd.textContent = liveish ? "Add Next" : "Add to Top";
+
     els.intermissionModal.hidden = false;
     document.body.classList.add("modalOpen");
     setTimeout(() => { els.imName?.focus?.(); }, 0);
@@ -4399,9 +4470,10 @@ updateState(s => {
     if(Number.isFinite(m) && m > 0) minutesOverride = Math.round(m);
 
     const message = String(opts.message || "").trim() || "WE'LL BE RIGHT BACK";
-    const mode = String(opts.mode || "smart");
+    const mode = String(opts.mode || 'queue'); // queue | live
 
-    let newSlotId = null;
+    let armedNext = false;
+    let startedNow = false;
     updateState(s => {
       const slot = {
         id: OMJN.uid("slot"),
@@ -4415,40 +4487,45 @@ updateState(s => {
         intermissionMessage: message,
         media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
       };
-      newSlotId = slot.id;
 
-      if(mode === "top"){
-        const firstCompletedIdx = s.queue.findIndex(x => x && x.status !== "QUEUED");
-        const insertAt = firstCompletedIdx >= 0 ? 0 : 0;
-        s.queue.splice(insertAt, 0, slot);
-      }else{
-        insertQueuedSlotSmart(s, slot);
-      }
-
-      if(mode === "live"){
-        const liveish = (s.phase === "LIVE" || s.phase === "PAUSED") && !!s.currentSlotId;
+      const liveish = isLiveishState(s);
+      if(mode === 'live'){
         if(liveish){
+          const curIdx = s.queue.findIndex(x => x && x.id === s.currentSlotId);
+          const insertAt = (curIdx >= 0) ? (curIdx + 1) : 1;
+          s.queue.splice(Math.max(0, insertAt), 0, slot);
           s.operatorPrefs = s.operatorPrefs || {};
           s.operatorPrefs.armedNextSlotId = slot.id;
+          armedNext = true;
         }else{
-          const idx = s.queue.findIndex(x => x && x.id === slot.id);
-          if(idx > 0){
-            const [moved] = s.queue.splice(idx, 1);
-            s.queue.unshift(moved);
-          }
+          s.queue = Array.isArray(s.queue) ? s.queue : [];
+          s.queue.unshift(slot);
           s.currentSlotId = slot.id;
-          s.phase = "LIVE";
+          s.phase = 'LIVE';
           s.timer.running = true;
           s.timer.startedAt = Date.now();
           s.timer.elapsedMs = 0;
-          s.timer.baseDurationMs = (minutesOverride || 10) * 60 * 1000;
+          s.timer.baseDurationMs = OMJN.effectiveMinutes(s, slot) * 60 * 1000;
+          startedNow = true;
         }
+        return;
+      }
+
+      if(liveish){
+        const curIdx = s.queue.findIndex(x => x && x.id === s.currentSlotId);
+        const insertAt = (curIdx >= 0) ? (curIdx + 1) : 1;
+        s.queue.splice(Math.max(0, insertAt), 0, slot);
+      }else{
+        const firstCompletedIdx = s.queue.findIndex(x => x && x.status !== 'QUEUED');
+        if(firstCompletedIdx >= 0) s.queue.splice(firstCompletedIdx, 0, slot);
+        else s.queue.unshift(slot);
       }
     });
-    return newSlotId;
+
+    return { armedNext, startedNow };
   }
 
-  function commitIntermissionModal(mode = "queue"){
+  function commitIntermissionModal(mode='queue'){
     if(!els.intermissionModal || els.intermissionModal.hidden) return;
     const title = (els.imName?.value || "").trim() || "INTERMISSION";
     const message = (els.imMsg?.value || "").trim() || "WE'LL BE RIGHT BACK";
@@ -4462,32 +4539,11 @@ updateState(s => {
     }
     minutes = clamp(minutes, 1, 600);
 
-    const liveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
-    const effectiveMode = mode === "live" ? "live" : (liveish ? "smart" : "top");
-    addIntermissionSlotWithOptions({ title, minutes, message, mode: effectiveMode });
+    const result = addIntermissionSlotWithOptions({ title, minutes, message, mode });
     closeIntermissionModal();
     render();
-    if(effectiveMode === "live" && liveish) toast("Intermission armed to run next.");
-  }
-
-  function addHouseBandSlot(){
-
-    if(!els.intermissionModal || els.intermissionModal.hidden) return;
-    const title = (els.imName?.value || "").trim() || "INTERMISSION";
-    const message = (els.imMsg?.value || "").trim() || "WE'LL BE RIGHT BACK";
-
-    let minutes = 10;
-    if(imDraft?.minutes === "custom"){
-      const n = Math.round(Number(els.imCustomMins?.value || 0));
-      if(Number.isFinite(n) && n > 0) minutes = n;
-    }else if(Number.isFinite(Number(imDraft?.minutes))){
-      minutes = Math.round(Number(imDraft.minutes));
-    }
-    minutes = clamp(minutes, 1, 600);
-
-    addIntermissionSlotWithOptions({ title, minutes, message });
-    closeIntermissionModal();
-    render();
+    if(result?.armedNext) toast('Armed Intermission to run next.');
+    if(result?.startedNow) toast('Intermission is now live.');
   }
 
   function addHouseBandSlot(){
@@ -4555,9 +4611,8 @@ function start(){
       s.currentSlotId = pick.id;
       s.phase = "LIVE";
 
-      const isUntimed = isAdSlotType(pick.slotTypeId) || isJamaokeSlot(pick);
+      const isUntimed = isUntimedLiveSlot(pick);
       if(isUntimed){
-        // Untimed (viewer hides timer); operator can End → Splash to return.
         s.timer.running = false;
         s.timer.startedAt = null;
         s.timer.elapsedMs = 0;
@@ -4631,7 +4686,7 @@ function start(){
         s.queue.push(moved);
       }
 
-      // If a slot was armed to run next, start it immediately instead of returning to Splash.
+      // If an Ad was armed to run next, start it immediately instead of returning to Splash.
       const armedId = s.operatorPrefs?.armedNextSlotId || null;
       if(armedId){
         const next = s.queue.find(x => x && x.id === armedId && x.status === "QUEUED");
@@ -4642,7 +4697,7 @@ function start(){
           s.operatorPrefs.armedNextSlotId = null;
           s.currentSlotId = armedId;
           s.phase = "LIVE";
-          const armedUntimed = isAdSlotType(next.slotTypeId) || isJamaokeSlot(next);
+          const armedUntimed = isUntimedLiveSlot(next);
           s.timer.running = !armedUntimed;
           s.timer.startedAt = armedUntimed ? null : Date.now();
           s.timer.elapsedMs = 0;
@@ -4738,7 +4793,7 @@ function start(){
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `omjn-show-data-${new Date().toISOString().slice(0,10)}.json`;
+    a.download = `omjn-show-${new Date().toISOString().slice(0,10)}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -4857,8 +4912,8 @@ if(els.btnAddHouseBandSlot){
     // Intermission Builder modal
     if(els.btnImClose) els.btnImClose.addEventListener("click", (e) => { e.preventDefault(); closeIntermissionModal(); });
     if(els.btnImCancel) els.btnImCancel.addEventListener("click", (e) => { e.preventDefault(); closeIntermissionModal(); });
-    if(els.btnImAdd) els.btnImAdd.addEventListener("click", (e) => { e.preventDefault(); commitIntermissionModal("queue"); });
     if(els.btnImLive) els.btnImLive.addEventListener("click", (e) => { e.preventDefault(); commitIntermissionModal("live"); });
+    if(els.btnImAdd) els.btnImAdd.addEventListener("click", (e) => { e.preventDefault(); commitIntermissionModal("queue"); });
     if(els.intermissionModal){
       els.intermissionModal.addEventListener("mousedown", (e) => {
         if(e.target === els.intermissionModal) closeIntermissionModal();
@@ -5111,6 +5166,8 @@ els.showTitle.addEventListener("input", () => {
       });
     }
     if(els.btnPauseResume) els.btnPauseResume.addEventListener("click", () => { if(state.phase === "PAUSED") resume(); else pause(); });
+    if(els.btnPause) els.btnPause.addEventListener("click", pause);
+    if(els.btnResume) els.btnResume.addEventListener("click", resume);
     els.btnEnd.addEventListener("click", guardedEnd);
     els.btnMinus1.addEventListener("click", () => addMinutes(-1));
     els.btnMinus5.addEventListener("click", () => addMinutes(-5));
@@ -5119,12 +5176,6 @@ els.showTitle.addEventListener("input", () => {
     els.btnMinus30.addEventListener("click", () => addSeconds(-30));
     els.btnPlus30.addEventListener("click", () => addSeconds(30));
     els.btnResetTime.addEventListener("click", resetTimer);
-    if(els.btnToggleViewerTimer) els.btnToggleViewerTimer.addEventListener("click", () => {
-      updateState(s => {
-        s.viewerPrefs = s.viewerPrefs || {};
-        s.viewerPrefs.showTimer = !isViewerTimerVisible(s);
-      }, { recordHistory:false });
-    });
     if(els.btnViewerTimerToggle){
       els.btnViewerTimerToggle.addEventListener("click", () => {
         updateState(s => {
@@ -5182,7 +5233,6 @@ els.showTitle.addEventListener("input", () => {
 
     // Settings modal
     els.btnSettings.addEventListener("click", openSettingsModal);
-    if(els.btnSettingsOpenCrowdEditor) els.btnSettingsOpenCrowdEditor.addEventListener("click", () => { closeSettingsModal(); openCrowdEditor(); });
     els.btnCloseSettings.addEventListener("click", closeSettingsModal);
     els.settingsModal.addEventListener("mousedown", (e) => {
       if(e.target === els.settingsModal) closeSettingsModal();
