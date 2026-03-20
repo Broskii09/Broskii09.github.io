@@ -2108,31 +2108,25 @@ details.hbAcc .hbCatList{
 /* =========================
    Operator: Crowd Prompts card UX
    ========================= */
-.crowdConsoleHeader{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:16px;
-  flex-wrap:wrap;
+#crowdPromptCard .crowdPromptGrid{
+  display:grid;
+  grid-template-columns: 1.15fr .85fr;
+  gap:12px;
+  margin-top:10px;
+  align-items:start;
 }
-.crowdHeaderCopy{
-  min-width:0;
-  display:flex;
-  flex-direction:column;
-  gap:4px;
+#crowdPromptCard .crowdPromptEditorCol{ min-width:0; }
+#crowdPromptCard .crowdPromptPreviewCol{ min-width:0; }
+@media (max-width: 980px){
+  #crowdPromptCard .crowdPromptGrid{ grid-template-columns: 1fr; }
 }
-.crowdHeaderCopy h2{ margin:0; }
-.crowdConsoleBody{
-  display:flex;
-  flex-direction:column;
-  gap:14px;
-}
+
 .crowdStatusStrip{
   display:flex;
   flex-wrap:wrap;
-  gap:8px;
+  gap:10px 12px;
   align-items:center;
-  padding:8px 10px;
+  padding:6px 10px;
   border-radius:14px;
   background:rgba(255,255,255,.04);
   border:1px solid rgba(255,255,255,.10);
@@ -2143,203 +2137,63 @@ details.hbAcc .hbCatList{
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
-  max-width: 300px;
+  max-width: 320px;
 }
-.crowdMetaPill{
-  background:rgba(255,255,255,.05);
-  border:1px solid rgba(255,255,255,.10);
-  color:var(--text);
+.crowdStatusStrip .crowdStatusMeta{
+  opacity:.85;
+  white-space:nowrap;
 }
 .pill.draft{
   background: rgba(250, 204, 21, .14);
   border: 1px solid rgba(250, 204, 21, .35);
   color: rgba(250, 204, 21, .95);
 }
-.crowdRunBar{
-  display:grid;
-  grid-template-columns:auto minmax(180px, 1.15fr) auto minmax(220px, .9fr) auto;
-  gap:10px;
-  align-items:end;
-}
-.crowdNavBtn{
-  min-width:44px;
-  justify-content:center;
-  padding-inline:0;
-}
-.crowdLiveBtn{
-  min-height:46px;
-  font-weight:900;
-  letter-spacing:.04em;
-}
-.crowdPresetPicker{
-  min-width:0;
-}
-.crowdPresetPicker select{
-  min-width:0;
-}
-.crowdEditBtn{
-  min-height:46px;
-  white-space:nowrap;
-}
-.crowdConsoleGrid{
-  display:grid;
-  grid-template-columns:minmax(320px, 1.1fr) minmax(240px, .9fr);
-  gap:12px;
-  align-items:start;
-}
-.crowdConsolePreviewCard,
-.crowdConsoleInfoCard{
-  border:1px solid rgba(255,255,255,.10);
-  border-radius:18px;
-  background:rgba(255,255,255,.03);
-  padding:14px;
-  min-width:0;
-}
-.crowdConsoleSectionHead{
-  font-size:12px;
-  font-weight:800;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-  opacity:.78;
+
+.crowdEditorClosedHint{
+  padding:12px;
+  border-radius:16px;
+  background:rgba(0,0,0,.14);
+  border:1px dashed rgba(255,255,255,.18);
   margin-bottom:10px;
 }
-.crowdInfoList{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
+.crowdEditorPanel{
+  margin-top:2px;
+  padding:12px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(0,0,0,.22);
+  margin-bottom:10px;
 }
-.crowdInfoItem{
-  font-size:13px;
-  line-height:1.45;
-  color:rgba(255,255,255,.9);
-}
-.crowdInfoItem strong{ color:var(--text); }
 
-.crowdModalPanel{
-  width:min(1180px, 96vw);
-}
-.crowdModalBody{
-  padding-top:14px;
-}
-.crowdEditorLayout{
-  display:grid;
-  grid-template-columns:minmax(220px, .78fr) minmax(360px, 1.2fr) minmax(280px, .92fr);
-  gap:14px;
-  align-items:start;
-}
-.crowdPresetSidebar,
-.crowdEditorMain,
-.crowdEditorPreviewCol{
-  min-width:0;
-}
-.crowdPresetSidebar,
-.crowdEditorMain,
-.crowdEditorPreviewCol{
-  border:1px solid rgba(255,255,255,.10);
-  border-radius:18px;
-  background:rgba(255,255,255,.03);
-  padding:14px;
-}
-.crowdPresetToolbar{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  margin-bottom:12px;
-}
-.crowdPresetList{
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  max-height:min(58vh, 620px);
-  overflow:auto;
-  padding-right:4px;
-}
-.crowdPresetItem{
-  width:100%;
-  text-align:left;
-  border:1px solid rgba(255,255,255,.10);
-  background:rgba(0,0,0,.20);
-  border-radius:14px;
-  padding:10px 12px;
-  cursor:pointer;
-  display:flex;
-  flex-direction:column;
-  gap:4px;
-}
-.crowdPresetItem:hover{
-  border-color:rgba(255,255,255,.22);
-  background:rgba(255,255,255,.05);
-}
-.crowdPresetItem.isActive{
-  border-color:color-mix(in srgb, var(--accent) 62%, white 8%);
-  background:color-mix(in srgb, var(--accent) 18%, transparent);
-  box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent) inset;
-}
-.crowdPresetItemName{
-  font-weight:800;
-  letter-spacing:.02em;
-}
-.crowdPresetItemMeta{
-  font-size:12px;
-  opacity:.72;
-}
-.crowdEditorFields{
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-}
-.crowdEditorFields textarea{
-  min-height:220px;
-  resize:vertical;
-}
-.crowdEditorFooter{
-  margin-top:14px;
-  padding-top:12px;
-  border-top:1px solid rgba(255,255,255,.10);
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  align-items:center;
-  justify-content:space-between;
-}
-.crowdEditorActions{
-  display:flex;
-  gap:8px;
-  align-items:center;
-}
 .crowdPromptPreview{
   border:1px solid rgba(255,255,255,.12);
-  border-radius:18px;
-  padding:14px;
+  border-radius:16px;
+  padding:12px;
   background:rgba(0,0,0,.26);
-  min-height:190px;
-}
-.crowdPromptPreview.isMini{
-  min-height:160px;
+  min-height:140px;
 }
 
 /* Preview mock */
 .cpPrevInner{
-  border-radius:16px;
-  padding:14px;
-  background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  border-radius:14px;
+  padding:12px;
+  background:rgba(0,0,0,.35);
   border:1px solid rgba(255,255,255,.10);
 }
 .cpPrevTitle{
-  font-weight:900;
+  font-weight:800;
   letter-spacing:.08em;
   font-size:12px;
   text-transform:uppercase;
   opacity:.95;
 }
-.cpPrevLines{ margin-top:10px; display:flex; flex-direction:column; gap:8px; }
+.cpPrevLines{ margin-top:8px; display:flex; flex-direction:column; gap:6px; }
 .cpPrevLine{
-  padding:8px 10px;
-  border-radius:12px;
+  padding:6px 8px;
+  border-radius:10px;
   background:rgba(255,255,255,.06);
   border:1px solid rgba(255,255,255,.08);
-  font-size:13px;
-  line-height:1.35;
+  font-size:12px;
 }
 .cpPrevMore{
   background:transparent;
@@ -2348,40 +2202,14 @@ details.hbAcc .hbCatList{
   padding:2px 2px;
 }
 .cpPrevFooter{
-  margin-top:12px;
+  margin-top:10px;
   font-size:12px;
   opacity:.85;
 }
 .cpPrevHint{
-  margin-top:12px;
+  margin-top:10px;
   font-size:11px;
   opacity:.65;
-}
-
-@media (max-width: 1100px){
-  .crowdEditorLayout{
-    grid-template-columns:1fr 1fr;
-  }
-  .crowdEditorPreviewCol{
-    grid-column:1 / -1;
-  }
-}
-@media (max-width: 980px){
-  .crowdRunBar{
-    grid-template-columns:auto 1fr auto;
-  }
-  .crowdPresetPicker{
-    grid-column:1 / -1;
-  }
-  .crowdEditBtn{
-    grid-column:1 / -1;
-  }
-  .crowdConsoleGrid{
-    grid-template-columns:1fr;
-  }
-  .crowdEditorLayout{
-    grid-template-columns:1fr;
-  }
 }
 
 /* =========================
@@ -3114,4 +2942,19 @@ details.hbAcc .hbCatList{
   #fxTransitionOverlay::before,
   #fxTransitionOverlay::after{ animation: none !important; }
   .fxZoomBurst{ animation: none !important; }
+}
+
+
+.timerControlsRow{
+  align-items:center;
+}
+.timerControlsRow .spacer{
+  flex:1 1 auto;
+}
+#btnViewerTimerToggle{
+  min-width: 152px;
+}
+@media (max-width: 760px){
+  .timerControlsRow .spacer{ display:none; }
+  #btnViewerTimerToggle{ margin-left: 0; }
 }

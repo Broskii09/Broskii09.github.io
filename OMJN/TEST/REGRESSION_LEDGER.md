@@ -1,25 +1,18 @@
 # REGRESSION_LEDGER.md
 
-## Preserve on every patch
-- Combined Pause / Resume control
-- Paused badge inside the Resume button
-- Viewer timer + progress hide/show toggle
-- 5-minute changeover buffer in ETA and Estimated End
-- Adaptive Viewer main-name fit
-- Intermission `Go Live Now / Arm Next`
-- Intermission `Add to Top / Add Next`
-- Viewer PAUSED chip
-- Sponsor bug hide / restore behavior
-- Crowd Prompt suspend / restore during ads
-- Jamaoke slot type and untimed Viewer behavior
-- Crowd Prompt run console + modal editor
+## Restored here
+- Operator `Hide Viewer Timer` control
+- Viewer `showTimer` preference support
+- Viewer progress bar tied to timer visibility
+- Viewer legacy/blank-layout performer media fallback
 
-## Re-verify after this patch
-- Main Crowd Prompt card stays compact and readable
-- Crowd Prompt modal opens, edits, saves, and closes cleanly
-- Preset switching works from:
-  - main card dropdown
-  - prev / next buttons
-  - modal preset list
-- Preview stays in sync on the main card and in the modal
-- Viewer still responds immediately to Show / Hide
+## Re-verified
+- Operator timer adjustment controls still wired
+- Viewer timer text update path still intact
+- Shared state migration tolerates missing `viewerPrefs.showTimer`
+
+## Still outside this patch
+- Combined Pause/Resume button branch
+- Crowd Prompt modal redesign branch
+- ETA changeover buffer branch
+- Jamaoke branch
