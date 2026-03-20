@@ -86,7 +86,6 @@ setBgColor: document.getElementById("setBgColor"),
     crowdFooter: document.getElementById("crowdFooter"),
     crowdAutoHide: document.getElementById("crowdAutoHide"),
     btnCrowdSave: document.getElementById("btnCrowdSave"),
-    btnCrowdSaveClose: document.getElementById("btnCrowdSaveClose"),
     btnCrowdAdd: document.getElementById("btnCrowdAdd"),
     btnCrowdDuplicate: document.getElementById("btnCrowdDuplicate"),
     btnCrowdDelete: document.getElementById("btnCrowdDelete"),
@@ -123,10 +122,6 @@ setBgColor: document.getElementById("setBgColor"),
     btnCrowdToggle: document.getElementById("btnCrowdToggle"),
     btnCrowdNext: document.getElementById("btnCrowdNext"),
     crowdPromptStatus: document.getElementById("crowdPromptStatus"),
-    crowdQuickPreset: document.getElementById("crowdQuickPreset"),
-    crowdModal: document.getElementById("crowdModal"),
-    btnCrowdModalClose: document.getElementById("btnCrowdModalClose"),
-    crowdPromptPreviewMini: document.getElementById("crowdPromptPreviewMini"),
     crowdStatusStrip: document.getElementById("crowdStatusStrip"),
     crowdStatusPill: document.getElementById("crowdStatusPill"),
     crowdStatusName: document.getElementById("crowdStatusName"),
@@ -134,9 +129,12 @@ setBgColor: document.getElementById("setBgColor"),
     crowdStatusAutoHide: document.getElementById("crowdStatusAutoHide"),
     crowdDraftBadge: document.getElementById("crowdDraftBadge"),
     btnCrowdEditToggle: document.getElementById("btnCrowdEditToggle"),
-    crowdEditorPanel: document.getElementById("crowdEditorPanel"),
-    crowdEditorClosedHint: document.getElementById("crowdEditorClosedHint"),
+    crowdPresetSelect: document.getElementById("crowdPresetSelect"),
+    crowdPresetSelectModal: document.getElementById("crowdPresetSelectModal"),
+    crowdModal: document.getElementById("crowdModal"),
+    btnCrowdModalClose: document.getElementById("btnCrowdModalClose"),
     btnCrowdCancel: document.getElementById("btnCrowdCancel"),
+    btnCrowdSaveClose: document.getElementById("btnCrowdSaveClose"),
     settingsModal: document.getElementById("settingsModal"),
     btnCloseSettings: document.getElementById("btnCloseSettings"),
 
@@ -147,8 +145,8 @@ setBgColor: document.getElementById("setBgColor"),
     liveNowName: document.getElementById("liveNowName"),
     liveOTItem: document.getElementById("liveOTItem"),
     liveOTVal: document.getElementById("liveOTVal"),
-    crowdEditor: document.getElementById("crowdEditor"),
     crowdPromptPreview: document.getElementById("crowdPromptPreview"),
+    crowdModalPreview: document.getElementById("crowdModalPreview"),
     timerUpModal: document.getElementById("timerUpModal"),
     timerUpName: document.getElementById("timerUpName"),
     timerUpOver: document.getElementById("timerUpOver"),
@@ -169,7 +167,8 @@ setBgColor: document.getElementById("setBgColor"),
 
     btnStart: document.getElementById("btnStart"),
     btnPauseResume: document.getElementById("btnPauseResume"),
-    btnViewerTimerToggle: document.getElementById("btnViewerTimerToggle"),
+    pauseResumeLabel: document.getElementById("pauseResumeLabel"),
+    pauseResumeBadge: document.getElementById("pauseResumeBadge"),
     btnEnd: document.getElementById("btnEnd"),
     btnUndo: document.getElementById("btnUndo"),
     btnRedo: document.getElementById("btnRedo"),
@@ -183,6 +182,7 @@ setBgColor: document.getElementById("setBgColor"),
     btnMinus30: document.getElementById("btnMinus30"),
     btnPlus30: document.getElementById("btnPlus30"),
     btnResetTime: document.getElementById("btnResetTime"),
+    btnToggleViewerTimer: document.getElementById("btnToggleViewerTimer"),
     timerLine: document.getElementById("timerLine"),
 // Tabs
     tabBtnPerformers: document.getElementById("tabBtnPerformers"),
@@ -257,7 +257,7 @@ setBgColor: document.getElementById("setBgColor"),
     imDurCustom: document.getElementById("imDurCustom"),
     btnImClose: document.getElementById("btnImClose"),
     btnImCancel: document.getElementById("btnImCancel"),
-    btnImAdd: document.getElementById("btnImAdd"),
+    btnImQueue: document.getElementById("btnImQueue"),
     btnImLive: document.getElementById("btnImLive"),
   };
 
@@ -269,21 +269,6 @@ setBgColor: document.getElementById("setBgColor"),
   // House Band Set Builder
   let hbBuildCtx = null; // { mode:'add'|'edit', slotId?:string }
   let hbBuildDraft = null;
-
-  function toast(message, opts={}){
-    try{
-      const tone = String(opts.tone || "").trim();
-      const node = document.createElement("div");
-      node.className = `toast${tone ? " " + tone : ""}`;
-      node.textContent = String(message || "Done");
-      document.body.appendChild(node);
-      requestAnimationFrame(() => node.classList.add("show"));
-      setTimeout(() => {
-        node.classList.remove("show");
-        setTimeout(() => node.remove(), 220);
-      }, 1800);
-    }catch(_){ console.log(message); }
-  }
 
   // Intermission Builder
   let imDraft = null; // { minutes: number | 'custom' }
@@ -998,6 +983,66 @@ setBgColor: document.getElementById("setBgColor"),
 
 function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
 
+  function toast(message, opts={}){
+    const tone = String(opts.tone || "").toLowerCase();
+    let host = document.getElementById("toastHost");
+    if(!host){
+      host = document.createElement("div");
+      host.id = "toastHost";
+      host.className = "toastHost";
+      document.body.appendChild(host);
+    }
+    const node = document.createElement("div");
+    node.className = `toastMsg ${tone === "bad" ? "bad" : tone === "good" ? "good" : ""}`.trim();
+    node.textContent = String(message || "");
+    host.appendChild(node);
+    requestAnimationFrame(() => node.classList.add("show"));
+    const ttl = Math.max(1200, Math.min(4000, Number(opts.ttl) || 2200));
+    setTimeout(() => {
+      node.classList.remove("show");
+      setTimeout(() => { try{ node.remove(); }catch(_){} }, 220);
+    }, ttl);
+  }
+
+  function getCurrentSlotForControls(){
+    return OMJN.computeCurrent(state);
+  }
+
+  function isUntimedViewerSlot(slot){
+    const typeId = String(slot?.slotTypeId || "");
+    return typeId === "ad_graphic" || typeId === "ad_video" || typeId === "jamaoke";
+  }
+
+  function shouldApplyChangeoverBuffer(prevSlot, nextSlot){
+    if(!prevSlot || !nextSlot) return false;
+    const prev = String(prevSlot.slotTypeId || "");
+    const nxt = String(nextSlot.slotTypeId || "");
+    const disallow = new Set(["ad_graphic","ad_video","intermission"]);
+    if(disallow.has(prev) || disallow.has(nxt)) return false;
+    return true;
+  }
+
+  function bufferMs(){ return CHANGEOVER_BUFFER_MINUTES * 60 * 1000; }
+
+  function renderPauseResumeButton(){
+    if(!els.btnPauseResume) return;
+    const cur = getCurrentSlotForControls();
+    const liveish = !!cur && (state.phase === "LIVE" || state.phase === "PAUSED");
+    const disabled = !liveish || isUntimedViewerSlot(cur);
+    const paused = state.phase === "PAUSED";
+    els.btnPauseResume.disabled = disabled;
+    els.btnPauseResume.classList.toggle("isPaused", paused && !disabled);
+    if(els.pauseResumeLabel) els.pauseResumeLabel.textContent = paused ? "Resume" : "Pause";
+    if(els.pauseResumeBadge) els.pauseResumeBadge.hidden = !(paused && !disabled);
+  }
+
+  function renderViewerTimerToggle(){
+    if(!els.btnToggleViewerTimer) return;
+    const show = state.viewerPrefs?.showTimer !== false;
+    els.btnToggleViewerTimer.textContent = show ? "Hide Viewer Timer" : "Show Viewer Timer";
+    els.btnToggleViewerTimer.classList.toggle("accent", !show);
+  }
+
 function formatCutSeconds(sec){
   const s = Math.max(0, Number(sec)||0);
   const m = Math.floor(s / 60);
@@ -1222,8 +1267,29 @@ function escapeHtml(s){
   // Crowd prompt editor state
   let crowdEditorReadFn = null;
   let crowdEditorDirty = false;
+  const CHANGEOVER_BUFFER_MINUTES = 5;
 
 
+
+  function syncCrowdPresetSelects(){
+      const cfg = getCrowdCfg(state);
+      const presets = Array.isArray(cfg.presets) ? cfg.presets : [];
+      const fill = (sel) => {
+        if(!sel) return;
+        const prev = String(sel.value || "");
+        sel.innerHTML = "";
+        for(const p of presets){
+          const opt = document.createElement("option");
+          opt.value = p.id;
+          opt.textContent = p.name || p.title || "Prompt";
+          sel.appendChild(opt);
+        }
+        sel.value = presets.some(p => p.id === cfg.activePresetId) ? cfg.activePresetId : (presets[0]?.id || prev || "");
+      };
+      fill(els.crowdPresetSelect);
+      fill(els.crowdPresetSelectModal);
+      if(els.setCrowdPreset) fill(els.setCrowdPreset);
+    }
 
   function updateCrowdQuickButtons(){
       if(!els.btnCrowdToggle) return;
@@ -1236,16 +1302,12 @@ function escapeHtml(s){
       const name = (p?.name || p?.title || "Prompt").trim();
       const autoHide = (p?.autoHideSeconds ?? 0) | 0;
 
-      if(cfg.enabled){
-        els.btnCrowdToggle.textContent = "Hide Prompt";
-        els.btnCrowdToggle.classList.add("good");
-      }else{
-        els.btnCrowdToggle.textContent = "Show Prompt";
-        els.btnCrowdToggle.classList.remove("good");
-      }
+      els.btnCrowdToggle.textContent = cfg.enabled ? "Hide Prompt" : "Show Prompt";
+      els.btnCrowdToggle.classList.toggle("good", !!cfg.enabled);
+      els.btnCrowdToggle.classList.toggle("accent", !cfg.enabled);
 
       if(els.crowdStatusPill){
-        els.crowdStatusPill.textContent = cfg.enabled ? "ON" : "OFF";
+        els.crowdStatusPill.textContent = cfg.enabled ? "LIVE" : "OFF";
         els.crowdStatusPill.classList.toggle("on", !!cfg.enabled);
         els.crowdStatusPill.classList.toggle("off", !cfg.enabled);
       }
@@ -1257,24 +1319,14 @@ function escapeHtml(s){
       const lockCycle = !!crowdEditorDirty;
       if(els.btnCrowdPrev) els.btnCrowdPrev.disabled = lockCycle;
       if(els.btnCrowdNext) els.btnCrowdNext.disabled = lockCycle;
-
-      // Legacy status element (if present)
-      if(els.crowdPromptStatus){
-        els.crowdPromptStatus.textContent = `${cfg.enabled ? "ON" : "OFF"} · ${name}`;
-        els.crowdPromptStatus.classList.toggle("on", !!cfg.enabled);
-        els.crowdPromptStatus.classList.toggle("off", !cfg.enabled);
-      }
+      if(els.crowdPresetSelect) els.crowdPresetSelect.disabled = lockCycle;
+      if(els.crowdPresetSelectModal) els.crowdPresetSelectModal.disabled = false;
+      syncCrowdPresetSelects();
     }
 
   function wireCrowdEditorInteractions(){
-      if(els.crowdEditorPanel){
-        els.crowdEditorPanel.addEventListener("mousedown", e => e.stopPropagation());
-        els.crowdEditorPanel.addEventListener("click", e => e.stopPropagation());
-        els.crowdEditorPanel.addEventListener("keydown", e => e.stopPropagation());
-      }
-
       const onDirty = () => {
-        if(!els.crowdEditorPanel || els.crowdEditorPanel.hidden) return;
+        if(els.crowdModal?.hidden) return;
         setCrowdEditorDirty(true);
         renderCrowdPromptPreview();
       };
@@ -1288,20 +1340,39 @@ function escapeHtml(s){
       if(els.btnCrowdEditToggle){
         els.btnCrowdEditToggle.addEventListener("click", () => openCrowdEditor());
       }
-
       if(els.btnCrowdCancel) els.btnCrowdCancel.addEventListener("click", () => closeCrowdEditor(false));
       if(els.btnCrowdModalClose) els.btnCrowdModalClose.addEventListener("click", () => closeCrowdEditor(false));
       if(els.crowdModal){
-        els.crowdModal.addEventListener("click", (e) => { if(e.target === els.crowdModal) closeCrowdEditor(false); });
+        els.crowdModal.addEventListener("mousedown", e => { if(e.target === els.crowdModal) closeCrowdEditor(false); });
+      }
+      const onPresetChange = (value) => {
+        updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.activePresetId = String(value || ""); }, { recordHistory:false });
+        scheduleCrowdAutoHide();
+        loadCrowdEditorFromActivePreset();
+        renderCrowdPromptPreview();
+      };
+      if(els.crowdPresetSelect){
+        els.crowdPresetSelect.addEventListener("change", () => onPresetChange(els.crowdPresetSelect.value));
+      }
+      if(els.crowdPresetSelectModal){
+        els.crowdPresetSelectModal.addEventListener("change", () => {
+          if(crowdEditorDirty){
+            const ok = confirm("Discard unsaved crowd prompt edits?");
+            if(!ok){
+              syncCrowdPresetSelects();
+              return;
+            }
+          }
+          onPresetChange(els.crowdPresetSelectModal.value);
+          setCrowdEditorDirty(false);
+        });
       }
     }
-
 
   function setCrowdEditorDirty(on){
       crowdEditorDirty = !!on;
       updateCrowdQuickButtons();
     }
-
 
   function loadCrowdEditorFromActivePreset(){
       const cfg = getCrowdCfg(state);
@@ -1311,8 +1382,8 @@ function escapeHtml(s){
       if(els.crowdFooter) els.crowdFooter.value = p.footer || "";
       if(els.crowdAutoHide) els.crowdAutoHide.value = String((p.autoHideSeconds ?? 0) | 0);
       if(els.crowdLines) els.crowdLines.value = Array.isArray(p.lines) ? p.lines.join("\n") : "";
+      syncCrowdPresetSelects();
     }
-
 
   function closeCrowdEditor(force=false){
       if(!els.crowdModal) return;
@@ -1326,13 +1397,12 @@ function escapeHtml(s){
       renderCrowdPromptPreview();
     }
 
-
   function openCrowdEditor(){
       if(!els.crowdModal) return;
       loadCrowdEditorFromActivePreset();
-      setCrowdEditorDirty(false);
       els.crowdModal.hidden = false;
       document.body.classList.add("modalOpen");
+      setCrowdEditorDirty(false);
       renderCrowdPromptPreview();
       setTimeout(() => { els.crowdPresetName?.focus?.(); }, 0);
     }
@@ -1594,14 +1664,10 @@ function escapeHtml(s){
 
     if(els.setCrowdEnabled) els.setCrowdEnabled.checked = !!cp.enabled;
 
-    const crowdOpts = presets.map(p => ({ id: p.id, label: (p.name || p.title || p.id) }));
     if(els.setCrowdPreset){
-      els.setCrowdPreset.innerHTML = crowdOpts.map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join("");
+      const opts = presets.map(p => ({ id: p.id, label: (p.name || p.title || p.id) }));
+      els.setCrowdPreset.innerHTML = opts.map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join("");
       els.setCrowdPreset.value = activeId;
-    }
-    if(els.crowdQuickPreset){
-      els.crowdQuickPreset.innerHTML = crowdOpts.map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join("");
-      els.crowdQuickPreset.value = activeId;
     }
 
     // Only sync editor fields when preset changes (so typing isn't overwritten)
@@ -1996,6 +2062,9 @@ function escapeHtml(s){
         cfg.presets.push(preset);
         cfg.activePresetId = id;
       }, { recordHistory:false });
+      loadCrowdEditorFromActivePreset();
+      setCrowdEditorDirty(false);
+      renderCrowdPromptPreview();
     }
 
     function deleteCrowdPreset(){
@@ -2009,6 +2078,9 @@ function escapeHtml(s){
         cfg.activePresetId = cfg.presets[newIdx].id;
       }, { recordHistory:false });
       scheduleCrowdAutoHide();
+      loadCrowdEditorFromActivePreset();
+      setCrowdEditorDirty(false);
+      renderCrowdPromptPreview();
     }
 
     if(els.setCrowdEnabled){
@@ -2020,20 +2092,14 @@ function escapeHtml(s){
     if(els.btnCrowdHide){
       els.btnCrowdHide.addEventListener("click", () => setCrowdEnabled(false));
     }
-    const setActiveCrowdPreset = (id) => {
-      updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.activePresetId = id; }, { recordHistory:false });
-      scheduleCrowdAutoHide();
-      loadCrowdEditorFromActivePreset();
-      renderCrowdPromptPreview();
-    };
     if(els.setCrowdPreset){
-      els.setCrowdPreset.addEventListener("change", () => setActiveCrowdPreset(String(els.setCrowdPreset.value || "")));
-    }
-    if(els.crowdQuickPreset){
-      els.crowdQuickPreset.addEventListener("change", () => setActiveCrowdPreset(String(els.crowdQuickPreset.value || "")));
+      els.setCrowdPreset.addEventListener("change", () => {
+        const id = String(els.setCrowdPreset.value || "");
+        updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.activePresetId = id; }, { recordHistory:false });
+        scheduleCrowdAutoHide();
+      });
     }
     if(els.btnCrowdSave) els.btnCrowdSave.addEventListener("click", () => saveCrowdPreset(false));
-    if(els.btnCrowdSaveClose) els.btnCrowdSaveClose.addEventListener("click", () => saveCrowdPreset(true));
     if(els.btnCrowdAdd) els.btnCrowdAdd.addEventListener("click", () => addCrowdPreset(null));
     if(els.btnCrowdDuplicate) els.btnCrowdDuplicate.addEventListener("click", () => {
       const cfg = getCrowdCfg(state);
@@ -2042,6 +2108,7 @@ function escapeHtml(s){
       addCrowdPreset(p);
     });
     if(els.btnCrowdDelete) els.btnCrowdDelete.addEventListener("click", deleteCrowdPreset);
+    if(els.btnCrowdSaveClose) els.btnCrowdSaveClose.addEventListener("click", () => saveCrowdPreset(true));
 
 
     // Sponsor Bug controls
@@ -2313,6 +2380,7 @@ function escapeHtml(s){
     if(id === "musician") return "fa-solid fa-music";
     if(id === "comedian" || id === "comedian5") return "fa-solid fa-microphone-lines";
     if(id === "poetry") return "fa-solid fa-masks-theater";
+    if(id === "jamaoke") return "fa-solid fa-compact-disc";
     if(id === "houseband") return "fa-solid fa-guitar";
     if(id === "intermission") return "fa-solid fa-pause";
     if(id.startsWith("ad_")) return "fa-solid fa-bullhorn";
@@ -2350,12 +2418,14 @@ function escapeHtml(s){
     const isIntermission = slotTypeId === "intermission";
     const isHouseBand = slotTypeId === "houseband";
     const isAd = slotTypeId.startsWith("ad_");
+    const isJamaoke = slotTypeId === "jamaoke";
     if(isLive) div.classList.add("role-live");
     else if(isNext) div.classList.add("role-next");
     else if(isDeck) div.classList.add("role-deck");
     else if(isDone) div.classList.add("role-done");
     else if(isIntermission) div.classList.add("role-intermission");
     else if(isHouseBand) div.classList.add("role-houseband");
+    else if(isJamaoke) div.classList.add("role-jamaoke");
     else if(isAd) div.classList.add("role-ad");
     else div.classList.add("role-queued");
 
@@ -2401,6 +2471,7 @@ function escapeHtml(s){
     else if(isDeck) role.textContent = "ON DECK";
     else if(slotTypeId === "intermission") role.textContent = "INTERMISSION";
     else if(slotTypeId === "houseband") role.textContent = "HOUSE BAND SET";
+    else if(slotTypeId === "jamaoke") role.textContent = "JAMAOKE";
     else if(slotTypeId.startsWith("ad_")) role.textContent = "AD";
     else if(isDone) role.textContent = (slot.status === "SKIPPED" ? (slot.noShow ? "NO-SHOW" : "SKIPPED") : "DONE");
     else role.textContent = "QUEUED";
@@ -2633,15 +2704,6 @@ function escapeHtml(s){
     return `${t.toLocaleTimeString([], { hour:"numeric", minute:"2-digit" })} (≈)`;
   }
 
-  const CHANGEOVER_BUFFER_MIN = 5;
-  function slotNeedsChangeover(slot){
-    const typeId = String(slot?.slotTypeId || "");
-    if(!typeId) return false;
-    if(typeId.startsWith("ad_")) return false;
-    if(typeId === "intermission") return false;
-    return true;
-  }
-
   function computeQueueEtaMap(nowMs){
     const map = new Map();
 
@@ -2653,19 +2715,21 @@ function escapeHtml(s){
     const curIdx = hasCurrent ? active.findIndex(x => x.id === state.currentSlotId) : -1;
 
     let cursor = nowMs;
-    let previousForBuffer = null;
+    let prevForBuffer = null;
 
     if(curIdx !== -1){
       try{
         const cur = active[curIdx];
         const curTypeId = String(cur?.slotTypeId || "");
-        const curIsAd = curTypeId.startsWith("ad_");
-        if(!curIsAd){
+        const curIsUntimed = isUntimedViewerSlot(cur);
+        if(!curIsUntimed){
           const t = OMJN.computeTimer(state);
           cursor += Math.max(t.remainingMs || 0, 0);
+        }else{
+          cursor += OMJN.effectiveMinutes(state, cur) * 60 * 1000;
         }
-        previousForBuffer = cur;
-      }catch(_){ previousForBuffer = null; }
+        prevForBuffer = cur;
+      }catch(_){ }
     }
 
     const start = (curIdx === -1) ? 0 : (curIdx + 1);
@@ -2679,10 +2743,7 @@ function escapeHtml(s){
       const isAd = typeId.startsWith("ad_");
       const isIntermission = typeId === "intermission";
       const isHouseBand = typeId === "houseband";
-
-      if(previousForBuffer && slotNeedsChangeover(previousForBuffer) && slotNeedsChangeover(s)){
-        cursor += CHANGEOVER_BUFFER_MIN * 60 * 1000;
-      }
+      if(prevForBuffer && shouldApplyChangeoverBuffer(prevForBuffer, s)) cursor += bufferMs();
 
       if(!isAd && !isIntermission && !isHouseBand){
         map.set(s.id, cursor);
@@ -2690,7 +2751,7 @@ function escapeHtml(s){
 
       const durMs = isAd ? 0 : (OMJN.effectiveMinutes(state, s) * 60 * 1000);
       cursor += durMs;
-      previousForBuffer = s;
+      prevForBuffer = s;
     }
 
     return map;
@@ -3189,18 +3250,18 @@ function renderKPIs(){
     if(els.kpiEstEnd){
       try{
         let totalMs = 0;
+        let prevSlot = null;
         if(hasCurrent){
           const t = OMJN.computeTimer(state);
-          totalMs += Math.max(t.remainingMs || 0, 0);
+          const currentUntimed = isUntimedViewerSlot(current);
+          totalMs += currentUntimed ? (OMJN.effectiveMinutes(state, current) * 60 * 1000) : Math.max(t.remainingMs || 0, 0);
+          prevSlot = current;
         }
-        let prevForBuffer = hasCurrent ? current : null;
         for(const s of queued){
           OMJN.normalizeSlot(s);
-          if(prevForBuffer && slotNeedsChangeover(prevForBuffer) && slotNeedsChangeover(s)){
-            totalMs += CHANGEOVER_BUFFER_MIN * 60 * 1000;
-          }
+          if(prevSlot && shouldApplyChangeoverBuffer(prevSlot, s)) totalMs += bufferMs();
           totalMs += (OMJN.effectiveMinutes(state, s) * 60 * 1000);
-          prevForBuffer = s;
+          prevSlot = s;
         }
         if(totalMs <= 0){
           els.kpiEstEnd.textContent = "—";
@@ -3291,7 +3352,8 @@ function renderKPIs(){
   }
 
   function renderCrowdPromptPreview(){
-      if(!els.crowdPromptPreview) return;
+      const roots = [els.crowdPromptPreview, els.crowdModalPreview].filter(Boolean);
+      if(!roots.length) return;
       const cfg = getCrowdCfg(state);
       const p = getActiveCrowdPreset(cfg) || {};
 
@@ -3302,55 +3364,53 @@ function renderKPIs(){
         try{
           const typed = crowdEditorReadFn();
           data = Object.assign({}, p, typed);
-        }catch(_){}
+        }catch(_){ }
       }
 
       const title = (data.title || "").trim();
       const footer = (data.footer || "").trim();
       const lines = Array.isArray(data.lines) ? data.lines : [];
 
-      const targets = [els.crowdPromptPreview, els.crowdPromptPreviewMini].filter(Boolean);
-      for(const root of targets){
-      root.innerHTML = "";
+      for(const root of roots){
+        root.innerHTML = "";
+        const wrap = document.createElement("div");
+        wrap.className = "cpPrevInner";
 
-      const wrap = document.createElement("div");
-      wrap.className = "cpPrevInner";
+        const h = document.createElement("div");
+        h.className = "cpPrevTitle";
+        h.textContent = title || "CROWD PROMPT";
+        wrap.appendChild(h);
 
-      const h = document.createElement("div");
-      h.className = "cpPrevTitle";
-      h.textContent = title || "CROWD PROMPT";
-      wrap.appendChild(h);
+        const list = document.createElement("div");
+        list.className = "cpPrevLines";
+        const max = root === els.crowdPromptPreview ? 4 : 6;
+        for(const ln of lines.slice(0, max)){
+          const item = document.createElement("div");
+          item.className = "cpPrevLine";
+          item.textContent = ln;
+          list.appendChild(item);
+        }
+        if(lines.length > max){
+          const more = document.createElement("div");
+          more.className = "cpPrevLine cpPrevMore";
+          more.textContent = `… +${lines.length - max} more`;
+          list.appendChild(more);
+        }
+        wrap.appendChild(list);
 
-      const list = document.createElement("div");
-      list.className = "cpPrevLines";
-      const max = 6;
-      for(const ln of lines.slice(0, max)){
-        const item = document.createElement("div");
-        item.className = "cpPrevLine";
-        item.textContent = ln;
-        list.appendChild(item);
-      }
-      if(lines.length > max){
-        const more = document.createElement("div");
-        more.className = "cpPrevLine cpPrevMore";
-        more.textContent = `… +${lines.length - max} more`;
-        list.appendChild(more);
-      }
-      wrap.appendChild(list);
+        if(footer){
+          const f = document.createElement("div");
+          f.className = "cpPrevFooter";
+          f.textContent = footer;
+          wrap.appendChild(f);
+        }
 
-      if(footer){
-        const f = document.createElement("div");
-        f.className = "cpPrevFooter";
-        f.textContent = footer;
-        wrap.appendChild(f);
-      }
+        const hint = document.createElement("div");
+        hint.className = "cpPrevHint";
+        hint.textContent = cfg.enabled ? "Overlay LIVE (sponsor hidden)" : "Overlay OFF";
+        wrap.appendChild(hint);
 
-      const hint = document.createElement("div");
-      hint.className = "cpPrevHint";
-      hint.textContent = cfg.enabled ? "Overlay ON (viewer sponsor hidden)" : "Overlay OFF";
-      wrap.appendChild(hint);
-
-      root.appendChild(wrap);
+        root.appendChild(wrap);
       }
     }
 
@@ -3440,34 +3500,12 @@ function renderKPIs(){
         renderLiveStatusBanner();
         updateCrowdQuickButtons();
         renderCrowdPromptPreview();
-        renderLiveControls();
         syncCrowdAutoHide();
         checkTimerUpModal();
       }catch(e){
         console.error("uiTick error:", e);
       }
     }, 250);
-  }
-
-function renderLiveControls(){
-    const phase = state.phase || "SPLASH";
-    const cur = OMJN.computeCurrent(state);
-    const typeId = String(cur?.slotTypeId || "");
-    const untimed = typeId.startsWith("ad_") || typeId === "jamaoke";
-    const liveish = (phase === "LIVE" || phase === "PAUSED") && !!cur;
-    if(els.btnPauseResume){
-      const label = els.btnPauseResume.querySelector(".pauseResumeLabel");
-      const badge = els.btnPauseResume.querySelector(".pauseResumeBadge");
-      const paused = phase === "PAUSED";
-      if(label) label.textContent = paused ? "Resume" : "Pause";
-      if(badge) badge.hidden = !paused;
-      els.btnPauseResume.classList.toggle("isPaused", paused);
-      els.btnPauseResume.disabled = !liveish || untimed;
-    }
-    if(els.btnViewerTimerToggle){
-      const showTimer = state.viewerPrefs?.showTimer !== false;
-      els.btnViewerTimerToggle.textContent = showTimer ? "Hide Viewer Timer" : "Show Viewer Timer";
-    }
   }
 
 function renderTimerLine(){
@@ -3514,10 +3552,11 @@ function render(){
     renderQueue();
     renderKPIs();
     renderLiveStatusBanner();
+    renderPauseResumeButton();
+    renderViewerTimerToggle();
     renderCrowdPromptPreview();
-    renderLiveControls();
     renderTimerLine();
-renderHouseBandCategories();
+    renderHouseBandCategories();
   }
 
   // ---- Actions ----
@@ -3789,10 +3828,8 @@ renderHouseBandCategories();
     setIntermissionPresetActive(10);
 
     els.intermissionModal.hidden = false;
+    renderIntermissionActionLabels();
     document.body.classList.add("modalOpen");
-    const liveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
-    if(els.btnImAdd) els.btnImAdd.textContent = liveish ? "Add Next" : "Add to Top";
-    if(els.btnImLive) els.btnImLive.textContent = liveish ? "Arm Next" : "Go Live Now";
     setTimeout(() => { els.imName?.focus?.(); }, 0);
   }
 
@@ -4451,31 +4488,37 @@ updateState(s => {
       };
       const liveish = (s.phase === "LIVE" || s.phase === "PAUSED") && !!s.currentSlotId;
       if(mode === "live"){
+        insertQueuedSlotSmart(s, slot);
         if(liveish){
-          insertQueuedSlotSmart(s, slot);
           s.operatorPrefs = s.operatorPrefs || {};
           s.operatorPrefs.armedNextSlotId = slot.id;
         }else{
-          const firstQueued = s.queue.findIndex(x => x && x.status === "QUEUED");
-          if(firstQueued >= 0) s.queue.splice(firstQueued, 0, slot); else s.queue.unshift(slot);
+          const idx = s.queue.findIndex(x => x && x.id === slot.id);
+          if(idx > 0){
+            const [moved] = s.queue.splice(idx, 1);
+            s.queue.unshift(moved);
+          }
           s.currentSlotId = slot.id;
           s.phase = "LIVE";
-          const mins = OMJN.effectiveMinutes(s, slot);
           s.timer.running = true;
           s.timer.startedAt = Date.now();
           s.timer.elapsedMs = 0;
-          s.timer.baseDurationMs = mins * 60 * 1000;
-          s.timer.baseStartedAt = Date.now();
+          s.timer.baseDurationMs = OMJN.effectiveMinutes(s, slot) * 60 * 1000;
         }
+        return;
+      }
+      if(liveish){
+        insertQueuedSlotSmart(s, slot);
       }else{
-        if(liveish){
-          insertQueuedSlotSmart(s, slot);
-        }else{
-          const firstQueued = s.queue.findIndex(x => x && x.status === "QUEUED");
-          if(firstQueued >= 0) s.queue.splice(firstQueued, 0, slot); else s.queue.unshift(slot);
-        }
+        s.queue.unshift(slot);
       }
     });
+  }
+
+  function renderIntermissionActionLabels(){
+    const liveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
+    if(els.btnImQueue) els.btnImQueue.textContent = liveish ? "Add Next" : "Add to Top";
+    if(els.btnImLive) els.btnImLive.textContent = liveish ? "Arm Next" : "Go Live Now";
   }
 
   function commitIntermissionModal(mode="queue"){
@@ -4495,10 +4538,6 @@ updateState(s => {
     addIntermissionSlotWithOptions({ title, minutes, message, mode });
     closeIntermissionModal();
     render();
-    if(mode === "live"){
-      const liveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
-      toast(liveish ? "Intermission armed to run next." : "Intermission is live.");
-    }
   }
 
   function addHouseBandSlot(){
@@ -4566,13 +4605,13 @@ function start(){
       s.currentSlotId = pick.id;
       s.phase = "LIVE";
 
-      const isAd = isAdSlotType(pick.slotTypeId);
-      if(isAd){
-        // Untimed (viewer hides timer); operator can End → Splash to return.
+      const untimedViewerSlot = isUntimedViewerSlot(pick);
+      if(untimedViewerSlot){
+        // Untimed on Viewer; retain planning duration for queue math when useful.
         s.timer.running = false;
         s.timer.startedAt = null;
         s.timer.elapsedMs = 0;
-        s.timer.baseDurationMs = 0;
+        s.timer.baseDurationMs = OMJN.effectiveMinutes(s, pick) * 60 * 1000;
       }else{
         s.timer.running = true;
         s.timer.startedAt = Date.now();
@@ -4765,7 +4804,7 @@ function start(){
         imported.splash = imported.splash ?? { backgroundAssetPath:null, showNextTwo:true };
         if(imported.splash.backgroundAssetPath === "./assets/splash_BG.jpg") imported.splash.backgroundAssetPath = null;
         if(imported.splash.backgroundAssetPath === "") imported.splash.backgroundAssetPath = null;
-        imported.viewerPrefs = imported.viewerPrefs ?? { warnAtSec:120, finalAtSec:30, showOvertime:true, showProgressBar:true, showHouseBandFooter:true };
+        imported.viewerPrefs = imported.viewerPrefs ?? { warnAtSec:120, finalAtSec:30, showOvertime:true, showProgressBar:true, showTimer:true, showHouseBandFooter:true };
         imported.assetsIndex = imported.assetsIndex ?? {};
         // Drop legacy Jam mode data (Lineup-only)
         if(Array.isArray(imported.slotTypes)) imported.slotTypes = imported.slotTypes.filter(t => t?.id !== "jam");
@@ -4838,8 +4877,7 @@ toggleCustomAddFields();
     });
 
     wireCrowdEditorInteractions();
-    // Start collapsed by default
-    if(els.crowdEditorPanel) closeCrowdEditor(true);
+    if(els.crowdModal) els.crowdModal.hidden = true;
 
 
     els.addType.addEventListener("change", toggleCustomAddFields);
@@ -4864,7 +4902,7 @@ if(els.btnAddHouseBandSlot){
     // Intermission Builder modal
     if(els.btnImClose) els.btnImClose.addEventListener("click", (e) => { e.preventDefault(); closeIntermissionModal(); });
     if(els.btnImCancel) els.btnImCancel.addEventListener("click", (e) => { e.preventDefault(); closeIntermissionModal(); });
-    if(els.btnImAdd) els.btnImAdd.addEventListener("click", (e) => { e.preventDefault(); commitIntermissionModal("queue"); });
+    if(els.btnImQueue) els.btnImQueue.addEventListener("click", (e) => { e.preventDefault(); commitIntermissionModal("queue"); });
     if(els.btnImLive) els.btnImLive.addEventListener("click", (e) => { e.preventDefault(); commitIntermissionModal("live"); });
     if(els.intermissionModal){
       els.intermissionModal.addEventListener("mousedown", (e) => {
@@ -4876,7 +4914,7 @@ if(els.btnAddHouseBandSlot){
     if(els.imDur10) els.imDur10.addEventListener("click", imPreset(10));
     if(els.imDur15) els.imDur15.addEventListener("click", imPreset(15));
     if(els.imDurCustom) els.imDurCustom.addEventListener("click", imPreset("custom"));
-    if(els.imName) els.imName.addEventListener("keydown", (e) => { if(e.key === "Enter"){ e.preventDefault(); commitIntermissionModal("queue"); } if(e.key === "Escape"){ e.preventDefault(); closeIntermissionModal(); } });
+    if(els.imName) els.imName.addEventListener("keydown", (e) => { if(e.key === "Enter"){ e.preventDefault(); commitIntermissionModal(); } if(e.key === "Escape"){ e.preventDefault(); closeIntermissionModal(); } });
     // Ad (Graphic) modal
     if(els.btnAdClose) els.btnAdClose.addEventListener("click", (e) => { e.preventDefault(); closeAdModal(); });
     if(els.btnAdCancel) els.btnAdCancel.addEventListener("click", (e) => { e.preventDefault(); closeAdModal(); });
@@ -4913,7 +4951,7 @@ if(els.btnAddHouseBandSlot){
     }
 
 
-    if(els.imCustomMins) els.imCustomMins.addEventListener("keydown", (e) => { if(e.key === "Enter"){ e.preventDefault(); commitIntermissionModal("queue"); } if(e.key === "Escape"){ e.preventDefault(); closeIntermissionModal(); } });
+    if(els.imCustomMins) els.imCustomMins.addEventListener("keydown", (e) => { if(e.key === "Enter"){ e.preventDefault(); commitIntermissionModal(); } if(e.key === "Escape"){ e.preventDefault(); closeIntermissionModal(); } });
     // Ad (Graphic) modal
     if(els.btnAdClose) els.btnAdClose.addEventListener("click", (e) => { e.preventDefault(); closeAdModal(); });
     if(els.btnAdCancel) els.btnAdCancel.addEventListener("click", (e) => { e.preventDefault(); closeAdModal(); });
@@ -5061,8 +5099,6 @@ els.showTitle.addEventListener("input", () => {
     });
 
     els.btnStart.addEventListener("click", guardedStart);
-    if(els.btnPauseResume) els.btnPauseResume.addEventListener("click", () => { if(state.phase === "PAUSED") resume(); else pause(); });
-    if(els.btnViewerTimerToggle) els.btnViewerTimerToggle.addEventListener("click", () => { updateState(s => { s.viewerPrefs = s.viewerPrefs || {}; s.viewerPrefs.showTimer = !(s.viewerPrefs.showTimer !== false); }, { recordHistory:false }); });
     els.btnUndo.addEventListener("click", undo);
     els.btnRedo.addEventListener("click", redo);
 
@@ -5119,7 +5155,19 @@ els.showTitle.addEventListener("input", () => {
         }
       });
     }
+    if(els.btnPauseResume) els.btnPauseResume.addEventListener("click", () => {
+      if(state.phase === "PAUSED") resume();
+      else pause();
+    });
     els.btnEnd.addEventListener("click", guardedEnd);
+    if(els.btnToggleViewerTimer){
+      els.btnToggleViewerTimer.addEventListener("click", () => {
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.showTimer = (s.viewerPrefs.showTimer === false);
+        }, { recordHistory:false });
+      });
+    }
     els.btnMinus1.addEventListener("click", () => addMinutes(-1));
     els.btnMinus5.addEventListener("click", () => addMinutes(-5));
     els.btnPlus1.addEventListener("click", () => addMinutes(1));

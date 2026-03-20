@@ -20,10 +20,6 @@
     adFail: document.getElementById("adFail"),
     liveFooterBar: document.getElementById("liveFooterBar"),
 
-    // Start intro
-    startBanner: document.getElementById("startBanner"),
-    startBannerName: document.getElementById("startBannerName"),
-
     // LIVE main card
     vMainCard: document.getElementById("vMainCard"),
     nowLabel: document.getElementById("nowLabel"),
@@ -114,24 +110,6 @@
 
   // Default QR image shown when a performer uses a QR layout but has no custom upload.
   const DEFAULT_QR_SRC = "./assets/OMJN-QR.png";
-
-  function isViewerTimerEnabled(){
-    return state?.viewerPrefs?.showTimer !== false;
-  }
-
-  function isJamaokeSlot(slot){
-    return String(slot?.slotTypeId || "") === "jamaoke";
-  }
-
-  function currentLiveSlot(){
-    if(!state?.currentSlotId) return null;
-    return (state.queue || []).find(x => x && x.id === state.currentSlotId) || null;
-  }
-
-  function isAdSlot(slot){
-    const t = String(slot?.slotTypeId || "");
-    return t === "ad_graphic" || t === "ad_video";
-  }
 
   // Operator uses this to show Viewer connection status
   const VIEWER_HEARTBEAT_KEY = OMJN.scopedKey("viewerHeartbeat.v1");
@@ -356,6 +334,22 @@
     return cleanName(slot?.displayName ?? slot?.name ?? slot?.performerName ?? slot?.title ?? "");
   }
 
+  function currentLiveSlot(){
+    const isLiveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
+    return isLiveish ? OMJN.computeCurrent(state) : null;
+  }
+
+  function isAdSlot(slot){
+    const t = String(slot?.slotTypeId || "");
+    return t === "ad_graphic" || t === "ad_video";
+  }
+
+  function hideViewerTimerForSlot(slot){
+    const typeId = String(slot?.slotTypeId || "");
+    const prefAllows = state.viewerPrefs?.showTimer !== false;
+    return !prefAllows || typeId === "jamaoke" || isAdSlot(slot);
+  }
+
   // Sponsor bug runtime
   const SPONSOR_VIEWER_STATUS_KEY = OMJN.scopedKey("sponsorBug.viewerStatus.v1");
   let currentSponsorObjectUrl = null;
@@ -395,7 +389,7 @@
     return (d === "ltr") ? "ltr" : "mirror";
   }
   function vizShouldShowWrap(){
-    return state.phase === "LIVE" && vizEnabled() && !!el.vVizWrap;
+    return state.phase === "LIVE" && vizEnabled() && !!el.vVizWrap && !isAdSlot(currentLiveSlot());
   }
   function vizCanRender(){
     return vizShouldShowWrap() && !!viz.analyser;
@@ -864,25 +858,6 @@
     }catch(_){ /* ignore */ }
   }
 
-  function isAdSlot(slot){
-    const t = String(slot?.slotTypeId || "").toLowerCase();
-    return t === "ad_graphic" || t === "ad_video";
-  }
-
-  function effectiveMediaLayout(slot){
-    const media = slot?.media || {};
-    const raw = String(media.mediaLayout || "").toUpperCase();
-    if(raw && raw !== "NONE") return raw;
-    if(media.imageAssetId) return "IMAGE_ONLY";
-
-    const t = String(slot?.slotTypeId || "").toLowerCase();
-    const eligibleForDefaultQr = !!slot && !["intermission","houseband","ad_graphic","ad_video"].includes(t);
-    const hasLink = !!String(media.donationUrl || "").trim();
-    if(eligibleForDefaultQr && !media.imageAssetId && !hasLink) return "QR_ONLY";
-
-    return "NONE";
-  }
-
   // ---- Media ----
   async function setMedia(slot) {
     const media = slot?.media || {};
@@ -904,7 +879,7 @@
       return;
     }
 
-    const layout = effectiveMediaLayout(slot);
+    const layout = media.mediaLayout || "NONE";
     const hasUploaded = !!media.imageAssetId;
     const usesDefaultQr = !hasUploaded && ["QR_ONLY", "IMAGE_PLUS_QR"].includes(layout);
     const wantImage = ["IMAGE_ONLY", "QR_ONLY", "IMAGE_PLUS_QR"].includes(layout) && (hasUploaded || usesDefaultQr);
@@ -1024,13 +999,14 @@
       opacity: cfg.opacity,
       safeMargin: cfg.safeMargin,
       footerVisible,
+      crowdVisible,
+      currentSlotId: state.currentSlotId || null,
+      adMode: isAdSlot(currentLiveSlot()),
     });
     if (key === lastSponsorKey) return;
     lastSponsorKey = key;
 
-    const liveish = ((state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId);
-    const cur = currentLiveSlot();
-    const shouldShow = !!cfg.enabled && !isAdSlot(cur) && (!cfg.showLiveOnly || liveish);
+    const shouldShow = !!cfg.enabled && !isAdSlot(currentLiveSlot()) && (!cfg.showLiveOnly || state.phase === "LIVE" || state.phase === "PAUSED");
     if (!shouldShow) {
       hideSponsor(cfg.enabled ? "not-live" : "disabled");
       return;
@@ -1166,10 +1142,17 @@
   function renderCrowdPrompts() {
     if (!el.root || !el.crowdLayer) return;
 
-    const cur = currentLiveSlot();
-    const adMode = isAdSlot(cur);
     const cfg = getCrowdCfg() || {};
-    const enabled = !!cfg.enabled && !adMode;
+    const enabled = !!cfg.enabled;
+    const liveSlot = currentLiveSlot();
+    if(isAdSlot(liveSlot)){
+      if(crowdVisible){
+        crowdVisible = false;
+        applyCrowdVisibility();
+        setSponsorBug().catch(() => {});
+      }
+      return;
+    }
     const p = getActiveCrowdPreset(cfg) || {};
 
     const autoHideSeconds = Math.max(0, Number(p.autoHideSeconds || 0) || 0);
@@ -1381,12 +1364,12 @@
     const slotTypeId = String(cur.slotTypeId || "");
     const isHB = slotTypeId === "houseband";
     const isIM = slotTypeId === "intermission";
-    const isJK = slotTypeId === "jamaoke";
+    const isJamaoke = slotTypeId === "jamaoke";
 
     if(el.root){
       el.root.classList.toggle("isHB", isHB);
       el.root.classList.toggle("isIM", isIM);
-      el.root.classList.toggle("isJamaoke", isJK);
+      el.root.classList.toggle("isJamaoke", isJamaoke);
     }
 
     // Compute headline + chipType for special screens
@@ -1399,9 +1382,6 @@
       nowLabelText = "INTERMISSION";
       nowNameText = cleanName(cur.intermissionMessage || "WE'LL BE RIGHT BACK");
       chipTypeText = "INTERMISSION";
-    }else if(isJK){
-      nowLabelText = "JAMAOKE";
-      chipTypeText = "JAMAOKE";
     }else if(isHB){
       nowLabelText = "HOUSE BAND";
       const lineup = Array.isArray(cur.hbLineup) ? cur.hbLineup : [];
@@ -1438,7 +1418,7 @@
     // Update main identity / type / donation / media + layout in a keyed way
     const donationUrl = String(cur.media?.donationUrl || "").trim();
     const media = cur.media || {};
-    const mediaLayout = effectiveMediaLayout(cur);
+    const mediaLayout = media.mediaLayout || "NONE";
     const staticKey = JSON.stringify({
       id: cur.id,
       nowLabelText,
@@ -1448,6 +1428,8 @@
       donationUrl,
       mediaLayout,
       imageAssetId: media.imageAssetId || null,
+      hideTimer: hideViewerTimerForSlot(cur),
+      showProgressBar: state.viewerPrefs?.showProgressBar !== false,
     });
 
     if (staticKey !== lastSlotStaticKey) {
@@ -1504,13 +1486,9 @@
         if (el.vMedia) el.vMedia.style.display = showMedia ? "flex" : "none";
       }
 
-      // Timer/progress visibility toggle
-      const showTimer = (state.viewerPrefs?.showTimer !== false) && !isJK;
-      if (el.timer) {
-        el.timer.style.display = showTimer ? "" : "none";
-        el.timer.setAttribute("aria-hidden", showTimer ? "false" : "true");
-      }
-      const showProgress = showTimer && (state.viewerPrefs?.showProgressBar !== false);
+      const hideTimer = hideViewerTimerForSlot(cur);
+      if (el.timer) el.timer.style.display = hideTimer ? "none" : "";
+      const showProgress = !hideTimer && state.viewerPrefs?.showProgressBar !== false;
       if (el.progress) {
         el.progress.hidden = !showProgress;
         el.progress.setAttribute("aria-hidden", showProgress ? "false" : "true");
@@ -1539,14 +1517,6 @@
     const cur = OMJN.computeCurrent(state);
     if (!cur) return;
 
-    const timerVisible = isViewerTimerEnabled() && !isJamaokeSlot(cur);
-    if(el.timer) el.timer.style.display = timerVisible ? "" : "none";
-    if(el.progress){
-      const showProgress = timerVisible && state.viewerPrefs?.showProgressBar !== false;
-      el.progress.hidden = !showProgress;
-      el.progress.setAttribute("aria-hidden", showProgress ? "false" : "true");
-    }
-
     const t = OMJN.computeTimer(state);
     const remainingMs = t.remainingMs;
     const overtimeMs = t.overtimeMs;
@@ -1564,9 +1534,8 @@
       lastChipStateKey = chipStateKey;
       if (el.chipState) {
         const paused = state.phase === "PAUSED";
-        el.chipState.textContent = paused ? "PAUSED" : "LIVE";
-        el.chipState.className = "vChip " + (paused ? "warn" : "good");
-        el.chipState.hidden = !paused;
+        el.chipState.textContent = "PAUSED";
+        el.chipState.className = "vChip warn";
         el.chipState.style.display = paused ? "inline-flex" : "none";
       }
     }
@@ -1575,9 +1544,11 @@
     const warnAtMs = (state.viewerPrefs?.warnAtSec ?? 120) * 1000;
     const finalAtMs = (state.viewerPrefs?.finalAtSec ?? 30) * 1000;
 
-    const warnShow = timerVisible && remainingMs > 0 && remainingMs <= warnAtMs && remainingMs > finalAtMs;
-    const finalShow = timerVisible && remainingMs > 0 && remainingMs <= finalAtMs;
-    const overShow = timerVisible && overtimeMs > 0 && (state.viewerPrefs?.showOvertime !== false);
+    const hideTimer = hideViewerTimerForSlot(cur);
+    if (el.timer) el.timer.style.display = hideTimer ? "none" : "";
+    const warnShow = !hideTimer && remainingMs > 0 && remainingMs <= warnAtMs && remainingMs > finalAtMs;
+    const finalShow = !hideTimer && remainingMs > 0 && remainingMs <= finalAtMs;
+    const overShow = !hideTimer && overtimeMs > 0 && (state.viewerPrefs?.showOvertime !== false);
 
     const warnFinalKey = JSON.stringify({ warnShow, finalShow, overShow, overtimeText: overShow ? OMJN.formatMMSS(overtimeMs) : "" });
     if (warnFinalKey !== lastWarnFinalKey) {
@@ -1610,8 +1581,7 @@
     }
 
     // Cues
-    if(timerVisible) applyCardCues(remainingMs, warnAtMs, finalAtMs);
-    else clearCardCues();
+    applyCardCues(remainingMs, warnAtMs, finalAtMs);
 
     // Visualizer gating
     maybeStartViz();
