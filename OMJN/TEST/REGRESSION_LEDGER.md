@@ -1,13 +1,9 @@
-# REGRESSION_LEDGER.md
+# REGRESSION LEDGER
 
-Verified in this consolidation patch:
-- Adaptive Viewer main-name fit preserved
-- Jamaoke slot type preserved
-- Sponsor default URL preserved (`./assets/InSeitz Media Logo.png`)
-- Crowd Prompt save handler preserved (`Save` and `Save & Close`)
-- Combined Pause/Resume restored
-- Hide Viewer Timer restored
-- ETA / Estimated End buffer restored
-- Intermission live/top-next flow restored
-- Viewer PAUSED chip visibility restored
-- Toast runtime error fixed
+Verified in this patch:
+- Crowd Prompt editor opens as a modal and supports Save / Save & Close / Cancel
+- Combined Pause/Resume button with in-button Paused badge
+- Hide Viewer Timer toggles timer + progress bar
+- Intermission supports Go Live Now / Arm Next and Add to Top / Add Next
+- ETA / Estimated End include 5-minute changeover buffer
+- Jamaoke remains available from shared state
