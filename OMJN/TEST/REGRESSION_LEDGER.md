@@ -1,22 +1,24 @@
 # REGRESSION_LEDGER
 
-Preserved / restored in this baseline:
-- Adaptive Viewer name fitting
-- Crowd Prompt modal editor redesign
-- Combined Pause/Resume button with inline PAUSED badge
-- Viewer timer + progress hide/show toggle
+Verified target baseline features
+- Combined Pause/Resume button
+- PAUSED badge inside the button
+- Hide/Show Viewer Timer button
+- Viewer timer + progress toggle wiring
+- Viewer PAUSED chip
 - 5-minute changeover buffer in ETA / Estimated End
-- Intermission Go Live / Arm Next + Add to Top / Add Next
 - Jamaoke slot type
-- Viewer PAUSED chip visibility
-- Sponsor bug / crowd prompt / ad-mode Viewer hardening
+- Sponsor default logo URL
+- Intermission live/top-next behavior
+- Adaptive Viewer name fitting (preserved)
+- Crowd Prompt editor Save & Close behavior
 
-Re-verify after every patch:
-1. Pause/Resume operator control
-2. Hide Viewer Timer
-3. Crowd Prompt modal open / save / quick preset select
-4. Intermission live/top-next flow
-5. Jamaoke Viewer timer suppression
-6. ETA buffer math
-7. Viewer PAUSED chip
-8. Adaptive name fit
+Browser-only checks to re-run
+- Pause/Resume button does not shift surrounding controls
+- Viewer timer/progress hide/show is immediate
+- Jamaoke hides timer/progress on Viewer
+- Intermission Go Live / Arm Next starts at the correct time
+- Sponsor bug default asset loads from ./assets/InSeitz Media Logo.png
+
+Known non-app console noise
+- “A listener indicated an asynchronous response...” is most likely extension-related, not app logic.

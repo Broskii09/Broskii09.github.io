@@ -80,7 +80,6 @@ setBgColor: document.getElementById("setBgColor"),
     setCrowdPreset: document.getElementById("setCrowdPreset"),
     btnCrowdShowNow: document.getElementById("btnCrowdShowNow"),
     btnCrowdHide: document.getElementById("btnCrowdHide"),
-    crowdPresetQuick: document.getElementById("crowdPresetQuick"),
     crowdPresetName: document.getElementById("crowdPresetName"),
     crowdTitle: document.getElementById("crowdTitle"),
     crowdLines: document.getElementById("crowdLines"),
@@ -90,6 +89,7 @@ setBgColor: document.getElementById("setBgColor"),
     btnCrowdAdd: document.getElementById("btnCrowdAdd"),
     btnCrowdDuplicate: document.getElementById("btnCrowdDuplicate"),
     btnCrowdDelete: document.getElementById("btnCrowdDelete"),
+    btnCrowdSaveClose: document.getElementById("btnCrowdSaveClose"),
 
     // Sponsor Bug
     setSponsorEnabled: document.getElementById("setSponsorEnabled"),
@@ -130,9 +130,9 @@ setBgColor: document.getElementById("setBgColor"),
     crowdStatusAutoHide: document.getElementById("crowdStatusAutoHide"),
     crowdDraftBadge: document.getElementById("crowdDraftBadge"),
     btnCrowdEditToggle: document.getElementById("btnCrowdEditToggle"),
-    crowdEditorPanel: document.getElementById("crowdPromptModal"),
-    crowdPresetList: document.getElementById("crowdPresetList"),
-    btnCrowdModalClose: document.getElementById("btnCrowdModalClose"),
+    btnSettingsOpenCrowdEditor: document.getElementById("btnSettingsOpenCrowdEditor"),
+    crowdEditorPanel: document.getElementById("crowdEditorPanel"),
+    crowdEditorClosedHint: document.getElementById("crowdEditorClosedHint"),
     btnCrowdCancel: document.getElementById("btnCrowdCancel"),
     settingsModal: document.getElementById("settingsModal"),
     btnCloseSettings: document.getElementById("btnCloseSettings"),
@@ -146,7 +146,6 @@ setBgColor: document.getElementById("setBgColor"),
     liveOTVal: document.getElementById("liveOTVal"),
     crowdEditor: document.getElementById("crowdEditor"),
     crowdPromptPreview: document.getElementById("crowdPromptPreview"),
-    crowdPromptPreviewMini: document.getElementById("crowdPromptPreviewMini"),
     timerUpModal: document.getElementById("timerUpModal"),
     timerUpName: document.getElementById("timerUpName"),
     timerUpOver: document.getElementById("timerUpOver"),
@@ -167,8 +166,8 @@ setBgColor: document.getElementById("setBgColor"),
 
     btnStart: document.getElementById("btnStart"),
     btnPauseResume: document.getElementById("btnPauseResume"),
-    btnPauseResumeLabel: document.getElementById("btnPauseResumeLabel"),
-    livePauseBadge: document.getElementById("livePauseBadge"),
+    pauseResumeLabel: document.getElementById("pauseResumeLabel"),
+    pauseResumeBadge: document.getElementById("pauseResumeBadge"),
     btnEnd: document.getElementById("btnEnd"),
     btnUndo: document.getElementById("btnUndo"),
     btnRedo: document.getElementById("btnRedo"),
@@ -257,8 +256,8 @@ setBgColor: document.getElementById("setBgColor"),
     imDurCustom: document.getElementById("imDurCustom"),
     btnImClose: document.getElementById("btnImClose"),
     btnImCancel: document.getElementById("btnImCancel"),
-    btnImLive: document.getElementById("btnImLive"),
     btnImAdd: document.getElementById("btnImAdd"),
+    btnImLive: document.getElementById("btnImLive"),
   };
 
   let selectedId = null;
@@ -1007,7 +1006,7 @@ function escapeHtml(s){
   function renderSlotTypesEditor(){
     if(!els.slotTypesEditor) return;
     els.slotTypesEditor.innerHTML = "";
-    const order = ["musician","jamaoke","comedian","poetry","custom"];
+    const order = ["musician","comedian","poetry","custom"];
     const types = [...(state.slotTypes||[])].sort((a,b)=>{
       const ia = order.indexOf(a.id); const ib = order.indexOf(b.id);
       if(ia===-1 && ib===-1) return String(a.label).localeCompare(String(b.label));
@@ -1210,39 +1209,6 @@ function escapeHtml(s){
 
 
 
-  function refreshModalOpenClass(){
-      const anyOpen = !!document.querySelector('.modalOverlay:not([hidden])');
-      document.body.classList.toggle("modalOpen", anyOpen);
-    }
-
-  function renderCrowdPresetList(){
-      if(!els.crowdPresetList) return;
-      const cfg = getCrowdCfg(state);
-      const presets = Array.isArray(cfg.presets) ? cfg.presets : [];
-      const activeId = cfg.activePresetId;
-      const lockNav = !!crowdEditorDirty;
-      els.crowdPresetList.innerHTML = "";
-      for(const p of presets){
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "crowdPresetItem" + (p.id === activeId ? " isActive" : "");
-        btn.disabled = lockNav && p.id !== activeId;
-        const label = escapeHtml((p.name || p.title || "Prompt").trim() || "Prompt");
-        const lineCount = Array.isArray(p.lines) ? p.lines.length : 0;
-        const autoHide = ((p.autoHideSeconds ?? 0) | 0);
-        btn.innerHTML = `<span class="crowdPresetItemName">${label}</span><span class="crowdPresetItemMeta">${lineCount} lines · ${autoHide ? autoHide + "s auto-hide" : "manual hide"}</span>`;
-        btn.addEventListener("click", () => {
-          if(p.id === activeId) return;
-          updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.activePresetId = p.id; }, { recordHistory:false });
-          loadCrowdEditorFromActivePreset();
-          setCrowdEditorDirty(false);
-          renderCrowdPromptPreview();
-          renderCrowdPresetList();
-        });
-        els.crowdPresetList.appendChild(btn);
-      }
-    }
-
   function updateCrowdQuickButtons(){
       if(!els.btnCrowdToggle) return;
 
@@ -1254,43 +1220,41 @@ function escapeHtml(s){
       const name = (p?.name || p?.title || "Prompt").trim();
       const autoHide = (p?.autoHideSeconds ?? 0) | 0;
 
-      els.btnCrowdToggle.textContent = cfg.enabled ? "Hide Prompt" : "Show Prompt";
-      els.btnCrowdToggle.classList.toggle("good", !!cfg.enabled);
-      els.btnCrowdToggle.title = `${cfg.enabled ? "Hide" : "Show"} ${name || "crowd prompt"}`;
+      if(cfg.enabled){
+        els.btnCrowdToggle.textContent = `Crowd: ${name}`;
+        els.btnCrowdToggle.classList.add("good");
+      }else{
+        els.btnCrowdToggle.textContent = "Crowd: Off";
+        els.btnCrowdToggle.classList.remove("good");
+      }
 
       if(els.crowdStatusPill){
-        els.crowdStatusPill.textContent = cfg.enabled ? "LIVE" : "OFF";
+        els.crowdStatusPill.textContent = cfg.enabled ? "ON" : "OFF";
         els.crowdStatusPill.classList.toggle("on", !!cfg.enabled);
         els.crowdStatusPill.classList.toggle("off", !cfg.enabled);
       }
       if(els.crowdStatusName) els.crowdStatusName.textContent = name || "—";
-      if(els.crowdStatusMeta) els.crowdStatusMeta.textContent = `Preset ${displayIdx}`;
-      if(els.crowdStatusAutoHide) els.crowdStatusAutoHide.textContent = autoHide ? `${autoHide}s auto-hide` : "Auto-hide off";
+      if(els.crowdStatusMeta) els.crowdStatusMeta.textContent = displayIdx;
+      if(els.crowdStatusAutoHide) els.crowdStatusAutoHide.textContent = `Auto-hide: ${autoHide ? autoHide + "s" : "off"}`;
       if(els.crowdDraftBadge) els.crowdDraftBadge.hidden = !crowdEditorDirty;
 
       const lockCycle = !!crowdEditorDirty;
       if(els.btnCrowdPrev) els.btnCrowdPrev.disabled = lockCycle;
       if(els.btnCrowdNext) els.btnCrowdNext.disabled = lockCycle;
-      if(els.crowdPresetQuick) els.crowdPresetQuick.disabled = lockCycle;
 
+      // Legacy status element (if present)
       if(els.crowdPromptStatus){
-        els.crowdPromptStatus.textContent = `${cfg.enabled ? "LIVE" : "OFF"} · ${name}`;
+        els.crowdPromptStatus.textContent = `${cfg.enabled ? "ON" : "OFF"} · ${name}`;
         els.crowdPromptStatus.classList.toggle("on", !!cfg.enabled);
         els.crowdPromptStatus.classList.toggle("off", !cfg.enabled);
       }
-
-      renderCrowdPresetList();
     }
 
   function wireCrowdEditorInteractions(){
       if(els.crowdEditorPanel){
-        const shell = els.crowdEditorPanel.querySelector(".crowdModalPanel");
-        shell?.addEventListener("mousedown", e => e.stopPropagation());
-        shell?.addEventListener("click", e => e.stopPropagation());
-        shell?.addEventListener("keydown", e => e.stopPropagation());
-        els.crowdEditorPanel.addEventListener("mousedown", (e) => {
-          if(e.target === els.crowdEditorPanel) closeCrowdEditor(false);
-        });
+        els.crowdEditorPanel.addEventListener("mousedown", e => e.stopPropagation());
+        els.crowdEditorPanel.addEventListener("click", e => e.stopPropagation());
+        els.crowdEditorPanel.addEventListener("keydown", e => e.stopPropagation());
       }
 
       const onDirty = () => {
@@ -1305,9 +1269,17 @@ function escapeHtml(s){
         el.addEventListener("change", onDirty);
       }
 
-      if(els.btnCrowdEditToggle) els.btnCrowdEditToggle.addEventListener("click", () => openCrowdEditor());
-      if(els.btnCrowdCancel) els.btnCrowdCancel.addEventListener("click", () => closeCrowdEditor(false));
-      if(els.btnCrowdModalClose) els.btnCrowdModalClose.addEventListener("click", () => closeCrowdEditor(false));
+      if(els.btnCrowdEditToggle){
+        els.btnCrowdEditToggle.addEventListener("click", () => {
+          const isOpen = els.crowdEditorPanel && !els.crowdEditorPanel.hidden;
+          if(isOpen) closeCrowdEditor(false);
+          else openCrowdEditor();
+        });
+      }
+
+      if(els.btnCrowdCancel){
+        els.btnCrowdCancel.addEventListener("click", () => closeCrowdEditor(false));
+      }
     }
 
 
@@ -1329,30 +1301,30 @@ function escapeHtml(s){
 
 
   function closeCrowdEditor(force=false){
-      if(!els.crowdEditorPanel || els.crowdEditorPanel.hidden) return;
+      if(!els.crowdEditorPanel) return;
       if(!force && crowdEditorDirty){
         const ok = confirm("Discard unsaved crowd prompt edits?");
         if(!ok) return;
       }
       els.crowdEditorPanel.hidden = true;
+      if(els.crowdEditorClosedHint) els.crowdEditorClosedHint.hidden = false;
+      if(els.btnCrowdEditToggle) els.btnCrowdEditToggle.textContent = "Edit Prompt";
       setCrowdEditorDirty(false);
       renderCrowdPromptPreview();
-      renderCrowdPresetList();
-      refreshModalOpenClass();
-      els.btnCrowdEditToggle?.focus?.();
+      if(closeAfter) closeCrowdEditor(true);
     }
 
 
   function openCrowdEditor(){
       if(!els.crowdEditorPanel) return;
       els.crowdEditorPanel.hidden = false;
+      if(els.crowdEditorClosedHint) els.crowdEditorClosedHint.hidden = true;
+      if(els.btnCrowdEditToggle) els.btnCrowdEditToggle.textContent = "Close Editor";
       loadCrowdEditorFromActivePreset();
       setCrowdEditorDirty(false);
-      renderCrowdPresetList();
       renderCrowdPromptPreview();
-      refreshModalOpenClass();
-      setTimeout(() => els.crowdPresetName?.focus?.(), 0);
     }
+
 
 // ---- Sponsor Bug (Operator settings) ----
   const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
@@ -1610,14 +1582,10 @@ function escapeHtml(s){
 
     if(els.setCrowdEnabled) els.setCrowdEnabled.checked = !!cp.enabled;
 
-    const crowdPresetOptions = presets.map(p => ({ id: p.id, label: (p.name || p.title || p.id) }));
     if(els.setCrowdPreset){
-      els.setCrowdPreset.innerHTML = crowdPresetOptions.map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join("");
+      const opts = presets.map(p => ({ id: p.id, label: (p.name || p.title || p.id) }));
+      els.setCrowdPreset.innerHTML = opts.map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join("");
       els.setCrowdPreset.value = activeId;
-    }
-    if(els.crowdPresetQuick){
-      els.crowdPresetQuick.innerHTML = crowdPresetOptions.map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join("");
-      els.crowdPresetQuick.value = activeId;
     }
 
     // Only sync editor fields when preset changes (so typing isn't overwritten)
@@ -1978,7 +1946,7 @@ function escapeHtml(s){
     crowdEditorReadFn = readCrowdEditor;
 
 
-    function saveCrowdPreset(){
+    function saveCrowdPreset(closeAfter=false){
       const data = readCrowdEditor();
       updateState(s => {
         ensureCrowdDefaults(s);
@@ -2042,21 +2010,8 @@ function escapeHtml(s){
         scheduleCrowdAutoHide();
       });
     }
-    if(els.crowdPresetQuick){
-      els.crowdPresetQuick.addEventListener("change", () => {
-        const id = String(els.crowdPresetQuick.value || "");
-        updateState(s => { ensureCrowdDefaults(s); s.viewerPrefs.crowdPrompts.activePresetId = id; }, { recordHistory:false });
-        scheduleCrowdAutoHide();
-        if(els.crowdEditorPanel && !els.crowdEditorPanel.hidden){
-          loadCrowdEditorFromActivePreset();
-          setCrowdEditorDirty(false);
-          renderCrowdPresetList();
-        }
-        updateCrowdQuickButtons();
-        renderCrowdPromptPreview();
-      });
-    }
-    if(els.btnCrowdSave) els.btnCrowdSave.addEventListener("click", saveCrowdPreset);
+    if(els.btnCrowdSave) els.btnCrowdSave.addEventListener("click", () => saveCrowdPreset(false));
+    if(els.btnCrowdSaveClose) els.btnCrowdSaveClose.addEventListener("click", () => saveCrowdPreset(true));
     if(els.btnCrowdAdd) els.btnCrowdAdd.addEventListener("click", () => addCrowdPreset(null));
     if(els.btnCrowdDuplicate) els.btnCrowdDuplicate.addEventListener("click", () => {
       const cfg = getCrowdCfg(state);
@@ -2290,7 +2245,7 @@ function escapeHtml(s){
       if(btnOpenCrowd){
         btnOpenCrowd.addEventListener("click", () => {
           closeSettingsModal();
-          openCrowdEditor();
+          els.btnCrowdEditToggle?.click?.();
         });
       }
     }
@@ -2334,11 +2289,11 @@ function escapeHtml(s){
   function slotTypeIconClass(slotTypeId){
     const id = String(slotTypeId || "");
     if(id === "musician") return "fa-solid fa-music";
-    if(id === "jamaoke") return "fa-solid fa-compact-disc";
     if(id === "comedian" || id === "comedian5") return "fa-solid fa-microphone-lines";
     if(id === "poetry") return "fa-solid fa-masks-theater";
     if(id === "houseband") return "fa-solid fa-guitar";
     if(id === "intermission") return "fa-solid fa-pause";
+    if(id === "jamaoke") return "fa-solid fa-music";
     if(id.startsWith("ad_")) return "fa-solid fa-bullhorn";
     return "fa-solid fa-wand-magic-sparkles";
   }
@@ -2373,7 +2328,6 @@ function escapeHtml(s){
     const slotTypeId = String(slot.slotTypeId || "");
     const isIntermission = slotTypeId === "intermission";
     const isHouseBand = slotTypeId === "houseband";
-    const isJamaoke = slotTypeId === "jamaoke";
     const isAd = slotTypeId.startsWith("ad_");
     if(isLive) div.classList.add("role-live");
     else if(isNext) div.classList.add("role-next");
@@ -2381,7 +2335,6 @@ function escapeHtml(s){
     else if(isDone) div.classList.add("role-done");
     else if(isIntermission) div.classList.add("role-intermission");
     else if(isHouseBand) div.classList.add("role-houseband");
-    else if(isJamaoke) div.classList.add("role-jamaoke");
     else if(isAd) div.classList.add("role-ad");
     else div.classList.add("role-queued");
 
@@ -2427,7 +2380,6 @@ function escapeHtml(s){
     else if(isDeck) role.textContent = "ON DECK";
     else if(slotTypeId === "intermission") role.textContent = "INTERMISSION";
     else if(slotTypeId === "houseband") role.textContent = "HOUSE BAND SET";
-    else if(slotTypeId === "jamaoke") role.textContent = "JAMAOKE";
     else if(slotTypeId.startsWith("ad_")) role.textContent = "AD";
     else if(isDone) role.textContent = (slot.status === "SKIPPED" ? (slot.noShow ? "NO-SHOW" : "SKIPPED") : "DONE");
     else role.textContent = "QUEUED";
@@ -2654,16 +2606,6 @@ function escapeHtml(s){
 
   // ---- Queue ETA (approx showtime) ----
   let queueEtaMap = new Map();
-  const CHANGEOVER_BUFFER_MS = 5 * 60 * 1000;
-
-  function slotNeedsChangeoverBuffer(slot){
-    if(!slot) return false;
-    const typeId = String(slot.slotTypeId || "");
-    if(!typeId) return true;
-    if(typeId.startsWith("ad_")) return false;
-    if(typeId === "intermission") return false;
-    return true;
-  }
 
   function formatApproxTime(tsMs){
     const t = new Date(tsMs);
@@ -2680,47 +2622,46 @@ function escapeHtml(s){
     const active = (state.queue || []).filter(x => x && !isDone(x));
     const curIdx = hasCurrent ? active.findIndex(x => x.id === state.currentSlotId) : -1;
 
+    // Cursor represents the estimated start time for the next queued item.
     let cursor = nowMs;
-    let prevSlot = null;
 
+    // If we're LIVE/PAUSED on a non-ad current slot, include remaining time.
     if(curIdx !== -1){
       try{
         const cur = active[curIdx];
-        prevSlot = cur || null;
         const curTypeId = String(cur?.slotTypeId || "");
         const curIsAd = curTypeId.startsWith("ad_");
         if(!curIsAd){
           const t = OMJN.computeTimer(state);
           cursor += Math.max(t.remainingMs || 0, 0);
         }
-      }catch(_){
-        prevSlot = null;
-      }
+      }catch(_){}
     }
 
+    // Start after current (if present), otherwise from the top (SPLASH or no current).
     const start = (curIdx === -1) ? 0 : (curIdx + 1);
+    let prevForBuffer = (curIdx !== -1) ? active[curIdx] : null;
 
     for(let i = start; i < active.length; i++){
       const s = active[i];
       OMJN.normalizeSlot(s);
       if(s.status !== "QUEUED") continue;
 
-      if(prevSlot && slotNeedsChangeoverBuffer(prevSlot) && slotNeedsChangeoverBuffer(s)){
-        cursor += CHANGEOVER_BUFFER_MS;
-      }
-
       const typeId = String(s.slotTypeId || "");
       const isAd = typeId.startsWith("ad_");
       const isIntermission = typeId === "intermission";
       const isHouseBand = typeId === "houseband";
 
+      // Display ETA only for non-ad queued performers.
       if(!isAd && !isIntermission && !isHouseBand){
         map.set(s.id, cursor);
       }
 
+      // Apply changeover buffer between eligible acts, then add slot duration (ads count as 0)
+      cursor += getChangeoverBufferMs(prevForBuffer, s);
       const durMs = isAd ? 0 : (OMJN.effectiveMinutes(state, s) * 60 * 1000);
       cursor += durMs;
-      prevSlot = s;
+      prevForBuffer = s;
     }
 
     return map;
@@ -3215,22 +3156,20 @@ function renderKPIs(){
     const left = queued.length + (hasCurrent ? 1 : 0);
     if(els.kpiLeft) els.kpiLeft.textContent = String(left);
 
-    // Estimated end time based on remaining LIVE time + queued slots + changeover buffer
+    // Estimated end time based on remaining LIVE time + queued slots
     if(els.kpiEstEnd){
       try{
         let totalMs = 0;
-        let prevSlot = hasCurrent ? current : null;
+        let prevForBuffer = hasCurrent ? current : null;
         if(hasCurrent){
           const t = OMJN.computeTimer(state);
           totalMs += Math.max(t.remainingMs || 0, 0);
         }
         for(const s of queued){
           OMJN.normalizeSlot(s);
-          if(prevSlot && slotNeedsChangeoverBuffer(prevSlot) && slotNeedsChangeoverBuffer(s)){
-            totalMs += CHANGEOVER_BUFFER_MS;
-          }
+          totalMs += getChangeoverBufferMs(prevForBuffer, s);
           totalMs += (OMJN.effectiveMinutes(state, s) * 60 * 1000);
-          prevSlot = s;
+          prevForBuffer = s;
         }
         if(totalMs <= 0){
           els.kpiEstEnd.textContent = "—";
@@ -3320,43 +3259,26 @@ function renderKPIs(){
     }
   }
 
-  function renderLiveControls(){
-    const cur = OMJN.computeCurrent(state);
-    const liveish = !!cur && (state.phase === "LIVE" || state.phase === "PAUSED");
-    const timer = liveish ? OMJN.computeTimer(state) : null;
-    const timedLive = !!liveish && !!timer && (timer.durationMs || 0) > 0;
-    const paused = state.phase === "PAUSED" && timedLive;
+  function renderCrowdPromptPreview(){
+      if(!els.crowdPromptPreview) return;
+      const cfg = getCrowdCfg(state);
+      const p = getActiveCrowdPreset(cfg) || {};
 
-    if(els.btnPauseResume){
-      if(els.btnPauseResumeLabel) els.btnPauseResumeLabel.textContent = paused ? "Resume" : "Pause";
-      els.btnPauseResume.classList.toggle("isPaused", paused);
-      els.btnPauseResume.classList.toggle("isDisabled", !timedLive);
-      els.btnPauseResume.disabled = !timedLive;
-      els.btnPauseResume.setAttribute("aria-pressed", paused ? "true" : "false");
-      els.btnPauseResume.title = timedLive
-        ? (paused ? "Resume the current timed slot" : "Pause the current timed slot")
-        : "No timed live slot is active";
-    }
+      const editorOpen = !!els.crowdEditorPanel && !els.crowdEditorPanel.hidden;
 
-    if(els.livePauseBadge) els.livePauseBadge.hidden = !paused;
+      let data = p;
+      if(editorOpen && typeof crowdEditorReadFn === "function"){
+        try{
+          const typed = crowdEditorReadFn();
+          data = Object.assign({}, p, typed);
+        }catch(_){}
+      }
 
-    const showViewerTimer = state.viewerPrefs?.showTimer !== false;
-    if(els.btnViewerTimerToggle){
-      els.btnViewerTimerToggle.textContent = showViewerTimer ? "Hide Viewer Timer" : "Show Viewer Timer";
-      els.btnViewerTimerToggle.setAttribute("aria-pressed", showViewerTimer ? "true" : "false");
-      els.btnViewerTimerToggle.title = showViewerTimer
-        ? "Hide the Viewer timer and progress bar"
-        : "Show the Viewer timer and progress bar";
-    }
-  }
-
-  function renderCrowdPromptPreviewInto(root, data, cfg, opts={}){
-      if(!root) return;
       const title = (data.title || "").trim();
       const footer = (data.footer || "").trim();
       const lines = Array.isArray(data.lines) ? data.lines : [];
-      const max = opts.mini ? 4 : 6;
 
+      const root = els.crowdPromptPreview;
       root.innerHTML = "";
 
       const wrap = document.createElement("div");
@@ -3369,6 +3291,7 @@ function renderKPIs(){
 
       const list = document.createElement("div");
       list.className = "cpPrevLines";
+      const max = 6;
       for(const ln of lines.slice(0, max)){
         const item = document.createElement("div");
         item.className = "cpPrevLine";
@@ -3381,12 +3304,6 @@ function renderKPIs(){
         more.textContent = `… +${lines.length - max} more`;
         list.appendChild(more);
       }
-      if(!list.children.length){
-        const item = document.createElement("div");
-        item.className = "cpPrevLine cpPrevMore";
-        item.textContent = "Add one or more lines to build the Viewer prompt.";
-        list.appendChild(item);
-      }
       wrap.appendChild(list);
 
       if(footer){
@@ -3398,28 +3315,10 @@ function renderKPIs(){
 
       const hint = document.createElement("div");
       hint.className = "cpPrevHint";
-      hint.textContent = cfg.enabled ? "Overlay LIVE · sponsor bug hidden on Viewer" : "Overlay OFF";
+      hint.textContent = cfg.enabled ? "Overlay ON (viewer sponsor hidden)" : "Overlay OFF";
       wrap.appendChild(hint);
 
       root.appendChild(wrap);
-    }
-
-  function renderCrowdPromptPreview(){
-      if(!els.crowdPromptPreview && !els.crowdPromptPreviewMini) return;
-      const cfg = getCrowdCfg(state);
-      const p = getActiveCrowdPreset(cfg) || {};
-      const editorOpen = !!els.crowdEditorPanel && !els.crowdEditorPanel.hidden;
-
-      let data = p;
-      if(editorOpen && typeof crowdEditorReadFn === "function"){
-        try{
-          const typed = crowdEditorReadFn();
-          data = Object.assign({}, p, typed);
-        }catch(_){ }
-      }
-
-      renderCrowdPromptPreviewInto(els.crowdPromptPreview, data, cfg, { mini:false });
-      renderCrowdPromptPreviewInto(els.crowdPromptPreviewMini, data, cfg, { mini:true });
     }
 
   // ---- Timer-up modal (operator reminder) ----
@@ -3506,7 +3405,6 @@ function renderKPIs(){
         renderNowTime();
         updateQueueEtaLabels();
         renderLiveStatusBanner();
-        renderLiveControls();
         updateCrowdQuickButtons();
         renderCrowdPromptPreview();
         syncCrowdAutoHide();
@@ -3522,6 +3420,21 @@ function renderTimerLine(){
     els.timerLine.textContent = `${OMJN.formatMMSS(t.elapsedMs)} / ${OMJN.formatMMSS(t.remainingMs)}`;
   }
 
+  function viewerTimerVisible(){
+    return state.viewerPrefs?.showTimer !== false;
+  }
+
+  function renderViewerTimerToggle(){
+    if(!els.btnViewerTimerToggle) return;
+    const on = viewerTimerVisible();
+    els.btnViewerTimerToggle.textContent = on ? "Hide Viewer Timer" : "Show Viewer Timer";
+    els.btnViewerTimerToggle.classList.toggle("accent", !on);
+    els.btnViewerTimerToggle.setAttribute("aria-pressed", on ? "false" : "true");
+    els.btnViewerTimerToggle.title = on
+      ? "Hide the Viewer timer and progress bar immediately."
+      : "Show the Viewer timer and progress bar immediately.";
+  }
+
 
 function render(){
     // sync header inputs
@@ -3530,6 +3443,7 @@ function render(){
     els.splashPath.value = state.splash?.backgroundAssetPath || "";
 
     renderStatusBanner();
+    renderViewerTimerToggle();
 
     // Operator prefs
     els.startGuard.checked = !!state.operatorPrefs?.startGuard;
@@ -3561,11 +3475,10 @@ function render(){
     renderQueue();
     renderKPIs();
     renderLiveStatusBanner();
-    renderLiveControls();
+    renderTransportControls();
     renderCrowdPromptPreview();
     renderTimerLine();
-    renderHouseBandCategories();
-    if(els.intermissionModal && !els.intermissionModal.hidden) refreshIntermissionModalActions();
+renderHouseBandCategories();
   }
 
   // ---- Actions ----
@@ -3803,13 +3716,9 @@ function render(){
     render();
   }
   // Quick-add: Intermission + House Band special slots
-  function isLiveishState(s){
-    return !!s && (s.phase === "LIVE" || s.phase === "PAUSED") && !!s.currentSlotId;
-  }
-
   function insertQueuedSlotSmart(s, slot){
     if(!Array.isArray(s.queue)) s.queue = [];
-    const liveish = isLiveishState(s);
+    const liveish = (s.phase === "LIVE" || s.phase === "PAUSED") && !!s.currentSlotId;
 
     // Prefer inserting immediately after the current live item.
     if(liveish){
@@ -3825,86 +3734,15 @@ function render(){
     else s.queue.push(slot);
   }
 
-  function insertIntermissionSlotSmart(s, slot){
-    if(!Array.isArray(s.queue)) s.queue = [];
-    if(isLiveishState(s)){
-      const curIdx = s.queue.findIndex(x => x && x.id === s.currentSlotId);
-      const insertAt = (curIdx >= 0) ? (curIdx + 1) : 1;
-      s.queue.splice(Math.max(0, insertAt), 0, slot);
-      return;
-    }
-    s.queue.unshift(slot);
-  }
-
-  function prepareSlotForLive(s, slot, { pinToTop = true } = {}){
-    if(!slot) return;
-
-    if(pinToTop){
-      const idx = s.queue.findIndex(x => x && x.id === slot.id);
-      if(idx > 0){
-        const [moved] = s.queue.splice(idx, 1);
-        s.queue.unshift(moved);
-      }
-    }
-
-    if(String(slot.slotTypeId || "") === "houseband"){
-      slot.displayName = "HOUSE BAND";
-      if(!Array.isArray(slot.hbLineup) || slot.hbLineup.length === 0){
-        const sel = (slot.hbSelections && typeof slot.hbSelections === "object") ? slot.hbSelections : {};
-        if(Object.keys(sel).length === 0){
-          for(const cat of OMJN.houseBandCategories()){
-            const sug = OMJN.houseBandSuggestedInCategory(s, cat.key);
-            const id = sug?.member?.id || null;
-            if(id) sel[cat.key] = id;
-          }
-        }
-        slot.hbSelections = sel;
-        slot.hbLineup = OMJN.buildHouseBandLineupFromSelections(s, sel);
-      }
-    }
-
-    if(String(slot.slotTypeId || "") === "intermission"){
-      const msg = String(slot.intermissionMessage || "").trim();
-      if(!msg) slot.intermissionMessage = "WE'LL BE RIGHT BACK";
-    }
-  }
-
-  function activateSlotLive(s, slot, { pinToTop = true } = {}){
-    if(!slot) return;
-    prepareSlotForLive(s, slot, { pinToTop });
-
-    s.currentSlotId = slot.id;
-    s.phase = "LIVE";
-
-    const isAd = isAdSlotType(slot.slotTypeId);
-    if(isAd){
-      s.timer.running = false;
-      s.timer.startedAt = null;
-      s.timer.elapsedMs = 0;
-      s.timer.baseDurationMs = 0;
-    }else{
-      s.timer.running = true;
-      s.timer.startedAt = Date.now();
-      s.timer.elapsedMs = 0;
-      s.timer.baseDurationMs = OMJN.effectiveMinutes(s, slot) * 60 * 1000;
-    }
-  }
-
-  function refreshIntermissionModalActions(){
-    const liveish = isLiveishState(state);
-    if(els.btnImLive){
-      els.btnImLive.textContent = liveish ? "Arm Next" : "Go Live Now";
-      els.btnImLive.title = liveish ? "Insert Intermission next and arm it to start when the current act ends." : "Start this Intermission immediately.";
-    }
-    if(els.btnImAdd){
-      els.btnImAdd.textContent = liveish ? "Add Next" : "Add to Top";
-      els.btnImAdd.title = liveish ? "Insert Intermission directly after the current live act." : "Insert Intermission at the top of the queue.";
-    }
-  }
-
   function addIntermissionSlot(){
     // Backwards compatible default add (no prompt)
     return addIntermissionSlotWithOptions({});
+  }
+
+  function updateIntermissionModalActions(){
+    const liveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
+    if(els.btnImLive) els.btnImLive.textContent = liveish ? "Arm Next" : "Go Live Now";
+    if(els.btnImAdd) els.btnImAdd.textContent = liveish ? "Add Next" : "Add to Top";
   }
 
   function openIntermissionModal(){
@@ -3916,8 +3754,8 @@ function render(){
     if(els.imCustomMins) els.imCustomMins.value = "";
     if(els.imCustomWrap) els.imCustomWrap.style.display = "none";
     setIntermissionPresetActive(10);
-    refreshIntermissionModalActions();
 
+    updateIntermissionModalActions();
     els.intermissionModal.hidden = false;
     document.body.classList.add("modalOpen");
     setTimeout(() => { els.imName?.focus?.(); }, 0);
@@ -4561,9 +4399,9 @@ updateState(s => {
     if(Number.isFinite(m) && m > 0) minutesOverride = Math.round(m);
 
     const message = String(opts.message || "").trim() || "WE'LL BE RIGHT BACK";
-    const goLive = opts.goLive === true;
+    const mode = String(opts.mode || "smart");
 
-    let armedNext = false;
+    let newSlotId = null;
     updateState(s => {
       const slot = {
         id: OMJN.uid("slot"),
@@ -4577,28 +4415,40 @@ updateState(s => {
         intermissionMessage: message,
         media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
       };
+      newSlotId = slot.id;
 
-      if(goLive){
-        if(isLiveishState(s)){
-          insertIntermissionSlotSmart(s, slot);
-          s.operatorPrefs = s.operatorPrefs || {};
-          s.operatorPrefs.armedNextSlotId = slot.id;
-          armedNext = true;
-        }else{
-          s.queue = Array.isArray(s.queue) ? s.queue : [];
-          s.queue.unshift(slot);
-          activateSlotLive(s, slot, { pinToTop:false });
-        }
-        return;
+      if(mode === "top"){
+        const firstCompletedIdx = s.queue.findIndex(x => x && x.status !== "QUEUED");
+        const insertAt = firstCompletedIdx >= 0 ? 0 : 0;
+        s.queue.splice(insertAt, 0, slot);
+      }else{
+        insertQueuedSlotSmart(s, slot);
       }
 
-      insertIntermissionSlotSmart(s, slot);
+      if(mode === "live"){
+        const liveish = (s.phase === "LIVE" || s.phase === "PAUSED") && !!s.currentSlotId;
+        if(liveish){
+          s.operatorPrefs = s.operatorPrefs || {};
+          s.operatorPrefs.armedNextSlotId = slot.id;
+        }else{
+          const idx = s.queue.findIndex(x => x && x.id === slot.id);
+          if(idx > 0){
+            const [moved] = s.queue.splice(idx, 1);
+            s.queue.unshift(moved);
+          }
+          s.currentSlotId = slot.id;
+          s.phase = "LIVE";
+          s.timer.running = true;
+          s.timer.startedAt = Date.now();
+          s.timer.elapsedMs = 0;
+          s.timer.baseDurationMs = (minutesOverride || 10) * 60 * 1000;
+        }
+      }
     });
-
-    return { armedNext };
+    return newSlotId;
   }
 
-  function commitIntermissionModal({ goLive=false } = {}){
+  function commitIntermissionModal(mode = "queue"){
     if(!els.intermissionModal || els.intermissionModal.hidden) return;
     const title = (els.imName?.value || "").trim() || "INTERMISSION";
     const message = (els.imMsg?.value || "").trim() || "WE'LL BE RIGHT BACK";
@@ -4612,12 +4462,32 @@ updateState(s => {
     }
     minutes = clamp(minutes, 1, 600);
 
-    const result = addIntermissionSlotWithOptions({ title, minutes, message, goLive });
+    const liveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
+    const effectiveMode = mode === "live" ? "live" : (liveish ? "smart" : "top");
+    addIntermissionSlotWithOptions({ title, minutes, message, mode: effectiveMode });
     closeIntermissionModal();
     render();
-    if(result?.armedNext){
-      toast("Armed Intermission to run next.");
+    if(effectiveMode === "live" && liveish) toast("Intermission armed to run next.");
+  }
+
+  function addHouseBandSlot(){
+
+    if(!els.intermissionModal || els.intermissionModal.hidden) return;
+    const title = (els.imName?.value || "").trim() || "INTERMISSION";
+    const message = (els.imMsg?.value || "").trim() || "WE'LL BE RIGHT BACK";
+
+    let minutes = 10;
+    if(imDraft?.minutes === "custom"){
+      const n = Math.round(Number(els.imCustomMins?.value || 0));
+      if(Number.isFinite(n) && n > 0) minutes = n;
+    }else if(Number.isFinite(Number(imDraft?.minutes))){
+      minutes = Math.round(Number(imDraft.minutes));
     }
+    minutes = clamp(minutes, 1, 600);
+
+    addIntermissionSlotWithOptions({ title, minutes, message });
+    closeIntermissionModal();
+    render();
   }
 
   function addHouseBandSlot(){
@@ -4651,12 +4521,60 @@ function start(){
       const eligible = (x) => x.status==="QUEUED" && true;
       const pick = s.queue.find(x => eligible(x));
       if(!pick) return;
-      activateSlotLive(s, pick, { pinToTop:true });
+
+      // Pin live slot to top of the queue for clarity
+      const idx = s.queue.findIndex(x=>x.id===pick.id);
+      if(idx > 0){
+        const [moved] = s.queue.splice(idx, 1);
+        s.queue.unshift(moved);
+      }
+      // Special screen behavior
+      // - House Band: ensure lineup snapshot exists
+      // - Intermission: default message if empty
+      if(String(pick.slotTypeId || "") === "houseband"){
+        pick.displayName = "HOUSE BAND";
+        if(!Array.isArray(pick.hbLineup) || pick.hbLineup.length === 0){
+          const sel = (pick.hbSelections && typeof pick.hbSelections === "object") ? pick.hbSelections : {};
+          // If no selections were stored (legacy HB slots), default to suggested top active in each category.
+          if(Object.keys(sel).length === 0){
+            for(const cat of OMJN.houseBandCategories()){
+              const sug = OMJN.houseBandSuggestedInCategory(s, cat.key);
+              const id = sug?.member?.id || null;
+              if(id) sel[cat.key] = id;
+            }
+          }
+          pick.hbSelections = sel;
+          pick.hbLineup = OMJN.buildHouseBandLineupFromSelections(s, sel);
+        }
+      }
+      if(String(pick.slotTypeId || "") === "intermission"){
+        const msg = String(pick.intermissionMessage || "").trim();
+        if(!msg) pick.intermissionMessage = "WE'LL BE RIGHT BACK";
+      }
+
+      s.currentSlotId = pick.id;
+      s.phase = "LIVE";
+
+      const isUntimed = isAdSlotType(pick.slotTypeId) || isJamaokeSlot(pick);
+      if(isUntimed){
+        // Untimed (viewer hides timer); operator can End → Splash to return.
+        s.timer.running = false;
+        s.timer.startedAt = null;
+        s.timer.elapsedMs = 0;
+        s.timer.baseDurationMs = 0;
+      }else{
+        s.timer.running = true;
+        s.timer.startedAt = Date.now();
+        s.timer.elapsedMs = 0;
+        s.timer.baseDurationMs = OMJN.effectiveMinutes(s, pick) * 60 * 1000;
+      }
     });
   }
 
   function pause(){
     updateState(s => {
+      const cur = s.queue.find(x=>x.id===s.currentSlotId);
+      if(!isTimedLiveSlot(cur)) return;
       if(!s.timer.running) return;
       s.timer.elapsedMs = (s.timer.elapsedMs || 0) + (Date.now() - (s.timer.startedAt || Date.now()));
       s.timer.running = false;
@@ -4667,24 +4585,13 @@ function start(){
 
   function resume(){
     updateState(s => {
+      const cur = s.queue.find(x=>x.id===s.currentSlotId);
+      if(!isTimedLiveSlot(cur)) return;
       if(s.timer.running) return;
       if(!s.currentSlotId) return;
       s.timer.running = true;
       s.timer.startedAt = Date.now();
       s.phase = "LIVE";
-    });
-  }
-
-  function togglePauseResume(){
-    if(state.phase === "PAUSED") return resume();
-    return pause();
-  }
-
-  function toggleViewerTimer(){
-    updateState(s => {
-      if(!s.viewerPrefs) s.viewerPrefs = {};
-      const show = s.viewerPrefs.showTimer !== false;
-      s.viewerPrefs.showTimer = !show;
     });
   }
 
@@ -4729,8 +4636,17 @@ function start(){
       if(armedId){
         const next = s.queue.find(x => x && x.id === armedId && x.status === "QUEUED");
         if(next){
+          // Pin to top
+          const ni = s.queue.findIndex(x=>x.id===armedId);
+          if(ni > 0){ const [mv] = s.queue.splice(ni,1); s.queue.unshift(mv); }
           s.operatorPrefs.armedNextSlotId = null;
-          activateSlotLive(s, next, { pinToTop:true });
+          s.currentSlotId = armedId;
+          s.phase = "LIVE";
+          const armedUntimed = isAdSlotType(next.slotTypeId) || isJamaokeSlot(next);
+          s.timer.running = !armedUntimed;
+          s.timer.startedAt = armedUntimed ? null : Date.now();
+          s.timer.elapsedMs = 0;
+          s.timer.baseDurationMs = armedUntimed ? 0 : (OMJN.effectiveMinutes(s, next) * 60 * 1000);
           return;
         }
         s.operatorPrefs.armedNextSlotId = null;
@@ -4822,7 +4738,7 @@ function start(){
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `omjn-show-${new Date().toISOString().slice(0,10)}.json`;
+    a.download = `omjn-show-data-${new Date().toISOString().slice(0,10)}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -4941,8 +4857,8 @@ if(els.btnAddHouseBandSlot){
     // Intermission Builder modal
     if(els.btnImClose) els.btnImClose.addEventListener("click", (e) => { e.preventDefault(); closeIntermissionModal(); });
     if(els.btnImCancel) els.btnImCancel.addEventListener("click", (e) => { e.preventDefault(); closeIntermissionModal(); });
-    if(els.btnImLive) els.btnImLive.addEventListener("click", (e) => { e.preventDefault(); commitIntermissionModal({ goLive:true }); });
-    if(els.btnImAdd) els.btnImAdd.addEventListener("click", (e) => { e.preventDefault(); commitIntermissionModal({ goLive:false }); });
+    if(els.btnImAdd) els.btnImAdd.addEventListener("click", (e) => { e.preventDefault(); commitIntermissionModal("queue"); });
+    if(els.btnImLive) els.btnImLive.addEventListener("click", (e) => { e.preventDefault(); commitIntermissionModal("live"); });
     if(els.intermissionModal){
       els.intermissionModal.addEventListener("mousedown", (e) => {
         if(e.target === els.intermissionModal) closeIntermissionModal();
@@ -5194,8 +5110,7 @@ els.showTitle.addEventListener("input", () => {
         }
       });
     }
-    if(els.btnPauseResume) els.btnPauseResume.addEventListener("click", togglePauseResume);
-    if(els.btnViewerTimerToggle) els.btnViewerTimerToggle.addEventListener("click", toggleViewerTimer);
+    if(els.btnPauseResume) els.btnPauseResume.addEventListener("click", () => { if(state.phase === "PAUSED") resume(); else pause(); });
     els.btnEnd.addEventListener("click", guardedEnd);
     els.btnMinus1.addEventListener("click", () => addMinutes(-1));
     els.btnMinus5.addEventListener("click", () => addMinutes(-5));
@@ -5204,6 +5119,20 @@ els.showTitle.addEventListener("input", () => {
     els.btnMinus30.addEventListener("click", () => addSeconds(-30));
     els.btnPlus30.addEventListener("click", () => addSeconds(30));
     els.btnResetTime.addEventListener("click", resetTimer);
+    if(els.btnToggleViewerTimer) els.btnToggleViewerTimer.addEventListener("click", () => {
+      updateState(s => {
+        s.viewerPrefs = s.viewerPrefs || {};
+        s.viewerPrefs.showTimer = !isViewerTimerVisible(s);
+      }, { recordHistory:false });
+    });
+    if(els.btnViewerTimerToggle){
+      els.btnViewerTimerToggle.addEventListener("click", () => {
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.showTimer = !(s.viewerPrefs.showTimer !== false);
+        }, { recordHistory:false });
+      });
+    }
 
 
     // Timer-up modal bindings (operator reminder when time hits 0:00)
@@ -5253,6 +5182,7 @@ els.showTitle.addEventListener("input", () => {
 
     // Settings modal
     els.btnSettings.addEventListener("click", openSettingsModal);
+    if(els.btnSettingsOpenCrowdEditor) els.btnSettingsOpenCrowdEditor.addEventListener("click", () => { closeSettingsModal(); openCrowdEditor(); });
     els.btnCloseSettings.addEventListener("click", closeSettingsModal);
     els.settingsModal.addEventListener("mousedown", (e) => {
       if(e.target === els.settingsModal) closeSettingsModal();
