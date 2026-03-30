@@ -4767,52 +4767,52 @@ function start(){
     });
   }
 
-  function exportJSON(){
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type:"application/json" });
+  function exportShowState(){
+    const stamp = new Date();
+    const yyyy = String(stamp.getFullYear());
+    const mm = String(stamp.getMonth() + 1).padStart(2, "0");
+    const dd = String(stamp.getDate()).padStart(2, "0");
+    const hh = String(stamp.getHours()).padStart(2, "0");
+    const mi = String(stamp.getMinutes()).padStart(2, "0");
+    const filename = `omjn_state_${yyyy}${mm}${dd}_${hh}${mi}.json`;
+
+    const data = JSON.stringify(state, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `omjn-show-${new Date().toISOString().slice(0,10)}.json`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 500);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function importShowStateFile(file){
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if(!parsed || typeof parsed !== "object") throw new Error("Invalid JSON.");
+    if(!Array.isArray(parsed.queue)) parsed.queue = [];
+    if(!parsed.viewerPrefs) parsed.viewerPrefs = {};
+    if(!parsed.operatorPrefs) parsed.operatorPrefs = parsed.operatorPrefs || {};
+
+    undoStack = [];
+    redoStack = [];
+    saveHistory();
+    setState(parsed);
+    OMJN.saveState(parsed);
+    OMJN.publish(parsed);
+    selectedId = null;
+  }
+
+  function exportJSON(){
+    exportShowState();
   }
 
   function importJSON(file){
-    const reader = new FileReader();
-    reader.onload = () => {
-      try{
-        const imported = JSON.parse(reader.result);
-        try{ delete imported.profiles; }catch(_){ }
-        if(!imported || typeof imported !== "object") throw new Error("Invalid JSON");
-        // light validation
-        imported.version = imported.version ?? 1;
-        imported.features = imported.features ?? {};
-        imported.splash = imported.splash ?? { backgroundAssetPath:null, showNextTwo:true };
-        if(imported.splash.backgroundAssetPath === "./assets/splash_BG.jpg") imported.splash.backgroundAssetPath = null;
-        if(imported.splash.backgroundAssetPath === "") imported.splash.backgroundAssetPath = null;
-        imported.viewerPrefs = imported.viewerPrefs ?? { warnAtSec:120, finalAtSec:30, showOvertime:true, showProgressBar:true, showHouseBandFooter:true };
-        imported.assetsIndex = imported.assetsIndex ?? {};
-        // Drop legacy Jam mode data (Lineup-only)
-        if(Array.isArray(imported.slotTypes)) imported.slotTypes = imported.slotTypes.filter(t => t?.id !== "jam");
-        if(Array.isArray(imported.queue)){
-          for(const slot of imported.queue){
-            if(slot?.slotTypeId === "jam") slot.slotTypeId = "musician";
-            if(slot?.jam) delete slot.jam;
-          }
-        }
-        pushUndoSnapshot();
-        undoStack = undoStack.slice(-HISTORY_LIMIT);
-        redoStack = [];
-        setState(imported);
-        saveHistory();
-        selectedId = null;
-      }catch(e){
-        alert("Import failed: " + e.message);
-      }
-    };
-    reader.readAsText(file);
+    importShowStateFile(file).catch((err) => {
+      alert("Import failed: " + (err?.message || String(err)));
+    });
   }
 
 
@@ -5095,24 +5095,7 @@ els.showTitle.addEventListener("input", () => {
     if(els.btnExportState){
       els.btnExportState.addEventListener("click", () => {
         try{
-          const stamp = new Date();
-          const yyyy = String(stamp.getFullYear());
-          const mm = String(stamp.getMonth()+1).padStart(2,"0");
-          const dd = String(stamp.getDate()).padStart(2,"0");
-          const hh = String(stamp.getHours()).padStart(2,"0");
-          const mi = String(stamp.getMinutes()).padStart(2,"0");
-          const filename = `omjn_state_${yyyy}${mm}${dd}_${hh}${mi}.json`;
-
-          const data = JSON.stringify(state, null, 2);
-          const blob = new Blob([data], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          exportShowState();
         }catch(err){
           alert("Export failed.\n\n" + (err?.message || String(err)));
         }
@@ -5126,19 +5109,7 @@ els.showTitle.addEventListener("input", () => {
         els.importStateFile.value = "";
         if(!file) return;
         try{
-          const text = await file.text();
-          const parsed = JSON.parse(text);
-          if(!parsed || typeof parsed !== "object") throw new Error("Invalid JSON.");
-          if(!Array.isArray(parsed.queue)) parsed.queue = [];
-          if(!parsed.viewerPrefs) parsed.viewerPrefs = {};
-          if(!parsed.operatorPrefs) parsed.operatorPrefs = parsed.operatorPrefs || {};
-          // Apply and clear undo/redo history (import is a new baseline)
-          undoStack = [];
-          redoStack = [];
-          saveHistory();
-          setState(parsed);
-          OMJN.saveState(parsed);
-          OMJN.publish(parsed);
+          await importShowStateFile(file);
         }catch(err){
           alert("Import failed.\n\n" + (err?.message || String(err)));
         }

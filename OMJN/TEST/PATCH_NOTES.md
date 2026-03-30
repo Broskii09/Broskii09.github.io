@@ -1,74 +1,56 @@
 # PATCH_NOTES.md
 
 ## Summary
-This patch consolidates the current uploaded OMJN build into one coherent baseline and fixes the recent branch drift that had reintroduced older Operator and Viewer behavior.
+This patch restores the refined live-control UI branch that had regressed in the current TEST build.
 
-Restored and stabilized in this patch:
-- Combined **Pause / Resume** control with the **Paused** badge inside the button
-- **Hide Viewer Timer** control on Operator, wired to hide both the Viewer timer and progress bar
-- **5-minute changeover buffer** in queue ETA and Estimated End math
-- Improved **Intermission** actions:
-  - Splash: **Go Live Now** / **Add to Top**
-  - Live or paused: **Arm Next** / **Add Next**
-- **Crowd Prompt** run console plus **modal editor**
-- Crowd Prompt **Save / Save & Close / Cancel** behavior
-- **Jamaoke** slot type with planning minutes for ETA and hidden timer/progress on Viewer
-- Viewer **PAUSED** chip visibility
-- Default sponsor bug asset path set to `./assets/InSeitz Media Logo.png`
-- Favicon links for Operator, Viewer, Index, and Soundboard
+Primary fixes:
+- Restored the **single combined Pause/Resume** button in the Live Control row.
+- Restored the **animated cyan/teal chasing border** treatment and **Paused** badge.
+- Removed the split legacy `Pause` / `Resume` buttons from the Operator HTML so it matches the current JS branch again.
+- Normalized the show-state download/upload labels from generic JSON wording to **Backup Show** / **Restore Show**.
+- Unified both header-level and live-row backup/restore controls onto the same show-state export/import path.
 
-Cleanup included in this audit patch:
-- Removed dead Viewer `startBanner` DOM references from JS
-- Removed dead Operator `crowdEditor` inline-panel wiring from JS
-- Removed stale CSS selectors for the retired inline Crowd Prompt editor
-- Removed stale CSS selectors tied to the removed `#startBanner` element while preserving the live-card intro animation
-- Added a lightweight `toast()` helper to avoid runtime errors in Intermission and related flows
+Important note:
+- I could confirm the refined Pause/Resume branch from the accessible recent project artifacts.
+- I could **not** recover a definitive historical final wording for the old “Export/Import JSON” rename from the accessible artifacts, so this patch normalizes that copy to **Backup Show** / **Restore Show** instead of guessing an unsupported exact phrase.
 
-## Files changed
+## File list
 - `operator.html`
 - `operator.js`
-- `viewer.html`
-- `viewer.js`
-- `shared.js`
 - `app.css`
-- `index.html`
-- `soundboard.html`
-- `favicon.svg`
 - `PATCH_NOTES.md`
-- `REGRESSION_LEDGER.md`
-- `AUDIT_REPORT.md`
 
-## Install steps
-1. Replace the matching files in your GitHub Pages `TEST` directory.
-2. Ensure the sponsor default asset exists at:
-   - `./assets/InSeitz Media Logo.png`
-3. Hard refresh Operator and Viewer after deploy.
-4. Validate in `/TEST` before promoting to the live root.
+## Install steps (exact paths)
+Copy these files into your TEST build, replacing the existing files at:
+- `TEST/operator.html`
+- `TEST/operator.js`
+- `TEST/app.css`
+
+If you are testing locally first, replace the same files in your local OMJN working directory.
 
 ## Smoke test checklist
-
 ### Local test
-- Open Operator and Viewer.
-- Confirm no startup JS errors in either page.
-- Start a normal timed slot.
-- Confirm combined **Pause / Resume** works and does not shift the Live Control layout.
-- Confirm Viewer shows **PAUSED** only while paused.
-- Confirm **Hide Viewer Timer** hides both the Viewer timer and progress bar immediately.
-- Add multiple performers and confirm ETA labels and Estimated End include the 5-minute changeover buffer.
-- Add an Intermission slot and confirm:
-  - Splash: **Go Live Now** / **Add to Top**
-  - Live: **Arm Next** / **Add Next**
-- Add a Jamaoke slot and confirm Viewer hides timer/progress during live Jamaoke.
-- Open Crowd Prompt editor, then verify:
-  - **Save** keeps it open
-  - **Save & Close** closes after saving
-  - **Cancel** closes without saving the draft
+- Open `operator.html` and confirm the Live Control row now shows a **single Pause/Resume** button instead of separate Pause and Resume buttons.
+- Confirm the Pause/Resume button shows an animated cyan/teal border while visible.
+- Start a timed live slot and verify:
+  - button label starts as **Pause**
+  - clicking it changes phase to paused
+  - button label changes to **Resume**
+  - **Paused** badge appears
+- Resume the slot and verify the badge hides again.
+- Confirm the button remains visible but disabled when there is no timed live slot.
+- Confirm the header buttons now read **Backup Show** and **Restore Show**.
+- Confirm the live-row backup buttons also read **Backup Show** and **Restore Show**.
+- Use both header and live-row controls to export and import a JSON state file successfully.
 
 ### Internet-side test (TEST dir)
-- Repeat the checks in the hosted `/TEST` build.
-- Confirm Operator, Viewer, and Soundboard all load the favicon without 404 noise.
-- Confirm sponsor bug loads the default InSeitz logo when enabled and no custom source is set.
+- Upload the three files into your GitHub-hosted `TEST` directory.
+- Open Operator + Viewer in separate tabs.
+- Start a performer, pause, and resume from Operator.
+- Confirm live state changes propagate normally to Viewer and no console syntax errors appear.
+- Confirm the backup/restore controls still work in the hosted environment.
 
-## Known limitations / notes
-- The browser console message `A listener indicated an asynchronous response by returning true...` is still most likely caused by a browser extension, not this app.
-- This was a code-level consolidation and static audit. Media playback timing, ad transitions, and Crowd Prompt visual feel should still be validated in a real browser session.
+## Known risks / limitations
+- The exact historical wording for the renamed JSON buttons was not recoverable from the accessible builds/files. This patch uses a clearer normalized pair: **Backup Show** / **Restore Show**.
+- This patch restores the refined live-control UI and the state-control wording, but it does not attempt broader cleanup beyond those targeted regressions.
+- Visual motion can vary slightly by browser because the border effect is CSS-driven.

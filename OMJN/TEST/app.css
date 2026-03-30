@@ -167,6 +167,113 @@ select option{ background: var(--panel); color: var(--text); }
 }
 .btn.small{padding:8px 10px; border-radius:10px; font-size:13px;}
 .btn.tiny{padding:6px 8px; border-radius:10px; font-size:12px;}
+.btnAccent{
+  border-color: rgba(0,194,255,.28);
+  background: rgba(0,194,255,.10);
+}
+.btnAccent:hover{ background: rgba(0,194,255,.16); }
+.btn:disabled,
+.btn.isDisabled{
+  cursor:not-allowed;
+}
+.btn:disabled:hover,
+.btn.isDisabled:hover{
+  background: rgba(255,255,255,.08);
+}
+
+.liveActionRow{ align-items:center; }
+.pauseResumeWrap{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+}
+.pauseResumeBtn{
+  position:relative;
+  isolation:isolate;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:156px;
+  padding:10px 16px;
+  border-radius:14px;
+  overflow:hidden;
+  background: linear-gradient(180deg, rgba(255,255,255,.11), rgba(255,255,255,.06));
+  border-color: rgba(0,194,255,.26);
+  box-shadow: 0 0 0 1px rgba(0,194,255,.08) inset, 0 10px 22px rgba(0,0,0,.18);
+}
+.pauseResumeBtn::before{
+  content:"";
+  position:absolute;
+  inset:-1px;
+  border-radius:inherit;
+  padding:1.5px;
+  background: conic-gradient(from 0deg,
+    rgba(0,194,255,0) 0deg,
+    rgba(0,194,255,.08) 24deg,
+    rgba(0,194,255,.20) 50deg,
+    rgba(45,212,191,.98) 82deg,
+    rgba(0,194,255,.22) 114deg,
+    rgba(0,194,255,0) 165deg,
+    rgba(0,194,255,0) 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events:none;
+  animation: pauseResumeStroke 2.15s linear infinite;
+}
+.pauseResumeBtn::after{
+  content:"";
+  position:absolute;
+  inset:1px;
+  border-radius:13px;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0));
+  opacity:.9;
+  pointer-events:none;
+}
+.pauseResumeBtn > *{ position:relative; z-index:1; }
+.pauseResumeBtn:hover{
+  background: linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,.08));
+}
+.pauseResumeBtn.isPaused{
+  background: linear-gradient(180deg, rgba(45,212,191,.22), rgba(0,194,255,.12));
+  border-color: rgba(45,212,191,.42);
+}
+.pauseResumeBtn.isPaused::before{
+  background: conic-gradient(from 0deg,
+    rgba(45,212,191,0) 0deg,
+    rgba(45,212,191,.10) 24deg,
+    rgba(45,212,191,.26) 52deg,
+    rgba(0,194,255,1) 84deg,
+    rgba(45,212,191,.22) 120deg,
+    rgba(45,212,191,0) 170deg,
+    rgba(45,212,191,0) 360deg);
+}
+.pauseResumeBtn.isDisabled{
+  opacity:1;
+  color: rgba(231,238,251,.74);
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.14);
+  box-shadow: none;
+}
+.pauseResumeBtn.isDisabled::before{
+  opacity:.55;
+  animation-duration: 4.6s;
+  filter: saturate(.55);
+}
+.pauseResumeText{
+  font-weight:900;
+  letter-spacing:.2px;
+}
+.livePauseBadge{
+  background: rgba(245,158,11,.16);
+  border-color: rgba(245,158,11,.34);
+  color: #ffd08a;
+  font-weight:900;
+}
+@keyframes pauseResumeStroke{
+  to{ transform: rotate(1turn); }
+}
+
 
 .field{
   display:flex; flex-direction:column; gap:6px;
@@ -3018,4 +3125,7 @@ details.hbAcc .hbCatList{
 @media (max-width: 760px){
   .timerControlsRow .spacer{ display:none; }
   #btnViewerTimerToggle{ margin-left: 0; }
+  .pauseResumeWrap{ width:100%; }
+  .pauseResumeBtn{ width:100%; }
 }
+
