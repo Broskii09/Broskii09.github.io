@@ -167,113 +167,6 @@ select option{ background: var(--panel); color: var(--text); }
 }
 .btn.small{padding:8px 10px; border-radius:10px; font-size:13px;}
 .btn.tiny{padding:6px 8px; border-radius:10px; font-size:12px;}
-.btnAccent{
-  border-color: rgba(0,194,255,.28);
-  background: rgba(0,194,255,.10);
-}
-.btnAccent:hover{ background: rgba(0,194,255,.16); }
-.btn:disabled,
-.btn.isDisabled{
-  cursor:not-allowed;
-}
-.btn:disabled:hover,
-.btn.isDisabled:hover{
-  background: rgba(255,255,255,.08);
-}
-
-.liveActionRow{ align-items:center; }
-.pauseResumeWrap{
-  display:inline-flex;
-  align-items:center;
-  gap:10px;
-}
-.pauseResumeBtn{
-  position:relative;
-  isolation:isolate;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  min-width:156px;
-  padding:10px 16px;
-  border-radius:14px;
-  overflow:hidden;
-  background: linear-gradient(180deg, rgba(255,255,255,.11), rgba(255,255,255,.06));
-  border-color: rgba(0,194,255,.26);
-  box-shadow: 0 0 0 1px rgba(0,194,255,.08) inset, 0 10px 22px rgba(0,0,0,.18);
-}
-.pauseResumeBtn::before{
-  content:"";
-  position:absolute;
-  inset:-1px;
-  border-radius:inherit;
-  padding:1.5px;
-  background: conic-gradient(from 0deg,
-    rgba(0,194,255,0) 0deg,
-    rgba(0,194,255,.08) 24deg,
-    rgba(0,194,255,.20) 50deg,
-    rgba(45,212,191,.98) 82deg,
-    rgba(0,194,255,.22) 114deg,
-    rgba(0,194,255,0) 165deg,
-    rgba(0,194,255,0) 360deg);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events:none;
-  animation: pauseResumeStroke 2.15s linear infinite;
-}
-.pauseResumeBtn::after{
-  content:"";
-  position:absolute;
-  inset:1px;
-  border-radius:13px;
-  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0));
-  opacity:.9;
-  pointer-events:none;
-}
-.pauseResumeBtn > *{ position:relative; z-index:1; }
-.pauseResumeBtn:hover{
-  background: linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,.08));
-}
-.pauseResumeBtn.isPaused{
-  background: linear-gradient(180deg, rgba(45,212,191,.22), rgba(0,194,255,.12));
-  border-color: rgba(45,212,191,.42);
-}
-.pauseResumeBtn.isPaused::before{
-  background: conic-gradient(from 0deg,
-    rgba(45,212,191,0) 0deg,
-    rgba(45,212,191,.10) 24deg,
-    rgba(45,212,191,.26) 52deg,
-    rgba(0,194,255,1) 84deg,
-    rgba(45,212,191,.22) 120deg,
-    rgba(45,212,191,0) 170deg,
-    rgba(45,212,191,0) 360deg);
-}
-.pauseResumeBtn.isDisabled{
-  opacity:1;
-  color: rgba(231,238,251,.74);
-  background: rgba(255,255,255,.06);
-  border-color: rgba(255,255,255,.14);
-  box-shadow: none;
-}
-.pauseResumeBtn.isDisabled::before{
-  opacity:.55;
-  animation-duration: 4.6s;
-  filter: saturate(.55);
-}
-.pauseResumeText{
-  font-weight:900;
-  letter-spacing:.2px;
-}
-.livePauseBadge{
-  background: rgba(245,158,11,.16);
-  border-color: rgba(245,158,11,.34);
-  color: #ffd08a;
-  font-weight:900;
-}
-@keyframes pauseResumeStroke{
-  to{ transform: rotate(1turn); }
-}
-
 
 .field{
   display:flex; flex-direction:column; gap:6px;
@@ -2090,10 +1983,13 @@ details.hbAcc .hbCatList{
 }
 
 .sbMark{
-  background: rgba(var(--cueRGB), .24);
-  border:1px solid rgba(var(--cueRGB), .18);
+  color: rgba(248,250,252,.98);
+  background: rgba(var(--cueRGB), .26);
+  border:1px solid rgba(var(--cueRGB), .34);
   border-radius:6px;
   padding: 0 2px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+  text-shadow: 0 1px 0 rgba(0,0,0,.28);
 }
 .sbPads{
   display:grid;
@@ -3125,7 +3021,115 @@ details.hbAcc .hbCatList{
 @media (max-width: 760px){
   .timerControlsRow .spacer{ display:none; }
   #btnViewerTimerToggle{ margin-left: 0; }
-  .pauseResumeWrap{ width:100%; }
-  .pauseResumeBtn{ width:100%; }
 }
 
+/* ============================================================
+   Viewer — Example 4 style outline pulse for main card + timer
+   Inspired by Let's Build UI Example 4 outline animation
+   ============================================================ */
+#vMainCard{
+  outline: 1px solid transparent;
+  outline-offset: 0;
+}
+
+#vMainCard .vTimer{
+  position: relative;
+  border-radius: 24px;
+  outline: 1px solid transparent;
+  outline-offset: 0;
+  transition: background 180ms ease, box-shadow 180ms ease, color 180ms ease;
+}
+
+#vMainCard.cue-warn,
+#vMainCard.cue-final,
+#vMainCard.cue-overtime{
+  --pulseDur: 1.3s;
+  --pulseEase: ease-out;
+  --pulseActivePct: 48%;
+  --pulseRingA: .18;
+  --pulseRingB: .22;
+  --pulseGlowA: .10;
+  --pulseGlowB: .14;
+  --pulseOutlinePeak: 8px;
+  --pulseOutlineOffsetPeak: 6px;
+  animation: omjnOutlinePulse var(--pulseDur) var(--pulseEase) infinite;
+}
+
+#vMainCard.cue-warn .vTimer,
+#vMainCard.cue-final .vTimer,
+#vMainCard.cue-overtime .vTimer{
+  --pulseRingA: .22;
+  --pulseRingB: .26;
+  --pulseGlowA: .16;
+  --pulseGlowB: .22;
+  --pulseOutlinePeak: 7px;
+  --pulseOutlineOffsetPeak: 5px;
+  animation: omjnOutlinePulse var(--pulseDur) var(--pulseEase) infinite;
+  box-shadow:
+    0 0 0 1px rgba(var(--cueRGB), .22),
+    0 14px 34px rgba(0,0,0,.28);
+}
+
+/* Keep the cue look cleaner by dialing back the older corner treatment
+   when the new outline pulse is active. */
+#vMainCard.cue-warn::after,
+#vMainCard.cue-final::after,
+#vMainCard.cue-overtime::after{
+  animation: none !important;
+  opacity: .42;
+  filter: drop-shadow(0 0 10px rgba(var(--cueRGB), .22));
+}
+
+#vMainCard.cue-warn{
+  --pulseDur: 1.34s;
+}
+#vMainCard.cue-final{
+  --pulseDur: 1.08s;
+}
+#vMainCard.cue-overtime{
+  --pulseDur: .84s;
+}
+
+@keyframes omjnOutlinePulse{
+  0%{
+    outline-width: 1px;
+    outline-offset: 0;
+    outline-color: rgba(var(--cueRGB), 0);
+    box-shadow:
+      var(--shadow, none),
+      0 0 0 1px rgba(var(--cueRGB), var(--pulseRingA, .18)),
+      0 0 28px rgba(var(--cueRGB), var(--pulseGlowA, .10));
+  }
+  10%{
+    outline-color: rgba(var(--cueRGB), .82);
+  }
+  48%{
+    outline-width: var(--pulseOutlinePeak, 8px);
+    outline-offset: var(--pulseOutlineOffsetPeak, 6px);
+    outline-color: rgba(var(--cueRGB), 0);
+    box-shadow:
+      var(--shadow, none),
+      0 0 0 1px rgba(var(--cueRGB), var(--pulseRingB, .22)),
+      0 0 38px rgba(var(--cueRGB), var(--pulseGlowB, .14));
+  }
+  100%{
+    outline-width: var(--pulseOutlinePeak, 8px);
+    outline-offset: var(--pulseOutlineOffsetPeak, 6px);
+    outline-color: rgba(var(--cueRGB), 0);
+    box-shadow:
+      var(--shadow, none),
+      0 0 0 1px rgba(var(--cueRGB), var(--pulseRingB, .22)),
+      0 0 38px rgba(var(--cueRGB), var(--pulseGlowB, .14));
+  }
+}
+
+@media (prefers-reduced-motion: reduce){
+  #vMainCard.cue-warn,
+  #vMainCard.cue-final,
+  #vMainCard.cue-overtime,
+  #vMainCard.cue-warn .vTimer,
+  #vMainCard.cue-final .vTimer,
+  #vMainCard.cue-overtime .vTimer{
+    animation: none !important;
+  }
+}

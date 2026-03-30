@@ -1,56 +1,38 @@
 # PATCH_NOTES.md
 
 ## Summary
-This patch restores the refined live-control UI branch that had regressed in the current TEST build.
-
-Primary fixes:
-- Restored the **single combined Pause/Resume** button in the Live Control row.
-- Restored the **animated cyan/teal chasing border** treatment and **Paused** badge.
-- Removed the split legacy `Pause` / `Resume` buttons from the Operator HTML so it matches the current JS branch again.
-- Normalized the show-state download/upload labels from generic JSON wording to **Backup Show** / **Restore Show**.
-- Unified both header-level and live-row backup/restore controls onto the same show-state export/import path.
-
-Important note:
-- I could confirm the refined Pause/Resume branch from the accessible recent project artifacts.
-- I could **not** recover a definitive historical final wording for the old “Export/Import JSON” rename from the accessible artifacts, so this patch normalizes that copy to **Backup Show** / **Restore Show** instead of guessing an unsupported exact phrase.
+Focused TEST-build patch for three operator UX issues:
+- Completed performers are now collapsed by default.
+- House Band queue slots now preserve editable/custom titles, keep blank lineups blank, and no longer auto-seed suggested players at start.
+- Soundboard search highlights now use a light readable foreground instead of browser-default dark text.
 
 ## File list
-- `operator.html`
 - `operator.js`
 - `app.css`
-- `PATCH_NOTES.md`
 
 ## Install steps (exact paths)
-Copy these files into your TEST build, replacing the existing files at:
-- `TEST/operator.html`
-- `TEST/operator.js`
-- `TEST/app.css`
+Copy these files into your current TEST build root, replacing the existing files:
+- `operator.js` → `TEST/operator.js`
+- `app.css` → `TEST/app.css`
 
-If you are testing locally first, replace the same files in your local OMJN working directory.
+If you are testing locally first, replace the same two files in your local working directory root.
 
 ## Smoke test checklist
 ### Local test
-- Open `operator.html` and confirm the Live Control row now shows a **single Pause/Resume** button instead of separate Pause and Resume buttons.
-- Confirm the Pause/Resume button shows an animated cyan/teal border while visible.
-- Start a timed live slot and verify:
-  - button label starts as **Pause**
-  - clicking it changes phase to paused
-  - button label changes to **Resume**
-  - **Paused** badge appears
-- Resume the slot and verify the badge hides again.
-- Confirm the button remains visible but disabled when there is no timed live slot.
-- Confirm the header buttons now read **Backup Show** and **Restore Show**.
-- Confirm the live-row backup buttons also read **Backup Show** and **Restore Show**.
-- Use both header and live-row controls to export and import a JSON state file successfully.
+- Add a few performers, mark at least one as `DONE` or `SKIPPED`, and confirm the **Completed** section is collapsed by default.
+- Expand **Completed**, trigger a render change, and confirm it stays in the same open/closed state during that session.
+- Add a **House Band** slot, edit its queue title from the inline editor, save, and confirm the custom title persists.
+- Create a House Band slot with **Clear all** in the set builder, add it to the queue, then start it and confirm it does **not** auto-fill suggested players.
+- Edit the same House Band slot later and confirm the queue row still shows the saved/custom title and lineup summary.
+- Search on the **Soundboard** and confirm matching highlights are readable against the dark UI.
 
 ### Internet-side test (TEST dir)
-- Upload the three files into your GitHub-hosted `TEST` directory.
-- Open Operator + Viewer in separate tabs.
-- Start a performer, pause, and resume from Operator.
-- Confirm live state changes propagate normally to Viewer and no console syntax errors appear.
-- Confirm the backup/restore controls still work in the hosted environment.
+- Open Operator + Viewer in separate tabs/windows.
+- Confirm a blank-lineup House Band slot still starts as House Band rather than unexpectedly promoting a suggested lineup.
+- Confirm Next / On Deck text still behaves normally around House Band entries.
+- Confirm the Soundboard search highlight remains readable in the hosted TEST environment.
 
 ## Known risks / limitations
-- The exact historical wording for the renamed JSON buttons was not recoverable from the accessible builds/files. This patch uses a clearer normalized pair: **Backup Show** / **Restore Show**.
-- This patch restores the refined live-control UI and the state-control wording, but it does not attempt broader cleanup beyond those targeted regressions.
-- Visual motion can vary slightly by browser because the border effect is CSS-driven.
+- This patch does not change the House Band modal layout; title customization is preserved through the existing queue inline editor rather than a new modal field.
+- For House Band slots with operator notes, the queue row prioritizes the lineup summary for faster scanning.
+- This patch assumes your current TEST baseline already includes the recent combined Pause/Resume and Export Show / Import Show fixes.

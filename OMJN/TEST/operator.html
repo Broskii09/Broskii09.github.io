@@ -19,8 +19,8 @@
                 <div class="row">
                     <a class="btn small" href="./viewer.html" target="_blank" rel="noopener">Open Viewer</a>
                     <a class="btn small" href="./soundboard.html" target="_blank" rel="noopener">Soundboard</a>
-<button class="btn small" id="btnExport" title="Download a JSON backup of the current show state">Backup Show</button>
-                    <label class="btn small" for="importFile" style="cursor:pointer;" title="Restore a JSON backup into the current show state">Restore Show</label>
+<button class="btn small" id="btnExport" title="Export the current show state as JSON">Export Show</button>
+                    <label class="btn small" for="importFile" style="cursor:pointer;" title="Import a JSON show state into the current show">Import Show</label>
                     <input id="importFile" type="file" accept="application/json" hidden />
                     <button class="btn small danger" id="btnReset">New Show</button>
                     <button class="btn small" id="btnSettings">Settings</button>
@@ -287,14 +287,14 @@
                         <div class="pauseResumeWrap">
                             <button class="btn btnAccent pauseResumeBtn" id="btnPauseResume" type="button" aria-pressed="false" title="No timed live slot is active">
                                 <span class="pauseResumeText" id="btnPauseResumeLabel">Pause</span>
+                                <span class="pill livePauseBadge" id="livePauseBadge" hidden aria-hidden="true">Paused</span>
                             </button>
-                            <span class="pill livePauseBadge" id="livePauseBadge" hidden>Paused</span>
                         </div>
                         <button class="btn danger" id="btnEnd">End → Splash</button>
                         <button class="btn" id="btnUndo" title="Undo (Ctrl+Z)">Undo</button>
                         <button class="btn" id="btnRedo" title="Redo (Ctrl+Shift+Z)">Redo</button>
-                        <button class="btn" id="btnExportState" title="Download a JSON backup of the current show state">Backup Show</button>
-                        <button class="btn" id="btnImportState" title="Restore a JSON backup into the current show state">Restore Show</button>
+                        <button class="btn" id="btnExportState" title="Export the current show state as JSON">Export Show</button>
+                        <button class="btn" id="btnImportState" title="Import a JSON show state into the current show">Import Show</button>
                         <input type="file" id="importStateFile" accept="application/json" style="display:none;" />
                     </div>
 
