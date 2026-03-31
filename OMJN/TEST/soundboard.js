@@ -696,7 +696,7 @@ function setStatus(msg, isErr=false){
     }
     saveFavList();
     renderCategories();
-    if(activeCategoryId === "__favorites") selectedIdx = 0;
+    if(activeCategoryId === "__favorites") selectedIdx = -1;
     renderPads();
   }
 
@@ -869,7 +869,7 @@ function setStatus(msg, isErr=false){
 
   // ---- Search / filter state ----
   let searchQuery = "";
-  let selectedIdx = 0;
+  let selectedIdx = -1;
   let lastRendered = []; // sound objects in current view order
 
   // Normalization helpers (fast fuzzy search)
@@ -1062,7 +1062,9 @@ function setStatus(msg, isErr=false){
     }
 
     lastRendered = soundsToShow;
-    if(selectedIdx >= lastRendered.length) selectedIdx = 0;
+    if(selectedIdx >= lastRendered.length){
+      selectedIdx = qNorm ? 0 : -1;
+    }
 
     if(!soundsToShow.length){
       const empty = document.createElement("div");
@@ -1094,6 +1096,9 @@ function setStatus(msg, isErr=false){
       pad.title = `${soundIsPlaying ? "Stop" : "Play"} ${displayName}`;
 
       pad.innerHTML = `
+        <svg class="sbPadActiveFrame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <rect class="sbPadActiveLine" x="1" y="1" width="98" height="98" rx="16" ry="16" pathLength="100"></rect>
+        </svg>
         <div class="sbPadTop">
           <div class="sbPadNameWrap">
             <div class="sbPadName">${nameHtml}</div>
@@ -1355,7 +1360,7 @@ function setStatus(msg, isErr=false){
   function scheduleSearchRender(){
     if(searchDebounce) clearTimeout(searchDebounce);
     searchDebounce = setTimeout(() => {
-      selectedIdx = 0;
+      selectedIdx = String(searchQuery || "").trim() ? 0 : -1;
       renderPads();
     }, 90);
   }
@@ -1375,7 +1380,7 @@ function setStatus(msg, isErr=false){
         if(String(searchQuery||"").trim()){
           e.preventDefault();
           setSearchQuery("");
-          selectedIdx = 0;
+          selectedIdx = -1;
           renderPads();
         }
       }
@@ -1386,7 +1391,7 @@ function setStatus(msg, isErr=false){
     els.searchClear.addEventListener("click", (e) => {
       e.preventDefault();
       setSearchQuery("");
-      selectedIdx = 0;
+      selectedIdx = -1;
       renderPads();
       els.search?.focus();
     });
@@ -1419,7 +1424,7 @@ function setStatus(msg, isErr=false){
         if(!isTypingField || isSearchFocused){
           e.preventDefault();
           setSearchQuery("");
-          selectedIdx = 0;
+          selectedIdx = -1;
           renderPads();
         }
       }
@@ -1500,7 +1505,7 @@ function setStatus(msg, isErr=false){
     activeCategoryId = btn.dataset.cat || "__all";
     // switching categories is a deliberate navigation: clear search so it doesn't feel "stuck"
     if(String(searchQuery||"").trim()) setSearchQuery("");
-    selectedIdx = 0;
+    selectedIdx = -1;
     renderCategories();
     renderPads();
   });
@@ -1659,7 +1664,7 @@ async function refreshFromDrive(){
     indexSounds();
     activeCategoryId = "__all";
     setSearchQuery("");
-    selectedIdx = 0;
+    selectedIdx = -1;
     renderCategories();
     renderPads();
 
@@ -2151,6 +2156,12 @@ initEmbeds();
     const paused = ph === "PAUSED" && timedLive;
 
     if(els.pauseResume){
+      const pauseWrap = els.pauseResume.closest(".pauseResumeWrap");
+      if(pauseWrap){
+        pauseWrap.classList.toggle("isReady", timedLive);
+        pauseWrap.classList.toggle("isPaused", paused);
+        pauseWrap.classList.toggle("isDisabled", !timedLive);
+      }
       if(els.pauseResumeLabel) els.pauseResumeLabel.textContent = paused ? "Resume" : "Pause";
       els.pauseResume.classList.toggle("isPaused", paused);
       els.pauseResume.classList.toggle("isDisabled", !timedLive);

@@ -8,6 +8,13 @@
   --red:#ff5a5f;
   --amber:#ffcc66;
   --green:#55d17a;
+  --lbui-red:#ff595e;
+  --lbui-yellow:#ffca3a;
+  --lbui-green:#8ac926;
+  --lbui-blue:#1982c4;
+  --lbui-violet:#6a4c93;
+  --lbui-orange:#ff6700;
+  --lbui-lime:rgba(78,255,13,.78);
   --shadow: 0 10px 30px rgba(0,0,0,.35);
   --radius:18px;
   --gap:14px;
@@ -167,6 +174,96 @@ select option{ background: var(--panel); color: var(--text); }
 }
 .btn.small{padding:8px 10px; border-radius:10px; font-size:13px;}
 .btn.tiny{padding:6px 8px; border-radius:10px; font-size:12px;}
+
+.pauseResumeWrap{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:2px;
+  border-radius:14px;
+  isolation:isolate;
+}
+.pauseResumeWrap::before,
+.pauseResumeWrap::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  background:linear-gradient(
+    45deg,
+    #142c54 0%,
+    #1f4c8f 24%,
+    #4d7fcb 44%,
+    #d4af37 64%,
+    #ffcc66 82%,
+    #d4af37 100%
+  );
+  background-size:300% 300%;
+  opacity:0;
+  pointer-events:none;
+  z-index:0;
+  transition:opacity .18s ease;
+}
+.pauseResumeWrap::after{
+  inset:-1px;
+  filter:blur(10px);
+  transform:translate3d(0, 0, 0);
+}
+.pauseResumeWrap.isPaused::before,
+.pauseResumeWrap.isPaused::after{
+  opacity:1;
+  animation: pauseResumeGlow 6s linear infinite;
+}
+.pauseResumeWrap.isPaused::after{
+  opacity:.26;
+}
+.pauseResumeWrap.isDisabled::before,
+.pauseResumeWrap.isDisabled::after{
+  opacity:0;
+  animation:none;
+}
+
+.pauseResumeBtn{
+  position:relative;
+  z-index:1;
+  display:grid;
+  place-items:center;
+  inline-size:182px;
+  min-inline-size:182px;
+  min-height:42px;
+  padding:10px 16px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.08);
+  box-shadow:none;
+  overflow:visible;
+}
+.pauseResumeBtn:hover{
+  background:rgba(255,255,255,.12);
+}
+.pauseResumeBtn.isPaused{
+  background:rgba(15,33,64,1);
+  border-color:rgba(212,175,55,.38);
+}
+.pauseResumeBtn.isPaused:hover{
+  background:rgba(15,33,64,.5);
+}
+.pauseResumeBtn.isDisabled{
+  opacity:.72;
+  box-shadow:none;
+  cursor:not-allowed;
+}
+.pauseResumeText{
+  position:relative;
+  z-index:1;
+}
+
+@keyframes pauseResumeGlow{
+  0%{ background-position:0 0; }
+  50%{ background-position:100% 0; }
+  100%{ background-position:0 0; }
+}
 
 .field{
   display:flex; flex-direction:column; gap:6px;
@@ -1958,8 +2055,8 @@ details.hbAcc .hbCatList{
 }
 
 .sbPadWrap.selected .sbPad{
-  border-color: rgba(var(--cueRGB), .85);
-  box-shadow: 0 0 0 2px rgba(var(--cueRGB), .24), 0 0 46px rgba(var(--cueRGB), .30);
+  border-color: rgba(var(--cueRGB), .52);
+  box-shadow: 0 0 0 1px rgba(var(--cueRGB), .18), 0 0 18px rgba(var(--cueRGB), .12);
 }
 
 .sbMark{
@@ -2096,8 +2193,39 @@ details.hbAcc .hbCatList{
 }
 .sbPad:hover{ background:rgba(0,0,0,.24); }
 .sbPad.playing{
-  border-color: rgba(var(--cueRGB), .65);
-  box-shadow: 0 0 0 2px rgba(var(--cueRGB), .18), 0 0 40px rgba(var(--cueRGB), .25);
+  border-color: rgba(var(--cueRGB), .58);
+  box-shadow: 0 0 0 1px rgba(var(--cueRGB), .18), 0 0 28px rgba(var(--cueRGB), .18);
+}
+.sbPadActiveFrame{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  opacity:0;
+  pointer-events:none;
+  transition: opacity .16s ease;
+}
+.sbPadActiveLine{
+  fill:transparent;
+  stroke:var(--lbui-lime);
+  stroke-width:1.5;
+  stroke-linejoin:round;
+  stroke-dasharray:18 32 18 32;
+  filter:drop-shadow(0 0 10px rgba(78,255,13,.22));
+}
+.sbPad.playing .sbPadActiveFrame{
+  opacity:1;
+}
+.sbPad.playing .sbPadActiveLine{
+  animation: sbPadActiveLine 2s linear infinite;
+}
+.sbPad > :not(.sbPadActiveFrame){
+  position:relative;
+  z-index:1;
+}
+@keyframes sbPadActiveLine{
+  from{ stroke-dashoffset:0; }
+  to{ stroke-dashoffset:-100; }
 }
 .sbPadTop{
   display:flex;
@@ -2154,6 +2282,13 @@ details.hbAcc .hbCatList{
   }
   .sbPinSelect{
     grid-column:1 / -1;
+  }
+}
+@media (prefers-reduced-motion: reduce){
+  .pauseResumeWrap::before,
+  .pauseResumeWrap::after,
+  .sbPad.playing .sbPadActiveLine{
+    animation:none !important;
   }
 }
 .sbEnable {

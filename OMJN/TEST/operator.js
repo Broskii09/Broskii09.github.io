@@ -3335,6 +3335,12 @@ function renderKPIs(nowMs = Date.now()){
     const paused = state.phase === "PAUSED" && timedLive;
 
     if(els.btnPauseResume){
+      const pauseWrap = els.btnPauseResume.closest(".pauseResumeWrap");
+      if(pauseWrap){
+        pauseWrap.classList.toggle("isReady", timedLive);
+        pauseWrap.classList.toggle("isPaused", paused);
+        pauseWrap.classList.toggle("isDisabled", !timedLive);
+      }
       if(els.btnPauseResumeLabel) els.btnPauseResumeLabel.textContent = paused ? "Resume" : "Pause";
       els.btnPauseResume.classList.toggle("isPaused", paused);
       els.btnPauseResume.classList.toggle("isDisabled", !timedLive);
