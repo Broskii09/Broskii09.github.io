@@ -53,8 +53,12 @@
             </div>
             <div class="row wrap sbTransportRow">
               <button class="btn small primary" id="sbStart" type="button">Start</button>
-              <button class="btn small" id="sbPause" type="button">Pause</button>
-              <button class="btn small" id="sbResume" type="button">Resume</button>
+              <div class="pauseResumeWrap sbPauseResumeWrap">
+                <button class="btn btnAccent pauseResumeBtn small" id="sbPauseResume" type="button" aria-pressed="false" title="No timed live slot is active">
+                  <span class="pauseResumeText" id="sbPauseResumeLabel">Pause</span>
+                  <span class="pill livePauseBadge" id="sbLivePauseBadge" hidden aria-hidden="true">Paused</span>
+                </button>
+              </div>
               <button class="btn small" id="sbEnd" type="button">End → Splash</button>
             </div>
           </div>
@@ -89,7 +93,13 @@
                   <div class="sbPadsHeaderTop">
                     <div class="sbPadsTitle" id="sbPadsTitle">All</div>
 
-                    <button class="btn tiny sbStopAllBtn" id="sbStopAll" type="button" title="Stop all sounds">Stop All</button>
+                    <div class="sbPadsActions">
+                      <label for="sbRepeatClickLayerToggle" class="sbToggle sbPadModeToggle small" title="If enabled, clicking a playing pad again layers another copy instead of stopping it.">
+                        <input type="checkbox" id="sbRepeatClickLayerToggle" />
+                        Repeat click layers
+                      </label>
+                      <button class="btn tiny sbStopAllBtn" id="sbStopAll" type="button" title="Stop all sounds">Stop All</button>
+                    </div>
 
                     <div class="sbSearchWrap">
                       <input type="text" id="sbSearch" class="sbSearch" placeholder="Search sounds… (Ctrl+K)" autocomplete="off" spellcheck="false" aria-label="Search sounds" />
@@ -98,8 +108,8 @@
                   </div>
 
                   <div class="sbHintRow">
-                    <div class="small" id="sbResultMeta">Tip: type anywhere to search • Up/Down selects • Enter plays • 1–9/0 triggers your Learning Hotkeys (when not typing).</div>
-                    <div class="small sbHintRight">Space = panic stop (instant)</div>
+                    <div class="small" id="sbResultMeta">Tip: type anywhere to search • Up/Down selects • Enter toggles • 1–9/0 triggers your Learning Hotkeys (when not typing).</div>
+                    <div class="small sbHintRight" id="sbRepeatHint">Click again = stop | Space = panic stop</div>
                   </div>
                 </div>
 

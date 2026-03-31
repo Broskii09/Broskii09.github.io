@@ -18,8 +18,9 @@ const SB_UI_SCOPE = (typeof OMJN !== "undefined" && OMJN.appScope) ? OMJN.appSco
     deck: document.getElementById("sbDeck"),
 
     start: document.getElementById("sbStart"),
-    pause: document.getElementById("sbPause"),
-    resume: document.getElementById("sbResume"),
+    pauseResume: document.getElementById("sbPauseResume"),
+    pauseResumeLabel: document.getElementById("sbPauseResumeLabel"),
+    livePauseBadge: document.getElementById("sbLivePauseBadge"),
     end: document.getElementById("sbEnd"),
     minus30: document.getElementById("sbMinus30"),
     plus30: document.getElementById("sbPlus30"),
@@ -31,6 +32,7 @@ const SB_UI_SCOPE = (typeof OMJN !== "undefined" && OMJN.appScope) ? OMJN.appSco
 
     compactToggle: document.getElementById("sbCompactToggle"),
     stickyRow2Toggle: document.getElementById("sbStickyRow2Toggle"),
+    repeatClickLayerToggle: document.getElementById("sbRepeatClickLayerToggle"),
     stickyHeader: document.getElementById("sbStickyHeader"),
     row2: document.getElementById("sbRow2"),
     safariTip: document.getElementById("sbSafariTip"),
@@ -64,6 +66,7 @@ const SB_UI_SCOPE = (typeof OMJN !== "undefined" && OMJN.appScope) ? OMJN.appSco
     search: document.getElementById("sbSearch"),
     searchClear: document.getElementById("sbSearchClear"),
     resultMeta: document.getElementById("sbResultMeta"),
+    repeatHint: document.getElementById("sbRepeatHint"),
     stopFade: document.getElementById("sbStopFade"),
     freezeHotkeys: document.getElementById("sbFreezeHotkeys"),
 
@@ -172,15 +175,23 @@ function loadUiPrefs(){
     const obj = raw ? JSON.parse(raw) : null;
     return {
       compact: !!obj?.compact,
-      stickyControls: !!obj?.stickyControls
+      stickyControls: !!obj?.stickyControls,
+      repeatClickLayers: !!obj?.repeatClickLayers
     };
   }catch(_){
-    return { compact:false, stickyControls:false };
+    return { compact:false, stickyControls:false, repeatClickLayers:false };
   }
 }
 
 function saveUiPrefs(prefs){
   try{ localStorage.setItem(UI_PREF_KEY, JSON.stringify(prefs)); }catch(_){}
+}
+
+const uiPrefs = loadUiPrefs();
+
+function updateRepeatClickHint(){
+  if(!els.repeatHint) return;
+  els.repeatHint.textContent = `Click again = ${uiPrefs.repeatClickLayers ? "layer" : "stop"} | Space = panic stop`;
 }
 
 function applyStickyVars(){
@@ -208,7 +219,7 @@ function applyStickyVars(){
 }
 
 function initUiPrefs(){
-  const prefs = loadUiPrefs();
+  const prefs = uiPrefs;
 
   // Defaults: expanded + non-sticky until user opts in
   if(els.compactToggle){
@@ -232,6 +243,18 @@ function initUiPrefs(){
       applyStickyVars();
     });
   }
+
+  if(els.repeatClickLayerToggle){
+    els.repeatClickLayerToggle.checked = prefs.repeatClickLayers;
+    els.repeatClickLayerToggle.addEventListener("change", () => {
+      prefs.repeatClickLayers = !!els.repeatClickLayerToggle.checked;
+      saveUiPrefs(prefs);
+      updateRepeatClickHint();
+      renderPads();
+    });
+  }
+
+  updateRepeatClickHint();
 
   // keep sticky offset accurate
   applyStickyVars();
@@ -363,6 +386,25 @@ function initUiPrefs(){
   // soundId -> Set<{src:AudioBufferSourceNode, gain:GainNode}> (for stop / live volume updates)
   const playing = new Map();
 
+  function isSoundPlaying(soundId){
+    const set = playing.get(soundId);
+    return !!(set && set.size);
+  }
+
+  function isRepeatClickLayeringEnabled(soundId){
+    return !!uiPrefs.repeatClickLayers || isLayerEnabled(soundId);
+  }
+
+  function syncPadPlaybackState(soundId){
+    const active = isSoundPlaying(soundId);
+    document.querySelectorAll(`.sbPad[data-sound-id="${CSS.escape(soundId)}"]`).forEach((padEl) => {
+      const soundName = padEl.dataset.soundName || "sound";
+      padEl.classList.toggle("playing", active);
+      padEl.setAttribute("aria-pressed", active ? "true" : "false");
+      padEl.title = `${active ? "Stop" : "Play"} ${soundName}`;
+    });
+  }
+
   function showEnableOverlay(show){
     if(!els.enableOverlay) return;
     els.enableOverlay.style.display = show ? "flex" : "none";
@@ -475,8 +517,7 @@ function setStatus(msg, isErr=false){
         try{ inst.src.stop(0); }catch(_){ }
       }
       playing.delete(soundId);
-      const padEl = document.querySelector(`.sbPad[data-sound-id="${CSS.escape(soundId)}"]`);
-      if(padEl) padEl.classList.remove("playing");
+      syncPadPlaybackState(soundId);
       return;
     }
 
@@ -499,13 +540,14 @@ function setStatus(msg, isErr=false){
   function stopAll(fadeMs = stopFadeMs){
     const f = Math.max(0, Number(fadeMs || 0));
     if(f <= 0){
+      const activeIds = [...playing.keys()];
       for(const [, set] of playing.entries()){
         for(const inst of Array.from(set)){
           try{ inst.src.stop(0); }catch(_){ }
         }
       }
       playing.clear();
-      document.querySelectorAll(".sbPad.playing").forEach(el => el.classList.remove("playing"));
+      activeIds.forEach((soundId) => syncPadPlaybackState(soundId));
       return;
     }
 
@@ -1005,7 +1047,7 @@ function setStatus(msg, isErr=false){
       if(els.resultMeta){
         if(soundsToShow.length){
           const inScope = (activeCategoryId === "__all") ? "" : ` in ${scopeLabel}`;
-          els.resultMeta.textContent = `${soundsToShow.length} match(es)${inScope} for “${q}” • Up/Down selects • Enter plays • Esc clears`;
+          els.resultMeta.textContent = `${soundsToShow.length} match(es)${inScope} for “${q}” • Up/Down selects • Enter toggles • Esc clears`;
         }else{
           const inScope = (activeCategoryId === "__all") ? "" : ` in ${scopeLabel}`;
           els.resultMeta.textContent = `No matches${inScope} for “${q}”.`;
@@ -1015,7 +1057,7 @@ function setStatus(msg, isErr=false){
       soundsToShow = baseSounds;
       els.padsTitle.textContent = scopeLabel;
       if(els.resultMeta){
-        els.resultMeta.textContent = "Tip: type anywhere to search • Up/Down selects • Enter plays • 1–9/0 triggers your Learning Hotkeys (when not typing).";
+        els.resultMeta.textContent = "Tip: type anywhere to search • Up/Down selects • Enter toggles • 1–9/0 triggers your Learning Hotkeys (when not typing).";
       }
     }
 
@@ -1037,18 +1079,23 @@ function setStatus(msg, isErr=false){
       const wrap = document.createElement("div");
       wrap.className = "sbPadWrap" + (i === selectedIdx ? " selected" : "");
 
+      const soundIsPlaying = isSoundPlaying(s.id);
       const pad = document.createElement("button");
-      pad.className = "sbPad";
+      pad.type = "button";
+      pad.className = "sbPad" + (soundIsPlaying ? " playing" : "");
       pad.dataset.soundId = s.id;
 
       const hk = hotkeyBySound[s.id] || "";
       const displayName = s._displayName || stripExt(s.name);
       const nameHtml = qNorm ? highlightName(displayName, qTokens) : escapeHtml(displayName);
       const showCatPill = !!qNorm || (activeCategoryId === "__all" || activeCategoryId === "__favorites" || activeCategoryId === "__recents");
+      pad.dataset.soundName = displayName;
+      pad.setAttribute("aria-pressed", soundIsPlaying ? "true" : "false");
+      pad.title = `${soundIsPlaying ? "Stop" : "Play"} ${displayName}`;
 
       pad.innerHTML = `
         <div class="sbPadTop">
-          <div style="min-width:0;">
+          <div class="sbPadNameWrap">
             <div class="sbPadName">${nameHtml}</div>
           </div>
           ${hk ? `<div class="sbHotkey" title="Learning hotkey">${escapeHtml(hk)}</div>` : ""}
@@ -1092,19 +1139,21 @@ function setStatus(msg, isErr=false){
       layerBtn.type = "button";
       layerBtn.className = "sbMiniBtn" + (isLayerEnabled(s.id) ? " on" : "");
       layerBtn.textContent = "Layer";
-      layerBtn.title = "Allow overlap / layering";
+      layerBtn.title = "Allow this pad to layer when clicked again";
+      layerBtn.setAttribute("aria-pressed", isLayerEnabled(s.id) ? "true" : "false");
       layerBtn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
         toggleLayer(s.id);
         layerBtn.classList.toggle("on", isLayerEnabled(s.id));
+        layerBtn.setAttribute("aria-pressed", isLayerEnabled(s.id) ? "true" : "false");
       });
 
       const pinSelect = document.createElement("select");
       pinSelect.className = "sbPinSelect";
       pinSelect.setAttribute("aria-label", "Pin to hotkey slot");
       pinSelect.title = "Pin to 1–9/0";
-      pinSelect.innerHTML = `<option value="">📌 —</option>` + HOTKEY_KEYS.map(k => `<option value="${k}">📌 ${k}</option>`).join("");
+      pinSelect.innerHTML = `<option value="">Pin -</option>` + HOTKEY_KEYS.map(k => `<option value="${k}">Pin ${k}</option>`).join("");
       const currentPin = getPinnedKeyForSound(s.id);
       pinSelect.value = currentPin || "";
       pinSelect.addEventListener("change", (e) => {
@@ -1125,6 +1174,7 @@ function setStatus(msg, isErr=false){
       volWrap.className = "sbPadVolWrap";
       const current = getSoundVolPercent(s.id);
       volWrap.innerHTML = `
+        <div class="sbPadVolLabel">Vol</div>
         <input type="range" class="sbRange sbSoundVol" min="0" max="100" step="1" value="${current}" data-sound-id="${escapeHtml(s.id)}" aria-label="Volume for ${escapeHtml(displayName)}"/>
         <div class="sbVolPct mono" data-sound-id="${escapeHtml(s.id)}">${current}%</div>
       `;
@@ -1257,7 +1307,10 @@ function setStatus(msg, isErr=false){
       return;
     }
     try{
-      const padEl = document.querySelector(`.sbPad[data-sound-id="${CSS.escape(sound.id)}"]`);
+      if(isSoundPlaying(sound.id) && !isRepeatClickLayeringEnabled(sound.id)){
+        stopSound(sound.id, stopFadeMs);
+        return;
+      }
 
       const buffer = await ensureDecoded(sound);
       const src = ctx.createBufferSource();
@@ -1268,17 +1321,12 @@ function setStatus(msg, isErr=false){
       gain.gain.value = sliderToGain(getSoundVolPercent(sound.id));
 
       src.connect(gain).connect(masterGain);
-      // By default, clicking a pad restarts the sound.
-      // If Layer is enabled for this sound, clicks overlap instead.
-      if(!isLayerEnabled(sound.id)){
-        stopSound(sound.id, 0);
-      }
-      if(padEl) padEl.classList.add("playing");
 
       let set = playing.get(sound.id);
       if(!set){ set = new Set(); playing.set(sound.id, set); }
       const inst = { src, gain };
       set.add(inst);
+      syncPadPlaybackState(sound.id);
 
       src.onended = () => {
         const set = playing.get(sound.id);
@@ -1286,11 +1334,9 @@ function setStatus(msg, isErr=false){
           set.delete(inst);
           if(set.size === 0){
             playing.delete(sound.id);
-            if(padEl) padEl.classList.remove("playing");
           }
-        }else{
-          if(padEl) padEl.classList.remove("playing");
         }
+        syncPadPlaybackState(sound.id);
       };
 
       src.start(0);
@@ -1536,6 +1582,9 @@ const CFG_KEY = "omjn_soundboard_drive_cfg_v1";
     else delete layerPrefs[soundId];
     saveLayerPrefs();
   }
+  function toggleLayer(soundId){
+    setLayerEnabled(soundId, !isLayerEnabled(soundId));
+  }
 
 const cfg = loadCfg();
   if(cfg.apiKey) els.apiKey.value = cfg.apiKey;
@@ -1707,6 +1756,11 @@ els.refresh.addEventListener("click", refreshFromDrive);
     });
   }
 
+  function togglePauseResume(){
+    if(state.phase === "PAUSED") return resume();
+    return pause();
+  }
+
   function endToSplash(){
     updateState(s => {
       if(!s.currentSlotId){
@@ -1753,8 +1807,7 @@ els.refresh.addEventListener("click", refreshFromDrive);
   }
 
   els.start.addEventListener("click", start);
-  els.pause.addEventListener("click", pause);
-  els.resume.addEventListener("click", resume);
+  if(els.pauseResume) els.pauseResume.addEventListener("click", togglePauseResume);
   els.end.addEventListener("click", endToSplash);
   els.minus30.addEventListener("click", () => addSeconds(-30));
   els.plus30.addEventListener("click", () => addSeconds(30));
@@ -2086,11 +2139,32 @@ initEmbeds();
       else if(ph === "PAUSED") els.phaseDot.classList.add("warn");
     }
 
-    // State-aware transport buttons (reduce mis-clicks)
+    // State-aware transport buttons
     if(els.start)  els.start.disabled  = (ph !== "SPLASH");
-    if(els.pause)  els.pause.disabled  = (ph !== "LIVE");
-    if(els.resume) els.resume.disabled = (ph !== "PAUSED");
     if(els.end)    els.end.disabled    = !(ph === "LIVE" || ph === "PAUSED");
+
+    const liveish = ph === "LIVE" || ph === "PAUSED";
+    const timer = liveish && typeof OMJN !== "undefined" && OMJN && typeof OMJN.computeTimer === "function"
+      ? (OMJN.computeTimer(state) || null)
+      : null;
+    const timedLive = !!liveish && !!timer && (timer.durationMs || 0) > 0;
+    const paused = ph === "PAUSED" && timedLive;
+
+    if(els.pauseResume){
+      if(els.pauseResumeLabel) els.pauseResumeLabel.textContent = paused ? "Resume" : "Pause";
+      els.pauseResume.classList.toggle("isPaused", paused);
+      els.pauseResume.classList.toggle("isDisabled", !timedLive);
+      els.pauseResume.disabled = !timedLive;
+      els.pauseResume.setAttribute("aria-pressed", paused ? "true" : "false");
+      els.pauseResume.title = timedLive
+        ? (paused ? "Resume the current timed slot" : "Pause the current timed slot")
+        : "No timed live slot is active";
+    }
+
+    if(els.livePauseBadge){
+      els.livePauseBadge.hidden = !paused;
+      els.livePauseBadge.setAttribute("aria-hidden", paused ? "false" : "true");
+    }
 
     // Now / Next / Deck
     const q = (state && Array.isArray(state.queue)) ? state.queue : [];
@@ -2106,7 +2180,7 @@ initEmbeds();
 
     // Timer
     if(els.timer && typeof OMJN !== "undefined" && OMJN && typeof OMJN.computeTimer === "function" && typeof OMJN.formatMMSS === "function"){
-      const t = OMJN.computeTimer(state) || {};
+      const t = timer || OMJN.computeTimer(state) || {};
       els.timer.textContent = OMJN.formatMMSS(t.remainingMs || 0);
     }
   }
