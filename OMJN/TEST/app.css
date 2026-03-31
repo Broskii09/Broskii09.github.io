@@ -1726,14 +1726,6 @@ details.hbAcc .hbCatList{
   justify-content:space-between;
 }
 .sbTitleWrap{ display:flex; flex-direction:column; gap:2px; }
-.sbLiveControls{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  align-items:center;
-  justify-content:center;
-}
-
 .sbFadeWrap{
   display:flex;
   align-items:center;
@@ -1802,27 +1794,6 @@ details.hbAcc .hbCatList{
   text-align:center;
 }
 .sbBody{ position:relative; }
-.sbTopMeta{
-  display:grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap:12px;
-  margin-bottom:12px;
-}
-.sbNowWrap, .sbNextWrap, .sbDeckWrap{
-  padding:12px 14px;
-  border-radius:18px;
-  background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.10);
-  min-width:0;
-}
-.sbNowName, .sbNextName, .sbDeckName{
-  margin-top:6px;
-  font-size: calc(20px * var(--hbLineupScale));
-  font-weight:950;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
 .sbConfig > summary{
   cursor:pointer;
   font-weight:900;
@@ -2276,41 +2247,6 @@ details.hbAcc .hbCatList{
   opacity:.65;
 }
 
-/* =========================
-   Soundboard header revamp
-   Two cards: Settings (left) + Show Control (right)
-   ========================= */
-.soundboardPage .sbCardsGrid{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-areas: "settings show";
-  gap:12px;
-  margin-bottom:12px;
-  align-items:stretch;
-}
-.soundboardPage .sbSettingsCard{ grid-area: settings; }
-.soundboardPage .sbShowControlCard{ grid-area: show; }
-
-@media (max-width: 980px){
-  .soundboardPage .sbCardsGrid{
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "show"
-      "settings";
-  }
-}
-
-.soundboardPage .sbMiniCard .cardHeader{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-}
-.soundboardPage .sbMiniCard .cardHeader h2{
-  margin:0;
-  font-size:16px;
-}
-
 .soundboardPage .sbShowStatus{
   display:flex;
   flex-wrap:wrap;
@@ -2325,10 +2261,6 @@ details.hbAcc .hbCatList{
   font-size:13px;
   padding:9px 12px;
   min-width:84px;
-}
-
-.soundboardPage .sbSafetyRow .btn{
-  white-space:nowrap;
 }
 
 .soundboardPage .sbSettingsRow .sbFadeWrap,
@@ -2386,13 +2318,6 @@ details.hbAcc .hbCatList{
   border:0;
   border-radius:12px;
   overflow:hidden;
-}
-
-.soundboardPage .sbTimerBtns{
-  display:inline-flex;
-  gap:6px;
-  align-items:center;
-  flex-wrap:wrap;
 }
 
 @media (max-width: 1100px){
@@ -2602,13 +2527,6 @@ details.hbAcc .hbCatList{
   padding: 12px;
   overflow: auto;
   max-height: calc(100vh - 220px);
-}
-
-.soundboardPage .sbSideSection{
-  margin-top: 12px;
-}
-.soundboardPage .sbSideSection:first-child{
-  margin-top: 0;
 }
 
 .soundboardPage .sbEmbedPane{

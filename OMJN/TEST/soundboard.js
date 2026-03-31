@@ -75,6 +75,94 @@ const SB_UI_SCOPE = (typeof OMJN !== "undefined" && OMJN.appScope) ? OMJN.appSco
     settingsClose: document.getElementById("sbSettingsClose"),
   };
 
+  let settingsModalReturnFocus = null;
+  let embedModalReturnFocus = null;
+
+  function rememberFocus(){
+    const active = document.activeElement;
+    return active && typeof active.focus === "function" ? active : null;
+  }
+
+  function restoreFocus(target){
+    if(!target || !target.isConnected) return;
+    setTimeout(() => {
+      try{ target.focus(); }catch(_){}
+    }, 0);
+  }
+
+  function syncModalBodyState(){
+    const hasOpenModal = [els.settingsModal, els.embedModal].some(modal => modal && !modal.hidden);
+    document.body.classList.toggle("modalOpen", hasOpenModal);
+  }
+
+  function isEnableOverlayOpen(){
+    return !!(els.enableOverlay && els.enableOverlay.style.display !== "none");
+  }
+
+  function isHotkeyBlockedTarget(el){
+    return !!(el && typeof el.closest === "function" && el.closest("button, a[href], summary, [role='button'], .sbSplitHandle"));
+  }
+
+  function getModalFocusables(modal){
+    if(!modal) return [];
+    const selector = [
+      "button:not([disabled])",
+      "[href]",
+      "input:not([disabled])",
+      "select:not([disabled])",
+      "textarea:not([disabled])",
+      "[tabindex]:not([tabindex='-1'])"
+    ].join(", ");
+    return Array.from(modal.querySelectorAll(selector)).filter((el) => {
+      if(el.hidden) return false;
+      if(el.getAttribute("aria-hidden") === "true") return false;
+      return true;
+    });
+  }
+
+  function handleModalKeydown(e, modal, closeModal){
+    if(!modal || modal.hidden) return false;
+
+    if(e.key === "Escape"){
+      e.preventDefault();
+      e.stopPropagation();
+      closeModal();
+      return true;
+    }
+
+    if(e.key !== "Tab") return false;
+
+    const focusables = getModalFocusables(modal);
+    const panel = modal.querySelector(".modalPanel");
+
+    if(!focusables.length){
+      e.preventDefault();
+      panel?.focus?.();
+      return true;
+    }
+
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+
+    if(e.shiftKey){
+      if(active === first || active === panel){
+        e.preventDefault();
+        last.focus();
+        return true;
+      }
+      return false;
+    }
+
+    if(active === last){
+      e.preventDefault();
+      first.focus();
+      return true;
+    }
+
+    return false;
+  }
+
 // ---- UI prefs (compact rows + optional sticky controls) ----
 const UI_PREF_KEY = `omjn.sb.ui.v1.${SB_UI_SCOPE}`;
 
@@ -270,7 +358,7 @@ function initUiPrefs(){
   }
 
 
-  // fileId -> { meta, buffer, loading:boolean }
+  // fileId -> { meta, buffer, loading:boolean, promise?:Promise<AudioBuffer> }
   const soundCache = new Map();
   // soundId -> Set<{src:AudioBufferSourceNode, gain:GainNode}> (for stop / live volume updates)
   const playing = new Map();
@@ -278,6 +366,10 @@ function initUiPrefs(){
   function showEnableOverlay(show){
     if(!els.enableOverlay) return;
     els.enableOverlay.style.display = show ? "flex" : "none";
+    els.enableOverlay.setAttribute("aria-hidden", show ? "false" : "true");
+    if(show){
+      setTimeout(() => els.enableBtn?.focus?.(), 0);
+    }
   }
 
   audioEnabled = (ctx.state === "running");
@@ -287,8 +379,9 @@ function initUiPrefs(){
   // ---- Settings modal (volume, fade, hotkeys, source) ----
   function openSettingsModal(){
     if(!els.settingsModal) return;
+    settingsModalReturnFocus = rememberFocus();
     els.settingsModal.hidden = false;
-    document.body.classList.add("modalOpen");
+    syncModalBodyState();
     setTimeout(() => {
       // Focus first interactive control for quick keyboard use
       (els.masterVol || els.apiKey || els.folder)?.focus?.();
@@ -298,7 +391,9 @@ function initUiPrefs(){
   function closeSettingsModal(){
     if(!els.settingsModal) return;
     els.settingsModal.hidden = true;
-    document.body.classList.remove("modalOpen");
+    syncModalBodyState();
+    restoreFocus(settingsModalReturnFocus);
+    settingsModalReturnFocus = null;
   }
 
   function initSettingsModal(){
@@ -325,20 +420,15 @@ function initUiPrefs(){
 
     // Esc closes (capture so it beats search / other handlers)
     document.addEventListener("keydown", (e) => {
-      if(e.key === "Escape" && els.settingsModal && !els.settingsModal.hidden){
-        e.preventDefault();
-        e.stopPropagation();
-        closeSettingsModal();
-      }
+      handleModalKeydown(e, els.settingsModal, closeSettingsModal);
     }, true);
   }
 
   initSettingsModal();
 
-// Enable audio (bind to any enable button, even if markup changes)
-const _enableBtns = Array.from(document.querySelectorAll("#sbEnableBtn"));
-for(const btn of _enableBtns){
-  btn.addEventListener("click", async () => {
+// Enable audio
+if(els.enableBtn){
+  els.enableBtn.addEventListener("click", async () => {
     try{
       // First attempt: resume the context
       await ctx.resume();
@@ -1121,41 +1211,44 @@ function setStatus(msg, isErr=false){
   async function ensureDecoded(sound){
     let entry = soundCache.get(sound.id);
     if(entry?.buffer) return entry.buffer;
-    if(entry?.loading) {
-      // wait for it
-      return new Promise((resolve, reject) => {
-        const t0 = Date.now();
-        const iv = setInterval(() => {
-          const e = soundCache.get(sound.id);
-          if(e?.buffer){ clearInterval(iv); resolve(e.buffer); }
-          if(Date.now() - t0 > 20000){ clearInterval(iv); reject(new Error("Timeout loading sound")); }
-        }, 120);
-      });
-    }
+    if(entry?.loading && entry?.promise) return entry.promise;
 
-    entry = { meta: sound, buffer:null, loading:true };
+    entry = { meta: sound, buffer:null, loading:true, promise:null };
     soundCache.set(sound.id, entry);
     updateLoadLabel(sound.id);
 
-    // IndexedDB hit?
-    const cached = await idbGet(sound.id);
-    let blob = cached?.blob || null;
-    const same = cached && cached.modifiedTime === sound.modifiedTime;
+    entry.promise = (async () => {
+      try{
+        // IndexedDB hit?
+        const cached = await idbGet(sound.id);
+        let blob = cached?.blob || null;
+        const same = cached && cached.modifiedTime === sound.modifiedTime;
 
-    if(!blob || !same){
-      const r = await fetch(sound.downloadUrl);
-      if(!r.ok) throw new Error(`Download failed (${r.status})`);
-      blob = await r.blob();
-      await idbPut({ id:sound.id, name:sound.name, modifiedTime:sound.modifiedTime, mimeType:sound.mimeType, blob });
-    }
+        if(!blob || !same){
+          const r = await fetch(sound.downloadUrl);
+          if(!r.ok) throw new Error(`Download failed (${r.status})`);
+          blob = await r.blob();
+          await idbPut({ id:sound.id, name:sound.name, modifiedTime:sound.modifiedTime, mimeType:sound.mimeType, blob });
+        }
 
-    const ab = await blob.arrayBuffer();
-    const buf = await ctx.decodeAudioData(ab.slice(0));
-    entry.buffer = buf;
-    entry.loading = false;
-    soundCache.set(sound.id, entry);
-    updateLoadLabel(sound.id);
-    return buf;
+        const ab = await blob.arrayBuffer();
+        const buf = await ctx.decodeAudioData(ab.slice(0));
+        entry.buffer = buf;
+        return buf;
+      }catch(err){
+        soundCache.delete(sound.id);
+        throw err;
+      }finally{
+        entry.loading = false;
+        entry.promise = null;
+        if(soundCache.get(sound.id) === entry){
+          soundCache.set(sound.id, entry);
+        }
+        updateLoadLabel(sound.id);
+      }
+    })();
+
+    return entry.promise;
   }
 
   async function playSound(sound){
@@ -1258,6 +1351,11 @@ function setStatus(msg, isErr=false){
     const tag = (activeEl && activeEl.tagName) ? activeEl.tagName.toLowerCase() : "";
     const isTypingField = (tag === "input" || tag === "textarea" || tag === "select");
     const isSearchFocused = (activeEl === els.search);
+    const isInteractiveControl = isHotkeyBlockedTarget(activeEl);
+
+    if(document.body.classList.contains("modalOpen") || isEnableOverlayOpen()){
+      return;
+    }
 
     // Cmd/Ctrl+K focuses search
     if((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "k")){
@@ -1289,14 +1387,14 @@ function setStatus(msg, isErr=false){
 
     // ---- STOP HOTKEYS ----
     // SPACE = Stop All (panic stop) (always instant)
-    if(!isTypingField && e.code === "Space"){
+    if(!isTypingField && !isInteractiveControl && e.code === "Space"){
       e.preventDefault();
       stopAll(0);
       return;
     }
 
     // SHIFT+S = Stop selected sound (uses Stop Fade)
-    if(!isTypingField && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "s"){
+    if(!isTypingField && !isInteractiveControl && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "s"){
       e.preventDefault();
       const sel = lastRendered[selectedIdx];
       if(sel) stopSound(sel.id, stopFadeMs);
@@ -1306,6 +1404,7 @@ function setStatus(msg, isErr=false){
 
     // If a non-search typing field is focused, do not steal hotkeys
     if(isTypingField && !isSearchFocused) return;
+    if(isInteractiveControl) return;
 
     // Arrow navigation + Enter to play selected (when search is active)
     if(qActive){
@@ -1748,29 +1847,41 @@ function parseIframeCode(code){
 
 function openEmbedModal(){
   if(!els.embedModal) return;
+  embedModalReturnFocus = rememberFocus();
   els.embedName.value = "";
   els.embedCode.value = "";
   els.embedModal.hidden = false;
-  document.body.classList.add("modalOpen");
+  syncModalBodyState();
   setTimeout(() => els.embedName?.focus(), 0);
 }
 
 function closeEmbedModal(){
   if(!els.embedModal) return;
   els.embedModal.hidden = true;
-  document.body.classList.remove("modalOpen");
+  syncModalBodyState();
+  restoreFocus(embedModalReturnFocus);
+  embedModalReturnFocus = null;
+}
+
+function updateSplitHandleAriaValue(width){
+  if(!els.splitHandle) return;
+  const val = Math.max(280, Math.min(760, width|0));
+  els.splitHandle.setAttribute("aria-valuenow", String(val));
+  els.splitHandle.setAttribute("aria-valuetext", `${val}px embed width`);
 }
 
 function setEmbedPaneWidth(px){
   const val = Math.max(280, Math.min(760, px|0));
   document.documentElement.style.setProperty("--sbEmbedW", `${val}px`);
+  updateSplitHandleAriaValue(val);
   try{ localStorage.setItem(EMBED_WIDTH_KEY, String(val)); }catch(_){}
+  return val;
 }
 
 function loadEmbedPaneWidth(){
   const raw = localStorage.getItem(EMBED_WIDTH_KEY);
   const v = parseInt(raw || "", 10);
-  setEmbedPaneWidth(Number.isFinite(v) ? v : 420);
+  return setEmbedPaneWidth(Number.isFinite(v) ? v : 420);
 }
 
 
@@ -1825,26 +1936,6 @@ if(els.splitHandle){
   const handle = els.splitHandle;
   const root = document.documentElement;
 
-  function clampW(px){
-    return Math.max(280, Math.min(760, px|0));
-  }
-
-  function applyW(px){
-    const val = clampW(px);
-    root.style.setProperty("--sbEmbedW", `${val}px`);
-    try{ localStorage.setItem(EMBED_WIDTH_KEY, String(val)); }catch(_){}
-  }
-
-  // Initialize from stored width
-  try{
-    const raw = localStorage.getItem(EMBED_WIDTH_KEY);
-    const v = parseInt(raw || "", 10);
-    if(Number.isFinite(v)) applyW(v);
-    else applyW(420);
-  }catch(_){
-    applyW(420);
-  }
-
   let dragging = false;
 
   function getMainBounds(){
@@ -1859,7 +1950,7 @@ if(els.splitHandle){
     if(!b) return;
     const x = e.clientX;
     const newW = b.right - x;
-    applyW(newW);
+    setEmbedPaneWidth(newW);
     e.preventDefault();
   }
 
@@ -1882,7 +1973,7 @@ if(els.splitHandle){
     e.preventDefault();
   });
 
-  handle.addEventListener("dblclick", () => applyW(420));
+  handle.addEventListener("dblclick", () => setEmbedPaneWidth(420));
 
   // Keyboard accessibility
   handle.addEventListener("keydown", (e) => {
@@ -1891,12 +1982,12 @@ if(els.splitHandle){
       e.preventDefault();
       const raw = root.style.getPropertyValue("--sbEmbedW").replace("px","").trim();
       const cur = parseInt(raw || localStorage.getItem(EMBED_WIDTH_KEY) || "420", 10);
-      applyW(cur - step);
+      setEmbedPaneWidth(cur - step);
     }else if(e.key === "ArrowRight"){
       e.preventDefault();
       const raw = root.style.getPropertyValue("--sbEmbedW").replace("px","").trim();
       const cur = parseInt(raw || localStorage.getItem(EMBED_WIDTH_KEY) || "420", 10);
-      applyW(cur + step);
+      setEmbedPaneWidth(cur + step);
     }
   });
 }
@@ -1910,6 +2001,14 @@ if(els.splitHandle){
   if(els.embedAdd) els.embedAdd.addEventListener("click", openEmbedModal);
   if(els.embedClose) els.embedClose.addEventListener("click", closeEmbedModal);
   if(els.embedCancel) els.embedCancel.addEventListener("click", closeEmbedModal);
+  if(els.embedModal){
+    els.embedModal.addEventListener("click", (e) => {
+      if(e.target === els.embedModal) closeEmbedModal();
+    });
+  }
+  document.addEventListener("keydown", (e) => {
+    handleModalKeydown(e, els.embedModal, closeEmbedModal);
+  }, true);
 
   if(els.embedSave) els.embedSave.addEventListener("click", () => {
     const name = (els.embedName.value || "").trim() || "Custom Embed";
