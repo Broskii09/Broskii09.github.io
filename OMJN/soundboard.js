@@ -18,8 +18,9 @@ const SB_UI_SCOPE = (typeof OMJN !== "undefined" && OMJN.appScope) ? OMJN.appSco
     deck: document.getElementById("sbDeck"),
 
     start: document.getElementById("sbStart"),
-    pause: document.getElementById("sbPause"),
-    resume: document.getElementById("sbResume"),
+    pauseResume: document.getElementById("sbPauseResume"),
+    pauseResumeLabel: document.getElementById("sbPauseResumeLabel"),
+    livePauseBadge: document.getElementById("sbLivePauseBadge"),
     end: document.getElementById("sbEnd"),
     minus30: document.getElementById("sbMinus30"),
     plus30: document.getElementById("sbPlus30"),
@@ -31,6 +32,7 @@ const SB_UI_SCOPE = (typeof OMJN !== "undefined" && OMJN.appScope) ? OMJN.appSco
 
     compactToggle: document.getElementById("sbCompactToggle"),
     stickyRow2Toggle: document.getElementById("sbStickyRow2Toggle"),
+    repeatClickLayerToggle: document.getElementById("sbRepeatClickLayerToggle"),
     stickyHeader: document.getElementById("sbStickyHeader"),
     row2: document.getElementById("sbRow2"),
     safariTip: document.getElementById("sbSafariTip"),
@@ -64,6 +66,7 @@ const SB_UI_SCOPE = (typeof OMJN !== "undefined" && OMJN.appScope) ? OMJN.appSco
     search: document.getElementById("sbSearch"),
     searchClear: document.getElementById("sbSearchClear"),
     resultMeta: document.getElementById("sbResultMeta"),
+    repeatHint: document.getElementById("sbRepeatHint"),
     stopFade: document.getElementById("sbStopFade"),
     freezeHotkeys: document.getElementById("sbFreezeHotkeys"),
 
@@ -75,6 +78,94 @@ const SB_UI_SCOPE = (typeof OMJN !== "undefined" && OMJN.appScope) ? OMJN.appSco
     settingsClose: document.getElementById("sbSettingsClose"),
   };
 
+  let settingsModalReturnFocus = null;
+  let embedModalReturnFocus = null;
+
+  function rememberFocus(){
+    const active = document.activeElement;
+    return active && typeof active.focus === "function" ? active : null;
+  }
+
+  function restoreFocus(target){
+    if(!target || !target.isConnected) return;
+    setTimeout(() => {
+      try{ target.focus(); }catch(_){}
+    }, 0);
+  }
+
+  function syncModalBodyState(){
+    const hasOpenModal = [els.settingsModal, els.embedModal].some(modal => modal && !modal.hidden);
+    document.body.classList.toggle("modalOpen", hasOpenModal);
+  }
+
+  function isEnableOverlayOpen(){
+    return !!(els.enableOverlay && els.enableOverlay.style.display !== "none");
+  }
+
+  function isHotkeyBlockedTarget(el){
+    return !!(el && typeof el.closest === "function" && el.closest("button, a[href], summary, [role='button'], .sbSplitHandle"));
+  }
+
+  function getModalFocusables(modal){
+    if(!modal) return [];
+    const selector = [
+      "button:not([disabled])",
+      "[href]",
+      "input:not([disabled])",
+      "select:not([disabled])",
+      "textarea:not([disabled])",
+      "[tabindex]:not([tabindex='-1'])"
+    ].join(", ");
+    return Array.from(modal.querySelectorAll(selector)).filter((el) => {
+      if(el.hidden) return false;
+      if(el.getAttribute("aria-hidden") === "true") return false;
+      return true;
+    });
+  }
+
+  function handleModalKeydown(e, modal, closeModal){
+    if(!modal || modal.hidden) return false;
+
+    if(e.key === "Escape"){
+      e.preventDefault();
+      e.stopPropagation();
+      closeModal();
+      return true;
+    }
+
+    if(e.key !== "Tab") return false;
+
+    const focusables = getModalFocusables(modal);
+    const panel = modal.querySelector(".modalPanel");
+
+    if(!focusables.length){
+      e.preventDefault();
+      panel?.focus?.();
+      return true;
+    }
+
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+
+    if(e.shiftKey){
+      if(active === first || active === panel){
+        e.preventDefault();
+        last.focus();
+        return true;
+      }
+      return false;
+    }
+
+    if(active === last){
+      e.preventDefault();
+      first.focus();
+      return true;
+    }
+
+    return false;
+  }
+
 // ---- UI prefs (compact rows + optional sticky controls) ----
 const UI_PREF_KEY = `omjn.sb.ui.v1.${SB_UI_SCOPE}`;
 
@@ -84,15 +175,23 @@ function loadUiPrefs(){
     const obj = raw ? JSON.parse(raw) : null;
     return {
       compact: !!obj?.compact,
-      stickyControls: !!obj?.stickyControls
+      stickyControls: !!obj?.stickyControls,
+      repeatClickLayers: !!obj?.repeatClickLayers
     };
   }catch(_){
-    return { compact:false, stickyControls:false };
+    return { compact:false, stickyControls:false, repeatClickLayers:false };
   }
 }
 
 function saveUiPrefs(prefs){
   try{ localStorage.setItem(UI_PREF_KEY, JSON.stringify(prefs)); }catch(_){}
+}
+
+const uiPrefs = loadUiPrefs();
+
+function updateRepeatClickHint(){
+  if(!els.repeatHint) return;
+  els.repeatHint.textContent = `Click again = ${uiPrefs.repeatClickLayers ? "layer" : "stop"} | Space = panic stop`;
 }
 
 function applyStickyVars(){
@@ -120,7 +219,7 @@ function applyStickyVars(){
 }
 
 function initUiPrefs(){
-  const prefs = loadUiPrefs();
+  const prefs = uiPrefs;
 
   // Defaults: expanded + non-sticky until user opts in
   if(els.compactToggle){
@@ -144,6 +243,18 @@ function initUiPrefs(){
       applyStickyVars();
     });
   }
+
+  if(els.repeatClickLayerToggle){
+    els.repeatClickLayerToggle.checked = prefs.repeatClickLayers;
+    els.repeatClickLayerToggle.addEventListener("change", () => {
+      prefs.repeatClickLayers = !!els.repeatClickLayerToggle.checked;
+      saveUiPrefs(prefs);
+      updateRepeatClickHint();
+      renderPads();
+    });
+  }
+
+  updateRepeatClickHint();
 
   // keep sticky offset accurate
   applyStickyVars();
@@ -270,14 +381,37 @@ function initUiPrefs(){
   }
 
 
-  // fileId -> { meta, buffer, loading:boolean }
+  // fileId -> { meta, buffer, loading:boolean, promise?:Promise<AudioBuffer> }
   const soundCache = new Map();
   // soundId -> Set<{src:AudioBufferSourceNode, gain:GainNode}> (for stop / live volume updates)
   const playing = new Map();
 
+  function isSoundPlaying(soundId){
+    const set = playing.get(soundId);
+    return !!(set && set.size);
+  }
+
+  function isRepeatClickLayeringEnabled(soundId){
+    return !!uiPrefs.repeatClickLayers || isLayerEnabled(soundId);
+  }
+
+  function syncPadPlaybackState(soundId){
+    const active = isSoundPlaying(soundId);
+    document.querySelectorAll(`.sbPad[data-sound-id="${CSS.escape(soundId)}"]`).forEach((padEl) => {
+      const soundName = padEl.dataset.soundName || "sound";
+      padEl.classList.toggle("playing", active);
+      padEl.setAttribute("aria-pressed", active ? "true" : "false");
+      padEl.title = `${active ? "Stop" : "Play"} ${soundName}`;
+    });
+  }
+
   function showEnableOverlay(show){
     if(!els.enableOverlay) return;
     els.enableOverlay.style.display = show ? "flex" : "none";
+    els.enableOverlay.setAttribute("aria-hidden", show ? "false" : "true");
+    if(show){
+      setTimeout(() => els.enableBtn?.focus?.(), 0);
+    }
   }
 
   audioEnabled = (ctx.state === "running");
@@ -287,8 +421,9 @@ function initUiPrefs(){
   // ---- Settings modal (volume, fade, hotkeys, source) ----
   function openSettingsModal(){
     if(!els.settingsModal) return;
+    settingsModalReturnFocus = rememberFocus();
     els.settingsModal.hidden = false;
-    document.body.classList.add("modalOpen");
+    syncModalBodyState();
     setTimeout(() => {
       // Focus first interactive control for quick keyboard use
       (els.masterVol || els.apiKey || els.folder)?.focus?.();
@@ -298,7 +433,9 @@ function initUiPrefs(){
   function closeSettingsModal(){
     if(!els.settingsModal) return;
     els.settingsModal.hidden = true;
-    document.body.classList.remove("modalOpen");
+    syncModalBodyState();
+    restoreFocus(settingsModalReturnFocus);
+    settingsModalReturnFocus = null;
   }
 
   function initSettingsModal(){
@@ -325,20 +462,15 @@ function initUiPrefs(){
 
     // Esc closes (capture so it beats search / other handlers)
     document.addEventListener("keydown", (e) => {
-      if(e.key === "Escape" && els.settingsModal && !els.settingsModal.hidden){
-        e.preventDefault();
-        e.stopPropagation();
-        closeSettingsModal();
-      }
+      handleModalKeydown(e, els.settingsModal, closeSettingsModal);
     }, true);
   }
 
   initSettingsModal();
 
-// Enable audio (bind to any enable button, even if markup changes)
-const _enableBtns = Array.from(document.querySelectorAll("#sbEnableBtn"));
-for(const btn of _enableBtns){
-  btn.addEventListener("click", async () => {
+// Enable audio
+if(els.enableBtn){
+  els.enableBtn.addEventListener("click", async () => {
     try{
       // First attempt: resume the context
       await ctx.resume();
@@ -385,8 +517,7 @@ function setStatus(msg, isErr=false){
         try{ inst.src.stop(0); }catch(_){ }
       }
       playing.delete(soundId);
-      const padEl = document.querySelector(`.sbPad[data-sound-id="${CSS.escape(soundId)}"]`);
-      if(padEl) padEl.classList.remove("playing");
+      syncPadPlaybackState(soundId);
       return;
     }
 
@@ -409,13 +540,14 @@ function setStatus(msg, isErr=false){
   function stopAll(fadeMs = stopFadeMs){
     const f = Math.max(0, Number(fadeMs || 0));
     if(f <= 0){
+      const activeIds = [...playing.keys()];
       for(const [, set] of playing.entries()){
         for(const inst of Array.from(set)){
           try{ inst.src.stop(0); }catch(_){ }
         }
       }
       playing.clear();
-      document.querySelectorAll(".sbPad.playing").forEach(el => el.classList.remove("playing"));
+      activeIds.forEach((soundId) => syncPadPlaybackState(soundId));
       return;
     }
 
@@ -564,7 +696,7 @@ function setStatus(msg, isErr=false){
     }
     saveFavList();
     renderCategories();
-    if(activeCategoryId === "__favorites") selectedIdx = 0;
+    if(activeCategoryId === "__favorites") selectedIdx = -1;
     renderPads();
   }
 
@@ -737,7 +869,7 @@ function setStatus(msg, isErr=false){
 
   // ---- Search / filter state ----
   let searchQuery = "";
-  let selectedIdx = 0;
+  let selectedIdx = -1;
   let lastRendered = []; // sound objects in current view order
 
   // Normalization helpers (fast fuzzy search)
@@ -915,7 +1047,7 @@ function setStatus(msg, isErr=false){
       if(els.resultMeta){
         if(soundsToShow.length){
           const inScope = (activeCategoryId === "__all") ? "" : ` in ${scopeLabel}`;
-          els.resultMeta.textContent = `${soundsToShow.length} match(es)${inScope} for “${q}” • Up/Down selects • Enter plays • Esc clears`;
+          els.resultMeta.textContent = `${soundsToShow.length} match(es)${inScope} for “${q}” • Up/Down selects • Enter toggles • Esc clears`;
         }else{
           const inScope = (activeCategoryId === "__all") ? "" : ` in ${scopeLabel}`;
           els.resultMeta.textContent = `No matches${inScope} for “${q}”.`;
@@ -925,12 +1057,14 @@ function setStatus(msg, isErr=false){
       soundsToShow = baseSounds;
       els.padsTitle.textContent = scopeLabel;
       if(els.resultMeta){
-        els.resultMeta.textContent = "Tip: type anywhere to search • Up/Down selects • Enter plays • 1–9/0 triggers your Learning Hotkeys (when not typing).";
+        els.resultMeta.textContent = "Tip: type anywhere to search • Up/Down selects • Enter toggles • 1–9/0 triggers your Learning Hotkeys (when not typing).";
       }
     }
 
     lastRendered = soundsToShow;
-    if(selectedIdx >= lastRendered.length) selectedIdx = 0;
+    if(selectedIdx >= lastRendered.length){
+      selectedIdx = qNorm ? 0 : -1;
+    }
 
     if(!soundsToShow.length){
       const empty = document.createElement("div");
@@ -947,18 +1081,26 @@ function setStatus(msg, isErr=false){
       const wrap = document.createElement("div");
       wrap.className = "sbPadWrap" + (i === selectedIdx ? " selected" : "");
 
+      const soundIsPlaying = isSoundPlaying(s.id);
       const pad = document.createElement("button");
-      pad.className = "sbPad";
+      pad.type = "button";
+      pad.className = "sbPad" + (soundIsPlaying ? " playing" : "");
       pad.dataset.soundId = s.id;
 
       const hk = hotkeyBySound[s.id] || "";
       const displayName = s._displayName || stripExt(s.name);
       const nameHtml = qNorm ? highlightName(displayName, qTokens) : escapeHtml(displayName);
       const showCatPill = !!qNorm || (activeCategoryId === "__all" || activeCategoryId === "__favorites" || activeCategoryId === "__recents");
+      pad.dataset.soundName = displayName;
+      pad.setAttribute("aria-pressed", soundIsPlaying ? "true" : "false");
+      pad.title = `${soundIsPlaying ? "Stop" : "Play"} ${displayName}`;
 
       pad.innerHTML = `
+        <svg class="sbPadActiveFrame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <rect class="sbPadActiveLine" x="1" y="1" width="98" height="98" rx="16" ry="16" pathLength="100"></rect>
+        </svg>
         <div class="sbPadTop">
-          <div style="min-width:0;">
+          <div class="sbPadNameWrap">
             <div class="sbPadName">${nameHtml}</div>
           </div>
           ${hk ? `<div class="sbHotkey" title="Learning hotkey">${escapeHtml(hk)}</div>` : ""}
@@ -1002,19 +1144,21 @@ function setStatus(msg, isErr=false){
       layerBtn.type = "button";
       layerBtn.className = "sbMiniBtn" + (isLayerEnabled(s.id) ? " on" : "");
       layerBtn.textContent = "Layer";
-      layerBtn.title = "Allow overlap / layering";
+      layerBtn.title = "Allow this pad to layer when clicked again";
+      layerBtn.setAttribute("aria-pressed", isLayerEnabled(s.id) ? "true" : "false");
       layerBtn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
         toggleLayer(s.id);
         layerBtn.classList.toggle("on", isLayerEnabled(s.id));
+        layerBtn.setAttribute("aria-pressed", isLayerEnabled(s.id) ? "true" : "false");
       });
 
       const pinSelect = document.createElement("select");
       pinSelect.className = "sbPinSelect";
       pinSelect.setAttribute("aria-label", "Pin to hotkey slot");
       pinSelect.title = "Pin to 1–9/0";
-      pinSelect.innerHTML = `<option value="">📌 —</option>` + HOTKEY_KEYS.map(k => `<option value="${k}">📌 ${k}</option>`).join("");
+      pinSelect.innerHTML = `<option value="">Pin -</option>` + HOTKEY_KEYS.map(k => `<option value="${k}">Pin ${k}</option>`).join("");
       const currentPin = getPinnedKeyForSound(s.id);
       pinSelect.value = currentPin || "";
       pinSelect.addEventListener("change", (e) => {
@@ -1035,6 +1179,7 @@ function setStatus(msg, isErr=false){
       volWrap.className = "sbPadVolWrap";
       const current = getSoundVolPercent(s.id);
       volWrap.innerHTML = `
+        <div class="sbPadVolLabel">Vol</div>
         <input type="range" class="sbRange sbSoundVol" min="0" max="100" step="1" value="${current}" data-sound-id="${escapeHtml(s.id)}" aria-label="Volume for ${escapeHtml(displayName)}"/>
         <div class="sbVolPct mono" data-sound-id="${escapeHtml(s.id)}">${current}%</div>
       `;
@@ -1121,41 +1266,44 @@ function setStatus(msg, isErr=false){
   async function ensureDecoded(sound){
     let entry = soundCache.get(sound.id);
     if(entry?.buffer) return entry.buffer;
-    if(entry?.loading) {
-      // wait for it
-      return new Promise((resolve, reject) => {
-        const t0 = Date.now();
-        const iv = setInterval(() => {
-          const e = soundCache.get(sound.id);
-          if(e?.buffer){ clearInterval(iv); resolve(e.buffer); }
-          if(Date.now() - t0 > 20000){ clearInterval(iv); reject(new Error("Timeout loading sound")); }
-        }, 120);
-      });
-    }
+    if(entry?.loading && entry?.promise) return entry.promise;
 
-    entry = { meta: sound, buffer:null, loading:true };
+    entry = { meta: sound, buffer:null, loading:true, promise:null };
     soundCache.set(sound.id, entry);
     updateLoadLabel(sound.id);
 
-    // IndexedDB hit?
-    const cached = await idbGet(sound.id);
-    let blob = cached?.blob || null;
-    const same = cached && cached.modifiedTime === sound.modifiedTime;
+    entry.promise = (async () => {
+      try{
+        // IndexedDB hit?
+        const cached = await idbGet(sound.id);
+        let blob = cached?.blob || null;
+        const same = cached && cached.modifiedTime === sound.modifiedTime;
 
-    if(!blob || !same){
-      const r = await fetch(sound.downloadUrl);
-      if(!r.ok) throw new Error(`Download failed (${r.status})`);
-      blob = await r.blob();
-      await idbPut({ id:sound.id, name:sound.name, modifiedTime:sound.modifiedTime, mimeType:sound.mimeType, blob });
-    }
+        if(!blob || !same){
+          const r = await fetch(sound.downloadUrl);
+          if(!r.ok) throw new Error(`Download failed (${r.status})`);
+          blob = await r.blob();
+          await idbPut({ id:sound.id, name:sound.name, modifiedTime:sound.modifiedTime, mimeType:sound.mimeType, blob });
+        }
 
-    const ab = await blob.arrayBuffer();
-    const buf = await ctx.decodeAudioData(ab.slice(0));
-    entry.buffer = buf;
-    entry.loading = false;
-    soundCache.set(sound.id, entry);
-    updateLoadLabel(sound.id);
-    return buf;
+        const ab = await blob.arrayBuffer();
+        const buf = await ctx.decodeAudioData(ab.slice(0));
+        entry.buffer = buf;
+        return buf;
+      }catch(err){
+        soundCache.delete(sound.id);
+        throw err;
+      }finally{
+        entry.loading = false;
+        entry.promise = null;
+        if(soundCache.get(sound.id) === entry){
+          soundCache.set(sound.id, entry);
+        }
+        updateLoadLabel(sound.id);
+      }
+    })();
+
+    return entry.promise;
   }
 
   async function playSound(sound){
@@ -1164,7 +1312,10 @@ function setStatus(msg, isErr=false){
       return;
     }
     try{
-      const padEl = document.querySelector(`.sbPad[data-sound-id="${CSS.escape(sound.id)}"]`);
+      if(isSoundPlaying(sound.id) && !isRepeatClickLayeringEnabled(sound.id)){
+        stopSound(sound.id, stopFadeMs);
+        return;
+      }
 
       const buffer = await ensureDecoded(sound);
       const src = ctx.createBufferSource();
@@ -1175,17 +1326,12 @@ function setStatus(msg, isErr=false){
       gain.gain.value = sliderToGain(getSoundVolPercent(sound.id));
 
       src.connect(gain).connect(masterGain);
-      // By default, clicking a pad restarts the sound.
-      // If Layer is enabled for this sound, clicks overlap instead.
-      if(!isLayerEnabled(sound.id)){
-        stopSound(sound.id, 0);
-      }
-      if(padEl) padEl.classList.add("playing");
 
       let set = playing.get(sound.id);
       if(!set){ set = new Set(); playing.set(sound.id, set); }
       const inst = { src, gain };
       set.add(inst);
+      syncPadPlaybackState(sound.id);
 
       src.onended = () => {
         const set = playing.get(sound.id);
@@ -1193,11 +1339,9 @@ function setStatus(msg, isErr=false){
           set.delete(inst);
           if(set.size === 0){
             playing.delete(sound.id);
-            if(padEl) padEl.classList.remove("playing");
           }
-        }else{
-          if(padEl) padEl.classList.remove("playing");
         }
+        syncPadPlaybackState(sound.id);
       };
 
       src.start(0);
@@ -1216,7 +1360,7 @@ function setStatus(msg, isErr=false){
   function scheduleSearchRender(){
     if(searchDebounce) clearTimeout(searchDebounce);
     searchDebounce = setTimeout(() => {
-      selectedIdx = 0;
+      selectedIdx = String(searchQuery || "").trim() ? 0 : -1;
       renderPads();
     }, 90);
   }
@@ -1236,7 +1380,7 @@ function setStatus(msg, isErr=false){
         if(String(searchQuery||"").trim()){
           e.preventDefault();
           setSearchQuery("");
-          selectedIdx = 0;
+          selectedIdx = -1;
           renderPads();
         }
       }
@@ -1247,7 +1391,7 @@ function setStatus(msg, isErr=false){
     els.searchClear.addEventListener("click", (e) => {
       e.preventDefault();
       setSearchQuery("");
-      selectedIdx = 0;
+      selectedIdx = -1;
       renderPads();
       els.search?.focus();
     });
@@ -1258,6 +1402,11 @@ function setStatus(msg, isErr=false){
     const tag = (activeEl && activeEl.tagName) ? activeEl.tagName.toLowerCase() : "";
     const isTypingField = (tag === "input" || tag === "textarea" || tag === "select");
     const isSearchFocused = (activeEl === els.search);
+    const isInteractiveControl = isHotkeyBlockedTarget(activeEl);
+
+    if(document.body.classList.contains("modalOpen") || isEnableOverlayOpen()){
+      return;
+    }
 
     // Cmd/Ctrl+K focuses search
     if((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "k")){
@@ -1275,7 +1424,7 @@ function setStatus(msg, isErr=false){
         if(!isTypingField || isSearchFocused){
           e.preventDefault();
           setSearchQuery("");
-          selectedIdx = 0;
+          selectedIdx = -1;
           renderPads();
         }
       }
@@ -1289,14 +1438,14 @@ function setStatus(msg, isErr=false){
 
     // ---- STOP HOTKEYS ----
     // SPACE = Stop All (panic stop) (always instant)
-    if(!isTypingField && e.code === "Space"){
+    if(!isTypingField && !isInteractiveControl && e.code === "Space"){
       e.preventDefault();
       stopAll(0);
       return;
     }
 
     // SHIFT+S = Stop selected sound (uses Stop Fade)
-    if(!isTypingField && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "s"){
+    if(!isTypingField && !isInteractiveControl && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "s"){
       e.preventDefault();
       const sel = lastRendered[selectedIdx];
       if(sel) stopSound(sel.id, stopFadeMs);
@@ -1306,6 +1455,7 @@ function setStatus(msg, isErr=false){
 
     // If a non-search typing field is focused, do not steal hotkeys
     if(isTypingField && !isSearchFocused) return;
+    if(isInteractiveControl) return;
 
     // Arrow navigation + Enter to play selected (when search is active)
     if(qActive){
@@ -1355,7 +1505,7 @@ function setStatus(msg, isErr=false){
     activeCategoryId = btn.dataset.cat || "__all";
     // switching categories is a deliberate navigation: clear search so it doesn't feel "stuck"
     if(String(searchQuery||"").trim()) setSearchQuery("");
-    selectedIdx = 0;
+    selectedIdx = -1;
     renderCategories();
     renderPads();
   });
@@ -1437,6 +1587,9 @@ const CFG_KEY = "omjn_soundboard_drive_cfg_v1";
     else delete layerPrefs[soundId];
     saveLayerPrefs();
   }
+  function toggleLayer(soundId){
+    setLayerEnabled(soundId, !isLayerEnabled(soundId));
+  }
 
 const cfg = loadCfg();
   if(cfg.apiKey) els.apiKey.value = cfg.apiKey;
@@ -1511,7 +1664,7 @@ async function refreshFromDrive(){
     indexSounds();
     activeCategoryId = "__all";
     setSearchQuery("");
-    selectedIdx = 0;
+    selectedIdx = -1;
     renderCategories();
     renderPads();
 
@@ -1608,6 +1761,11 @@ els.refresh.addEventListener("click", refreshFromDrive);
     });
   }
 
+  function togglePauseResume(){
+    if(state.phase === "PAUSED") return resume();
+    return pause();
+  }
+
   function endToSplash(){
     updateState(s => {
       if(!s.currentSlotId){
@@ -1654,8 +1812,7 @@ els.refresh.addEventListener("click", refreshFromDrive);
   }
 
   els.start.addEventListener("click", start);
-  els.pause.addEventListener("click", pause);
-  els.resume.addEventListener("click", resume);
+  if(els.pauseResume) els.pauseResume.addEventListener("click", togglePauseResume);
   els.end.addEventListener("click", endToSplash);
   els.minus30.addEventListener("click", () => addSeconds(-30));
   els.plus30.addEventListener("click", () => addSeconds(30));
@@ -1748,29 +1905,41 @@ function parseIframeCode(code){
 
 function openEmbedModal(){
   if(!els.embedModal) return;
+  embedModalReturnFocus = rememberFocus();
   els.embedName.value = "";
   els.embedCode.value = "";
   els.embedModal.hidden = false;
-  document.body.classList.add("modalOpen");
+  syncModalBodyState();
   setTimeout(() => els.embedName?.focus(), 0);
 }
 
 function closeEmbedModal(){
   if(!els.embedModal) return;
   els.embedModal.hidden = true;
-  document.body.classList.remove("modalOpen");
+  syncModalBodyState();
+  restoreFocus(embedModalReturnFocus);
+  embedModalReturnFocus = null;
+}
+
+function updateSplitHandleAriaValue(width){
+  if(!els.splitHandle) return;
+  const val = Math.max(280, Math.min(760, width|0));
+  els.splitHandle.setAttribute("aria-valuenow", String(val));
+  els.splitHandle.setAttribute("aria-valuetext", `${val}px embed width`);
 }
 
 function setEmbedPaneWidth(px){
   const val = Math.max(280, Math.min(760, px|0));
   document.documentElement.style.setProperty("--sbEmbedW", `${val}px`);
+  updateSplitHandleAriaValue(val);
   try{ localStorage.setItem(EMBED_WIDTH_KEY, String(val)); }catch(_){}
+  return val;
 }
 
 function loadEmbedPaneWidth(){
   const raw = localStorage.getItem(EMBED_WIDTH_KEY);
   const v = parseInt(raw || "", 10);
-  setEmbedPaneWidth(Number.isFinite(v) ? v : 420);
+  return setEmbedPaneWidth(Number.isFinite(v) ? v : 420);
 }
 
 
@@ -1825,26 +1994,6 @@ if(els.splitHandle){
   const handle = els.splitHandle;
   const root = document.documentElement;
 
-  function clampW(px){
-    return Math.max(280, Math.min(760, px|0));
-  }
-
-  function applyW(px){
-    const val = clampW(px);
-    root.style.setProperty("--sbEmbedW", `${val}px`);
-    try{ localStorage.setItem(EMBED_WIDTH_KEY, String(val)); }catch(_){}
-  }
-
-  // Initialize from stored width
-  try{
-    const raw = localStorage.getItem(EMBED_WIDTH_KEY);
-    const v = parseInt(raw || "", 10);
-    if(Number.isFinite(v)) applyW(v);
-    else applyW(420);
-  }catch(_){
-    applyW(420);
-  }
-
   let dragging = false;
 
   function getMainBounds(){
@@ -1859,7 +2008,7 @@ if(els.splitHandle){
     if(!b) return;
     const x = e.clientX;
     const newW = b.right - x;
-    applyW(newW);
+    setEmbedPaneWidth(newW);
     e.preventDefault();
   }
 
@@ -1882,7 +2031,7 @@ if(els.splitHandle){
     e.preventDefault();
   });
 
-  handle.addEventListener("dblclick", () => applyW(420));
+  handle.addEventListener("dblclick", () => setEmbedPaneWidth(420));
 
   // Keyboard accessibility
   handle.addEventListener("keydown", (e) => {
@@ -1891,12 +2040,12 @@ if(els.splitHandle){
       e.preventDefault();
       const raw = root.style.getPropertyValue("--sbEmbedW").replace("px","").trim();
       const cur = parseInt(raw || localStorage.getItem(EMBED_WIDTH_KEY) || "420", 10);
-      applyW(cur - step);
+      setEmbedPaneWidth(cur - step);
     }else if(e.key === "ArrowRight"){
       e.preventDefault();
       const raw = root.style.getPropertyValue("--sbEmbedW").replace("px","").trim();
       const cur = parseInt(raw || localStorage.getItem(EMBED_WIDTH_KEY) || "420", 10);
-      applyW(cur + step);
+      setEmbedPaneWidth(cur + step);
     }
   });
 }
@@ -1910,6 +2059,14 @@ if(els.splitHandle){
   if(els.embedAdd) els.embedAdd.addEventListener("click", openEmbedModal);
   if(els.embedClose) els.embedClose.addEventListener("click", closeEmbedModal);
   if(els.embedCancel) els.embedCancel.addEventListener("click", closeEmbedModal);
+  if(els.embedModal){
+    els.embedModal.addEventListener("click", (e) => {
+      if(e.target === els.embedModal) closeEmbedModal();
+    });
+  }
+  document.addEventListener("keydown", (e) => {
+    handleModalKeydown(e, els.embedModal, closeEmbedModal);
+  }, true);
 
   if(els.embedSave) els.embedSave.addEventListener("click", () => {
     const name = (els.embedName.value || "").trim() || "Custom Embed";
@@ -1987,11 +2144,38 @@ initEmbeds();
       else if(ph === "PAUSED") els.phaseDot.classList.add("warn");
     }
 
-    // State-aware transport buttons (reduce mis-clicks)
+    // State-aware transport buttons
     if(els.start)  els.start.disabled  = (ph !== "SPLASH");
-    if(els.pause)  els.pause.disabled  = (ph !== "LIVE");
-    if(els.resume) els.resume.disabled = (ph !== "PAUSED");
     if(els.end)    els.end.disabled    = !(ph === "LIVE" || ph === "PAUSED");
+
+    const liveish = ph === "LIVE" || ph === "PAUSED";
+    const timer = liveish && typeof OMJN !== "undefined" && OMJN && typeof OMJN.computeTimer === "function"
+      ? (OMJN.computeTimer(state) || null)
+      : null;
+    const timedLive = !!liveish && !!timer && (timer.durationMs || 0) > 0;
+    const paused = ph === "PAUSED" && timedLive;
+
+    if(els.pauseResume){
+      const pauseWrap = els.pauseResume.closest(".pauseResumeWrap");
+      if(pauseWrap){
+        pauseWrap.classList.toggle("isReady", timedLive);
+        pauseWrap.classList.toggle("isPaused", paused);
+        pauseWrap.classList.toggle("isDisabled", !timedLive);
+      }
+      if(els.pauseResumeLabel) els.pauseResumeLabel.textContent = paused ? "Resume" : "Pause";
+      els.pauseResume.classList.toggle("isPaused", paused);
+      els.pauseResume.classList.toggle("isDisabled", !timedLive);
+      els.pauseResume.disabled = !timedLive;
+      els.pauseResume.setAttribute("aria-pressed", paused ? "true" : "false");
+      els.pauseResume.title = timedLive
+        ? (paused ? "Resume the current timed slot" : "Pause the current timed slot")
+        : "No timed live slot is active";
+    }
+
+    if(els.livePauseBadge){
+      els.livePauseBadge.hidden = !paused;
+      els.livePauseBadge.setAttribute("aria-hidden", paused ? "false" : "true");
+    }
 
     // Now / Next / Deck
     const q = (state && Array.isArray(state.queue)) ? state.queue : [];
@@ -2007,7 +2191,7 @@ initEmbeds();
 
     // Timer
     if(els.timer && typeof OMJN !== "undefined" && OMJN && typeof OMJN.computeTimer === "function" && typeof OMJN.formatMMSS === "function"){
-      const t = OMJN.computeTimer(state) || {};
+      const t = timer || OMJN.computeTimer(state) || {};
       els.timer.textContent = OMJN.formatMMSS(t.remainingMs || 0);
     }
   }

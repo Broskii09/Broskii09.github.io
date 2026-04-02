@@ -2673,9 +2673,12 @@ function escapeHtml(s){
     if(!slot) return 0;
     const typeId = String(slot.slotTypeId || "");
     if(typeId.startsWith("ad_")) return 0;
-    if(isUntimedForecastSlot(slot)) return OMJN.effectiveMinutes(state, slot) * 60 * 1000;
     const t = OMJN.computeTimer(state);
-    return Math.max(t.remainingMs || 0, 0);
+    if((t.durationMs || 0) > 0){
+      return Math.max(t.remainingMs || 0, 0);
+    }
+    if(isUntimedForecastSlot(slot)) return OMJN.effectiveMinutes(state, slot) * 60 * 1000;
+    return 0;
   }
 
   function formatApproxTime(tsMs){

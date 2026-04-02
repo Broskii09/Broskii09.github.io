@@ -4,6 +4,8 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>OMJN Soundboard</title>
+  <link rel="icon" type="image/png" href="./favicon.png">
+<link rel="shortcut icon" href="./favicon.ico">
   <link rel="stylesheet" href="./app.css"/>
 </head>
 <body class="soundboardPage">
@@ -28,11 +30,11 @@
         </div>
 
         <div class="sbHeaderRight">
-          <label for="sbEmbedName" class="sbToggle small" title="Reduce header + controls height">
+          <label for="sbCompactToggle" class="sbToggle small" title="Reduce header + controls height">
             <input type="checkbox" id="sbCompactToggle" />
             Compact
           </label>
-          <label class="sbToggle small" title="Keep transport/time controls visible while scrolling">
+          <label for="sbStickyRow2Toggle" class="sbToggle small" title="Keep transport/time controls visible while scrolling">
             <input type="checkbox" id="sbStickyRow2Toggle" />
             Sticky controls
           </label>
@@ -50,10 +52,13 @@
               <div class="sbPanelTitle">Transport</div>
             </div>
             <div class="row wrap sbTransportRow">
-              <button class="btn small primary" id="sbStart">Start</button>
-              <button class="btn small" id="sbPause">Pause</button>
-              <button class="btn small" id="sbResume">Resume</button>
-              <button class="btn small" id="sbEnd">End → Splash</button>
+              <button class="btn small primary" id="sbStart" type="button">Start</button>
+              <div class="pauseResumeWrap sbPauseResumeWrap">
+                <button class="btn btnAccent pauseResumeBtn small" id="sbPauseResume" type="button" aria-pressed="false" title="No timed live slot is active">
+                  <span class="pauseResumeText" id="sbPauseResumeLabel">Pause</span>
+                </button>
+              </div>
+              <button class="btn small" id="sbEnd" type="button">End → Splash</button>
             </div>
           </div>
 
@@ -62,13 +67,13 @@
               <div class="sbPanelTitle">Timer Adjust</div>
             </div>
             <div class="row wrap sbTimeAdjustRow">
-              <button class="btn tiny" id="sbMinus5">-5m</button>
-              <button class="btn tiny" id="sbMinus1">-1m</button>
-              <button class="btn tiny" id="sbMinus30">-:30</button>
-              <button class="btn tiny" id="sbPlus30">+:30</button>
-              <button class="btn tiny" id="sbPlus1">+1m</button>
-              <button class="btn tiny" id="sbPlus5">+5m</button>
-              <button class="btn tiny" id="sbResetTime">Reset</button>
+              <button class="btn tiny" id="sbMinus5" type="button">-5m</button>
+              <button class="btn tiny" id="sbMinus1" type="button">-1m</button>
+              <button class="btn tiny" id="sbMinus30" type="button">-:30</button>
+              <button class="btn tiny" id="sbPlus30" type="button">+:30</button>
+              <button class="btn tiny" id="sbPlus1" type="button">+1m</button>
+              <button class="btn tiny" id="sbPlus5" type="button">+5m</button>
+              <button class="btn tiny" id="sbResetTime" type="button">Reset</button>
             </div>
           </div>
         </div>
@@ -87,17 +92,23 @@
                   <div class="sbPadsHeaderTop">
                     <div class="sbPadsTitle" id="sbPadsTitle">All</div>
 
-                    <button class="btn tiny sbStopAllBtn" id="sbStopAll" type="button" title="Stop all sounds">Stop All</button>
+                    <div class="sbPadsActions">
+                      <label for="sbRepeatClickLayerToggle" class="sbToggle sbPadModeToggle small" title="If enabled, clicking a playing pad again layers another copy instead of stopping it.">
+                        <input type="checkbox" id="sbRepeatClickLayerToggle" />
+                        Repeat click layers
+                      </label>
+                      <button class="btn tiny sbStopAllBtn" id="sbStopAll" type="button" title="Stop all sounds">Stop All</button>
+                    </div>
 
                     <div class="sbSearchWrap">
-                      <input type="text" id="sbSearch" class="sbSearch" placeholder="Search sounds… (Ctrl+K)" autocomplete="off" spellcheck="false"/ aria-label="Search sounds">
+                      <input type="text" id="sbSearch" class="sbSearch" placeholder="Search sounds… (Ctrl+K)" autocomplete="off" spellcheck="false" aria-label="Search sounds" />
                       <button type="button" class="sbSearchClear" id="sbSearchClear" aria-label="Clear search">×</button>
                     </div>
                   </div>
 
                   <div class="sbHintRow">
-                    <div class="small" id="sbResultMeta">Tip: type anywhere to search • Up/Down selects • Enter plays • 1–9/0 triggers your Learning Hotkeys (when not typing).</div>
-                    <div class="small sbHintRight">Space = panic stop (instant)</div>
+                    <div class="small" id="sbResultMeta">Tip: type anywhere to search • Up/Down selects • Enter toggles • 1–9/0 triggers your Learning Hotkeys (when not typing).</div>
+                    <div class="small sbHintRight" id="sbRepeatHint">Click again = stop | Space = panic stop</div>
                   </div>
                 </div>
 
@@ -106,6 +117,7 @@
             </div>
 
             <div class="sbSplitHandle" id="sbSplitHandle" role="separator" aria-orientation="vertical"
+                 aria-controls="sbEmbedFrameWrap" aria-valuemin="280" aria-valuemax="760" aria-valuenow="420"
                  aria-label="Resize soundboard / music panes" tabindex="0" title="Drag to resize"></div>
 
             <div class="sbSidePane" id="sbSidePane">
@@ -136,17 +148,17 @@
   </div>
 
   <!-- Audio unlock overlay -->
-  <div class="sbEnable" id="sbEnable">
+  <div class="sbEnable" id="sbEnable" role="dialog" aria-modal="true" aria-labelledby="sbEnableTitle" aria-describedby="sbEnableDesc">
     <div class="sbEnableCard">
-      <div style="font-size:18px; font-weight:900;">Enable Audio</div>
-      <div class="small" style="margin-top:6px;">Browsers require a click before audio can play.</div>
-      <button class="btn primary" id="sbEnableBtn" style="margin-top:12px;">Enable</button>
+      <div id="sbEnableTitle" style="font-size:18px; font-weight:900;">Enable Audio</div>
+      <div class="small" id="sbEnableDesc" style="margin-top:6px;">Browsers require a click before audio can play.</div>
+      <button class="btn primary" id="sbEnableBtn" type="button" style="margin-top:12px;">Enable</button>
     </div>
   </div>
 
   <!-- Add music embed modal -->
   <div class="modalOverlay" id="sbEmbedModal" hidden>
-    <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="sbEmbedModalTitle">
+    <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="sbEmbedModalTitle" tabindex="-1">
       <div class="modalHeader">
         <div class="modalTitle">
           <h2 id="sbEmbedModalTitle">Add music embed</h2>
@@ -180,7 +192,7 @@
 
   <!-- Soundboard settings modal -->
   <div class="modalOverlay" id="sbSettingsModal" hidden>
-    <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="sbSettingsModalTitle">
+    <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="sbSettingsModalTitle" tabindex="-1">
       <div class="modalHeader">
         <div class="modalTitle">
           <h2 id="sbSettingsModalTitle">Soundboard Settings</h2>
@@ -237,11 +249,11 @@
               <div class="row wrap" style="margin-top:10px;">
                 <div style="flex:1 1 320px; min-width:240px;">
                   <div class="small">Google Drive API key (public folder)</div>
-                  <input type="text" id="sbApiKey" placeholder="AIza..."/ aria-label="Google API key">
+                  <input type="text" id="sbApiKey" placeholder="AIza..." aria-label="Google API key" />
                 </div>
                 <div style="flex:2 1 420px; min-width:240px;">
                   <div class="small">Drive folder link or ID</div>
-                  <input type="text" id="sbFolder" placeholder="https://drive.google.com/drive/folders/..."/ aria-label="Google Drive folder URL">
+                  <input type="text" id="sbFolder" placeholder="https://drive.google.com/drive/folders/..." aria-label="Google Drive folder URL" />
                 </div>
                 <div class="row" style="align-items:flex-end;">
                   <button class="btn small" id="sbRefresh" type="button">Refresh</button>
@@ -251,7 +263,7 @@
                   </label>
                 </div>
               </div>
-              <div class="small" id="sbStatus" style="margin-top:10px; opacity:.9;">
+              <div class="small" id="sbStatus" role="status" aria-live="polite" style="margin-top:10px; opacity:.9;">
                 Enter an API key + folder, then Refresh.
               </div>
             </details>

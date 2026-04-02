@@ -20,10 +20,6 @@
     adFail: document.getElementById("adFail"),
     liveFooterBar: document.getElementById("liveFooterBar"),
 
-    // Start intro
-    startBanner: document.getElementById("startBanner"),
-    startBannerName: document.getElementById("startBannerName"),
-
     // LIVE main card
     vMainCard: document.getElementById("vMainCard"),
     nowLabel: document.getElementById("nowLabel"),
@@ -121,18 +117,9 @@
     try { localStorage.setItem(VIEWER_HEARTBEAT_KEY, String(Date.now())); } catch (_) {}
   }, 1000);
 
-  let nameFitRaf = 0;
-  let lastNameFitKey = null;
-
   setupSplashLeftFallback();
   applyViewerScale();
-  window.addEventListener('resize', () => {
-    applyViewerScale();
-    scheduleNameFit();
-  });
-  if(document.fonts?.ready && typeof document.fonts.ready.then === 'function'){
-    document.fonts.ready.then(() => scheduleNameFit()).catch(() => {});
-  }
+  window.addEventListener('resize', () => applyViewerScale());
 
 
 
@@ -180,113 +167,6 @@
       // A few places need the inverse (for transforms if ever used)
       setVar('--vScaleInv', String(1 / vScale));
     }catch(_){ }
-    scheduleNameFit(true);
-  }
-
-  function resetNameFit(){
-    if(!el.nowName) return;
-    try{
-      el.nowName.style.removeProperty('--fitNameScale');
-      el.nowName.style.removeProperty('--fitNameTracking');
-    }catch(_){ }
-  }
-
-  function scheduleNameFit(force = false){
-    if(force) lastNameFitKey = null;
-    try{ if(nameFitRaf) cancelAnimationFrame(nameFitRaf); }catch(_){ }
-    nameFitRaf = requestAnimationFrame(() => {
-      nameFitRaf = 0;
-      requestAnimationFrame(() => fitNowName());
-    });
-  }
-
-  function fitNowName(){
-    if(!el.nowName) return;
-
-    const liveish = (state?.phase === 'LIVE' || state?.phase === 'PAUSED') && !!state?.currentSlotId;
-    if(!liveish){
-      lastNameFitKey = null;
-      resetNameFit();
-      return;
-    }
-
-    const text = String(el.nowName.textContent || '').replace(/[​-‍﻿⁠]/g, '').trim();
-    if(!text){
-      lastNameFitKey = null;
-      resetNameFit();
-      return;
-    }
-
-    const nameWidth = Math.round(el.nowName.clientWidth || el.nowName.parentElement?.clientWidth || 0);
-    const cardWidth = Math.round(el.vMainCard?.clientWidth || 0);
-    const phase = String(state?.phase || '');
-    const slotId = String(state?.currentSlotId || '');
-    const fitKey = [slotId, phase, text, nameWidth, cardWidth, String(state?.viewerPrefs?.nameScale ?? ''), String(state?.viewerPrefs?.uiScale ?? '')].join('|');
-    if(fitKey === lastNameFitKey) return;
-    lastNameFitKey = fitKey;
-
-    if(nameWidth <= 0){
-      resetNameFit();
-      return;
-    }
-
-    const node = el.nowName;
-    node.style.setProperty('--fitNameScale', '1');
-    node.style.setProperty('--fitNameTracking', '.2px');
-
-    const minScale = 0.44;
-    const maxScale = 1;
-
-    const fitsWithinTwoLines = () => {
-      const cs = getComputedStyle(node);
-      const lh = parseFloat(cs.lineHeight) || ((parseFloat(cs.fontSize) || 0) * 1.05) || 0;
-      const allowed = (lh * 2) + 3;
-      const heightOk = (node.scrollHeight <= allowed);
-      const widthOk = (node.scrollWidth <= (node.clientWidth + 2));
-      return heightOk && widthOk;
-    };
-
-    if(fitsWithinTwoLines()) return;
-
-    let lo = minScale;
-    let hi = maxScale;
-    let best = minScale;
-
-    for(let i = 0; i < 14; i += 1){
-      const mid = (lo + hi) / 2;
-      node.style.setProperty('--fitNameScale', String(mid));
-      node.style.setProperty('--fitNameTracking', '.2px');
-      if(fitsWithinTwoLines()){
-        best = mid;
-        lo = mid;
-      }else{
-        hi = mid;
-      }
-    }
-
-    node.style.setProperty('--fitNameScale', String(best));
-
-    if(!fitsWithinTwoLines()){
-      lo = minScale;
-      hi = best;
-      let bestTight = minScale;
-      node.style.setProperty('--fitNameTracking', '-0.02em');
-      for(let i = 0; i < 12; i += 1){
-        const mid = (lo + hi) / 2;
-        node.style.setProperty('--fitNameScale', String(mid));
-        if(fitsWithinTwoLines()){
-          bestTight = mid;
-          lo = mid;
-        }else{
-          hi = mid;
-        }
-      }
-      node.style.setProperty('--fitNameScale', String(bestTight));
-      if(!fitsWithinTwoLines()){
-        // Keep the full name visible even if it needs a third line at the minimum readable size.
-        node.style.setProperty('--fitNameScale', String(minScale));
-      }
-    }
   }
 
   // ---- Render caches ----
@@ -307,7 +187,6 @@
   let lastChipStateKey = null;
   let lastWarnFinalKey = null;
   let lastProgressKey = null;
-  let lastTimerUiKey = null;
 
   // Cue tracking
   let lastRemainingMs = null;
@@ -455,19 +334,20 @@
     return cleanName(slot?.displayName ?? slot?.name ?? slot?.performerName ?? slot?.title ?? "");
   }
 
-  function currentLiveSlot() {
-    const liveish = (state?.phase === "LIVE" || state?.phase === "PAUSED") && !!state?.currentSlotId;
-    return liveish ? (OMJN.computeCurrent(state) || null) : null;
+  function currentLiveSlot(){
+    const isLiveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
+    return isLiveish ? OMJN.computeCurrent(state) : null;
   }
 
-  function isAdSlot(slot) {
+  function isAdSlot(slot){
+    const t = String(slot?.slotTypeId || "");
+    return t === "ad_graphic" || t === "ad_video";
+  }
+
+  function hideViewerTimerForSlot(slot){
     const typeId = String(slot?.slotTypeId || "");
-    if (typeof OMJN.isAdSlotType === "function") return !!OMJN.isAdSlotType(typeId);
-    return typeId === "ad_graphic" || typeId === "ad_video";
-  }
-
-  function isJamaokeSlot(slot) {
-    return String(slot?.slotTypeId || "") === "jamaoke";
+    const prefAllows = state.viewerPrefs?.showTimer !== false;
+    return !prefAllows || typeId === "jamaoke" || isAdSlot(slot);
   }
 
   // Sponsor bug runtime
@@ -476,13 +356,10 @@
   let lastSponsorKey = null;
   let sponsorLoadToken = 0;
 
-  // Crowd prompts runtime (local auto-hide + ad-mode suspension)
+  // Crowd prompts runtime (local auto-hide)
   let crowdVisible = false;
   let lastCrowdKey = null;
   let crowdHideTimeout = null;
-  let crowdHideDeadlineAt = 0;
-  let crowdSuspendedByAd = false;
-  let crowdResumeRemainingMs = 0;
 
   // --- Visualizer runtime ---
   const viz = {
@@ -512,8 +389,7 @@
     return (d === "ltr") ? "ltr" : "mirror";
   }
   function vizShouldShowWrap(){
-    const cur = currentLiveSlot();
-    return state.phase === "LIVE" && vizEnabled() && !!el.vVizWrap && !(cur && isAdSlot(cur));
+    return state.phase === "LIVE" && vizEnabled() && !!el.vVizWrap && !isAdSlot(currentLiveSlot());
   }
   function vizCanRender(){
     return vizShouldShowWrap() && !!viz.analyser;
@@ -1067,18 +943,12 @@
   }
 
   function hideSponsor(reason) {
-    sponsorLoadToken += 1;
-    lastSponsorKey = null;
     if (el.sponsorLayer) el.sponsorLayer.style.display = "none";
     if (currentSponsorObjectUrl) {
       try { URL.revokeObjectURL(currentSponsorObjectUrl); } catch (_) {}
       currentSponsorObjectUrl = null;
     }
-    if (el.sponsorImg) {
-      el.sponsorImg.onload = null;
-      el.sponsorImg.onerror = null;
-      el.sponsorImg.src = "";
-    }
+    if (el.sponsorImg) el.sponsorImg.src = "";
     writeSponsorStatus({ ok: true, hidden: true, reason: reason || "hidden" });
   }
 
@@ -1102,18 +972,11 @@
 
     const cfg = getSponsorCfg() || {};
     const url = String(cfg.url || "").trim();
-    const cur = currentLiveSlot();
-    const adMode = !!cur && isAdSlot(cur);
-    const liveish = !!cur && (state.phase === "LIVE" || state.phase === "PAUSED");
     const footerVisible = !!(el.liveFooterBar && el.liveFooterBar.style.display !== "none" && !el.liveFooterBar.hidden);
 
-    // Hide sponsor bug during Crowd Prompts slides and ad playback (clean interstitial/full-screen ad)
+    // Hide sponsor bug during Crowd Prompts slides (clean interstitial)
     if (crowdVisible) {
       hideSponsor("crowd-prompts");
-      return;
-    }
-    if (adMode) {
-      hideSponsor("ad-mode");
       return;
     }
 
@@ -1126,9 +989,6 @@
       enabled: !!cfg.enabled,
       liveOnly: !!cfg.showLiveOnly,
       phase: state.phase,
-      currentSlotId: state.currentSlotId || null,
-      crowdVisible: !!crowdVisible,
-      adMode,
       sourceType: cfg.sourceType || "upload",
       uploadAssetId: cfg.uploadAssetId || null,
       url,
@@ -1139,11 +999,14 @@
       opacity: cfg.opacity,
       safeMargin: cfg.safeMargin,
       footerVisible,
+      crowdVisible,
+      currentSlotId: state.currentSlotId || null,
+      adMode: isAdSlot(currentLiveSlot()),
     });
     if (key === lastSponsorKey) return;
     lastSponsorKey = key;
 
-    const shouldShow = !!cfg.enabled && (!cfg.showLiveOnly || liveish);
+    const shouldShow = !!cfg.enabled && !isAdSlot(currentLiveSlot()) && (!cfg.showLiveOnly || state.phase === "LIVE" || state.phase === "PAUSED");
     if (!shouldShow) {
       hideSponsor(cfg.enabled ? "not-live" : "disabled");
       return;
@@ -1276,75 +1139,42 @@
     el.crowdLayer.setAttribute("aria-hidden", crowdVisible ? "false" : "true");
   }
 
-  function clearCrowdHideTimer() {
-    if (crowdHideTimeout) {
-      clearTimeout(crowdHideTimeout);
-      crowdHideTimeout = null;
-    }
-    crowdHideDeadlineAt = 0;
-  }
-
-  function armCrowdHideTimer(delayMs) {
-    clearCrowdHideTimer();
-    const ms = Math.max(0, Math.round(Number(delayMs) || 0));
-    if (!ms) return;
-    crowdHideDeadlineAt = Date.now() + ms;
-    crowdHideTimeout = setTimeout(() => {
-      crowdVisible = false;
-      crowdSuspendedByAd = false;
-      crowdResumeRemainingMs = 0;
-      clearCrowdHideTimer();
-      applyCrowdVisibility();
-      setSponsorBug().catch(() => {});
-    }, ms);
-  }
-
-  function suspendCrowdForAd(autoHideSeconds) {
-    const wasVisible = crowdVisible;
-    const remaining = crowdHideDeadlineAt ? Math.max(0, crowdHideDeadlineAt - Date.now()) : 0;
-    clearCrowdHideTimer();
-    crowdVisible = false;
-    crowdSuspendedByAd = wasVisible || crowdSuspendedByAd;
-    if (autoHideSeconds > 0) {
-      crowdResumeRemainingMs = remaining > 0 ? remaining : Math.round(autoHideSeconds * 1000);
-    } else {
-      crowdResumeRemainingMs = 0;
-    }
-    applyCrowdVisibility();
-  }
-
   function renderCrowdPrompts() {
     if (!el.root || !el.crowdLayer) return;
 
     const cfg = getCrowdCfg() || {};
     const enabled = !!cfg.enabled;
+    const liveSlot = currentLiveSlot();
+    if(isAdSlot(liveSlot)){
+      if(crowdVisible){
+        crowdVisible = false;
+        applyCrowdVisibility();
+        setSponsorBug().catch(() => {});
+      }
+      return;
+    }
     const p = getActiveCrowdPreset(cfg) || {};
+
     const autoHideSeconds = Math.max(0, Number(p.autoHideSeconds || 0) || 0);
     const title = String(p.title || "").trim();
     const footer = String(p.footer || "").trim();
     const rawLines = Array.isArray(p.lines) ? p.lines : [];
     const lines = rawLines.map((v) => String(v || "").trim()).filter((v) => v.length);
-    const cur = currentLiveSlot();
-    const adMode = !!cur && isAdSlot(cur);
 
-    const key = JSON.stringify({
-      enabled,
-      id: String(p.id || ""),
-      title,
-      footer,
-      lines,
-      autoHideSeconds,
-      adMode,
-      phase: String(state.phase || ""),
-      currentSlotId: state.currentSlotId || null,
-    });
+    const key = JSON.stringify({ enabled, id: String(p.id || ""), title, footer, lines, autoHideSeconds });
 
-    // If operator changed prompt, phase, or ad-mode state, reset local visibility + timers.
+    // If operator changed prompt or toggled it, reset local visibility + timers.
     if (key !== lastCrowdKey) {
       lastCrowdKey = key;
 
-      clearCrowdHideTimer();
+      if (crowdHideTimeout) {
+        clearTimeout(crowdHideTimeout);
+        crowdHideTimeout = null;
+      }
 
+      crowdVisible = enabled;
+
+      // Render content (even if auto-hide will kick in)
       const safeTitle = title || (enabled ? "CROWD PROMPT" : "");
       if (el.crowdTitle) el.crowdTitle.textContent = safeTitle || "CROWD PROMPT";
 
@@ -1368,68 +1198,25 @@
         }
       }
 
-      if (!enabled) {
-        crowdVisible = false;
-        crowdSuspendedByAd = false;
-        crowdResumeRemainingMs = 0;
-        applyCrowdVisibility();
-        setSponsorBug().catch(() => {});
-        return;
-      }
-
-      const resumeFromAd = !adMode && crowdSuspendedByAd;
-      const resumeDelayMs = resumeFromAd ? Math.max(0, Math.round(crowdResumeRemainingMs || 0)) : 0;
-
-      if (adMode) {
-        crowdVisible = false;
-        crowdSuspendedByAd = true;
-        crowdResumeRemainingMs = autoHideSeconds > 0 ? Math.round(autoHideSeconds * 1000) : 0;
-        applyCrowdVisibility();
-        setSponsorBug().catch(() => {});
-        return;
-      }
-
-      crowdVisible = true;
-      crowdSuspendedByAd = false;
       applyCrowdVisibility();
-      if (resumeDelayMs > 0) {
-        armCrowdHideTimer(resumeDelayMs);
-      } else if (autoHideSeconds > 0) {
-        armCrowdHideTimer(Math.round(autoHideSeconds * 1000));
-      }
-      crowdResumeRemainingMs = 0;
-      setSponsorBug().catch(() => {});
-      return;
-    }
 
-    // Suspend prompt overlay while a full-screen ad is active, without turning it off in shared state.
-    if (enabled && adMode) {
-      if (crowdVisible || crowdHideTimeout || crowdSuspendedByAd) {
-        suspendCrowdForAd(autoHideSeconds);
-        setSponsorBug().catch(() => {});
+      if (enabled && autoHideSeconds > 0) {
+        crowdHideTimeout = setTimeout(() => {
+          crowdVisible = false;
+          applyCrowdVisibility();
+          // Sponsor may be suppressed while prompts are visible.
+          setSponsorBug().catch(() => {});
+        }, Math.round(autoHideSeconds * 1000));
       }
-      return;
-    }
 
-    // Restore the prompt after ad mode ends if it is still enabled.
-    if (enabled && !adMode && crowdSuspendedByAd) {
-      crowdSuspendedByAd = false;
-      crowdVisible = true;
-      applyCrowdVisibility();
-      if (crowdResumeRemainingMs > 0) {
-        armCrowdHideTimer(crowdResumeRemainingMs);
-      }
-      crowdResumeRemainingMs = 0;
+      // Sponsor may need to hide/show immediately.
       setSponsorBug().catch(() => {});
       return;
     }
 
     // If operator turned it off, ensure local visibility is off.
     if (!enabled && crowdVisible) {
-      clearCrowdHideTimer();
       crowdVisible = false;
-      crowdSuspendedByAd = false;
-      crowdResumeRemainingMs = 0;
       applyCrowdVisibility();
       setSponsorBug().catch(() => {});
     }
@@ -1577,12 +1364,12 @@
     const slotTypeId = String(cur.slotTypeId || "");
     const isHB = slotTypeId === "houseband";
     const isIM = slotTypeId === "intermission";
-    const isJM = slotTypeId === "jamaoke";
+    const isJamaoke = slotTypeId === "jamaoke";
 
     if(el.root){
       el.root.classList.toggle("isHB", isHB);
       el.root.classList.toggle("isIM", isIM);
-      el.root.classList.toggle("isJM", isJM);
+      el.root.classList.toggle("isJamaoke", isJamaoke);
     }
 
     // Compute headline + chipType for special screens
@@ -1595,9 +1382,6 @@
       nowLabelText = "INTERMISSION";
       nowNameText = cleanName(cur.intermissionMessage || "WE'LL BE RIGHT BACK");
       chipTypeText = "INTERMISSION";
-    }else if(isJM){
-      nowLabelText = "JAMAOKE";
-      chipTypeText = "JAMAOKE";
     }else if(isHB){
       nowLabelText = "HOUSE BAND";
       const lineup = Array.isArray(cur.hbLineup) ? cur.hbLineup : [];
@@ -1644,6 +1428,8 @@
       donationUrl,
       mediaLayout,
       imageAssetId: media.imageAssetId || null,
+      hideTimer: hideViewerTimerForSlot(cur),
+      showProgressBar: state.viewerPrefs?.showProgressBar !== false,
     });
 
     if (staticKey !== lastSlotStaticKey) {
@@ -1657,7 +1443,6 @@
         el.hbInstruments.textContent = show ? hbInstrumentsText : "";
       }
       if (el.chipType) el.chipType.textContent = chipTypeText;
-      scheduleNameFit(true);
       if (startIntroPending) {
         // If a transition is queued, it handles the visual transition instead of the punch-in.
         if (!transitionSuppressStartIntro) {
@@ -1701,18 +1486,9 @@
         if (el.vMedia) el.vMedia.style.display = showMedia ? "flex" : "none";
       }
 
-    }
-
-    const timerSuppressedBySlot = isJM;
-    const showTimer = !timerSuppressedBySlot && state.viewerPrefs?.showTimer !== false;
-    const showProgress = !timerSuppressedBySlot && showTimer && state.viewerPrefs?.showProgressBar !== false;
-    const timerUiKey = `${showTimer ? 1 : 0}|${showProgress ? 1 : 0}`;
-    if (timerUiKey !== lastTimerUiKey) {
-      lastTimerUiKey = timerUiKey;
-      if (el.timer) {
-        el.timer.style.display = showTimer ? "" : "none";
-        el.timer.setAttribute("aria-hidden", showTimer ? "false" : "true");
-      }
+      const hideTimer = hideViewerTimerForSlot(cur);
+      if (el.timer) el.timer.style.display = hideTimer ? "none" : "";
+      const showProgress = !hideTimer && state.viewerPrefs?.showProgressBar !== false;
       if (el.progress) {
         el.progress.hidden = !showProgress;
         el.progress.setAttribute("aria-hidden", showProgress ? "false" : "true");
@@ -1741,18 +1517,9 @@
     const cur = OMJN.computeCurrent(state);
     if (!cur) return;
 
-    const hideTimerForSlot = isJamaokeSlot(cur);
     const t = OMJN.computeTimer(state);
     const remainingMs = t.remainingMs;
     const overtimeMs = t.overtimeMs;
-
-    if (hideTimerForSlot) {
-      if (el.chipOver) { el.chipOver.hidden = true; el.chipOver.style.display = "none"; }
-      if (el.chipWarn) { el.chipWarn.hidden = true; el.chipWarn.style.display = "none"; }
-      if (el.chipFinal) { el.chipFinal.hidden = true; el.chipFinal.style.display = "none"; }
-      clearCardCues();
-      return;
-    }
 
     // Timer text
     const timerText = OMJN.formatMMSS(remainingMs);
@@ -1767,12 +1534,9 @@
       lastChipStateKey = chipStateKey;
       if (el.chipState) {
         const paused = state.phase === "PAUSED";
-        el.chipState.hidden = !paused;
+        el.chipState.textContent = "PAUSED";
+        el.chipState.className = "vChip warn";
         el.chipState.style.display = paused ? "inline-flex" : "none";
-        if (paused) {
-          el.chipState.textContent = "PAUSED";
-          el.chipState.className = "vChip warn";
-        }
       }
     }
 
@@ -1780,9 +1544,11 @@
     const warnAtMs = (state.viewerPrefs?.warnAtSec ?? 120) * 1000;
     const finalAtMs = (state.viewerPrefs?.finalAtSec ?? 30) * 1000;
 
-    const warnShow = remainingMs > 0 && remainingMs <= warnAtMs && remainingMs > finalAtMs;
-    const finalShow = remainingMs > 0 && remainingMs <= finalAtMs;
-    const overShow = overtimeMs > 0 && (state.viewerPrefs?.showOvertime !== false);
+    const hideTimer = hideViewerTimerForSlot(cur);
+    if (el.timer) el.timer.style.display = hideTimer ? "none" : "";
+    const warnShow = !hideTimer && remainingMs > 0 && remainingMs <= warnAtMs && remainingMs > finalAtMs;
+    const finalShow = !hideTimer && remainingMs > 0 && remainingMs <= finalAtMs;
+    const overShow = !hideTimer && overtimeMs > 0 && (state.viewerPrefs?.showOvertime !== false);
 
     const warnFinalKey = JSON.stringify({ warnShow, finalShow, overShow, overtimeText: overShow ? OMJN.formatMMSS(overtimeMs) : "" });
     if (warnFinalKey !== lastWarnFinalKey) {
@@ -1931,7 +1697,6 @@ function renderStateDriven() {
 
     if (!isLiveish) {
       setAdVisible(false);
-      resetNameFit();
       renderSplashStatic();
     } else if (isAd) {
       // Ad mode: full-screen image, no timer/next/deck/sponsor/viz/footer

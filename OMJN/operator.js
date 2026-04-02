@@ -10,6 +10,7 @@ let adSelectedPresetId = null;
 let adPreviewBlobUrl = null;
   OMJN.applyThemeToDocument(document, state);
   OMJN.ensureHouseBandQueues(state);
+  normalizeQueueSpecialSlots(state);
   const els = {
     statusBanner: document.getElementById("statusBanner"),
     queue: document.getElementById("queue"),
@@ -262,6 +263,7 @@ setBgColor: document.getElementById("setBgColor"),
   // Inline per-row editor (Stage 2)
   let editingId = null;
   let editDraft = null;
+  let completedExpanded = false;
 
   // House Band Set Builder
   let hbBuildCtx = null; // { mode:'add'|'edit', slotId?:string }
@@ -484,7 +486,7 @@ setBgColor: document.getElementById("setBgColor"),
 
       // Special screens
       if(slotTypeId === "houseband"){
-        slot.displayName = "HOUSE BAND";
+        slot.displayName = houseBandQueueTitle(name || slot.displayName || "");
         // Keep slot.hbSelections / slot.hbLineup (built via the House Band Set Builder modal).
       }else{
         try{ delete slot.hbSelections; }catch(_){ }
@@ -513,6 +515,37 @@ setBgColor: document.getElementById("setBgColor"),
     // Avoid newline escape issues across environments
     const parts = s.split(String.fromCharCode(10));
     return (parts[0] || "").trim();
+  }
+
+  function houseBandQueueTitle(raw){
+    const title = OMJN.sanitizeText(raw || "").trim();
+    return title || "HOUSE BAND";
+  }
+
+  function houseBandLineupSummary(slot){
+    const lineup = Array.isArray(slot?.hbLineup) ? slot.hbLineup : [];
+    const pieces = lineup
+      .map(x => OMJN.sanitizeText(x?.name || "").trim())
+      .filter(Boolean)
+      .slice(0, 4);
+    if(pieces.length) return pieces.join(" • ");
+    return "No lineup selected yet";
+  }
+
+  function normalizeQueueSpecialSlots(s){
+    if(!s || !Array.isArray(s.queue)) return;
+    for(const slot of s.queue){
+      if(!slot || typeof slot !== "object") continue;
+      if(String(slot.slotTypeId || "") === "houseband"){
+        slot.displayName = houseBandQueueTitle(slot.displayName || "");
+        if(!slot.hbSelections || typeof slot.hbSelections !== "object") slot.hbSelections = {};
+        if(!Array.isArray(slot.hbLineup)) slot.hbLineup = OMJN.buildHouseBandLineupFromSelections(s, slot.hbSelections);
+      }
+      if(String(slot.slotTypeId || "") === "intermission"){
+        const msg = String(slot.intermissionMessage || "").trim();
+        if(!msg) slot.intermissionMessage = "WE'LL BE RIGHT BACK";
+      }
+    }
   }
 
   function skipSwapDown(slotId){
@@ -758,7 +791,7 @@ setBgColor: document.getElementById("setBgColor"),
       const lineup = Array.isArray(slot.hbLineup) ? slot.hbLineup : [];
       const names = lineup.map(x => String(x?.name || "").trim()).filter(Boolean).join(" • ");
       const roles = lineup.map(x => String(x?.instrumentLabel || x?.instrument || "").trim()).filter(Boolean).join(" • ");
-      hbPrevNames.textContent = names || "—";
+      hbPrevNames.textContent = names || "No lineup selected yet";
       hbPrevRoles.textContent = roles || "";
     }
     syncHBPreview();
@@ -930,6 +963,7 @@ setBgColor: document.getElementById("setBgColor"),
 
   function setState(next){
     OMJN.ensureHouseBandQueues(next);
+    normalizeQueueSpecialSlots(next);
 
     state = next;
     OMJN.applyThemeToDocument(document, state);
@@ -953,6 +987,7 @@ setBgColor: document.getElementById("setBgColor"),
     // Ensure performer queue exists so mutators can push safely
     if(!Array.isArray(s.queue)) s.queue = [];
     mutator(s);
+    normalizeQueueSpecialSlots(s);
     normalizePerformerQueue(s);
     setState(s);
   }
@@ -2426,7 +2461,7 @@ function escapeHtml(s){
 
     const name = document.createElement("div");
     name.className = "qName";
-    name.textContent = slot.displayName || "—";
+    name.textContent = (slotTypeId === "houseband") ? houseBandQueueTitle(slot.displayName) : (slot.displayName || "—");
 
     nameRow.appendChild(ico);
     nameRow.appendChild(name);
@@ -2446,10 +2481,12 @@ function escapeHtml(s){
     main.appendChild(bar);
     main.appendChild(nameRow);
     const notesLine = firstLineOfNotes(slot.notes);
-    if(notesLine){
+    const houseBandLine = isHouseBand ? houseBandLineupSummary(slot) : "";
+    const subLine = isHouseBand ? houseBandLine : (notesLine || houseBandLine);
+    if(subLine){
       const sub = document.createElement("div");
       sub.className = "qNotesSub";
-      sub.textContent = notesLine;
+      sub.textContent = subLine;
       main.appendChild(sub);
     }
     main.appendChild(meta);
@@ -2573,7 +2610,7 @@ function escapeHtml(s){
       const empty = document.createElement("div");
       empty.className = "small";
       empty.textContent = done.length
-        ? "No active performers. Completed performers are below."
+        ? "No active performers. Completed performers are hidden below."
         : "No active signups yet. Add a performer above.";
       els.queue.appendChild(empty);
     } else {
@@ -2583,27 +2620,38 @@ function escapeHtml(s){
     }
 
     if(done.length){
-      const divider = document.createElement("div");
-      divider.className = "queueDivider";
+      const details = document.createElement("details");
+      details.className = "doneDetails";
+      details.open = !!completedExpanded;
+      details.addEventListener("toggle", () => {
+        completedExpanded = !!details.open;
+      });
+
+      const summary = document.createElement("summary");
+      summary.className = "queueDivider";
       const left = document.createElement("div");
       left.textContent = "Completed";
       const right = document.createElement("div");
       right.className = "mono";
       right.textContent = String(done.length);
-      divider.appendChild(left);
-      divider.appendChild(right);
-      els.queue.appendChild(divider);
+      summary.appendChild(left);
+      summary.appendChild(right);
+      details.appendChild(summary);
 
+      const doneWrap = document.createElement("div");
+      doneWrap.className = "doneQueue";
       for(const slot of done){
-        els.queue.appendChild(queueRow(slot));
+        doneWrap.appendChild(queueRow(slot));
       }
+      details.appendChild(doneWrap);
+      els.queue.appendChild(details);
     }
 
     // Keep approximate showtimes current
     updateQueueEtaLabels();
   }
 
-  // ---- Queue ETA (approx showtime) ----
+  // ---- Queue ETA + Estimated End forecast ----
   let queueEtaMap = new Map();
   const CHANGEOVER_BUFFER_MS = 5 * 60 * 1000;
 
@@ -2616,13 +2664,27 @@ function escapeHtml(s){
     return true;
   }
 
+  function isUntimedForecastSlot(slot){
+    const typeId = String(slot?.slotTypeId || "");
+    return typeId === "jamaoke";
+  }
+
+  function forecastCurrentRemainingMs(slot){
+    if(!slot) return 0;
+    const typeId = String(slot.slotTypeId || "");
+    if(typeId.startsWith("ad_")) return 0;
+    if(isUntimedForecastSlot(slot)) return OMJN.effectiveMinutes(state, slot) * 60 * 1000;
+    const t = OMJN.computeTimer(state);
+    return Math.max(t.remainingMs || 0, 0);
+  }
+
   function formatApproxTime(tsMs){
     const t = new Date(tsMs);
     return `${t.toLocaleTimeString([], { hour:"numeric", minute:"2-digit" })} (≈)`;
   }
 
-  function computeQueueEtaMap(nowMs){
-    const map = new Map();
+  function buildQueueForecast(nowMs){
+    const etaMap = new Map();
 
     const phase = state.phase || "SPLASH";
     const hasCurrent = (phase === "LIVE" || phase === "PAUSED") && !!state.currentSlotId;
@@ -2638,12 +2700,7 @@ function escapeHtml(s){
       try{
         const cur = active[curIdx];
         prevSlot = cur || null;
-        const curTypeId = String(cur?.slotTypeId || "");
-        const curIsAd = curTypeId.startsWith("ad_");
-        if(!curIsAd){
-          const t = OMJN.computeTimer(state);
-          cursor += Math.max(t.remainingMs || 0, 0);
-        }
+        cursor += forecastCurrentRemainingMs(cur);
       }catch(_){
         prevSlot = null;
       }
@@ -2666,7 +2723,7 @@ function escapeHtml(s){
       const isHouseBand = typeId === "houseband";
 
       if(!isAd && !isIntermission && !isHouseBand){
-        map.set(s.id, cursor);
+        etaMap.set(s.id, cursor);
       }
 
       const durMs = isAd ? 0 : (OMJN.effectiveMinutes(state, s) * 60 * 1000);
@@ -2674,13 +2731,23 @@ function escapeHtml(s){
       prevSlot = s;
     }
 
-    return map;
+    const estEndTs = (cursor > nowMs) ? cursor : null;
+    return { etaMap, estEndTs };
   }
 
-  function updateQueueEtaLabels(){
+  function computeQueueEtaMap(nowMs){
+    return buildQueueForecast(nowMs).etaMap;
+  }
+
+  function computeEstimatedEndTs(nowMs){
+    return buildQueueForecast(nowMs).estEndTs;
+  }
+
+  function updateQueueEtaLabels(nowMs = Date.now()){
     let nodes;
     try{
-      queueEtaMap = computeQueueEtaMap(Date.now());
+      const forecast = buildQueueForecast(nowMs);
+      queueEtaMap = forecast.etaMap;
       nodes = document.querySelectorAll(".qEta[data-slot-id]");
       for(const node of nodes){
         const id = node.dataset.slotId;
@@ -2701,6 +2768,21 @@ function escapeHtml(s){
           node.hidden = true;
         }
       }catch(__){}
+    }
+  }
+
+  function renderEstimatedEnd(nowMs = Date.now()){
+    if(!els.kpiEstEnd) return;
+    try{
+      const ts = computeEstimatedEndTs(nowMs);
+      if(!ts){
+        els.kpiEstEnd.textContent = "—";
+      }else{
+        const end = new Date(ts);
+        els.kpiEstEnd.textContent = end.toLocaleTimeString([], { hour:"numeric", minute:"2-digit" });
+      }
+    }catch(_){
+      els.kpiEstEnd.textContent = "—";
     }
   }
 
@@ -3151,7 +3233,7 @@ function getDragAfterElement(container, y){
     }
   }
 
-function renderKPIs(){
+function renderKPIs(nowMs = Date.now()){
     const current = OMJN.computeCurrent(state);
     const [next, deck] = OMJN.computeNextTwo(state);
 
@@ -3166,33 +3248,7 @@ function renderKPIs(){
     const left = queued.length + (hasCurrent ? 1 : 0);
     if(els.kpiLeft) els.kpiLeft.textContent = String(left);
 
-    // Estimated end time based on remaining LIVE time + queued slots + changeover buffer
-    if(els.kpiEstEnd){
-      try{
-        let totalMs = 0;
-        let prevSlot = hasCurrent ? current : null;
-        if(hasCurrent){
-          const t = OMJN.computeTimer(state);
-          totalMs += Math.max(t.remainingMs || 0, 0);
-        }
-        for(const s of queued){
-          OMJN.normalizeSlot(s);
-          if(prevSlot && slotNeedsChangeoverBuffer(prevSlot) && slotNeedsChangeoverBuffer(s)){
-            totalMs += CHANGEOVER_BUFFER_MS;
-          }
-          totalMs += (OMJN.effectiveMinutes(state, s) * 60 * 1000);
-          prevSlot = s;
-        }
-        if(totalMs <= 0){
-          els.kpiEstEnd.textContent = "—";
-        }else{
-          const end = new Date(Date.now() + totalMs);
-          els.kpiEstEnd.textContent = end.toLocaleTimeString([], { hour:"numeric", minute:"2-digit" });
-        }
-      }catch(_){
-        els.kpiEstEnd.textContent = "—";
-      }
-    }
+    renderEstimatedEnd(nowMs);
     renderNowTime();
   }
 
@@ -3279,6 +3335,12 @@ function renderKPIs(){
     const paused = state.phase === "PAUSED" && timedLive;
 
     if(els.btnPauseResume){
+      const pauseWrap = els.btnPauseResume.closest(".pauseResumeWrap");
+      if(pauseWrap){
+        pauseWrap.classList.toggle("isReady", timedLive);
+        pauseWrap.classList.toggle("isPaused", paused);
+        pauseWrap.classList.toggle("isDisabled", !timedLive);
+      }
       if(els.btnPauseResumeLabel) els.btnPauseResumeLabel.textContent = paused ? "Resume" : "Pause";
       els.btnPauseResume.classList.toggle("isPaused", paused);
       els.btnPauseResume.classList.toggle("isDisabled", !timedLive);
@@ -3289,7 +3351,10 @@ function renderKPIs(){
         : "No timed live slot is active";
     }
 
-    if(els.livePauseBadge) els.livePauseBadge.hidden = !paused;
+    if(els.livePauseBadge){
+      els.livePauseBadge.hidden = !paused;
+      els.livePauseBadge.setAttribute("aria-hidden", paused ? "false" : "true");
+    }
 
     const showViewerTimer = state.viewerPrefs?.showTimer !== false;
     if(els.btnViewerTimerToggle){
@@ -3443,9 +3508,10 @@ function renderKPIs(){
     if(uiTickHandle) return;
     uiTickHandle = setInterval(() => {
       try{
+        const tickNow = Date.now();
         if(els.timerLine) renderTimerLine();
-        renderNowTime();
-        updateQueueEtaLabels();
+        renderKPIs(tickNow);
+        updateQueueEtaLabels(tickNow);
         renderLiveStatusBanner();
         renderLiveControls();
         updateCrowdQuickButtons();
@@ -3607,7 +3673,7 @@ function render(){
     const lineup = computeHbBuildLineupFromDraft();
     const names = lineup.map(x => OMJN.sanitizeText(x.name || "")).filter(Boolean);
     const roles = lineup.map(x => OMJN.sanitizeText(x.instrumentLabel || "")).filter(Boolean);
-    if(els.hbPreviewNames) els.hbPreviewNames.textContent = names.length ? names.join(" • ") : "—";
+    if(els.hbPreviewNames) els.hbPreviewNames.textContent = names.length ? names.join(" • ") : "No lineup selected yet";
     if(els.hbPreviewRoles) els.hbPreviewRoles.textContent = roles.length ? roles.join(" • ") : "—";
   }
 
@@ -3708,7 +3774,7 @@ function render(){
         const slot = (s.queue || []).find(x => x && x.id === hbBuildCtx.slotId);
         if(!slot) return;
         slot.slotTypeId = "houseband";
-        slot.displayName = "HOUSE BAND";
+        slot.displayName = houseBandQueueTitle(slot.displayName || "");
         slot.hbSelections = selections;
         slot.hbLineup = lineup;
       });
@@ -3721,7 +3787,7 @@ function render(){
       const slot = {
         id: OMJN.uid("slot"),
         createdAt: Date.now(),
-        displayName: "HOUSE BAND",
+        displayName: houseBandQueueTitle(""),
         slotTypeId: "houseband",
         minutesOverride: null,
         customTypeLabel: "",
@@ -3789,19 +3855,10 @@ function render(){
     }
 
     if(String(slot.slotTypeId || "") === "houseband"){
-      slot.displayName = "HOUSE BAND";
-      if(!Array.isArray(slot.hbLineup) || slot.hbLineup.length === 0){
-        const sel = (slot.hbSelections && typeof slot.hbSelections === "object") ? slot.hbSelections : {};
-        if(Object.keys(sel).length === 0){
-          for(const cat of OMJN.houseBandCategories()){
-            const sug = OMJN.houseBandSuggestedInCategory(s, cat.key);
-            const id = sug?.member?.id || null;
-            if(id) sel[cat.key] = id;
-          }
-        }
-        slot.hbSelections = sel;
-        slot.hbLineup = OMJN.buildHouseBandLineupFromSelections(s, sel);
-      }
+      slot.displayName = houseBandQueueTitle(slot.displayName || "");
+      const sel = (slot.hbSelections && typeof slot.hbSelections === "object") ? slot.hbSelections : {};
+      slot.hbSelections = sel;
+      slot.hbLineup = OMJN.buildHouseBandLineupFromSelections(s, sel);
     }
 
     if(String(slot.slotTypeId || "") === "intermission"){
@@ -4571,7 +4628,7 @@ updateState(s => {
     const pick = (state.queue || []).find(x => x && x.status === "QUEUED");
 
     if(state.operatorPrefs?.startGuard){
-      const name = pick?.displayName || "—";
+      const name = pick ? ((String(pick.slotTypeId || "") === "houseband") ? houseBandQueueTitle(pick.displayName || "") : (pick.displayName || "—")) : "—";
       const ok = confirm(`Start now: "${name}"?`);
       if(!ok) return;
     }
@@ -4758,52 +4815,52 @@ function start(){
     });
   }
 
-  function exportJSON(){
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type:"application/json" });
+  function exportShowState(){
+    const stamp = new Date();
+    const yyyy = String(stamp.getFullYear());
+    const mm = String(stamp.getMonth() + 1).padStart(2, "0");
+    const dd = String(stamp.getDate()).padStart(2, "0");
+    const hh = String(stamp.getHours()).padStart(2, "0");
+    const mi = String(stamp.getMinutes()).padStart(2, "0");
+    const filename = `omjn_state_${yyyy}${mm}${dd}_${hh}${mi}.json`;
+
+    const data = JSON.stringify(state, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `omjn-show-${new Date().toISOString().slice(0,10)}.json`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 500);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function importShowStateFile(file){
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if(!parsed || typeof parsed !== "object") throw new Error("Invalid JSON.");
+    if(!Array.isArray(parsed.queue)) parsed.queue = [];
+    if(!parsed.viewerPrefs) parsed.viewerPrefs = {};
+    if(!parsed.operatorPrefs) parsed.operatorPrefs = parsed.operatorPrefs || {};
+
+    undoStack = [];
+    redoStack = [];
+    saveHistory();
+    setState(parsed);
+    OMJN.saveState(parsed);
+    OMJN.publish(parsed);
+    selectedId = null;
+  }
+
+  function exportJSON(){
+    exportShowState();
   }
 
   function importJSON(file){
-    const reader = new FileReader();
-    reader.onload = () => {
-      try{
-        const imported = JSON.parse(reader.result);
-        try{ delete imported.profiles; }catch(_){ }
-        if(!imported || typeof imported !== "object") throw new Error("Invalid JSON");
-        // light validation
-        imported.version = imported.version ?? 1;
-        imported.features = imported.features ?? {};
-        imported.splash = imported.splash ?? { backgroundAssetPath:null, showNextTwo:true };
-        if(imported.splash.backgroundAssetPath === "./assets/splash_BG.jpg") imported.splash.backgroundAssetPath = null;
-        if(imported.splash.backgroundAssetPath === "") imported.splash.backgroundAssetPath = null;
-        imported.viewerPrefs = imported.viewerPrefs ?? { warnAtSec:120, finalAtSec:30, showOvertime:true, showProgressBar:true, showHouseBandFooter:true };
-        imported.assetsIndex = imported.assetsIndex ?? {};
-        // Drop legacy Jam mode data (Lineup-only)
-        if(Array.isArray(imported.slotTypes)) imported.slotTypes = imported.slotTypes.filter(t => t?.id !== "jam");
-        if(Array.isArray(imported.queue)){
-          for(const slot of imported.queue){
-            if(slot?.slotTypeId === "jam") slot.slotTypeId = "musician";
-            if(slot?.jam) delete slot.jam;
-          }
-        }
-        pushUndoSnapshot();
-        undoStack = undoStack.slice(-HISTORY_LIMIT);
-        redoStack = [];
-        setState(imported);
-        saveHistory();
-        selectedId = null;
-      }catch(e){
-        alert("Import failed: " + e.message);
-      }
-    };
-    reader.readAsText(file);
+    importShowStateFile(file).catch((err) => {
+      alert("Import failed: " + (err?.message || String(err)));
+    });
   }
 
 
@@ -5086,24 +5143,7 @@ els.showTitle.addEventListener("input", () => {
     if(els.btnExportState){
       els.btnExportState.addEventListener("click", () => {
         try{
-          const stamp = new Date();
-          const yyyy = String(stamp.getFullYear());
-          const mm = String(stamp.getMonth()+1).padStart(2,"0");
-          const dd = String(stamp.getDate()).padStart(2,"0");
-          const hh = String(stamp.getHours()).padStart(2,"0");
-          const mi = String(stamp.getMinutes()).padStart(2,"0");
-          const filename = `omjn_state_${yyyy}${mm}${dd}_${hh}${mi}.json`;
-
-          const data = JSON.stringify(state, null, 2);
-          const blob = new Blob([data], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          exportShowState();
         }catch(err){
           alert("Export failed.\n\n" + (err?.message || String(err)));
         }
@@ -5117,19 +5157,7 @@ els.showTitle.addEventListener("input", () => {
         els.importStateFile.value = "";
         if(!file) return;
         try{
-          const text = await file.text();
-          const parsed = JSON.parse(text);
-          if(!parsed || typeof parsed !== "object") throw new Error("Invalid JSON.");
-          if(!Array.isArray(parsed.queue)) parsed.queue = [];
-          if(!parsed.viewerPrefs) parsed.viewerPrefs = {};
-          if(!parsed.operatorPrefs) parsed.operatorPrefs = parsed.operatorPrefs || {};
-          // Apply and clear undo/redo history (import is a new baseline)
-          undoStack = [];
-          redoStack = [];
-          saveHistory();
-          setState(parsed);
-          OMJN.saveState(parsed);
-          OMJN.publish(parsed);
+          await importShowStateFile(file);
         }catch(err){
           alert("Import failed.\n\n" + (err?.message || String(err)));
         }
