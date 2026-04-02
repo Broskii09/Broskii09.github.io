@@ -36,6 +36,7 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
   let siteVersionPollTimer = 0;
   let siteUpdatePrompt = null;
   let siteUpdateVersion = "";
+  let siteVersionLatest = "";
 
   function canCheckForSiteUpdate(){
     return typeof window !== "undefined"
@@ -48,6 +49,32 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
     const url = new URL(SITE_VERSION_URL, location.href);
     url.searchParams.set("_omjnv", Date.now().toString(36));
     return url.href;
+  }
+
+  function syncSiteVersionAttributes(){
+    try{
+      const root = document?.documentElement;
+      if(!root) return;
+      if(siteVersionBaseline) root.setAttribute("data-omjn-site-version", siteVersionBaseline);
+      else root.removeAttribute("data-omjn-site-version");
+      const latest = siteVersionLatest || siteVersionBaseline;
+      if(latest) root.setAttribute("data-omjn-site-version-latest", latest);
+      else root.removeAttribute("data-omjn-site-version-latest");
+    }catch(_){}
+  }
+
+  function dispatchSiteVersionEvent(updateAvailable){
+    if(typeof window === "undefined" || typeof window.dispatchEvent !== "function" || typeof CustomEvent === "undefined") return;
+    try{
+      window.dispatchEvent(new CustomEvent("omjn:site-version", {
+        detail: {
+          currentVersion: siteVersionBaseline || "",
+          latestVersion: siteVersionLatest || siteVersionBaseline || "",
+          updateAvailable: !!updateAvailable,
+          appScope: APP_SCOPE
+        }
+      }));
+    }catch(_){}
   }
 
   async function fetchSiteVersion(){
@@ -122,12 +149,17 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
     try{
       const version = await fetchSiteVersion();
       if(!version) return;
+      siteVersionLatest = version;
       if(!siteVersionBaseline){
         siteVersionBaseline = version;
+        syncSiteVersionAttributes();
+        dispatchSiteVersionEvent(false);
         hideSiteUpdatePrompt();
         return;
       }
       if(version !== siteVersionBaseline){
+        syncSiteVersionAttributes();
+        dispatchSiteVersionEvent(true);
         showSiteUpdatePrompt(version);
       }
     }catch(_){
@@ -1281,6 +1313,14 @@ async function loadBitmapFromFile(f){
     }catch(_){}
   }
 
+  function getSiteVersion(){
+    return siteVersionBaseline || "";
+  }
+
+  function getLatestSiteVersion(){
+    return siteVersionLatest || siteVersionBaseline || "";
+  }
+
   initSiteUpdatePrompt();
 
 
@@ -1302,6 +1342,7 @@ async function loadBitmapFromFile(f){
 
     computeNextTwo, computeNextThree, computeCurrent, computeTimer,
     openAssetDB, putAsset, getAsset, deleteAsset, compressImageFile,
-    formatMMSS, sanitizeText, applyThemeToDocument
+    formatMMSS, sanitizeText, applyThemeToDocument,
+    getSiteVersion, getLatestSiteVersion
   };
 })();

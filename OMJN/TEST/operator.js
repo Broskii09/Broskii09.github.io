@@ -24,6 +24,7 @@ let adPreviewBlobUrl = null;
     addCustomLabel: document.getElementById("addCustomLabel"),
     addCustomMinutesWrap: document.getElementById("addCustomMinutesWrap"),
     addCustomMinutes: document.getElementById("addCustomMinutes"),
+    operatorVersionBadge: document.getElementById("operatorVersionBadge"),
 
     showTitle: document.getElementById("showTitle"),
     splashPath: document.getElementById("splashPath"),
@@ -258,6 +259,39 @@ setBgColor: document.getElementById("setBgColor"),
     btnImLive: document.getElementById("btnImLive"),
     btnImAdd: document.getElementById("btnImAdd"),
   };
+
+  function formatSiteVersionLabel(version){
+    const raw = String(version || "").trim();
+    if(!raw) return "";
+    const isoMatch = raw.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+    if(isoMatch) return `Build ${isoMatch[1]} ${isoMatch[2]}`;
+    return `Build ${raw}`;
+  }
+
+  function renderSiteVersionBadge(version){
+    const badge = els.operatorVersionBadge;
+    if(!badge) return;
+    const raw = String(version || "").trim();
+    if(!raw){
+      badge.hidden = true;
+      badge.textContent = "";
+      badge.removeAttribute("title");
+      return;
+    }
+    badge.hidden = false;
+    badge.textContent = formatSiteVersionLabel(raw);
+    badge.title = `Site version ${raw}`;
+    badge.setAttribute("aria-label", `Site version ${raw}`);
+  }
+
+  function syncSiteVersionBadge(detail){
+    renderSiteVersionBadge(detail?.currentVersion || OMJN.getSiteVersion?.() || "");
+  }
+
+  syncSiteVersionBadge();
+  window.addEventListener("omjn:site-version", (e) => {
+    syncSiteVersionBadge(e?.detail || {});
+  });
 
   let selectedId = null;
   // Inline per-row editor (Stage 2)
