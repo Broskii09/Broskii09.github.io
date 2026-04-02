@@ -27,8 +27,6 @@ let adPreviewBlobUrl = null;
     operatorVersionBadge: document.getElementById("operatorVersionBadge"),
 
     showTitle: document.getElementById("showTitle"),
-    splashPath: document.getElementById("splashPath"),
-
     startGuard: document.getElementById("startGuard"),
     endGuard: document.getElementById("endGuard"),
     hotkeysEnabled: document.getElementById("hotkeysEnabled"),
@@ -48,6 +46,12 @@ setBgColor: document.getElementById("setBgColor"),
     setViewerNameScaleVal: document.getElementById("setViewerNameScaleVal"),
     setViewerHBScale: document.getElementById("setViewerHBScale"),
     setViewerHBScaleVal: document.getElementById("setViewerHBScaleVal"),
+    setViewerUpcomingScale: document.getElementById("setViewerUpcomingScale"),
+    setViewerUpcomingScaleVal: document.getElementById("setViewerUpcomingScaleVal"),
+    setViewerPadPx: document.getElementById("setViewerPadPx"),
+    setViewerPadPxVal: document.getElementById("setViewerPadPxVal"),
+    setViewerMediaPaneScale: document.getElementById("setViewerMediaPaneScale"),
+    setViewerMediaPaneScaleVal: document.getElementById("setViewerMediaPaneScaleVal"),
     setTransitionEnabled: document.getElementById("setTransitionEnabled"),
     setTransitionStyle: document.getElementById("setTransitionStyle"),
     setTransitionDurSec: document.getElementById("setTransitionDurSec"),
@@ -1552,6 +1556,27 @@ function escapeHtml(s){
       if(els.setViewerHBScaleVal) els.setViewerHBScaleVal.textContent = `${v.toFixed(2)}×`;
     }
 
+    if(els.setViewerUpcomingScale){
+      const raw = Number(state.viewerPrefs?.upcomingScale ?? 1.00);
+      const v = Number.isFinite(raw) ? clamp(raw, 0.75, 1.30) : 1.00;
+      els.setViewerUpcomingScale.value = String(v);
+      if(els.setViewerUpcomingScaleVal) els.setViewerUpcomingScaleVal.textContent = `${v.toFixed(2)}×`;
+    }
+
+    if(els.setViewerPadPx){
+      const raw = Number(state.viewerPrefs?.framePaddingPx ?? 48);
+      const v = Number.isFinite(raw) ? clamp(raw, 20, 96) : 48;
+      els.setViewerPadPx.value = String(v);
+      if(els.setViewerPadPxVal) els.setViewerPadPxVal.textContent = `${Math.round(v)}px`;
+    }
+
+    if(els.setViewerMediaPaneScale){
+      const raw = Number(state.viewerPrefs?.mediaPaneScale ?? 1.00);
+      const v = Number.isFinite(raw) ? clamp(raw, 0.75, 1.30) : 1.00;
+      els.setViewerMediaPaneScale.value = String(v);
+      if(els.setViewerMediaPaneScaleVal) els.setViewerMediaPaneScaleVal.textContent = `${v.toFixed(2)}×`;
+    }
+
 
     // Transition (Splash -> Live stinger)
     if(els.setTransitionEnabled){
@@ -1853,6 +1878,48 @@ function escapeHtml(s){
       };
       els.setViewerHBScale.addEventListener("input", onInput);
       els.setViewerHBScale.addEventListener("change", onInput);
+    }
+
+    if(els.setViewerUpcomingScale){
+      const onInput = () => {
+        const v = clamp(parseFloat(String(els.setViewerUpcomingScale.value||"1.00")), 0.75, 1.30);
+        els.setViewerUpcomingScale.value = String(v);
+        if(els.setViewerUpcomingScaleVal) els.setViewerUpcomingScaleVal.textContent = `${v.toFixed(2)}×`;
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.upcomingScale = v;
+        }, { recordHistory:false });
+      };
+      els.setViewerUpcomingScale.addEventListener("input", onInput);
+      els.setViewerUpcomingScale.addEventListener("change", onInput);
+    }
+
+    if(els.setViewerPadPx){
+      const onInput = () => {
+        const v = clamp(parseInt(String(els.setViewerPadPx.value||"48"), 10), 20, 96);
+        els.setViewerPadPx.value = String(v);
+        if(els.setViewerPadPxVal) els.setViewerPadPxVal.textContent = `${Math.round(v)}px`;
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.framePaddingPx = v;
+        }, { recordHistory:false });
+      };
+      els.setViewerPadPx.addEventListener("input", onInput);
+      els.setViewerPadPx.addEventListener("change", onInput);
+    }
+
+    if(els.setViewerMediaPaneScale){
+      const onInput = () => {
+        const v = clamp(parseFloat(String(els.setViewerMediaPaneScale.value||"1.00")), 0.75, 1.30);
+        els.setViewerMediaPaneScale.value = String(v);
+        if(els.setViewerMediaPaneScaleVal) els.setViewerMediaPaneScaleVal.textContent = `${v.toFixed(2)}×`;
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.mediaPaneScale = v;
+        }, { recordHistory:false });
+      };
+      els.setViewerMediaPaneScale.addEventListener("input", onInput);
+      els.setViewerMediaPaneScale.addEventListener("change", onInput);
     }
 
 // Transition (Splash -> Live stinger)
@@ -2707,9 +2774,12 @@ function escapeHtml(s){
     if(!slot) return 0;
     const typeId = String(slot.slotTypeId || "");
     if(typeId.startsWith("ad_")) return 0;
-    if(isUntimedForecastSlot(slot)) return OMJN.effectiveMinutes(state, slot) * 60 * 1000;
     const t = OMJN.computeTimer(state);
-    return Math.max(t.remainingMs || 0, 0);
+    if((t.durationMs || 0) > 0){
+      return Math.max(t.remainingMs || 0, 0);
+    }
+    if(isUntimedForecastSlot(slot)) return OMJN.effectiveMinutes(state, slot) * 60 * 1000;
+    return 0;
   }
 
   function formatApproxTime(tsMs){
@@ -3567,9 +3637,6 @@ function renderTimerLine(){
 function render(){
     // sync header inputs
     els.showTitle.value = state.showTitle || "";
-    // Optional; blank means Viewer uses animated gradient.
-    els.splashPath.value = state.splash?.backgroundAssetPath || "";
-
     renderStatusBanner();
 
     // Operator prefs
@@ -3907,6 +3974,8 @@ function render(){
 
     s.currentSlotId = slot.id;
     s.phase = "LIVE";
+    if(!s.viewerPrefs) s.viewerPrefs = {};
+    s.viewerPrefs.showTimer = true;
 
     const isAd = isAdSlotType(slot.slotTypeId);
     if(isAd){
@@ -4801,9 +4870,8 @@ function start(){
     try{ fresh.settings = JSON.parse(JSON.stringify(state.settings || fresh.settings)); }catch(_){ }
     try{ fresh.viewerPrefs = JSON.parse(JSON.stringify(state.viewerPrefs || fresh.viewerPrefs)); }catch(_){ }
     try{ fresh.operatorPrefs = JSON.parse(JSON.stringify(state.operatorPrefs || fresh.operatorPrefs)); }catch(_){ }
-    // preserve show title + splash path if user changed them
+    // preserve show title
     fresh.showTitle = state.showTitle || fresh.showTitle;
-    fresh.splash.backgroundAssetPath = (state.splash?.backgroundAssetPath ?? fresh.splash.backgroundAssetPath);
     setState(fresh);
     selectedId = null;
   }
@@ -5162,11 +5230,6 @@ if(els.btnAddHouseBandSlot){
 els.showTitle.addEventListener("input", () => {
       const v = OMJN.sanitizeText(els.showTitle.value);
       updateState(s => { s.showTitle = v || "Open Mic & Jam Night"; });
-    });
-
-    els.splashPath.addEventListener("input", () => {
-      const v = OMJN.sanitizeText(els.splashPath.value);
-        updateState(s => { s.splash.backgroundAssetPath = v ? v : null; });
     });
 
     els.btnStart.addEventListener("click", guardedStart);

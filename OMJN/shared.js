@@ -237,8 +237,7 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
       showTitle: "Open Mic & Jam Night",
       phase: "SPLASH", // SPLASH | LIVE | PAUSED
 operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false, quickAddStickyType:false, quickAddLastTypeId:"", armedNextSlotId:null },
-        // Optional: custom splash background image URL/path. If null/empty, Viewer uses animated gradient.
-        splash: { backgroundAssetPath: null, showNextTwo: true },
+        splash: { showNextTwo: true },
       viewerPrefs: {
         warnAtSec: 120,
         finalAtSec: 30,
@@ -250,6 +249,9 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         uiScale: 1.0, // manual font scale multiplier (Operator slider)
         nameScale: 2.10, // performer names multiplier (default ~2.1×)
         hbLineupScale: 1.00, // house band lineup text multiplier
+        upcomingScale: 1.00, // splash/live upcoming cards multiplier
+        framePaddingPx: 48, // viewer edge padding (helps avoid browser zoom hacks on projectors)
+        mediaPaneScale: 1.00, // right-side media pane width multiplier
 
         // Mic-based audio visualizer (Viewer)
         visualizerEnabled: false,
@@ -397,10 +399,9 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(s.operatorPrefs.quickAddLastTypeId === undefined) s.operatorPrefs.quickAddLastTypeId = "";
       if(s.operatorPrefs.armedNextSlotId === undefined) s.operatorPrefs.armedNextSlotId = null;
 
-      if (!s.splash) s.splash = { backgroundAssetPath: null, showNextTwo: true };
-      // Legacy default background (removed)
-      if (s.splash.backgroundAssetPath === "./assets/splash_BG.jpg") s.splash.backgroundAssetPath = null;
-      if (s.splash.backgroundAssetPath === "") s.splash.backgroundAssetPath = null;
+      if (!s.splash) s.splash = { showNextTwo: true };
+      if(s.splash.showNextTwo === undefined) s.splash.showNextTwo = true;
+      try{ delete s.splash.backgroundAssetPath; }catch(_){ s.splash.backgroundAssetPath = undefined; }
       if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
       if(s.viewerPrefs.visualizerEnabled === undefined) s.viewerPrefs.visualizerEnabled = false;
       if(s.viewerPrefs.showTimer === undefined) s.viewerPrefs.showTimer = true;
@@ -410,6 +411,9 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(s.viewerPrefs.uiScale === undefined) s.viewerPrefs.uiScale = 1.0;
       if(s.viewerPrefs.nameScale === undefined) s.viewerPrefs.nameScale = 2.10;
       if(s.viewerPrefs.hbLineupScale === undefined) s.viewerPrefs.hbLineupScale = 1.00;
+      if(s.viewerPrefs.upcomingScale === undefined) s.viewerPrefs.upcomingScale = 1.00;
+      if(s.viewerPrefs.framePaddingPx === undefined) s.viewerPrefs.framePaddingPx = 48;
+      if(s.viewerPrefs.mediaPaneScale === undefined) s.viewerPrefs.mediaPaneScale = 1.00;
 
       // Transition (Splash -> Live)
       // Video stinger support removed; defaults target the CSS stinger.
