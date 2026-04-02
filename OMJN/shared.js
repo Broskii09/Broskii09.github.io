@@ -26,6 +26,137 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
     return "omjn." + APP_SCOPE + "." + s;
   }
 
+  // ---- Site update prompt ----
+  const SITE_VERSION_URL = "./site-version.json";
+  const SITE_UPDATE_POLL_MS = 15000;
+  const SITE_UPDATE_DISMISS_KEY = scopedKey("siteUpdate.dismissedVersion");
+
+  let siteVersionBaseline = "";
+  let siteVersionCheckBusy = false;
+  let siteVersionPollTimer = 0;
+  let siteUpdatePrompt = null;
+  let siteUpdateVersion = "";
+
+  function canCheckForSiteUpdate(){
+    return typeof window !== "undefined"
+      && typeof document !== "undefined"
+      && typeof fetch === "function"
+      && /^https?:$/i.test(String(location.protocol || ""));
+  }
+
+  function getSiteVersionProbeUrl(){
+    const url = new URL(SITE_VERSION_URL, location.href);
+    url.searchParams.set("_omjnv", Date.now().toString(36));
+    return url.href;
+  }
+
+  async function fetchSiteVersion(){
+    const res = await fetch(getSiteVersionProbeUrl(), {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    if(!res.ok) throw new Error(`site-version ${res.status}`);
+    const data = await res.json();
+    return String(data?.version || data?.updatedAt || "").trim();
+  }
+
+  function ensureSiteUpdatePrompt(){
+    if(siteUpdatePrompt && siteUpdatePrompt.isConnected) return siteUpdatePrompt;
+    const prompt = document.createElement("aside");
+    prompt.className = "omjnRefreshPrompt";
+    prompt.hidden = true;
+    prompt.setAttribute("role", "status");
+    prompt.setAttribute("aria-live", "polite");
+    prompt.innerHTML = [
+      '<div class="omjnRefreshPromptBody">',
+      '  <div class="omjnRefreshPromptTitle">Refresh available</div>',
+      '  <div class="omjnRefreshPromptText">A newer version of this page is ready.</div>',
+      '  <div class="omjnRefreshPromptActions">',
+      '    <button class="btn primary tiny" type="button" data-action="refresh">Refresh</button>',
+      '    <button class="btn tiny" type="button" data-action="dismiss">Dismiss</button>',
+      '  </div>',
+      '</div>'
+    ].join("");
+    prompt.addEventListener("click", (e) => {
+      const action = e.target?.closest?.("[data-action]")?.getAttribute("data-action");
+      if(action === "refresh"){
+        location.reload();
+        return;
+      }
+      if(action === "dismiss"){
+        dismissSiteUpdatePrompt(siteUpdateVersion);
+      }
+    });
+    (document.body || document.documentElement).appendChild(prompt);
+    siteUpdatePrompt = prompt;
+    return prompt;
+  }
+
+  function hideSiteUpdatePrompt(){
+    const prompt = ensureSiteUpdatePrompt();
+    prompt.classList.remove("isVisible");
+    prompt.hidden = true;
+  }
+
+  function dismissSiteUpdatePrompt(version){
+    try{
+      if(version) localStorage.setItem(SITE_UPDATE_DISMISS_KEY, version);
+    }catch(_){}
+    hideSiteUpdatePrompt();
+  }
+
+  function showSiteUpdatePrompt(version){
+    siteUpdateVersion = String(version || "").trim();
+    try{
+      const dismissed = localStorage.getItem(SITE_UPDATE_DISMISS_KEY) || "";
+      if(siteUpdateVersion && dismissed === siteUpdateVersion) return;
+    }catch(_){}
+    const prompt = ensureSiteUpdatePrompt();
+    prompt.hidden = false;
+    prompt.classList.add("isVisible");
+  }
+
+  async function checkForSiteUpdate(){
+    if(!canCheckForSiteUpdate() || siteVersionCheckBusy) return;
+    siteVersionCheckBusy = true;
+    try{
+      const version = await fetchSiteVersion();
+      if(!version) return;
+      if(!siteVersionBaseline){
+        siteVersionBaseline = version;
+        hideSiteUpdatePrompt();
+        return;
+      }
+      if(version !== siteVersionBaseline){
+        showSiteUpdatePrompt(version);
+      }
+    }catch(_){
+      // Ignore transient network/cache errors and try again on the next poll.
+    }finally{
+      siteVersionCheckBusy = false;
+    }
+  }
+
+  function scheduleSiteUpdateCheck(delay){
+    clearTimeout(siteVersionPollTimer);
+    siteVersionPollTimer = setTimeout(async () => {
+      await checkForSiteUpdate();
+      scheduleSiteUpdateCheck(SITE_UPDATE_POLL_MS);
+    }, Math.max(1000, Number(delay) || SITE_UPDATE_POLL_MS));
+  }
+
+  function initSiteUpdatePrompt(){
+    if(!canCheckForSiteUpdate()) return;
+    checkForSiteUpdate();
+    scheduleSiteUpdateCheck(SITE_UPDATE_POLL_MS);
+    document.addEventListener("visibilitychange", () => {
+      if(!document.hidden) checkForSiteUpdate();
+    });
+    window.addEventListener("pageshow", () => {
+      checkForSiteUpdate();
+    });
+  }
+
 
   // ---- House Band ----
   // Default instrument list (intentionally excludes fiddle/violin and horns).
@@ -1149,6 +1280,8 @@ async function loadBitmapFromFile(f){
       root.style.setProperty("--pulse-final-dur", `${finalDur}s`);
     }catch(_){}
   }
+
+  initSiteUpdatePrompt();
 
 
   return {
