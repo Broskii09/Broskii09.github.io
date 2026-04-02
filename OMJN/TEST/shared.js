@@ -237,8 +237,7 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
       showTitle: "Open Mic & Jam Night",
       phase: "SPLASH", // SPLASH | LIVE | PAUSED
 operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false, quickAddStickyType:false, quickAddLastTypeId:"", armedNextSlotId:null },
-        // Optional: custom splash background image URL/path. If null/empty, Viewer uses animated gradient.
-        splash: { backgroundAssetPath: null, showNextTwo: true },
+        splash: { showNextTwo: true },
       viewerPrefs: {
         warnAtSec: 120,
         finalAtSec: 30,
@@ -400,10 +399,9 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(s.operatorPrefs.quickAddLastTypeId === undefined) s.operatorPrefs.quickAddLastTypeId = "";
       if(s.operatorPrefs.armedNextSlotId === undefined) s.operatorPrefs.armedNextSlotId = null;
 
-      if (!s.splash) s.splash = { backgroundAssetPath: null, showNextTwo: true };
-      // Legacy default background (removed)
-      if (s.splash.backgroundAssetPath === "./assets/splash_BG.jpg") s.splash.backgroundAssetPath = null;
-      if (s.splash.backgroundAssetPath === "") s.splash.backgroundAssetPath = null;
+      if (!s.splash) s.splash = { showNextTwo: true };
+      if(s.splash.showNextTwo === undefined) s.splash.showNextTwo = true;
+      try{ delete s.splash.backgroundAssetPath; }catch(_){ s.splash.backgroundAssetPath = undefined; }
       if(!s.viewerPrefs) s.viewerPrefs = d.viewerPrefs;
       if(s.viewerPrefs.visualizerEnabled === undefined) s.viewerPrefs.visualizerEnabled = false;
       if(s.viewerPrefs.showTimer === undefined) s.viewerPrefs.showTimer = true;

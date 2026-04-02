@@ -27,8 +27,6 @@ let adPreviewBlobUrl = null;
     operatorVersionBadge: document.getElementById("operatorVersionBadge"),
 
     showTitle: document.getElementById("showTitle"),
-    splashPath: document.getElementById("splashPath"),
-
     startGuard: document.getElementById("startGuard"),
     endGuard: document.getElementById("endGuard"),
     hotkeysEnabled: document.getElementById("hotkeysEnabled"),
@@ -3639,9 +3637,6 @@ function renderTimerLine(){
 function render(){
     // sync header inputs
     els.showTitle.value = state.showTitle || "";
-    // Optional; blank means Viewer uses animated gradient.
-    els.splashPath.value = state.splash?.backgroundAssetPath || "";
-
     renderStatusBanner();
 
     // Operator prefs
@@ -3979,6 +3974,8 @@ function render(){
 
     s.currentSlotId = slot.id;
     s.phase = "LIVE";
+    if(!s.viewerPrefs) s.viewerPrefs = {};
+    s.viewerPrefs.showTimer = true;
 
     const isAd = isAdSlotType(slot.slotTypeId);
     if(isAd){
@@ -4873,9 +4870,8 @@ function start(){
     try{ fresh.settings = JSON.parse(JSON.stringify(state.settings || fresh.settings)); }catch(_){ }
     try{ fresh.viewerPrefs = JSON.parse(JSON.stringify(state.viewerPrefs || fresh.viewerPrefs)); }catch(_){ }
     try{ fresh.operatorPrefs = JSON.parse(JSON.stringify(state.operatorPrefs || fresh.operatorPrefs)); }catch(_){ }
-    // preserve show title + splash path if user changed them
+    // preserve show title
     fresh.showTitle = state.showTitle || fresh.showTitle;
-    fresh.splash.backgroundAssetPath = (state.splash?.backgroundAssetPath ?? fresh.splash.backgroundAssetPath);
     setState(fresh);
     selectedId = null;
   }
@@ -5234,11 +5230,6 @@ if(els.btnAddHouseBandSlot){
 els.showTitle.addEventListener("input", () => {
       const v = OMJN.sanitizeText(els.showTitle.value);
       updateState(s => { s.showTitle = v || "Open Mic & Jam Night"; });
-    });
-
-    els.splashPath.addEventListener("input", () => {
-      const v = OMJN.sanitizeText(els.splashPath.value);
-        updateState(s => { s.splash.backgroundAssetPath = v ? v : null; });
     });
 
     els.btnStart.addEventListener("click", guardedStart);

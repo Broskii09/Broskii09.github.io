@@ -996,7 +996,8 @@ hr.sep{
 
 /* Next / On Deck row inside the LIVE main card */
 .vNextDeckRow{
-  margin-top:22px;
+  margin-top:auto;
+  padding-top:22px;
   width:100%;
   display:grid;
   grid-template-columns: 1fr 1fr;
@@ -3001,7 +3002,7 @@ details.hbAcc .hbCatList{
 .viewerRoot .vNowName{ margin-top: 8px; }
 .viewerRoot .vTimer{ margin-top: 14px; font-size: calc(clamp(64px, 9vw, 112px) * var(--vScale)); }
 
-.viewerRoot .vNextDeckRow{ margin-top: 16px; gap: 12px; }
+.viewerRoot .vNextDeckRow{ margin-top: auto; padding-top: 16px; gap: 12px; }
 .viewerRoot .vNextDeckCell{ padding: 10px 12px; }
 .viewerRoot .vNextDeckName{
   margin-top: 4px;

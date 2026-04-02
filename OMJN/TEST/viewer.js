@@ -122,6 +122,7 @@
   }, 1000);
 
   setupSplashLeftFallback();
+  try{ el.bg?.style?.removeProperty("background-image"); }catch(_){ }
   applyViewerScale();
 
 
@@ -187,7 +188,6 @@
 
   // ---- Render caches ----
   let lastPhaseKey = null;
-  let lastBgPath = null;
 
   let lastSlotId = null;
   let lastSlotStaticKey = null;
@@ -770,20 +770,6 @@
     // Show whenever visualizer is enabled but mic isn't granted yet.
     const shouldShow = vizEnabled() && !viz.stream;
     el.btnVizMic.style.display = shouldShow ? "inline-flex" : "none";
-  }
-
-  // ---- Background ----
-  function setBg() {
-    const path = state.splash?.backgroundAssetPath || null;
-    if (path === lastBgPath) return;
-    lastBgPath = path;
-    if (!el.bg) return;
-    // If no custom background is set, fall back to CSS (animated gradient).
-    if (!path) {
-      el.bg.style.removeProperty("background-image");
-      return;
-    }
-    el.bg.style.backgroundImage = `url('${path}')`;
   }
 
   // ---- House Band ----
@@ -1410,7 +1396,6 @@
     // If HB is hidden, slightly bump the upcoming card scale
     try{ if(el.root) el.root.classList.toggle('splashNoHB', !(footerEnabled && hbTop.length && hasHB)); }catch(_){ }
 
-    setBg();
   }
 
 
@@ -1580,8 +1565,6 @@
       renderHouseBandLineup(el.hbLiveLineup, { compact: true });
     }
 
-    // Background
-    setBg();
   }
 
   // ---- LIVE timer tick (cheap) ----
