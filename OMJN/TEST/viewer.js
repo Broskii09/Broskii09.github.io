@@ -101,9 +101,13 @@
   function setupSplashLeftFallback(){
     try{
       if(!el.splashLeftImg || !el.splashLayout) return;
+      el.splashLeftImg.onload = () => {
+        scheduleAdaptiveTextFit();
+      };
       el.splashLeftImg.onerror = () => {
         try{ el.splashLayout.classList.add("noLeft"); }catch(_){ }
         try{ el.splashLeft.style.display = "none"; }catch(_){ }
+        scheduleAdaptiveTextFit();
       };
     }catch(_){ }
   }
@@ -119,7 +123,6 @@
 
   setupSplashLeftFallback();
   applyViewerScale();
-  window.addEventListener('resize', () => applyViewerScale());
 
 
 
@@ -129,18 +132,22 @@
   function computeAutoScale(){
     const w = window.innerWidth || 1280;
     const h = window.innerHeight || 720;
-    const shortSide = Math.max(1, Math.min(w, h));
-    const ar = w / h;
+    const rawPad = Number(state?.viewerPrefs?.framePaddingPx ?? 48);
+    const pad = Number.isFinite(rawPad) ? clamp(rawPad, 20, 96) : 48;
+    const usableW = Math.max(720, w - (pad * 2));
+    const usableH = Math.max(420, h - (pad * 2));
+    const ar = usableW / usableH;
 
-    // Base scale from resolution (tuned to stay readable on small projectors)
-    let s = shortSide / 900; // 900px short-side ~= 1.0
-    s = clamp(s, 0.75, 1.35);
+    // Tune against a 16:9 "broadcast safe" stage rather than just the short side.
+    let s = Math.min(usableW / 1600, usableH / 900);
+    s = clamp(s, 0.78, 1.28);
 
-    // Aspect ratio nudge
-    if(ar > 1.80) s *= clamp(1 + (ar - 1.80) * 0.06, 1.0, 1.12);
-    if(ar < 1.55) s *= clamp(1 - (1.55 - ar) * 0.10, 0.85, 1.0);
+    // Nudge narrow or ultra-wide displays slightly so venue TVs/projectors
+    // need less browser zoom intervention.
+    if(ar > 1.95) s *= clamp(1 + (ar - 1.95) * 0.04, 1.0, 1.08);
+    if(ar < 1.58) s *= clamp(1 - (1.58 - ar) * 0.10, 0.88, 1.0);
 
-    return clamp(s, 0.75, 1.35);
+    return clamp(s, 0.76, 1.32);
   }
 
   function applyViewerScale(){
@@ -149,12 +156,21 @@
       const uiScale = Number.isFinite(manual) ? clamp(manual, 0.80, 1.40) : 1.0;
       const autoScale = computeAutoScale();
       const vScale = clamp(autoScale * uiScale, 0.70, 1.50);
+      const padRaw = Number(state?.viewerPrefs?.framePaddingPx ?? 48);
+      const framePaddingPx = Number.isFinite(padRaw) ? clamp(padRaw, 20, 96) : 48;
+      const upcomingRaw = Number(state?.viewerPrefs?.upcomingScale ?? 1.00);
+      const upcomingScale = Number.isFinite(upcomingRaw) ? clamp(upcomingRaw, 0.75, 1.30) : 1.00;
+      const mediaPaneRaw = Number(state?.viewerPrefs?.mediaPaneScale ?? 1.00);
+      const mediaPaneScale = Number.isFinite(mediaPaneRaw) ? clamp(mediaPaneRaw, 0.75, 1.30) : 1.00;
 
       const rootEl = document.getElementById('root') || document.querySelector('.viewerRoot');
       const targets = [document.documentElement, rootEl].filter(Boolean);
       const setVar = (k, v) => { for(const t of targets){ t.style.setProperty(k, v); } };
 
       setVar('--vScale', String(vScale));
+      setVar('--vPad', `${Math.round(framePaddingPx)}px`);
+      setVar('--upcomingScale', String(upcomingScale));
+      setVar('--mediaPaneScale', String(mediaPaneScale));
 
       const nameScaleRaw = Number(state?.viewerPrefs?.nameScale ?? 2.10);
       const nameScale = Number.isFinite(nameScaleRaw) ? clamp(nameScaleRaw, 1.00, 2.50) : 2.10;
@@ -332,6 +348,62 @@
 
   function slotName(slot) {
     return cleanName(slot?.displayName ?? slot?.name ?? slot?.performerName ?? slot?.title ?? "");
+  }
+
+  let fitTextRaf = null;
+
+  function syncViewerLayoutMetrics(){
+    try{
+      if(!el.root) return;
+      const footerVisible = !!(el.liveFooterBar && !el.liveFooterBar.hidden && el.liveFooterBar.style.display !== "none");
+      const footerH = footerVisible ? Math.ceil(el.liveFooterBar.getBoundingClientRect().height || 0) : 0;
+      const reserve = footerVisible ? (footerH + 24) : 0;
+      el.root.style.setProperty("--viewerFooterReserve", `${reserve}px`);
+    }catch(_){}
+  }
+
+  function fitTextToBox(node, minPx){
+    if(!node || !node.isConnected || node.hidden) return;
+    if(node.offsetParent === null) return;
+    if(node.clientHeight <= 0 || node.clientWidth <= 0) return;
+    const raw = String(node.textContent || "").trim();
+    if(!raw){
+      node.style.removeProperty("font-size");
+      return;
+    }
+
+    node.style.removeProperty("font-size");
+    const basePx = parseFloat(getComputedStyle(node).fontSize || "0");
+    if(!Number.isFinite(basePx) || basePx <= 0) return;
+
+    let size = basePx;
+    let guard = 0;
+    while(size > minPx && guard < 80){
+      const tooTall = node.scrollHeight > (node.clientHeight + 1);
+      const tooWide = node.scrollWidth > (node.clientWidth + 1);
+      if(!tooTall && !tooWide) break;
+      size -= 1;
+      node.style.fontSize = `${size}px`;
+      guard += 1;
+    }
+  }
+
+  function applyAdaptiveTextFit(){
+    fitTextToBox(el.nowName, 24);
+    fitTextToBox(el.sNext, 18);
+    fitTextToBox(el.sDeck, 18);
+    fitTextToBox(el.sHole, 18);
+    fitTextToBox(el.liveNextUp, 16);
+    fitTextToBox(el.liveOnDeck, 16);
+    fitTextToBox(el.donationText, 16);
+  }
+
+  function scheduleAdaptiveTextFit(){
+    if(fitTextRaf) cancelAnimationFrame(fitTextRaf);
+    fitTextRaf = requestAnimationFrame(() => {
+      fitTextRaf = null;
+      applyAdaptiveTextFit();
+    });
   }
 
   function currentLiveSlot(){
@@ -1461,6 +1533,7 @@
         if (el.donationText) el.donationText.textContent = "";
         if (el.donationCard) el.donationCard.style.display = "none";
       }
+      if (el.vMedia) el.vMedia.classList.toggle("hasDonation", !!donationUrl);
 
       // Media (async)
       setMedia(cur).catch(() => {});
@@ -1493,6 +1566,8 @@
         el.progress.hidden = !showProgress;
         el.progress.setAttribute("aria-hidden", showProgress ? "false" : "true");
       }
+
+      syncViewerLayoutMetrics();
     }
 
     // Next/Deck
@@ -1727,6 +1802,8 @@ function renderStateDriven() {
 
     // Ensure timer UI is correct immediately
     updateTimerAndCues();
+    syncViewerLayoutMetrics();
+    scheduleAdaptiveTextFit();
   }
 
   // ---- Subscribe to state updates ----
@@ -1849,6 +1926,9 @@ function renderStateDriven() {
 
   // Reposition sponsor bug on resize (safe areas + footer height)
   window.addEventListener("resize", () => {
+    applyViewerScale();
+    syncViewerLayoutMetrics();
+    scheduleAdaptiveTextFit();
     lastSponsorKey = null;
     setSponsorBug().catch(() => {});
     resizeVizCanvas();

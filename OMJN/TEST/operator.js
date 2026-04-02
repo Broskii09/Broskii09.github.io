@@ -48,6 +48,12 @@ setBgColor: document.getElementById("setBgColor"),
     setViewerNameScaleVal: document.getElementById("setViewerNameScaleVal"),
     setViewerHBScale: document.getElementById("setViewerHBScale"),
     setViewerHBScaleVal: document.getElementById("setViewerHBScaleVal"),
+    setViewerUpcomingScale: document.getElementById("setViewerUpcomingScale"),
+    setViewerUpcomingScaleVal: document.getElementById("setViewerUpcomingScaleVal"),
+    setViewerPadPx: document.getElementById("setViewerPadPx"),
+    setViewerPadPxVal: document.getElementById("setViewerPadPxVal"),
+    setViewerMediaPaneScale: document.getElementById("setViewerMediaPaneScale"),
+    setViewerMediaPaneScaleVal: document.getElementById("setViewerMediaPaneScaleVal"),
     setTransitionEnabled: document.getElementById("setTransitionEnabled"),
     setTransitionStyle: document.getElementById("setTransitionStyle"),
     setTransitionDurSec: document.getElementById("setTransitionDurSec"),
@@ -1552,6 +1558,27 @@ function escapeHtml(s){
       if(els.setViewerHBScaleVal) els.setViewerHBScaleVal.textContent = `${v.toFixed(2)}×`;
     }
 
+    if(els.setViewerUpcomingScale){
+      const raw = Number(state.viewerPrefs?.upcomingScale ?? 1.00);
+      const v = Number.isFinite(raw) ? clamp(raw, 0.75, 1.30) : 1.00;
+      els.setViewerUpcomingScale.value = String(v);
+      if(els.setViewerUpcomingScaleVal) els.setViewerUpcomingScaleVal.textContent = `${v.toFixed(2)}×`;
+    }
+
+    if(els.setViewerPadPx){
+      const raw = Number(state.viewerPrefs?.framePaddingPx ?? 48);
+      const v = Number.isFinite(raw) ? clamp(raw, 20, 96) : 48;
+      els.setViewerPadPx.value = String(v);
+      if(els.setViewerPadPxVal) els.setViewerPadPxVal.textContent = `${Math.round(v)}px`;
+    }
+
+    if(els.setViewerMediaPaneScale){
+      const raw = Number(state.viewerPrefs?.mediaPaneScale ?? 1.00);
+      const v = Number.isFinite(raw) ? clamp(raw, 0.75, 1.30) : 1.00;
+      els.setViewerMediaPaneScale.value = String(v);
+      if(els.setViewerMediaPaneScaleVal) els.setViewerMediaPaneScaleVal.textContent = `${v.toFixed(2)}×`;
+    }
+
 
     // Transition (Splash -> Live stinger)
     if(els.setTransitionEnabled){
@@ -1853,6 +1880,48 @@ function escapeHtml(s){
       };
       els.setViewerHBScale.addEventListener("input", onInput);
       els.setViewerHBScale.addEventListener("change", onInput);
+    }
+
+    if(els.setViewerUpcomingScale){
+      const onInput = () => {
+        const v = clamp(parseFloat(String(els.setViewerUpcomingScale.value||"1.00")), 0.75, 1.30);
+        els.setViewerUpcomingScale.value = String(v);
+        if(els.setViewerUpcomingScaleVal) els.setViewerUpcomingScaleVal.textContent = `${v.toFixed(2)}×`;
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.upcomingScale = v;
+        }, { recordHistory:false });
+      };
+      els.setViewerUpcomingScale.addEventListener("input", onInput);
+      els.setViewerUpcomingScale.addEventListener("change", onInput);
+    }
+
+    if(els.setViewerPadPx){
+      const onInput = () => {
+        const v = clamp(parseInt(String(els.setViewerPadPx.value||"48"), 10), 20, 96);
+        els.setViewerPadPx.value = String(v);
+        if(els.setViewerPadPxVal) els.setViewerPadPxVal.textContent = `${Math.round(v)}px`;
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.framePaddingPx = v;
+        }, { recordHistory:false });
+      };
+      els.setViewerPadPx.addEventListener("input", onInput);
+      els.setViewerPadPx.addEventListener("change", onInput);
+    }
+
+    if(els.setViewerMediaPaneScale){
+      const onInput = () => {
+        const v = clamp(parseFloat(String(els.setViewerMediaPaneScale.value||"1.00")), 0.75, 1.30);
+        els.setViewerMediaPaneScale.value = String(v);
+        if(els.setViewerMediaPaneScaleVal) els.setViewerMediaPaneScaleVal.textContent = `${v.toFixed(2)}×`;
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.mediaPaneScale = v;
+        }, { recordHistory:false });
+      };
+      els.setViewerMediaPaneScale.addEventListener("input", onInput);
+      els.setViewerMediaPaneScale.addEventListener("change", onInput);
     }
 
 // Transition (Splash -> Live stinger)

@@ -644,6 +644,9 @@ hr.sep{
   --vScaleInv: 1;
   --nameScale: 2.10;
   --hbLineupScale: 1.00;
+   --upcomingScale: 1.00;
+   --mediaPaneScale: 1.00;
+   --viewerFooterReserve: 0px;
   --splashBoost: 1;
 }
 
@@ -687,7 +690,11 @@ hr.sep{
   align-items:center;
   justify-content:center;
   gap:18px;
-  padding: calc(var(--vPad) + var(--safe-top)) calc(var(--vPad) + var(--safe-right)) calc(var(--vPad) + var(--safe-bottom)) calc(var(--vPad) + var(--safe-left));
+  padding:
+    calc(var(--vPad) + var(--safe-top))
+    calc(var(--vPad) + var(--safe-right))
+    calc(var(--vPad) + var(--safe-bottom) + var(--viewerFooterReserve))
+    calc(var(--vPad) + var(--safe-left));
   text-align:center;
 
   /* Crossfade between Splash and Live (no layout jumps) */
@@ -707,17 +714,27 @@ hr.sep{
 
 /* Split-screen frame (left: info, right: media) */
 .viewerFrame{
-  width: min(1500px, 100%);
+  width: min(1660px, 100%);
   display:grid;
-  grid-template-columns: minmax(520px, 1.25fr) minmax(380px, .75fr);
+  grid-template-columns: minmax(0, 1fr) minmax(340px, calc(430px * var(--mediaPaneScale)));
   gap:18px;
   align-items:stretch;
+  min-width:0;
 }
 .viewerRoot.noMediaPane .viewerFrame{
   grid-template-columns: 1fr;
+  max-width:min(1240px, 100%);
+}
+@media (min-width: 1101px){
+  .viewerFrame{
+    height: clamp(420px,
+      calc(100vh - var(--safe-top) - var(--safe-bottom) - (var(--vPad) * 2) - var(--viewerFooterReserve)),
+      820px
+    );
+  }
 }
 @media (max-width: 1100px){
-  .viewerFrame{ grid-template-columns: 1fr; }
+  .viewerFrame{ grid-template-columns: 1fr; height:auto; }
 }
 
 #vMainCard{
@@ -727,13 +744,18 @@ hr.sep{
   flex-direction:column;
   align-items:center;
   text-align:center;
+  justify-content:flex-start;
+  min-height:0;
+  height:100%;
 }
 
 .vMediaPane{
   width: 100%;
   display:flex;
   flex-direction:column;
-  justify-content:center;
+  justify-content:stretch;
+  min-height:0;
+  height:100%;
 }
 
 /* Center the chip row */
@@ -747,7 +769,7 @@ hr.sep{
 }
 /* When the LIVE House Band footer bar is visible, reserve vertical space so it never overlaps the cards */
 .hasHbFooter .viewerOverlay{
-  padding-bottom:260px;
+  padding-bottom: calc(var(--vPad) + var(--safe-bottom) + var(--viewerFooterReserve));
 }
 
 /* Viewer mic visualizer (LIVE-only, below cards) */
@@ -900,16 +922,20 @@ hr.sep{
 }
 
 .vNowName{
-  font-size: calc(clamp(44px, 6vw, 72px) * var(--vScale) * var(--nameScale));
+  font-size: calc(clamp(34px, 4.8vw, 62px) * var(--vScale) * var(--nameScale));
   font-weight:950;
-  line-height:1.05;
+  line-height:1.02;
   letter-spacing:.2px;
   margin:0;
   max-width: 100%;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  hyphens:auto;
+  text-wrap:balance;
   text-transform: uppercase;
 }
 
@@ -928,8 +954,8 @@ hr.sep{
 }
 
 .viewerRoot.isHB .vNowName{
-  font-size: clamp(34px, 4.8vw, 62px);
-  -webkit-line-clamp: 2;
+  font-size: calc(clamp(30px, 4vw, 54px) * var(--vScale));
+  -webkit-line-clamp: 3;
 }
 .viewerRoot.isHB .vTimer{ margin-top:14px; }
 
@@ -984,15 +1010,30 @@ hr.sep{
   border:1px solid rgba(255,255,255,.10);
   text-align:left;
   min-width:0;
+  min-height:118px;
+  display:grid;
+  grid-template-rows:auto minmax(0, 1fr);
 }
 .vNextDeckCell.right{ text-align:right; }
 .vNextDeckName{
   margin-top:6px;
-  font-size: calc(clamp(20px, 2.4vw, 26px) * var(--vScale) * var(--nameScale));
+  font-size: calc(clamp(18px, 2.2vw, 26px) * var(--vScale) * var(--upcomingScale));
   font-weight:950;
+  min-width:0;
+  min-height:0;
+  display:flex;
+  align-items:center;
   overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
+  white-space:normal;
+  line-height:1.05;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  hyphens:auto;
+  text-wrap:balance;
+}
+.vNextDeckCell.right .vNextDeckName{
+  justify-content:flex-end;
+  text-align:right;
 }
 .vChip{
   display:inline-flex; align-items:center;
@@ -1009,7 +1050,7 @@ hr.sep{
 /* Viewer: emphasize the slot type chip and remove the redundant LIVE pill */
 #chipState{ display:none !important; }
 #chipType{
-  font-size: clamp(22px, 3vw, 38px);
+  font-size: calc(clamp(20px, 2.8vw, 36px) * var(--vScale));
   padding: 14px 22px;
   font-weight: 950;
   letter-spacing: .02em;
@@ -1028,6 +1069,8 @@ hr.sep{
   flex-direction:column;
   gap:12px;
   align-items:stretch;
+  min-height:0;
+  height:100%;
 }
 .vMediaBox{
   flex:1 1 auto;
@@ -1039,12 +1082,30 @@ hr.sep{
   align-items:center;
   justify-content:center;
   overflow:hidden;
+  min-height:0;
 }
+.vMedia.hasDonation .vMediaBox{ flex:1 1 auto; }
+.vMedia:not(.hasDonation) .vMediaBox{ height:100%; }
 .vMediaBox img{
   max-width:100%;
   max-height:100%;
   object-fit:contain;
   border-radius:18px;
+}
+.vDonationCard{
+  padding:18px 20px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-height:0;
+}
+.vDonationText{
+  font-size: calc(clamp(18px, 1.8vw, 26px) * var(--vScale));
+  font-weight:850;
+  line-height:1.12;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  hyphens:auto;
 }
 .vSplashInfo{
   opacity:1;
@@ -1063,18 +1124,28 @@ hr.sep{
 
 .vSplashLayout{
   display:grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 1.55fr) minmax(340px, .98fr);
   grid-template-areas:
     "left right"
     "hb hb";
   gap:18px;
   align-items:stretch;
   width:100%;
+  height:min(100%, 840px);
   max-height:100%;
+  min-height:0;
 }
 
 .vSplashLeft{ grid-area:left; min-width:0; }
-.vSplashRight{ grid-area:right; min-width:0; display:grid; grid-template-columns:1fr; gap:18px; align-content:center; }
+.vSplashRight{
+  grid-area:right;
+  min-width:0;
+  display:grid;
+  grid-template-columns:1fr;
+  grid-template-rows:repeat(3, minmax(0, 1fr));
+  gap:18px;
+  align-content:stretch;
+}
 .vSplashHB{ grid-area:hb; padding:16px 18px; }
 
 .vSplashLeftCard{ padding:0; border-radius:24px; display:flex; align-items:center; justify-content:center; overflow:hidden; background:transparent; border:none; box-shadow:none; }
@@ -1096,13 +1167,55 @@ hr.sep{
 }
 .vSplashLayout.noUpcoming .vSplashRight{ display:none; }
 
+@media (max-width: 1100px){
+  .vSplashLayout{
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "left"
+      "right"
+      "hb";
+    height:auto;
+  }
+  .vSplashRight{
+    grid-template-rows:none;
+  }
+  .vSplashCard{
+    min-height:140px;
+  }
+}
+
 .vSplashInfo .vCard{padding:18px 20px; border-radius:24px;}
 .vSplashInfo .vSplashLeftCard.vCard{ padding:0 !important; background:transparent !important; border:none !important; box-shadow:none !important; }
-.vSplashCard{min-height:120px;}
+.vSplashCard{
+  min-height:0;
+  height:100%;
+  display:grid;
+  grid-template-rows:auto minmax(0, 1fr) auto;
+  gap:8px;
+}
 
 .vSplashInfo h3{margin:0 0 6px; font-size: calc(18px * var(--vScale)); color:var(--muted); font-weight:850;}
-.vSplashInfo .who{font-size: calc(clamp(22px, 3vw, 30px) * var(--vScale) * var(--nameScale) * var(--splashBoost)); font-weight:950; margin:0;}
-.vSplashInfo .sub{margin-top:6px; font-size: calc(14px * var(--vScale)); color:var(--muted);}
+.vSplashInfo .who{
+  font-size: calc(clamp(22px, 2.4vw, 34px) * var(--vScale) * var(--upcomingScale) * var(--splashBoost));
+  font-weight:950;
+  margin:0;
+  min-height:0;
+  display:flex;
+  align-items:center;
+  overflow:hidden;
+  line-height:1.04;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  hyphens:auto;
+  text-wrap:balance;
+}
+.vSplashInfo .sub{
+  margin-top:6px;
+  font-size: calc(14px * var(--vScale));
+  color:var(--muted);
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
 
 .vBandLine{
   display:flex;
@@ -2886,29 +2999,18 @@ details.hbAcc .hbCatList{
 /* Slightly tighten vertical rhythm so the media area has room */
 .viewerRoot #vMainCard{ padding: 26px 28px; }
 .viewerRoot .vNowName{ margin-top: 8px; }
-.viewerRoot .vTimer{ margin-top: 14px; font-size: clamp(64px, 9vw, 112px); }
+.viewerRoot .vTimer{ margin-top: 14px; font-size: calc(clamp(64px, 9vw, 112px) * var(--vScale)); }
 
 .viewerRoot .vNextDeckRow{ margin-top: 16px; gap: 12px; }
 .viewerRoot .vNextDeckCell{ padding: 10px 12px; }
-.viewerRoot .vNextDeckName{ margin-top: 4px; font-size: clamp(18px, 2.2vw, 24px); }
+.viewerRoot .vNextDeckName{
+  margin-top: 4px;
+  font-size: calc(clamp(18px, 2vw, 24px) * var(--vScale) * var(--upcomingScale));
+}
 
-/* Media block inside hero card: size the box so images can fit (no % height ambiguity) */
+/* Media block inside hero card: fill the right column cleanly and let the image fit inside it. */
 .viewerRoot .vMedia{ margin-top: 0; gap: 12px; align-items: stretch; }
 .viewerRoot .vMediaBox{ padding: 14px; overflow: hidden; }
-
-/* Layout-specific sizing (viewer.js toggles .mediaQR / .mediaImage) */
-.viewerRoot.mediaQR .vMediaBox{
-  height: clamp(360px, 58vh, 760px);
-  aspect-ratio: 1 / 1;
-}
-.viewerRoot.mediaImage .vMediaBox{
-  height: clamp(300px, 50vh, 640px);
-  aspect-ratio: 16 / 9;
-}
-.viewerRoot:not(.mediaQR):not(.mediaImage) .vMediaBox{
-  height: clamp(320px, 54vh, 700px);
-  aspect-ratio: 4 / 3;
-}
 
 .viewerRoot .vMediaBox img{
   width: 100%;
