@@ -237,6 +237,14 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
       showTitle: "Open Mic & Jam Night",
       phase: "SPLASH", // SPLASH | LIVE | PAUSED
 operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollapsed:false, quickAddStickyType:false, quickAddLastTypeId:"", armedNextSlotId:null },
+      transitionForecast: {
+        defaultBufferSec: 300,
+        manualAdjustSec: 0,
+        autoLearn: true,
+        observedSamplesSec: [],
+        pendingStartedAt: null,
+        pendingFromSlotId: null,
+      },
         splash: { showNextTwo: true },
       viewerPrefs: {
         warnAtSec: 120,
@@ -398,6 +406,19 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(s.operatorPrefs.quickAddStickyType === undefined) s.operatorPrefs.quickAddStickyType = false;
       if(s.operatorPrefs.quickAddLastTypeId === undefined) s.operatorPrefs.quickAddLastTypeId = "";
       if(s.operatorPrefs.armedNextSlotId === undefined) s.operatorPrefs.armedNextSlotId = null;
+      if(!s.transitionForecast) s.transitionForecast = JSON.parse(JSON.stringify(d.transitionForecast));
+      if(!Number.isFinite(Number(s.transitionForecast.defaultBufferSec))) s.transitionForecast.defaultBufferSec = d.transitionForecast.defaultBufferSec;
+      if(!Number.isFinite(Number(s.transitionForecast.manualAdjustSec))) s.transitionForecast.manualAdjustSec = d.transitionForecast.manualAdjustSec;
+      s.transitionForecast.defaultBufferSec = Math.max(0, Math.min(900, Math.round(Number(s.transitionForecast.defaultBufferSec))));
+      s.transitionForecast.manualAdjustSec = Math.max(-300, Math.min(300, Math.round(Number(s.transitionForecast.manualAdjustSec))));
+      if(s.transitionForecast.autoLearn === undefined) s.transitionForecast.autoLearn = true;
+      if(!Array.isArray(s.transitionForecast.observedSamplesSec)) s.transitionForecast.observedSamplesSec = [];
+      s.transitionForecast.observedSamplesSec = s.transitionForecast.observedSamplesSec
+        .map(v => Math.round(Number(v)))
+        .filter(v => Number.isFinite(v) && v >= 0 && v <= 1200)
+        .slice(-8);
+      if(!Number.isFinite(Number(s.transitionForecast.pendingStartedAt))) s.transitionForecast.pendingStartedAt = null;
+      if(s.transitionForecast.pendingFromSlotId === undefined) s.transitionForecast.pendingFromSlotId = null;
 
       if (!s.splash) s.splash = { showNextTwo: true };
       if(s.splash.showNextTwo === undefined) s.splash.showNextTwo = true;

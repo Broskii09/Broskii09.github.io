@@ -31,15 +31,13 @@
             </div>
 
             <div class="cardBody">
-                <div class="row" style="margin-bottom:10px;">
-                    <div class="field" style="flex:1 1 260px;">
+                <div class="row showTitleStatusRow">
+                    <div class="field showTitleField">
                         <label>Show Title</label>
                         <input id="showTitle" type="text" placeholder="Open Mic &amp; Jam Night" autocomplete="off" />
                     </div>
+                    <div class="statusBanner statusBannerInline" id="statusBanner"></div>
                 </div>
-
-                <!-- Always-visible status banner -->
-                <div class="statusBanner" id="statusBanner"></div>
 
                 <div class="tabs" style="margin-bottom:12px;">
                     <button class="tabBtn active" id="tabBtnPerformers" type="button">Performers</button>
@@ -256,31 +254,27 @@
                             <div class="label">Estimated End</div>
                             <div class="value mono" id="kpiEstEnd">—</div>
                         </div>
+                        <div class="kpiStat kpiStatTransition">
+                            <div class="label">Transition Avg</div>
+                            <div class="value mono" id="kpiTransitionAvg">5:00</div>
+                            <div class="small mono kpiMeta" id="kpiTransitionMeta">Default</div>
+                        </div>
                         <div class="kpiStat kpiStatNow">
                             <div class="label">Current Time</div>
                             <div class="value mono" id="kpiNowTime">—</div>
                         </div>
                     </div>
-
-                    <div class="statusBanner liveStatusBanner" id="liveStatusBanner">
-                        <span class="sbItem"><span class="sbDot" id="livePhaseDot" aria-hidden="true"></span><span class="mono" id="statusLine">SPLASH</span></span>
-                        <span class="sbItem" id="liveNowItem" hidden>Now: <span class="mono" id="liveNowName">—</span></span>
-                        <span class="sbItem" id="liveOTItem" hidden>Overtime: <span class="mono" id="liveOTVal">+0:00</span></span>
-                    </div>
-
-                    <div class="readyStrip">
-                        <div class="readyCol">
-                            <div class="small">Next Up</div>
-                            <div class="readyName">—</div>
-                        </div>
-                        <div class="readyCol right">
-                            <div class="small">On Deck</div>
-                            <div class="readyName">—</div>
-                        </div>
+                    <div class="small mono kpiHint" id="kpiEstHint">ETA includes future slot durations and transition assumptions.</div>
+                    <div class="kpiSummaryStrip" id="kpiSummaryStrip">
+                        <span class="kpiSummaryChip" id="kpiPhaseChip">SPLASH</span>
+                        <span class="kpiSummaryItem" id="kpiDeckSummary">On Deck: —</span>
+                        <span class="kpiSummaryItem" id="kpiMathSummary">Queue Math: —</span>
+                        <span class="kpiSummaryItem" id="kpiOvertimeSummary" hidden>Overtime: +0:00</span>
                     </div>
 
                     <hr class="sep" />
 
+                    <div class="liveControlPanel">
                     <div class="row liveActionRow">
                         <button class="btn primary" id="btnStart">Start</button>
                         <div class="pauseResumeWrap">
@@ -291,29 +285,28 @@
                         <button class="btn danger" id="btnEnd">End → Splash</button>
                         <button class="btn" id="btnUndo" title="Undo (Ctrl+Z)">Undo</button>
                         <button class="btn" id="btnRedo" title="Redo (Ctrl+Shift+Z)">Redo</button>
-                        <button class="btn" id="btnExportState" title="Export the current show state as JSON">Export Show</button>
-                        <button class="btn" id="btnImportState" title="Import a JSON show state into the current show">Import Show</button>
-                        <input type="file" id="importStateFile" accept="application/json" style="display:none;" />
+                        </div>
+                    <div class="row timerControlsRow">
+                        <button class="btn tiny timerAdjustBtn isNegative" id="btnMinus30">-:30</button>
+                        <button class="btn tiny timerAdjustBtn isPositive" id="btnPlus30">+:30</button>
+                        <button class="btn tiny timerAdjustBtn isNegative" id="btnMinus1">-1m</button>
+                        <button class="btn tiny timerAdjustBtn isNegative" id="btnMinus5">-5m</button>
+                        <button class="btn tiny timerAdjustBtn isPositive" id="btnPlus1">+1m</button>
+                        <button class="btn tiny timerAdjustBtn isPositive" id="btnPlus5">+5m</button>
+                        <button class="btn tiny timerAdjustBtn isUtility" id="btnResetTime">Reset Time</button>
+                    </div>
                     </div>
 
-                    <hr class="sep">
-
-                    <div class="row timerControlsRow" style="margin-top:10px; justify-content:flex-start;">
-                        <button class="btn tiny" id="btnMinus30">-:30</button>
-                        <button class="btn tiny" id="btnPlus30">+:30</button>
-                        <button class="btn tiny" id="btnMinus1">-1m</button>
-                        <button class="btn tiny" id="btnMinus5">-5m</button>
-                        <button class="btn tiny" id="btnPlus1">+1m</button>
-                        <button class="btn tiny" id="btnPlus5">+5m</button>
-                        <button class="btn tiny" id="btnResetTime">Reset Time</button>
-                        <div class="spacer"></div>
-                        <button class="btn tiny" id="btnViewerTimerToggle" title="Hide or show the Viewer timer and progress bar">Hide Viewer Timer</button>
-                    </div>
-
-
-                    <div class="timerReadoutBlock" style="margin-top:10px;">
-                        <div class="timerSub">Elapsed / Remaining</div>
-                        <div class="timerBig mono" id="timerLine">0:00 / 0:00</div>
+                    <div class="timerReadoutBlock">
+                        <div class="timerReadoutHead">
+                            <div class="timerReadoutCopy">
+                                <div class="timerSub">Elapsed / Remaining</div>
+                                <div class="timerBig mono" id="timerLine">0:00 / 0:00</div>
+                            </div>
+                            <div class="pauseResumeWrap viewerTimerWrap" id="viewerTimerWrap">
+                                <button class="btn btnAccent pauseResumeBtn viewerTimerToggleBtn" id="btnViewerTimerToggle" type="button" aria-pressed="true" title="Hide the Viewer timer and progress bar">Hide Viewer Timer</button>
+                            </div>
+                        </div>
                         <div class="small" id="timerHint">Hard stop at 0:00. Overtime shown on viewer.</div>
                     </div>
                 </div>
@@ -660,6 +653,36 @@
                             <input id="setFinalAtSec" type="number" min="0" max="600" step="5" />
                             <div class="small mono" id="setFinalAtSecVal">0:30</div>
                         </div>
+                    </div>
+
+                    <h3 class="subhead">ETA forecast</h3>
+                    <div class="small" style="margin-bottom:8px; opacity:.85;">
+                      Estimated End uses every future slot plus transition assumptions between eligible acts. Tune the house default, nudge tonight up/down, and let the show auto-learn from real gaps.
+                    </div>
+
+                    <div class="row wrap" style="align-items:flex-end; margin-bottom:10px;">
+                        <div class="field" style="flex:1 1 220px;">
+                            <label>Default transition (sec)</label>
+                            <input id="setEtaTransitionSec" type="number" min="0" max="900" step="15" />
+                            <div class="small mono" id="setEtaTransitionSecVal">5:00</div>
+                        </div>
+                        <div class="field" style="flex:1 1 260px;">
+                            <label>Tonight adjustment (sec)</label>
+                            <input id="setEtaAdjustSec" type="range" min="-180" max="180" step="15" />
+                            <div class="small mono" id="setEtaAdjustSecVal">+0:00</div>
+                        </div>
+                        <span class="pill" title="Blend the default transition time with real observed gaps from this show">
+                            Auto-learn
+                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="setEtaAutoLearn" />
+                                <span class="small">on</span>
+                            </label>
+                        </span>
+                        <button class="btn small" id="btnEtaResetLearning" type="button">Reset Learned Gaps</button>
+                    </div>
+
+                    <div class="small mono" id="etaLearningStatus" style="margin-bottom:10px; opacity:.85;">
+                      Using the default transition assumption.
                     </div>
 
                     <hr class="sep" />

@@ -64,6 +64,13 @@ setBgColor: document.getElementById("setBgColor"),
     setWarnAtSecVal: document.getElementById("setWarnAtSecVal"),
     setFinalAtSec: document.getElementById("setFinalAtSec"),
     setFinalAtSecVal: document.getElementById("setFinalAtSecVal"),
+    setEtaTransitionSec: document.getElementById("setEtaTransitionSec"),
+    setEtaTransitionSecVal: document.getElementById("setEtaTransitionSecVal"),
+    setEtaAdjustSec: document.getElementById("setEtaAdjustSec"),
+    setEtaAdjustSecVal: document.getElementById("setEtaAdjustSecVal"),
+    setEtaAutoLearn: document.getElementById("setEtaAutoLearn"),
+    btnEtaResetLearning: document.getElementById("btnEtaResetLearning"),
+    etaLearningStatus: document.getElementById("etaLearningStatus"),
     setWarnColor: document.getElementById("setWarnColor"),
     setWarnAlpha: document.getElementById("setWarnAlpha"),
     setWarnAlphaVal: document.getElementById("setWarnAlphaVal"),
@@ -127,6 +134,7 @@ setBgColor: document.getElementById("setBgColor"),
     btnCrowdPrev: document.getElementById("btnCrowdPrev"),
     btnCrowdToggle: document.getElementById("btnCrowdToggle"),
     btnCrowdNext: document.getElementById("btnCrowdNext"),
+    btnSettingsOpenCrowdEditor: document.getElementById("btnSettingsOpenCrowdEditor"),
     crowdPromptStatus: document.getElementById("crowdPromptStatus"),
     crowdStatusStrip: document.getElementById("crowdStatusStrip"),
     crowdStatusPill: document.getElementById("crowdStatusPill"),
@@ -135,9 +143,17 @@ setBgColor: document.getElementById("setBgColor"),
     crowdStatusAutoHide: document.getElementById("crowdStatusAutoHide"),
     crowdDraftBadge: document.getElementById("crowdDraftBadge"),
     btnCrowdEditToggle: document.getElementById("btnCrowdEditToggle"),
+    crowdEditorModal: document.getElementById("crowdEditorModal"),
     crowdEditorPanel: document.getElementById("crowdEditorPanel"),
-    crowdEditorClosedHint: document.getElementById("crowdEditorClosedHint"),
+    crowdEditorSubtitle: document.getElementById("crowdEditorSubtitle"),
+    crowdEditorPreview: document.getElementById("crowdEditorPreview"),
+    btnCrowdEditorClose: document.getElementById("btnCrowdEditorClose"),
     btnCrowdCancel: document.getElementById("btnCrowdCancel"),
+    crowdPresetHeroName: document.getElementById("crowdPresetHeroName"),
+    crowdPresetHeroTitle: document.getElementById("crowdPresetHeroTitle"),
+    crowdPresetHeroAutoHide: document.getElementById("crowdPresetHeroAutoHide"),
+    crowdPresetHeroLineCount: document.getElementById("crowdPresetHeroLineCount"),
+    crowdPresetHeroState: document.getElementById("crowdPresetHeroState"),
     settingsModal: document.getElementById("settingsModal"),
     btnCloseSettings: document.getElementById("btnCloseSettings"),
 
@@ -148,7 +164,10 @@ setBgColor: document.getElementById("setBgColor"),
     liveNowName: document.getElementById("liveNowName"),
     liveOTItem: document.getElementById("liveOTItem"),
     liveOTVal: document.getElementById("liveOTVal"),
-    crowdEditor: document.getElementById("crowdEditor"),
+    kpiPhaseChip: document.getElementById("kpiPhaseChip"),
+    kpiDeckSummary: document.getElementById("kpiDeckSummary"),
+    kpiMathSummary: document.getElementById("kpiMathSummary"),
+    kpiOvertimeSummary: document.getElementById("kpiOvertimeSummary"),
     crowdPromptPreview: document.getElementById("crowdPromptPreview"),
     timerUpModal: document.getElementById("timerUpModal"),
     timerUpName: document.getElementById("timerUpName"),
@@ -166,6 +185,9 @@ setBgColor: document.getElementById("setBgColor"),
     kpiNext: document.getElementById("kpiNext"),
     kpiLeft: document.getElementById("kpiLeft"),
     kpiEstEnd: document.getElementById("kpiEstEnd"),
+    kpiTransitionAvg: document.getElementById("kpiTransitionAvg"),
+    kpiTransitionMeta: document.getElementById("kpiTransitionMeta"),
+    kpiEstHint: document.getElementById("kpiEstHint"),
     kpiNowTime: document.getElementById("kpiNowTime"),
 
     btnStart: document.getElementById("btnStart"),
@@ -175,9 +197,6 @@ setBgColor: document.getElementById("setBgColor"),
     btnEnd: document.getElementById("btnEnd"),
     btnUndo: document.getElementById("btnUndo"),
     btnRedo: document.getElementById("btnRedo"),
-    btnExportState: document.getElementById("btnExportState"),
-    btnImportState: document.getElementById("btnImportState"),
-    importStateFile: document.getElementById("importStateFile"),
     btnMinus1: document.getElementById("btnMinus1"),
     btnMinus5: document.getElementById("btnMinus5"),
     btnPlus1: document.getElementById("btnPlus1"),
@@ -1053,6 +1072,102 @@ setBgColor: document.getElementById("setBgColor"),
 
 function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
 
+  const TRANSITION_SAMPLE_LIMIT = 8;
+  const TRANSITION_SAMPLE_MAX_SEC = 20 * 60;
+
+  function ensureTransitionForecastState(s){
+    const d = OMJN.defaultState().transitionForecast || {};
+    if(!s.transitionForecast) s.transitionForecast = JSON.parse(JSON.stringify(d));
+    const tf = s.transitionForecast;
+    tf.defaultBufferSec = clamp(Math.round(Number(tf.defaultBufferSec ?? d.defaultBufferSec ?? 300) || 0), 0, 900);
+    tf.manualAdjustSec = clamp(Math.round(Number(tf.manualAdjustSec ?? d.manualAdjustSec ?? 0) || 0), -300, 300);
+    if(tf.autoLearn === undefined) tf.autoLearn = true;
+    if(!Array.isArray(tf.observedSamplesSec)) tf.observedSamplesSec = [];
+    tf.observedSamplesSec = tf.observedSamplesSec
+      .map(v => Math.round(Number(v)))
+      .filter(v => Number.isFinite(v) && v >= 0 && v <= TRANSITION_SAMPLE_MAX_SEC)
+      .slice(-TRANSITION_SAMPLE_LIMIT);
+    if(!Number.isFinite(Number(tf.pendingStartedAt))) tf.pendingStartedAt = null;
+    if(tf.pendingFromSlotId === undefined) tf.pendingFromSlotId = null;
+    return tf;
+  }
+
+  function getTransitionForecastCfg(s=state){
+    return ensureTransitionForecastState(s);
+  }
+
+  function formatSignedDurationMs(ms){
+    const sign = ms < 0 ? "-" : "+";
+    return `${sign}${OMJN.formatMMSS(Math.abs(ms || 0))}`;
+  }
+
+  function computeMedianSec(values){
+    const list = (values || []).slice().sort((a, b) => a - b);
+    if(!list.length) return null;
+    const mid = Math.floor(list.length / 2);
+    if(list.length % 2) return list[mid];
+    return Math.round((list[mid - 1] + list[mid]) / 2);
+  }
+
+  function getTransitionForecastStats(s=state){
+    const cfg = getTransitionForecastCfg(s);
+    const samples = Array.isArray(cfg.observedSamplesSec) ? cfg.observedSamplesSec : [];
+    const learnedMedianSec = samples.length ? computeMedianSec(samples) : null;
+    const baseSec = Math.max(0, cfg.defaultBufferSec + cfg.manualAdjustSec);
+    let forecastSec = baseSec;
+    if(cfg.autoLearn && learnedMedianSec !== null){
+      const weight = Math.min(samples.length, 5) / 5;
+      forecastSec = Math.max(0, Math.round((baseSec * (1 - weight)) + (learnedMedianSec * weight)));
+    }
+    return {
+      baseSec,
+      forecastSec,
+      learnedMedianSec,
+      observedCount: samples.length,
+      manualAdjustSec: cfg.manualAdjustSec,
+      autoLearn: cfg.autoLearn !== false,
+      pendingStartedAt: cfg.pendingStartedAt,
+      pendingFromSlotId: cfg.pendingFromSlotId,
+    };
+  }
+
+  function clearPendingTransitionForecast(s){
+    const tf = ensureTransitionForecastState(s);
+    tf.pendingStartedAt = null;
+    tf.pendingFromSlotId = null;
+  }
+
+  function markTransitionPendingFromSlot(s, slot, atMs = Date.now()){
+    const tf = ensureTransitionForecastState(s);
+    if(slot && slotNeedsChangeoverBuffer(slot)){
+      tf.pendingStartedAt = atMs;
+      tf.pendingFromSlotId = slot.id;
+    }else{
+      clearPendingTransitionForecast(s);
+    }
+  }
+
+  function recordObservedTransitionForStart(s, nextSlot, atMs = Date.now()){
+    const tf = ensureTransitionForecastState(s);
+    const startedAt = Number(tf.pendingStartedAt || 0);
+    const fromId = String(tf.pendingFromSlotId || "");
+    if(!startedAt || !fromId || !nextSlot){
+      clearPendingTransitionForecast(s);
+      return;
+    }
+    const prevSlot = (s.queue || []).find(x => x && x.id === fromId) || null;
+    if(!prevSlot || !slotNeedsChangeoverBuffer(prevSlot) || !slotNeedsChangeoverBuffer(nextSlot)){
+      clearPendingTransitionForecast(s);
+      return;
+    }
+    const sampleSec = Math.round((atMs - startedAt) / 1000);
+    if(Number.isFinite(sampleSec) && sampleSec >= 0 && sampleSec <= TRANSITION_SAMPLE_MAX_SEC){
+      tf.observedSamplesSec.push(sampleSec);
+      tf.observedSamplesSec = tf.observedSamplesSec.slice(-TRANSITION_SAMPLE_LIMIT);
+    }
+    clearPendingTransitionForecast(s);
+  }
+
 function formatCutSeconds(sec){
   const s = Math.max(0, Number(sec)||0);
   const m = Math.floor(s / 60);
@@ -1277,6 +1392,29 @@ function escapeHtml(s){
   // Crowd prompt editor state
   let crowdEditorReadFn = null;
   let crowdEditorDirty = false;
+  let crowdEditorReturnFocusEl = null;
+
+  function isCrowdEditorOpen(){
+    return !!els.crowdEditorModal && !els.crowdEditorModal.hidden;
+  }
+
+  function getFocusableWithin(root){
+    if(!root) return [];
+    return Array.from(root.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+      .filter(node => !node.hidden && node.getAttribute("aria-hidden") !== "true" && node.offsetParent !== null);
+  }
+
+  function refreshModalOpenClass(){
+    const anyOpen = [
+      els.settingsModal,
+      els.crowdEditorModal,
+      els.timerUpModal,
+      els.intermissionModal,
+      els.adModal,
+      els.hbBuildModal
+    ].some(node => node && !node.hidden);
+    document.body.classList.toggle("modalOpen", anyOpen);
+  }
 
 
 
@@ -1289,15 +1427,21 @@ function escapeHtml(s){
       const idx = Math.max(0, presets.findIndex(x => x.id === cfg.activePresetId));
       const displayIdx = presets.length ? `${idx+1}/${presets.length}` : "—";
       const name = (p?.name || p?.title || "Prompt").trim();
+      const title = (p?.title || "CROWD PROMPT").trim();
       const autoHide = (p?.autoHideSeconds ?? 0) | 0;
+      const lineCount = Array.isArray(p?.lines) ? p.lines.filter(Boolean).length : 0;
+      const editorOpen = isCrowdEditorOpen();
 
       if(cfg.enabled){
-        els.btnCrowdToggle.textContent = `Crowd: ${name}`;
+        els.btnCrowdToggle.textContent = "Hide Prompt";
         els.btnCrowdToggle.classList.add("good");
+        els.btnCrowdToggle.title = `Hide crowd prompt (${name})`;
       }else{
-        els.btnCrowdToggle.textContent = "Crowd: Off";
+        els.btnCrowdToggle.textContent = "Show Prompt";
         els.btnCrowdToggle.classList.remove("good");
+        els.btnCrowdToggle.title = `Show crowd prompt (${name})`;
       }
+      els.btnCrowdToggle.setAttribute("aria-pressed", cfg.enabled ? "true" : "false");
 
       if(els.crowdStatusPill){
         els.crowdStatusPill.textContent = cfg.enabled ? "ON" : "OFF";
@@ -1308,10 +1452,35 @@ function escapeHtml(s){
       if(els.crowdStatusMeta) els.crowdStatusMeta.textContent = displayIdx;
       if(els.crowdStatusAutoHide) els.crowdStatusAutoHide.textContent = `Auto-hide: ${autoHide ? autoHide + "s" : "off"}`;
       if(els.crowdDraftBadge) els.crowdDraftBadge.hidden = !crowdEditorDirty;
+      if(els.crowdPresetHeroName) els.crowdPresetHeroName.textContent = name || "Prompt";
+      if(els.crowdPresetHeroTitle) els.crowdPresetHeroTitle.textContent = title || "CROWD PROMPT";
+      if(els.crowdPresetHeroAutoHide) els.crowdPresetHeroAutoHide.textContent = autoHide ? `${autoHide}s` : "off";
+      if(els.crowdPresetHeroLineCount) els.crowdPresetHeroLineCount.textContent = String(lineCount);
+      if(els.crowdPresetHeroState){
+        els.crowdPresetHeroState.textContent = cfg.enabled ? "LIVE" : "READY";
+        els.crowdPresetHeroState.classList.toggle("isOn", !!cfg.enabled);
+      }
+      if(els.crowdEditorSubtitle){
+        els.crowdEditorSubtitle.textContent = `${name || "Prompt"} · ${displayIdx} · Auto-hide ${autoHide ? autoHide + "s" : "off"}`;
+      }
 
       const lockCycle = !!crowdEditorDirty;
       if(els.btnCrowdPrev) els.btnCrowdPrev.disabled = lockCycle;
       if(els.btnCrowdNext) els.btnCrowdNext.disabled = lockCycle;
+      if(els.btnCrowdEditToggle){
+        els.btnCrowdEditToggle.classList.toggle("primary", editorOpen);
+        els.btnCrowdEditToggle.textContent = editorOpen ? "Editing…" : "Edit preset";
+        els.btnCrowdEditToggle.setAttribute("aria-expanded", editorOpen ? "true" : "false");
+      }
+      if(els.btnSettingsOpenCrowdEditor){
+        els.btnSettingsOpenCrowdEditor.classList.toggle("primary", editorOpen);
+        els.btnSettingsOpenCrowdEditor.setAttribute("aria-expanded", editorOpen ? "true" : "false");
+      }
+      if(els.btnCrowdDelete){
+        const locked = presets.length <= 1;
+        els.btnCrowdDelete.disabled = locked;
+        els.btnCrowdDelete.title = locked ? "Keep at least one prompt preset." : "Delete the selected preset";
+      }
 
       // Legacy status element (if present)
       if(els.crowdPromptStatus){
@@ -1325,11 +1494,34 @@ function escapeHtml(s){
       if(els.crowdEditorPanel){
         els.crowdEditorPanel.addEventListener("mousedown", e => e.stopPropagation());
         els.crowdEditorPanel.addEventListener("click", e => e.stopPropagation());
-        els.crowdEditorPanel.addEventListener("keydown", e => e.stopPropagation());
+      }
+      if(els.crowdEditorModal){
+        els.crowdEditorModal.addEventListener("mousedown", (e) => {
+          if(e.target === els.crowdEditorModal) closeCrowdEditor(false);
+        });
+        els.crowdEditorModal.addEventListener("keydown", (e) => {
+          if(e.key === "Escape"){
+            e.preventDefault();
+            closeCrowdEditor(false);
+            return;
+          }
+          if(e.key !== "Tab") return;
+          const focusables = getFocusableWithin(els.crowdEditorModal);
+          if(!focusables.length) return;
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if(e.shiftKey && document.activeElement === first){
+            e.preventDefault();
+            last.focus();
+          }else if(!e.shiftKey && document.activeElement === last){
+            e.preventDefault();
+            first.focus();
+          }
+        });
       }
 
       const onDirty = () => {
-        if(!els.crowdEditorPanel || els.crowdEditorPanel.hidden) return;
+        if(!isCrowdEditorOpen()) return;
         setCrowdEditorDirty(true);
         renderCrowdPromptPreview();
       };
@@ -1342,10 +1534,19 @@ function escapeHtml(s){
 
       if(els.btnCrowdEditToggle){
         els.btnCrowdEditToggle.addEventListener("click", () => {
-          const isOpen = els.crowdEditorPanel && !els.crowdEditorPanel.hidden;
-          if(isOpen) closeCrowdEditor(false);
-          else openCrowdEditor();
+          openCrowdEditor(els.btnCrowdEditToggle);
         });
+      }
+
+      if(els.btnSettingsOpenCrowdEditor){
+        els.btnSettingsOpenCrowdEditor.addEventListener("click", () => {
+          closeSettingsModal();
+          openCrowdEditor(els.btnSettingsOpenCrowdEditor);
+        });
+      }
+
+      if(els.btnCrowdEditorClose){
+        els.btnCrowdEditorClose.addEventListener("click", () => closeCrowdEditor(false));
       }
 
       if(els.btnCrowdCancel){
@@ -1372,27 +1573,35 @@ function escapeHtml(s){
 
 
   function closeCrowdEditor(force=false){
-      if(!els.crowdEditorPanel) return;
+      if(!els.crowdEditorModal) return;
       if(!force && crowdEditorDirty){
         const ok = confirm("Discard unsaved crowd prompt edits?");
         if(!ok) return;
       }
-      els.crowdEditorPanel.hidden = true;
-      if(els.crowdEditorClosedHint) els.crowdEditorClosedHint.hidden = false;
-      if(els.btnCrowdEditToggle) els.btnCrowdEditToggle.textContent = "Edit preset";
+      els.crowdEditorModal.hidden = true;
+      refreshModalOpenClass();
       setCrowdEditorDirty(false);
       renderCrowdPromptPreview();
+      const focusEl = crowdEditorReturnFocusEl;
+      crowdEditorReturnFocusEl = null;
+      setTimeout(() => { focusEl?.focus?.(); }, 0);
     }
 
 
-  function openCrowdEditor(){
-      if(!els.crowdEditorPanel) return;
-      els.crowdEditorPanel.hidden = false;
-      if(els.crowdEditorClosedHint) els.crowdEditorClosedHint.hidden = true;
-      if(els.btnCrowdEditToggle) els.btnCrowdEditToggle.textContent = "Close";
+  function openCrowdEditor(returnFocusEl=null){
+      if(!els.crowdEditorModal) return;
+      if(isCrowdEditorOpen()){
+        if(returnFocusEl && !crowdEditorReturnFocusEl) crowdEditorReturnFocusEl = returnFocusEl;
+        setTimeout(() => { els.crowdPresetName?.focus?.(); }, 0);
+        return;
+      }
+      crowdEditorReturnFocusEl = returnFocusEl || document.activeElement;
+      els.crowdEditorModal.hidden = false;
+      refreshModalOpenClass();
       loadCrowdEditorFromActivePreset();
       setCrowdEditorDirty(false);
       renderCrowdPromptPreview();
+      setTimeout(() => { els.crowdPresetName?.focus?.(); }, 0);
     }
 
 
@@ -1616,6 +1825,30 @@ function escapeHtml(s){
       const v = clamp(parseInt(String(state.viewerPrefs?.finalAtSec ?? 30), 10) || 30, 0, 600);
       els.setFinalAtSec.value = String(v);
       if(els.setFinalAtSecVal) els.setFinalAtSecVal.textContent = OMJN.formatMMSS(v * 1000);
+    }
+
+    const tfStats = getTransitionForecastStats(state);
+    if(els.setEtaTransitionSec){
+      els.setEtaTransitionSec.value = String(tfStats.baseSec - tfStats.manualAdjustSec);
+      if(els.setEtaTransitionSecVal) els.setEtaTransitionSecVal.textContent = OMJN.formatMMSS((tfStats.baseSec - tfStats.manualAdjustSec) * 1000);
+    }
+    if(els.setEtaAdjustSec){
+      els.setEtaAdjustSec.value = String(tfStats.manualAdjustSec);
+      if(els.setEtaAdjustSecVal) els.setEtaAdjustSecVal.textContent = formatSignedDurationMs(tfStats.manualAdjustSec * 1000);
+    }
+    if(els.setEtaAutoLearn) els.setEtaAutoLearn.checked = !!tfStats.autoLearn;
+    if(els.btnEtaResetLearning){
+      els.btnEtaResetLearning.disabled = !tfStats.observedCount;
+      els.btnEtaResetLearning.title = tfStats.observedCount ? "Clear observed transition gaps from this show." : "No learned transition gaps to clear yet.";
+    }
+    if(els.etaLearningStatus){
+      const parts = [];
+      parts.push(`Forecast ${OMJN.formatMMSS(tfStats.forecastSec * 1000)}`);
+      parts.push(`Base ${OMJN.formatMMSS(tfStats.baseSec * 1000)}`);
+      if(tfStats.learnedMedianSec !== null) parts.push(`Learned median ${OMJN.formatMMSS(tfStats.learnedMedianSec * 1000)} from ${tfStats.observedCount} observed`);
+      else parts.push("No observed gaps yet");
+      if(!tfStats.autoLearn) parts.push("Auto-learn off");
+      els.etaLearningStatus.textContent = parts.join(" • ");
     }
 
 
@@ -2017,6 +2250,54 @@ function escapeHtml(s){
     bindRemainingSec(els.setWarnAtSec, els.setWarnAtSecVal, "warnAtSec", 120);
     bindRemainingSec(els.setFinalAtSec, els.setFinalAtSecVal, "finalAtSec", 30);
 
+    if(els.setEtaTransitionSec){
+      const onTransitionBase = () => {
+        const raw = parseInt(String(els.setEtaTransitionSec.value || "300"), 10);
+        const v = clamp(Number.isFinite(raw) ? raw : 300, 0, 900);
+        els.setEtaTransitionSec.value = String(v);
+        if(els.setEtaTransitionSecVal) els.setEtaTransitionSecVal.textContent = OMJN.formatMMSS(v * 1000);
+        updateState(s => {
+          const tf = ensureTransitionForecastState(s);
+          tf.defaultBufferSec = v;
+        }, { recordHistory:false });
+      };
+      els.setEtaTransitionSec.addEventListener("input", onTransitionBase);
+      els.setEtaTransitionSec.addEventListener("change", onTransitionBase);
+    }
+
+    if(els.setEtaAdjustSec){
+      const onTransitionAdjust = () => {
+        const raw = parseInt(String(els.setEtaAdjustSec.value || "0"), 10);
+        const v = clamp(Number.isFinite(raw) ? raw : 0, -300, 300);
+        els.setEtaAdjustSec.value = String(v);
+        if(els.setEtaAdjustSecVal) els.setEtaAdjustSecVal.textContent = formatSignedDurationMs(v * 1000);
+        updateState(s => {
+          const tf = ensureTransitionForecastState(s);
+          tf.manualAdjustSec = v;
+        }, { recordHistory:false });
+      };
+      els.setEtaAdjustSec.addEventListener("input", onTransitionAdjust);
+      els.setEtaAdjustSec.addEventListener("change", onTransitionAdjust);
+    }
+
+    if(els.setEtaAutoLearn){
+      els.setEtaAutoLearn.addEventListener("change", () => {
+        updateState(s => {
+          const tf = ensureTransitionForecastState(s);
+          tf.autoLearn = !!els.setEtaAutoLearn.checked;
+        }, { recordHistory:false });
+      });
+    }
+
+    if(els.btnEtaResetLearning){
+      els.btnEtaResetLearning.addEventListener("click", () => {
+        updateState(s => {
+          const tf = ensureTransitionForecastState(s);
+          tf.observedSamplesSec = [];
+        }, { recordHistory:false });
+      });
+    }
+
     // Viewer extras: mic visualizer
     if(els.setVizEnabled){
       els.setVizEnabled.addEventListener("change", () => {
@@ -2115,6 +2396,12 @@ function escapeHtml(s){
     }
 
     function deleteCrowdPreset(){
+      const cfg = getCrowdCfg(state);
+      const presets = Array.isArray(cfg?.presets) ? cfg.presets : [];
+      if(presets.length <= 1) return;
+      const active = getActiveCrowdPreset(cfg);
+      const label = active?.name || active?.title || "this prompt";
+      if(!confirm(`Delete "${label}"?`)) return;
       updateState(s => {
         ensureCrowdDefaults(s);
         const cfg = s.viewerPrefs.crowdPrompts;
@@ -2371,15 +2658,6 @@ function escapeHtml(s){
       let firstTab = "viewer";
       try{ firstTab = localStorage.getItem("omjn_settingsTab") || "viewer"; }catch(_){}
       activateSettingsTab(firstTab);
-
-      // Shortcut: jump to Crowd Prompt editor
-      const btnOpenCrowd = document.getElementById("btnSettingsOpenCrowdEditor");
-      if(btnOpenCrowd){
-        btnOpenCrowd.addEventListener("click", () => {
-          closeSettingsModal();
-          els.btnCrowdEditToggle?.click?.();
-        });
-      }
     }
 
   }
@@ -2539,13 +2817,23 @@ function escapeHtml(s){
 
     bar.appendChild(barLeft);
 
+    const forecastDetail = queueEtaDetailMap.get(slot.id);
+
     // Approximate showtime for queued performers (non-ad). Updated by updateQueueEtaLabels().
     if(slot.status === "QUEUED" && !isAd && !isIntermission && !isHouseBand){
       const barRight = document.createElement("div");
       barRight.className = "qBarRight";
+      if(forecastDetail){
+        const helper = document.createElement("span");
+        helper.className = "qForecastInline";
+        helper.textContent = formatQueueForecastDetail(forecastDetail);
+        helper.title = "ETA math breakdown for this queued performer.";
+        barRight.appendChild(helper);
+      }
       const eta = document.createElement("span");
       eta.className = "qEta mono";
       eta.dataset.slotId = slot.id;
+      eta.title = "Approximate start time including queued durations, special slots, and transition assumptions.";
       eta.hidden = true;
       barRight.appendChild(eta);
       bar.appendChild(barRight);
@@ -2579,18 +2867,9 @@ function escapeHtml(s){
       meta.appendChild(ic);
     }
 
-    main.appendChild(bar);
-    main.appendChild(nameRow);
     const notesLine = firstLineOfNotes(slot.notes);
     const houseBandLine = isHouseBand ? houseBandLineupSummary(slot) : "";
     const subLine = isHouseBand ? houseBandLine : (notesLine || houseBandLine);
-    if(subLine){
-      const sub = document.createElement("div");
-      sub.className = "qNotesSub";
-      sub.textContent = subLine;
-      main.appendChild(sub);
-    }
-    main.appendChild(meta);
 
     const actions = document.createElement("div");
     actions.className = "qActions";
@@ -2679,17 +2958,27 @@ function escapeHtml(s){
       e.stopPropagation();
       removeSlot(slot.id);
     });
-    actions.appendChild(btnDel);
+    actions.prepend(btnDel);
+
+    main.appendChild(bar);
+    main.appendChild(nameRow);
+    if(subLine){
+      const sub = document.createElement("div");
+      sub.className = "qNotesSub";
+      sub.textContent = subLine;
+      main.appendChild(sub);
+    }
+    main.appendChild(meta);
 
     div.appendChild(handle);
     div.appendChild(main);
+    div.appendChild(actions);
     // Inline expander under row (text-only edits)
     if(editingId === slot.id && editDraft){
       try{
         div.appendChild(buildInlineExpander(slot));
       }catch(_){ /* never block queue rendering */ }
     }
-    div.appendChild(actions);
 
     div.addEventListener("click", () => {
       selectSlot(slot.id);
@@ -2702,6 +2991,14 @@ function escapeHtml(s){
     if(!els.queue) return;
 
     els.queue.innerHTML = "";
+    try{
+      const forecast = buildQueueForecast(Date.now());
+      queueEtaMap = forecast.etaMap;
+      queueEtaDetailMap = forecast.detailMap;
+    }catch(_){
+      queueEtaMap = new Map();
+      queueEtaDetailMap = new Map();
+    }
 
     const isDone = (x) => x && (x.status === "DONE" || x.status === "SKIPPED");
     const active = (state.queue || []).filter(x => !isDone(x));
@@ -2754,7 +3051,7 @@ function escapeHtml(s){
 
   // ---- Queue ETA + Estimated End forecast ----
   let queueEtaMap = new Map();
-  const CHANGEOVER_BUFFER_MS = 5 * 60 * 1000;
+  let queueEtaDetailMap = new Map();
 
   function slotNeedsChangeoverBuffer(slot){
     if(!slot) return false;
@@ -2787,8 +3084,52 @@ function escapeHtml(s){
     return `${t.toLocaleTimeString([], { hour:"numeric", minute:"2-digit" })} (≈)`;
   }
 
+  function formatLeadDuration(ms){
+    const totalMin = Math.max(0, Math.round((Number(ms) || 0) / 60000));
+    if(totalMin <= 0) return "<1m";
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    if(h && m) return `${h}h ${m}m`;
+    if(h) return `${h}h`;
+    return `${m}m`;
+  }
+
+  function formatQueueForecastDetail(detail){
+    if(!detail) return "";
+    const math = [];
+    if(detail.currentLeftMs > 0){
+      math.push(`${formatLeadDuration(detail.currentLeftMs)} current`);
+    }
+    if(detail.performerDurationBeforeMs > 0){
+      const count = detail.performerBeforeCount ? ` (${detail.performerBeforeCount})` : "";
+      math.push(`${formatLeadDuration(detail.performerDurationBeforeMs)} performers${count}`);
+    }
+    if(detail.specialDurationBeforeMs > 0){
+      const count = detail.specialBeforeCount ? ` (${detail.specialBeforeCount})` : "";
+      math.push(`${formatLeadDuration(detail.specialDurationBeforeMs)} special${count}`);
+    }
+    if(detail.transitionCount){
+      math.push(`${formatLeadDuration(detail.transitionTotalMs)} transitions (${detail.transitionCount}x${formatLeadDuration(detail.forecastTransitionMs)})`);
+    }
+    if(!math.length){
+      math.push("next up now");
+    }
+    return `Ahead ${formatLeadDuration(detail.aheadMs)} | ${math.join(" + ")}`;
+  }
+
   function buildQueueForecast(nowMs){
     const etaMap = new Map();
+    const detailMap = new Map();
+    const tfStats = getTransitionForecastStats(state);
+    const forecastTransitionMs = tfStats.forecastSec * 1000;
+    let transitionCount = 0;
+    let slotsBeforeCount = 0;
+    let specialBeforeCount = 0;
+    let performerBeforeCount = 0;
+    let slotDurationBeforeMs = 0;
+    let performerDurationBeforeMs = 0;
+    let specialDurationBeforeMs = 0;
+    let currentLeftMs = 0;
 
     const phase = state.phase || "SPLASH";
     const hasCurrent = (phase === "LIVE" || phase === "PAUSED") && !!state.currentSlotId;
@@ -2804,8 +3145,10 @@ function escapeHtml(s){
       try{
         const cur = active[curIdx];
         prevSlot = cur || null;
-        cursor += forecastCurrentRemainingMs(cur);
+        currentLeftMs = forecastCurrentRemainingMs(cur);
+        cursor += currentLeftMs;
       }catch(_){
+        currentLeftMs = 0;
         prevSlot = null;
       }
     }
@@ -2818,25 +3161,56 @@ function escapeHtml(s){
       if(s.status !== "QUEUED") continue;
 
       if(prevSlot && slotNeedsChangeoverBuffer(prevSlot) && slotNeedsChangeoverBuffer(s)){
-        cursor += CHANGEOVER_BUFFER_MS;
+        cursor += forecastTransitionMs;
+        transitionCount += 1;
       }
 
       const typeId = String(s.slotTypeId || "");
       const isAd = typeId.startsWith("ad_");
       const isIntermission = typeId === "intermission";
       const isHouseBand = typeId === "houseband";
+      const isSpecial = isAd || isIntermission || isHouseBand;
 
       if(!isAd && !isIntermission && !isHouseBand){
         etaMap.set(s.id, cursor);
+        detailMap.set(s.id, {
+          aheadMs: Math.max(0, cursor - nowMs),
+          currentLeftMs,
+          slotsBeforeCount,
+          slotDurationBeforeMs,
+          specialBeforeCount,
+          specialDurationBeforeMs,
+          performerBeforeCount,
+          performerDurationBeforeMs,
+          transitionCount,
+          forecastTransitionMs,
+          transitionTotalMs: transitionCount * forecastTransitionMs,
+        });
       }
 
-      const durMs = isAd ? 0 : (OMJN.effectiveMinutes(state, s) * 60 * 1000);
+      const durMs = OMJN.effectiveMinutes(state, s) * 60 * 1000;
       cursor += durMs;
+      slotsBeforeCount += 1;
+      slotDurationBeforeMs += durMs;
+      if(isSpecial){
+        specialBeforeCount += 1;
+        specialDurationBeforeMs += durMs;
+      }else{
+        performerBeforeCount += 1;
+        performerDurationBeforeMs += durMs;
+      }
       prevSlot = s;
     }
 
     const estEndTs = (cursor > nowMs) ? cursor : null;
-    return { etaMap, estEndTs };
+    return {
+      etaMap,
+      detailMap,
+      estEndTs,
+      transitionCount,
+      forecastTransitionMs,
+      tfStats,
+    };
   }
 
   function computeQueueEtaMap(nowMs){
@@ -2852,6 +3226,7 @@ function escapeHtml(s){
     try{
       const forecast = buildQueueForecast(nowMs);
       queueEtaMap = forecast.etaMap;
+      queueEtaDetailMap = forecast.detailMap;
       nodes = document.querySelectorAll(".qEta[data-slot-id]");
       for(const node of nodes){
         const id = node.dataset.slotId;
@@ -2878,15 +3253,45 @@ function escapeHtml(s){
   function renderEstimatedEnd(nowMs = Date.now()){
     if(!els.kpiEstEnd) return;
     try{
-      const ts = computeEstimatedEndTs(nowMs);
+      const forecast = buildQueueForecast(nowMs);
+      const ts = forecast.estEndTs;
       if(!ts){
         els.kpiEstEnd.textContent = "—";
       }else{
         const end = new Date(ts);
         els.kpiEstEnd.textContent = end.toLocaleTimeString([], { hour:"numeric", minute:"2-digit" });
       }
+      if(els.kpiTransitionAvg){
+        els.kpiTransitionAvg.textContent = OMJN.formatMMSS(forecast.forecastTransitionMs || 0);
+      }
+      if(els.kpiTransitionMeta){
+        const meta = [];
+        meta.push(forecast.tfStats.autoLearn ? "Auto" : "Manual");
+        if(forecast.tfStats.observedCount){
+          meta.push(`${forecast.tfStats.observedCount} gaps`);
+        }else{
+          meta.push("No gaps yet");
+        }
+        if(forecast.tfStats.manualAdjustSec){
+          meta.push(formatSignedDurationMs(forecast.tfStats.manualAdjustSec * 1000));
+        }
+        els.kpiTransitionMeta.textContent = meta.join(" • ");
+      }
+      if(els.kpiEstHint){
+        if(!ts){
+          els.kpiEstHint.textContent = "ETA appears when there is current or queued show time to forecast.";
+        }else if(forecast.transitionCount > 0){
+          const plural = forecast.transitionCount === 1 ? "" : "s";
+          els.kpiEstHint.textContent = `ETA includes ${forecast.transitionCount} future transition${plural} at ${OMJN.formatMMSS(forecast.forecastTransitionMs)} each.`;
+        }else{
+          els.kpiEstHint.textContent = "ETA is currently based only on active and queued slot durations.";
+        }
+      }
     }catch(_){
       els.kpiEstEnd.textContent = "—";
+      if(els.kpiTransitionAvg) els.kpiTransitionAvg.textContent = "—";
+      if(els.kpiTransitionMeta) els.kpiTransitionMeta.textContent = "Forecast unavailable";
+      if(els.kpiEstHint) els.kpiEstHint.textContent = "ETA forecast unavailable.";
     }
   }
 
@@ -3339,12 +3744,10 @@ function getDragAfterElement(container, y){
 
 function renderKPIs(nowMs = Date.now()){
     const current = OMJN.computeCurrent(state);
-    const [next, deck] = OMJN.computeNextTwo(state);
+    const [next] = OMJN.computeNextTwo(state);
 
     els.kpiCurrent.textContent = current ? current.displayName : "—";
     els.kpiNext.textContent = next ? next.displayName : "—";
-    if(els.readyNext) els.readyNext.textContent = next ? next.displayName : "—";
-    if(els.readyDeck) els.readyDeck.textContent = deck ? deck.displayName : "—";
 
     // Performers left = current (if LIVE/PAUSED) + queued
     const queued = (state.queue || []).filter(x => x && x.status === "QUEUED");
@@ -3408,25 +3811,49 @@ function renderKPIs(nowMs = Date.now()){
   
   function renderLiveStatusBanner(){
     const phase = state.phase || "SPLASH";
-    if(els.statusLine) els.statusLine.textContent = phase;
-
-    if(els.livePhaseDot){
-      els.livePhaseDot.classList.remove("good","warn","bad");
-      if(phase === "LIVE") els.livePhaseDot.classList.add("good");
-      else if(phase === "PAUSED") els.livePhaseDot.classList.add("warn");
-    }
-
+    const [next, deck] = OMJN.computeNextTwo(state);
     const current = OMJN.computeCurrent(state);
     const inLive = (phase === "LIVE" || phase === "PAUSED") && !!current;
+    const forecast = buildQueueForecast(Date.now());
+    const queued = (state.queue || []).filter(x => x && x.status === "QUEUED");
+    const specialQueued = queued.filter(x => {
+      const typeId = String(x?.slotTypeId || "");
+      return typeId.startsWith("ad_") || typeId === "intermission" || typeId === "houseband";
+    }).length;
+
+    if(els.kpiPhaseChip){
+      els.kpiPhaseChip.textContent = phase;
+      els.kpiPhaseChip.classList.remove("isLive", "isPaused", "isSplash");
+      if(phase === "LIVE") els.kpiPhaseChip.classList.add("isLive");
+      else if(phase === "PAUSED") els.kpiPhaseChip.classList.add("isPaused");
+      else els.kpiPhaseChip.classList.add("isSplash");
+    }
+    if(els.kpiDeckSummary){
+      els.kpiDeckSummary.textContent = `On Deck: ${deck ? deck.displayName : "—"}`;
+    }
+    if(els.kpiMathSummary){
+      const parts = [];
+      if(inLive) parts.push("1 live");
+      parts.push(`${queued.length} queued`);
+      if(specialQueued) parts.push(`${specialQueued} special`);
+      if(forecast.transitionCount) parts.push(`${forecast.transitionCount} transition${forecast.transitionCount === 1 ? "" : "s"}`);
+      els.kpiMathSummary.textContent = `Queue Math: ${parts.join(" • ")}`;
+    }
+
     if(els.liveNowItem) els.liveNowItem.hidden = !inLive;
     if(inLive && els.liveNowName) els.liveNowName.textContent = current.displayName || "—";
 
     if(inLive){
       const t = OMJN.computeTimer(state);
       const showOT = (t.remainingMs === 0 && (t.overtimeMs || 0) > 0);
+      if(els.kpiOvertimeSummary){
+        els.kpiOvertimeSummary.hidden = !showOT;
+        if(showOT) els.kpiOvertimeSummary.textContent = `Overtime: +${OMJN.formatMMSS(t.overtimeMs)}`;
+      }
       if(els.liveOTItem) els.liveOTItem.hidden = !showOT;
       if(showOT && els.liveOTVal) els.liveOTVal.textContent = `+${OMJN.formatMMSS(t.overtimeMs)}`;
     }else{
+      if(els.kpiOvertimeSummary) els.kpiOvertimeSummary.hidden = true;
       if(els.liveOTItem) els.liveOTItem.hidden = true;
     }
   }
@@ -3462,7 +3889,16 @@ function renderKPIs(nowMs = Date.now()){
 
     const showViewerTimer = state.viewerPrefs?.showTimer !== false;
     if(els.btnViewerTimerToggle){
+      const viewerWrap = els.btnViewerTimerToggle.closest(".viewerTimerWrap");
+      if(viewerWrap){
+        viewerWrap.classList.toggle("isReady", true);
+        viewerWrap.classList.toggle("isPaused", showViewerTimer);
+        viewerWrap.classList.remove("isDisabled");
+      }
       els.btnViewerTimerToggle.textContent = showViewerTimer ? "Hide Viewer Timer" : "Show Viewer Timer";
+      els.btnViewerTimerToggle.classList.toggle("isPaused", showViewerTimer);
+      els.btnViewerTimerToggle.classList.remove("isDisabled");
+      els.btnViewerTimerToggle.disabled = false;
       els.btnViewerTimerToggle.setAttribute("aria-pressed", showViewerTimer ? "true" : "false");
       els.btnViewerTimerToggle.title = showViewerTimer
         ? "Hide the Viewer timer and progress bar"
@@ -3470,26 +3906,12 @@ function renderKPIs(nowMs = Date.now()){
     }
   }
 
-  function renderCrowdPromptPreview(){
-      if(!els.crowdPromptPreview) return;
-      const cfg = getCrowdCfg(state);
-      const p = getActiveCrowdPreset(cfg) || {};
-
-      const editorOpen = !!els.crowdEditorPanel && !els.crowdEditorPanel.hidden;
-
-      let data = p;
-      if(editorOpen && typeof crowdEditorReadFn === "function"){
-        try{
-          const typed = crowdEditorReadFn();
-          data = Object.assign({}, p, typed);
-        }catch(_){}
-      }
-
+  function renderCrowdPromptPreviewInto(root, cfg, data){
+      if(!root) return;
       const title = (data.title || "").trim();
       const footer = (data.footer || "").trim();
       const lines = Array.isArray(data.lines) ? data.lines : [];
 
-      const root = els.crowdPromptPreview;
       root.innerHTML = "";
 
       const wrap = document.createElement("div");
@@ -3530,6 +3952,25 @@ function renderKPIs(nowMs = Date.now()){
       wrap.appendChild(hint);
 
       root.appendChild(wrap);
+  }
+
+  function renderCrowdPromptPreview(){
+      if(!els.crowdPromptPreview && !els.crowdEditorPreview) return;
+      const cfg = getCrowdCfg(state);
+      const p = getActiveCrowdPreset(cfg) || {};
+
+      const editorOpen = isCrowdEditorOpen();
+
+      let data = p;
+      if(editorOpen && typeof crowdEditorReadFn === "function"){
+        try{
+          const typed = crowdEditorReadFn();
+          data = Object.assign({}, p, typed);
+        }catch(_){}
+      }
+
+      renderCrowdPromptPreviewInto(els.crowdPromptPreview, cfg, data);
+      renderCrowdPromptPreviewInto(els.crowdEditorPreview, cfg, data);
     }
 
   // ---- Timer-up modal (operator reminder) ----
@@ -3970,6 +4411,7 @@ function render(){
 
   function activateSlotLive(s, slot, { pinToTop = true } = {}){
     if(!slot) return;
+    recordObservedTransitionForStart(s, slot, Date.now());
     prepareSlotForLive(s, slot, { pinToTop });
 
     s.currentSlotId = slot.id;
@@ -4803,12 +5245,15 @@ function start(){
   function endToSplash(){
     updateState(s => {
       if(!s.currentSlotId){
+        clearPendingTransitionForecast(s);
         s.phase = "SPLASH";
         return;
       }
       const idx = s.queue.findIndex(x => x.id === s.currentSlotId);
       const cur = idx >= 0 ? s.queue[idx] : null;
-      if(cur){ cur.status = "DONE"; cur.completedAt = Date.now(); }
+      const endedAt = Date.now();
+      if(cur){ cur.status = "DONE"; cur.completedAt = endedAt; }
+      markTransitionPendingFromSlot(s, cur, endedAt);
       // If a HOUSE BAND slot just ended, rotate each featured lineup member
       // to the end of their category queue.
       if(cur && String(cur.slotTypeId || "") === "houseband"){
@@ -4978,7 +5423,7 @@ function start(){
   function openSettingsModal(){
     if(!els.settingsModal) return;
     els.settingsModal.hidden = false;
-    document.body.classList.add("modalOpen");
+    refreshModalOpenClass();
     // restore last-opened tab
     try{
       const tab = localStorage.getItem("omjn_settingsTab") || "viewer";
@@ -4992,7 +5437,7 @@ function start(){
   function closeSettingsModal(){
     if(!els.settingsModal) return;
     els.settingsModal.hidden = true;
-    document.body.classList.remove("modalOpen");
+    refreshModalOpenClass();
     els.btnSettings?.focus?.();
   }
 
@@ -5016,7 +5461,7 @@ toggleCustomAddFields();
 
     wireCrowdEditorInteractions();
     // Start collapsed by default
-    if(els.crowdEditorPanel) closeCrowdEditor(true);
+    if(els.crowdEditorModal) closeCrowdEditor(true);
 
 
     els.addType.addEventListener("change", toggleCustomAddFields);
@@ -5236,30 +5681,6 @@ els.showTitle.addEventListener("input", () => {
     els.btnUndo.addEventListener("click", undo);
     els.btnRedo.addEventListener("click", redo);
 
-    // Export/Import state
-    if(els.btnExportState){
-      els.btnExportState.addEventListener("click", () => {
-        try{
-          exportShowState();
-        }catch(err){
-          alert("Export failed.\n\n" + (err?.message || String(err)));
-        }
-      });
-    }
-
-    if(els.btnImportState && els.importStateFile){
-      els.btnImportState.addEventListener("click", () => els.importStateFile.click());
-      els.importStateFile.addEventListener("change", async () => {
-        const file = els.importStateFile.files && els.importStateFile.files[0];
-        els.importStateFile.value = "";
-        if(!file) return;
-        try{
-          await importShowStateFile(file);
-        }catch(err){
-          alert("Import failed.\n\n" + (err?.message || String(err)));
-        }
-      });
-    }
     if(els.btnPauseResume) els.btnPauseResume.addEventListener("click", togglePauseResume);
     if(els.btnViewerTimerToggle) els.btnViewerTimerToggle.addEventListener("click", toggleViewerTimer);
     els.btnEnd.addEventListener("click", guardedEnd);
@@ -5297,9 +5718,6 @@ els.showTitle.addEventListener("input", () => {
     const cpInputs = [els.crowdPresetName, els.crowdTitle, els.crowdAutoHide, els.crowdLines, els.crowdFooter].filter(Boolean);
     for(const el of cpInputs){
       el.addEventListener("input", () => renderCrowdPromptPreview());
-    }
-    if(els.crowdEditor){
-      els.crowdEditor.addEventListener("toggle", () => renderCrowdPromptPreview());
     }
 
     // Start lightweight UI tick (timer line + reminders)
@@ -5371,6 +5789,12 @@ els.showTitle.addEventListener("input", () => {
       if(k === "Escape" && els.settingsModal && !els.settingsModal.hidden){
         e.preventDefault();
         closeSettingsModal();
+        return;
+      }
+
+      if(k === "Escape" && els.crowdEditorModal && !els.crowdEditorModal.hidden){
+        e.preventDefault();
+        closeCrowdEditor(false);
         return;
       }
 
