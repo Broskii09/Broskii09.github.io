@@ -1197,6 +1197,22 @@
     el.crowdLayer.setAttribute("aria-hidden", crowdVisible ? "false" : "true");
   }
 
+  function applyCrowdLayoutVariant(lines, footer){
+    if(!el.crowdLayer) return;
+    const safeLines = Array.isArray(lines) ? lines : [];
+    const lineCount = safeLines.length;
+    const longest = safeLines.reduce((m, v) => Math.max(m, String(v || "").length), 0);
+    const totalChars = safeLines.reduce((sum, v) => sum + String(v || "").length, 0);
+    const dense = lineCount >= 4 || longest >= 34 || totalChars >= 110;
+    const short = !dense && lineCount > 0 && lineCount <= 2 && longest <= 28;
+    const single = !dense && lineCount <= 1;
+
+    el.crowdLayer.classList.toggle("isCrowdDense", dense);
+    el.crowdLayer.classList.toggle("isCrowdShort", short);
+    el.crowdLayer.classList.toggle("isCrowdSingle", single);
+    el.crowdLayer.classList.toggle("hasCrowdFooter", !!String(footer || "").trim());
+  }
+
   function renderCrowdPrompts() {
     if (!el.root || !el.crowdLayer) return;
 
@@ -1218,6 +1234,7 @@
     const footer = String(p.footer || "").trim();
     const rawLines = Array.isArray(p.lines) ? p.lines : [];
     const lines = rawLines.map((v) => String(v || "").trim()).filter((v) => v.length);
+    applyCrowdLayoutVariant(lines, footer);
 
     const key = JSON.stringify({ enabled, id: String(p.id || ""), title, footer, lines, autoHideSeconds });
 
@@ -1922,3 +1939,4 @@ function renderStateDriven() {
   // Cheap live timer updates
   setInterval(updateTimerAndCues, 120);
 })();
+
