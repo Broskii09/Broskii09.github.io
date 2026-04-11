@@ -414,8 +414,43 @@ function initUiPrefs(){
     }
   }
 
+  async function ensureAudioReady(){
+    try{
+      if(ctx.state !== "running"){
+        await ctx.resume();
+      }
+
+      // Safari sometimes needs an actual start/stop while inside a user gesture.
+      if(ctx.state !== "running"){
+        try{
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          g.gain.value = 0;
+          osc.connect(g).connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.01);
+        }catch(_){}
+        await ctx.resume();
+      }
+
+      audioEnabled = (ctx.state === "running");
+      showEnableOverlay(!audioEnabled);
+      return audioEnabled;
+    }catch(_){
+      audioEnabled = false;
+      showEnableOverlay(true);
+      return false;
+    }
+  }
+
   audioEnabled = (ctx.state === "running");
   showEnableOverlay(!audioEnabled);
+  try{
+    ctx.addEventListener("statechange", () => {
+      audioEnabled = (ctx.state === "running");
+      if(!audioEnabled) showEnableOverlay(true);
+    });
+  }catch(_){}
   initUiPrefs();
 
   // ---- Settings modal (volume, fade, hotkeys, source) ----
@@ -472,28 +507,10 @@ function initUiPrefs(){
 if(els.enableBtn){
   els.enableBtn.addEventListener("click", async () => {
     try{
-      // First attempt: resume the context
-      await ctx.resume();
-
-      // Safari sometimes needs an extra silent start/stop to fully unlock output
-      if(ctx.state !== "running"){
-        try{
-          const osc = ctx.createOscillator();
-          const g = ctx.createGain();
-          g.gain.value = 0;
-          osc.connect(g).connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.01);
-        }catch(_){}
-        await ctx.resume();
-      }
-
-      audioEnabled = (ctx.state === "running");
+      audioEnabled = await ensureAudioReady();
       if(audioEnabled){
-        showEnableOverlay(false);
         setStatus("Audio enabled.", false);
       }else{
-        showEnableOverlay(true);
         setStatus("Audio is still blocked. Try clicking again.", true);
       }
     }catch(e){
@@ -603,6 +620,16 @@ function setStatus(msg, isErr=false){
     return new Promise((resolve) => {
       const tx = db.transaction(STORE, "readwrite");
       tx.objectStore(STORE).put(rec);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    });
+  }
+
+  async function idbDelete(id){
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).delete(id);
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => resolve(false);
     });
@@ -1278,16 +1305,37 @@ function setStatus(msg, isErr=false){
         const cached = await idbGet(sound.id);
         let blob = cached?.blob || null;
         const same = cached && cached.modifiedTime === sound.modifiedTime;
+        let usedCachedBlob = !!(blob && same);
 
-        if(!blob || !same){
+        async function fetchFreshBlob(){
+          if(!sound.downloadUrl) throw new Error("Missing sound file URL.");
           const r = await fetch(sound.downloadUrl);
           if(!r.ok) throw new Error(`Download failed (${r.status})`);
-          blob = await r.blob();
-          await idbPut({ id:sound.id, name:sound.name, modifiedTime:sound.modifiedTime, mimeType:sound.mimeType, blob });
+          const freshBlob = await r.blob();
+          if(!freshBlob || !freshBlob.size) throw new Error("Downloaded audio file was empty.");
+          await idbPut({ id:sound.id, name:sound.name, modifiedTime:sound.modifiedTime, mimeType:sound.mimeType, blob:freshBlob });
+          return freshBlob;
         }
 
-        const ab = await blob.arrayBuffer();
-        const buf = await ctx.decodeAudioData(ab.slice(0));
+        async function decodeBlob(sourceBlob){
+          const ab = await sourceBlob.arrayBuffer();
+          return ctx.decodeAudioData(ab.slice(0));
+        }
+
+        if(!blob || !same){
+          blob = await fetchFreshBlob();
+          usedCachedBlob = false;
+        }
+
+        let buf;
+        try{
+          buf = await decodeBlob(blob);
+        }catch(decodeErr){
+          if(!usedCachedBlob) throw decodeErr;
+          await idbDelete(sound.id);
+          blob = await fetchFreshBlob();
+          buf = await decodeBlob(blob);
+        }
         entry.buffer = buf;
         return buf;
       }catch(err){
@@ -1307,10 +1355,25 @@ function setStatus(msg, isErr=false){
   }
 
   async function playSound(sound){
-    if(!audioEnabled){
-      showEnableOverlay(true);
+    if(!audioEnabled || ctx.state !== "running"){
+      const ready = await ensureAudioReady();
+      if(!ready){
+        setStatus("Audio is blocked. Click Enable Audio, then try the pad again.", true);
+        return;
+      }
+    }
+
+    if(masterVol <= 0){
+      setStatus("Master volume is 0%. Raise Master Volume to hear pads.", true);
       return;
     }
+
+    const soundVol = getSoundVolPercent(sound.id);
+    if(soundVol <= 0){
+      setStatus(`"${sound.name}" volume is 0%. Raise this pad's volume to hear it.`, true);
+      return;
+    }
+
     try{
       if(isSoundPlaying(sound.id) && !isRepeatClickLayeringEnabled(sound.id)){
         stopSound(sound.id, stopFadeMs);
@@ -1349,9 +1412,11 @@ function setStatus(msg, isErr=false){
       // Successful play => update Recents + Learning score
       recordRecent(sound.id);
       bumpUsage(sound.id);
+      setStatus(`Playing "${sound.name}".`, false);
     }catch(e){
       console.error(e);
-      setStatus(`Could not play "${sound.name}".`, true);
+      const msg = e?.message ? ` ${e.message}` : "";
+      setStatus(`Could not play "${sound.name}".${msg}`, true);
     }
   }
 

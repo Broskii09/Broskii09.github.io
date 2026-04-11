@@ -1131,6 +1131,17 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
     };
   }
 
+  function getPendingTransitionRemainingMs(nextSlot, nowMs, forecastTransitionMs, tfStats){
+    if(!nextSlot || !slotNeedsChangeoverBuffer(nextSlot)) return 0;
+    const startedAt = Number(tfStats?.pendingStartedAt || 0);
+    const fromId = String(tfStats?.pendingFromSlotId || "");
+    if(!startedAt || !fromId || !(forecastTransitionMs > 0)) return 0;
+    const prevSlot = (state.queue || []).find(x => x && x.id === fromId) || null;
+    if(!prevSlot || !slotNeedsChangeoverBuffer(prevSlot)) return 0;
+    const elapsedMs = Math.max(0, Number(nowMs || Date.now()) - startedAt);
+    return Math.max(0, forecastTransitionMs - elapsedMs);
+  }
+
   function clearPendingTransitionForecast(s){
     const tf = ensureTransitionForecastState(s);
     tf.pendingStartedAt = null;
@@ -3100,6 +3111,9 @@ function escapeHtml(s){
     if(detail.currentLeftMs > 0){
       math.push(`${formatLeadDuration(detail.currentLeftMs)} current`);
     }
+    if(detail.pendingTransitionMs > 0){
+      math.push(`${formatLeadDuration(detail.pendingTransitionMs)} current transition`);
+    }
     if(detail.performerDurationBeforeMs > 0){
       const count = detail.performerBeforeCount ? ` (${detail.performerBeforeCount})` : "";
       math.push(`${formatLeadDuration(detail.performerDurationBeforeMs)} performers${count}`);
@@ -3108,8 +3122,8 @@ function escapeHtml(s){
       const count = detail.specialBeforeCount ? ` (${detail.specialBeforeCount})` : "";
       math.push(`${formatLeadDuration(detail.specialDurationBeforeMs)} special${count}`);
     }
-    if(detail.transitionCount){
-      math.push(`${formatLeadDuration(detail.transitionTotalMs)} transitions (${detail.transitionCount}x${formatLeadDuration(detail.forecastTransitionMs)})`);
+    if(detail.futureTransitionCount){
+      math.push(`${formatLeadDuration(detail.futureTransitionTotalMs)} transitions (${detail.futureTransitionCount}x${formatLeadDuration(detail.forecastTransitionMs)})`);
     }
     if(!math.length){
       math.push("next up now");
@@ -3123,6 +3137,11 @@ function escapeHtml(s){
     const tfStats = getTransitionForecastStats(state);
     const forecastTransitionMs = tfStats.forecastSec * 1000;
     let transitionCount = 0;
+    let transitionTotalMs = 0;
+    let pendingTransitionMs = 0;
+    let pendingTransitionApplied = false;
+    let futureTransitionCount = 0;
+    let futureTransitionTotalMs = 0;
     let slotsBeforeCount = 0;
     let specialBeforeCount = 0;
     let performerBeforeCount = 0;
@@ -3160,9 +3179,20 @@ function escapeHtml(s){
       OMJN.normalizeSlot(s);
       if(s.status !== "QUEUED") continue;
 
-      if(prevSlot && slotNeedsChangeoverBuffer(prevSlot) && slotNeedsChangeoverBuffer(s)){
+      if(!prevSlot && !pendingTransitionApplied){
+        pendingTransitionMs = getPendingTransitionRemainingMs(s, nowMs, forecastTransitionMs, tfStats);
+        pendingTransitionApplied = true;
+        if(pendingTransitionMs > 0){
+          cursor += pendingTransitionMs;
+          transitionCount += 1;
+          transitionTotalMs += pendingTransitionMs;
+        }
+      }else if(prevSlot && slotNeedsChangeoverBuffer(prevSlot) && slotNeedsChangeoverBuffer(s)){
         cursor += forecastTransitionMs;
         transitionCount += 1;
+        transitionTotalMs += forecastTransitionMs;
+        futureTransitionCount += 1;
+        futureTransitionTotalMs += forecastTransitionMs;
       }
 
       const typeId = String(s.slotTypeId || "");
@@ -3184,7 +3214,10 @@ function escapeHtml(s){
           performerDurationBeforeMs,
           transitionCount,
           forecastTransitionMs,
-          transitionTotalMs: transitionCount * forecastTransitionMs,
+          transitionTotalMs,
+          pendingTransitionMs,
+          futureTransitionCount,
+          futureTransitionTotalMs,
         });
       }
 
@@ -3208,6 +3241,10 @@ function escapeHtml(s){
       detailMap,
       estEndTs,
       transitionCount,
+      transitionTotalMs,
+      pendingTransitionMs,
+      futureTransitionCount,
+      futureTransitionTotalMs,
       forecastTransitionMs,
       tfStats,
     };
@@ -3280,9 +3317,14 @@ function escapeHtml(s){
       if(els.kpiEstHint){
         if(!ts){
           els.kpiEstHint.textContent = "ETA appears when there is current or queued show time to forecast.";
-        }else if(forecast.transitionCount > 0){
-          const plural = forecast.transitionCount === 1 ? "" : "s";
-          els.kpiEstHint.textContent = `ETA includes ${forecast.transitionCount} future transition${plural} at ${OMJN.formatMMSS(forecast.forecastTransitionMs)} each.`;
+        }else if(forecast.pendingTransitionMs > 0 && forecast.futureTransitionCount > 0){
+          const plural = forecast.futureTransitionCount === 1 ? "" : "s";
+          els.kpiEstHint.textContent = `ETA includes current transition remaining ${OMJN.formatMMSS(forecast.pendingTransitionMs)} plus ${forecast.futureTransitionCount} future transition${plural} at ${OMJN.formatMMSS(forecast.forecastTransitionMs)} each.`;
+        }else if(forecast.pendingTransitionMs > 0){
+          els.kpiEstHint.textContent = `ETA includes the current transition in progress: ${OMJN.formatMMSS(forecast.pendingTransitionMs)} remaining.`;
+        }else if(forecast.futureTransitionCount > 0){
+          const plural = forecast.futureTransitionCount === 1 ? "" : "s";
+          els.kpiEstHint.textContent = `ETA includes ${forecast.futureTransitionCount} future transition${plural} at ${OMJN.formatMMSS(forecast.forecastTransitionMs)} each.`;
         }else{
           els.kpiEstHint.textContent = "ETA is currently based only on active and queued slot durations.";
         }
