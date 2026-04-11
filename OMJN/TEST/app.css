@@ -1652,21 +1652,35 @@ hr.sep{
 .vSplashLayout{
   display:grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(340px, .98fr);
+  grid-template-rows:minmax(0, 1fr) auto;
   grid-template-areas:
     "left right"
     "hb hb";
   gap:18px;
-  align-items:stretch;
+  align-items:center;
   width:100%;
   height:min(100%, 840px);
   max-height:100%;
   min-height:0;
 }
 
-.vSplashLeft{ grid-area:left; min-width:0; }
+.vSplashLeft{
+  grid-area:left;
+  min-width:0;
+  min-height:0;
+  height:min(100%, 650px);
+  max-height:100%;
+  align-self:center;
+  display:flex;
+  align-items:center;
+}
 .vSplashRight{
   grid-area:right;
   min-width:0;
+  min-height:0;
+  height:min(100%, 650px);
+  max-height:100%;
+  align-self:center;
   display:grid;
   grid-template-columns:1fr;
   grid-template-rows:repeat(3, minmax(0, 1fr));
@@ -1697,11 +1711,17 @@ hr.sep{
 @media (max-width: 1100px){
   .vSplashLayout{
     grid-template-columns: 1fr;
+    grid-template-rows:auto auto auto;
     grid-template-areas:
       "left"
       "right"
       "hb";
     height:auto;
+  }
+  .vSplashLeft,
+  .vSplashRight{
+    height:auto;
+    max-height:none;
   }
   .vSplashRight{
     grid-template-rows:none;

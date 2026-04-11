@@ -1939,4 +1939,3 @@ function renderStateDriven() {
   // Cheap live timer updates
   setInterval(updateTimerAndCues, 120);
 })();
-
