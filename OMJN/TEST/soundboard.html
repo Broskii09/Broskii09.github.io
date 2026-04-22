@@ -76,6 +76,20 @@
               <button class="btn tiny" id="sbResetTime" type="button">Reset</button>
             </div>
           </div>
+
+          <div class="sbPanel sbPanelMaster">
+            <div class="sbPanelHeader">
+              <div class="sbPanelTitle">Master Volume</div>
+            </div>
+            <div class="sbMasterVol">
+              <div class="sbVolControls">
+                <input type="range" id="sbMasterVol" class="sbRange" min="0" max="100" step="1" value="50" aria-label="Master volume"/>
+                <button class="sbVolReadout mono" id="sbMasterVolReadout" type="button" title="Click to type a master volume. Double-click the slider to reset.">50%</button>
+                <button class="btn tiny" id="sbMasterVolReset" type="button" title="Reset to 50%">Reset</button>
+              </div>
+              <div class="small sbVolumeHint">50% = normal. Higher boosts gain.</div>
+            </div>
+          </div>
         </div>
 
         <!-- Row 3: pads + music embed -->
@@ -208,16 +222,6 @@
         <div class="card nested">
           <div class="cardHeader"><h2>Audio</h2></div>
           <div class="cardBody">
-
-            <div class="sbMasterVol" style="max-width: 760px;">
-              <div class="small">Master Volume</div>
-              <div class="sbVolControls">
-                <input type="range" id="sbMasterVol" class="sbRange" min="0" max="100" step="1" value="50" aria-label="Master volume"/>
-                <div class="sbVolReadout mono" id="sbMasterVolReadout">50%</div>
-                <button class="btn tiny" id="sbMasterVolReset" type="button" title="Reset to 50%">Reset</button>
-              </div>
-              <div class="small" style="opacity:.85;">50% = normal • above 50% boosts gain</div>
-            </div>
 
             <div class="row wrap sbSettingsRow" style="gap:10px; justify-content:flex-start; margin-top:12px; align-items:center;">
               <div class="sbFadeWrap" title="Fade-out duration when stopping sounds (Spacebar panic stop stays instant)">

@@ -2395,6 +2395,68 @@ function escapeHtml(s){
       });
     }
 
+    function parseSettingNumber(raw){
+      const text = String(raw ?? "").trim();
+      if(!text) return NaN;
+      const sign = text.startsWith("-") ? -1 : 1;
+      const unsigned = text.replace(/^[+-]/, "").trim();
+      if(unsigned.includes(":")){
+        const parts = unsigned.split(":").map(p => parseFloat(p.replace(/[^\d.]/g, "")));
+        if(parts.some(v => !Number.isFinite(v))) return NaN;
+        if(parts.length === 2) return sign * ((parts[0] * 60) + parts[1]);
+        if(parts.length === 3) return sign * ((parts[0] * 3600) + (parts[1] * 60) + parts[2]);
+      }
+      return parseFloat(text.replace(/[^\d.-]/g, ""));
+    }
+
+    function enhanceSettingValue(inputEl, valueEl, defaultValue, label, parser = parseSettingNumber){
+      if(!inputEl || inputEl.dataset.settingValueEnhanced) return;
+      inputEl.dataset.settingValueEnhanced = "1";
+
+      const min = Number.isFinite(parseFloat(inputEl.min)) ? parseFloat(inputEl.min) : Number.NEGATIVE_INFINITY;
+      const max = Number.isFinite(parseFloat(inputEl.max)) ? parseFloat(inputEl.max) : Number.POSITIVE_INFINITY;
+      const apply = (raw) => {
+        const parsed = parser(raw);
+        if(!Number.isFinite(parsed)) return false;
+        const v = clamp(parsed, min, max);
+        inputEl.value = String(v);
+        inputEl.dispatchEvent(new Event("input", { bubbles:true }));
+        inputEl.dispatchEvent(new Event("change", { bubbles:true }));
+        return true;
+      };
+
+      inputEl.title = `${inputEl.title ? inputEl.title + " " : ""}Double-click to reset.`;
+      inputEl.addEventListener("dblclick", (e) => {
+        e.preventDefault();
+        apply(defaultValue);
+      });
+
+      if(valueEl && !valueEl.dataset.settingValuePrompt){
+        valueEl.dataset.settingValuePrompt = "1";
+        valueEl.classList.add("settingsValueControl");
+        valueEl.tabIndex = 0;
+        valueEl.setAttribute("role", "button");
+        valueEl.title = `Click to enter ${label || "a value"}.`;
+
+        const promptForValue = () => {
+          const current = String(inputEl.value || defaultValue || "");
+          const raw = prompt(`Enter ${label || "value"}:`, current);
+          if(raw === null) return;
+          if(!apply(raw)) alert("Enter a valid number.");
+        };
+
+        valueEl.addEventListener("click", (e) => {
+          e.preventDefault();
+          promptForValue();
+        });
+        valueEl.addEventListener("keydown", (e) => {
+          if(e.key !== "Enter" && e.key !== " ") return;
+          e.preventDefault();
+          promptForValue();
+        });
+      }
+    }
+
     // Viewer scale
     if(els.setViewerUiScale){
       const onInput = () => {
@@ -2901,6 +2963,23 @@ function escapeHtml(s){
       els.setSponsorSafeMargin.addEventListener("change", onSm);
       els.setSponsorSafeMarginVal?.addEventListener?.("dblclick", () => { els.setSponsorSafeMargin.value = "16"; onSm(); });
     }
+
+    enhanceSettingValue(els.setCardOpacity, els.setCardOpacityVal, 0.90, "viewer card opacity");
+    enhanceSettingValue(els.setViewerUiScale, els.setViewerUiScaleVal, 1.00, "viewer font scale");
+    enhanceSettingValue(els.setViewerNameScale, els.setViewerNameScaleVal, 2.10, "performer name size");
+    enhanceSettingValue(els.setViewerHBScale, els.setViewerHBScaleVal, 1.00, "house band text size");
+    enhanceSettingValue(els.setViewerUpcomingScale, els.setViewerUpcomingScaleVal, 1.00, "upcoming card text scale");
+    enhanceSettingValue(els.setViewerPadPx, els.setViewerPadPxVal, 48, "viewer edge padding");
+    enhanceSettingValue(els.setViewerMediaPaneScale, els.setViewerMediaPaneScaleVal, 1.00, "media pane width scale");
+    enhanceSettingValue(els.setEtaAdjustSec, els.setEtaAdjustSecVal, 0, "tonight adjustment in seconds");
+    enhanceSettingValue(els.setWarnAlpha, els.setWarnAlphaVal, 0.12, "2 minute pulse opacity");
+    enhanceSettingValue(els.setFinalAlpha, els.setFinalAlphaVal, 0.18, "final pulse opacity");
+    enhanceSettingValue(els.setOvertimeAlpha, els.setOvertimeAlphaVal, 0.85, "overtime flash opacity");
+    enhanceSettingValue(els.setVizSensitivity, els.setVizSensitivityVal, 1.00, "visualizer sensitivity");
+    enhanceSettingValue(els.setSponsorScale, els.setSponsorScaleVal, 1.00, "sponsor scale");
+    enhanceSettingValue(els.setSponsorMaxPct, els.setSponsorMaxPctVal, 18, "sponsor max size percent");
+    enhanceSettingValue(els.setSponsorOpacity, els.setSponsorOpacityVal, 1.00, "sponsor opacity");
+    enhanceSettingValue(els.setSponsorSafeMargin, els.setSponsorSafeMarginVal, 16, "sponsor safe margin pixels");
 
     if(els.btnExportSettings){
       els.btnExportSettings.addEventListener("click", () => {

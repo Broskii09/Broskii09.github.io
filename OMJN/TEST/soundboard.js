@@ -359,23 +359,24 @@ function initUiPrefs(){
     els.masterVolReadout.textContent = `${masterVol}% (${g.toFixed(2)}x)`;
   }
 
+  function applyMasterVol(v){
+    masterVol = clamp(parseInt(v, 10), 0, 100);
+    localStorage.setItem(MASTER_VOL_KEY, String(masterVol));
+    if(els.masterVol) els.masterVol.value = String(masterVol);
+    masterGain.gain.value = sliderToGain(masterVol);
+    updateMasterVolUI();
+  }
+
   if(els.masterVol){
     els.masterVol.value = String(masterVol);
     updateMasterVolUI();
 
     function resetMasterVol(){
-      masterVol = 50;
-      localStorage.setItem(MASTER_VOL_KEY, "50");
-      els.masterVol.value = "50";
-      masterGain.gain.value = sliderToGain(masterVol);
-      updateMasterVolUI();
+      applyMasterVol(50);
     }
 
     els.masterVol.addEventListener("input", () => {
-      masterVol = clamp(parseInt(els.masterVol.value, 10), 0, 100);
-      localStorage.setItem(MASTER_VOL_KEY, String(masterVol));
-      masterGain.gain.value = sliderToGain(masterVol);
-      updateMasterVolUI();
+      applyMasterVol(els.masterVol.value);
     });
 
     // Double-click: reset to default (50% / unity)
@@ -390,6 +391,20 @@ function initUiPrefs(){
       els.masterVolReset.addEventListener("click", (e) => {
         e.preventDefault();
         resetMasterVol();
+      });
+    }
+
+    if(els.masterVolReadout){
+      els.masterVolReadout.addEventListener("click", (e) => {
+        e.preventDefault();
+        const raw = prompt("Enter master volume percent:", String(masterVol));
+        if(raw === null) return;
+        const v = parseInt(String(raw).replace(/[^\d-]/g, ""), 10);
+        if(!Number.isFinite(v)){
+          setStatus("Enter a valid master volume percent.", true);
+          return;
+        }
+        applyMasterVol(v);
       });
     }
   }
@@ -1222,7 +1237,7 @@ function setStatus(msg, isErr=false){
       volWrap.innerHTML = `
         <div class="sbPadVolLabel">Vol</div>
         <input type="range" class="sbRange sbSoundVol" min="0" max="100" step="1" value="${current}" data-sound-id="${escapeHtml(s.id)}" aria-label="Volume for ${escapeHtml(displayName)}"/>
-        <div class="sbVolPct mono" data-sound-id="${escapeHtml(s.id)}">${current}%</div>
+        <div class="sbPadVolPct sbVolPct mono" data-sound-id="${escapeHtml(s.id)}">${current}%</div>
       `;
       const slider = volWrap.querySelector(".sbSoundVol");
       const pct = volWrap.querySelector(".sbVolPct");
@@ -1634,6 +1649,14 @@ function setStatus(msg, isErr=false){
   // NOTE: In a static site this key is visible in source; restrict it by HTTP referrer + Drive API only.
   const DEFAULT_DRIVE_API_KEY = "AIzaSyCMdXo_5usjx4UcQkeDwbY1zl73HLO0AhA";
   const DEFAULT_DRIVE_FOLDER = "1S3MJnnsvpMKmE5pNKqdw2PxoYQeCEF54";
+  const IS_LOCAL_SOUNDBOARD = ["localhost", "127.0.0.1", "[::1]", ""].includes(location.hostname) || location.protocol === "file:";
+  function isBakedDriveConfig(apiKey, folderValue){
+    return String(apiKey || "").trim() === DEFAULT_DRIVE_API_KEY
+      && parseFolderId(folderValue) === DEFAULT_DRIVE_FOLDER;
+  }
+  function localDriveMessage(){
+    return "Local mode: the built-in Google Drive key is restricted to GitHub Pages. Use soundboard_manifest.json locally, or enter a local-enabled Drive key and click Refresh.";
+  }
 
 const CFG_KEY = sbScopedStorageKey("soundboard.driveCfg.v1", "omjn_soundboard_drive_cfg_v1");
   function loadCfg(){
@@ -1692,6 +1715,10 @@ async function refreshFromDrive(){
   const folderId = parseFolderId(els.folder.value);
   if(!apiKey || !folderId){
     setStatus("Please enter an API key and Drive folder.", true);
+    return;
+  }
+  if(IS_LOCAL_SOUNDBOARD && isBakedDriveConfig(apiKey, els.folder.value)){
+    setStatus(localDriveMessage(), false);
     return;
   }
   setStatus("Loading sounds from Drive…", false);
@@ -1764,11 +1791,18 @@ els.refresh.addEventListener("click", refreshFromDrive);
 
 // Try local manifest first (optional). Then auto-refresh from Drive using baked defaults.
 (async () => {
-  try{ await loadLocalManifest(); }catch(_){ }
+  let loadedLocalManifest = false;
+  try{ loadedLocalManifest = await loadLocalManifest(); }catch(_){ }
   try{
     const hasKey = !!String(els.apiKey.value||"").trim();
     const hasFolder = !!String(els.folder.value||"").trim();
-    if(hasKey && hasFolder) await refreshFromDrive();
+    if(hasKey && hasFolder){
+      if(IS_LOCAL_SOUNDBOARD && isBakedDriveConfig(els.apiKey.value, els.folder.value)){
+        if(!loadedLocalManifest) setStatus(localDriveMessage(), false);
+      }else{
+        await refreshFromDrive();
+      }
+    }
   }catch(_){ }
 })();
 

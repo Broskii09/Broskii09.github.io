@@ -40,7 +40,24 @@
 }
 
 *{box-sizing:border-box}
-html,body{height:100%; margin:0; background:linear-gradient(120deg, #142c54, #1f4c8f, #142c54); background-size:400% 400%; background-position:0% 50%; animation:omjnGradientShift 18s ease infinite; color:var(--text); font-family:var(--font);}
+html{
+  min-height:100%;
+  margin:0;
+  background:linear-gradient(120deg, #142c54, #1f4c8f, #142c54);
+  background-size:400% 400%;
+  background-position:0% 50%;
+  background-attachment:fixed;
+  animation:omjnGradientShift 18s ease infinite;
+  color:var(--text);
+  font-family:var(--font);
+}
+body{
+  min-height:100%;
+  margin:0;
+  background:transparent;
+  color:var(--text);
+  font-family:var(--font);
+}
 
 @keyframes omjnGradientShift{
   0%{background-position:0% 50%;}
@@ -310,15 +327,17 @@ body::-webkit-scrollbar-corner,
   justify-content:space-between;
   gap:12px;
   margin-bottom:12px;
-  flex-wrap:nowrap;
+  flex-wrap:wrap;
+  min-width:0;
 }
 .showTitleField{
-  flex:0 1 460px;
+  flex:1 1 320px;
   max-width:520px;
-  min-width:260px;
+  min-width:0;
 }
 .statusBannerInline{
   flex:1 1 auto;
+  min-width:min(320px, 100%);
   min-height:48px;
   margin-left:auto;
   margin-bottom:0;
@@ -330,7 +349,7 @@ body::-webkit-scrollbar-corner,
   align-items:center;
   gap:8px;
   padding:6px 10px;
-  border-radius:999px;
+  border-radius:10px;
   background:rgba(255,255,255,.05);
   border:1px solid rgba(255,255,255,.10);
   font-size:12px;
@@ -351,7 +370,7 @@ body::-webkit-scrollbar-corner,
 .mono{font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1, "ss01" 1;}
 .pill{
   display:inline-flex; align-items:center; gap:8px;
-  padding:6px 10px; border-radius:999px;
+  padding:6px 10px; border-radius:10px;
   background:rgba(212,175,55,.14); border:1px solid rgba(212,175,55,.25);
   color:var(--text); font-size:12px;
 }
@@ -907,12 +926,21 @@ body::-webkit-scrollbar-corner,
   .operatorTabs{
     align-items:stretch;
   }
+  .operatorTabs .tabBtn{
+    flex:1 1 calc(50% - 4px);
+    min-width:0;
+  }
   .operatorTabs .tabsSpacer{
     display:none;
   }
   .hbFooterToggle,
   .hbFooterSelect{
-    flex:1 1 auto;
+    flex:1 1 100%;
+    min-width:0;
+    width:100%;
+  }
+  .hbFooterToggle{
+    justify-content:center;
   }
 }
 
@@ -925,6 +953,8 @@ body.operatorPage{
   background:linear-gradient(120deg, #040a16, #071a35, #040a16);
   background-size:400% 400%;
   background-position:0% 50%;
+  background-attachment:fixed;
+  background-repeat:no-repeat;
   animation:omjnGradientShift 18s ease infinite;
 }
 
@@ -962,6 +992,8 @@ body.soundboardPage{
   background:linear-gradient(120deg, #040a16, #071a35, #040a16);
   background-size:400% 400%;
   background-position:0% 50%;
+  background-attachment:fixed;
+  background-repeat:no-repeat;
   animation:omjnGradientShift 18s ease infinite;
 }
 
@@ -1263,6 +1295,95 @@ hr.sep{
   }
 }
 @media (max-width: 760px){
+  body.operatorPage{
+    height:100dvh;
+    overflow:hidden;
+  }
+  .operatorPage .container{
+    height:100dvh;
+    min-height:0;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    padding:8px;
+  }
+  #leftCard{
+    flex:1 1 auto;
+    min-height:0;
+    height:auto;
+    overflow:hidden;
+  }
+  #leftCard > .cardHeader{
+    flex:0 0 auto;
+  }
+  #leftCard > .cardBody{
+    min-height:0;
+    display:block;
+    overflow:auto;
+    padding-bottom:8px;
+  }
+  #tabPerformers:not([hidden]),
+  #tabHouseBand:not([hidden]){
+    display:block;
+    min-height:auto;
+  }
+  #tabPerformers #queue.queue{
+    overflow:visible;
+    padding-bottom:8px;
+  }
+  #tabHouseBand #hbCats{
+    max-height:none;
+    overflow:visible;
+  }
+  .operatorPage .rightGrid{
+    flex:0 0 auto;
+    min-height:0;
+    height:auto;
+    max-height:none;
+    overflow:visible;
+    display:flex;
+    flex-direction:column;
+    gap:0;
+    position:sticky;
+    bottom:0;
+    z-index:60;
+  }
+  .operatorPage .rightGrid > .card:first-child{
+    border-radius:16px 16px 0 0;
+    margin:0;
+    flex:0 0 auto;
+  }
+  .operatorPage .rightGrid > .card:first-child .cardHeader,
+  .operatorPage .rightGrid > .card:not(:first-child),
+  .operatorPage .rightGrid .kpi,
+  .operatorPage .rightGrid .kpiHint,
+  .operatorPage .rightGrid .kpiSummaryStrip{
+    display:none;
+  }
+  .operatorPage .rightGrid > .card:first-child .cardBody{
+    padding:8px;
+  }
+  .operatorPage .liveControlPanel{
+    gap:6px;
+  }
+  .operatorPage .timerReadoutBlock{
+    margin-top:6px;
+    padding:6px;
+  }
+  .operatorPage .rightGrid > .card:first-child .cardBody > hr.sep,
+  .operatorPage .timerSub,
+  .operatorPage #timerHint,
+  .operatorPage .viewerTimerWrap{
+    display:none;
+  }
+  .operatorPage .timerReadoutHead{
+    flex-direction:row;
+    align-items:center;
+  }
+  .operatorPage .timerBig{
+    font-size:18px;
+  }
   .kpi{
     grid-template-columns:repeat(2, minmax(0, 1fr));
     grid-template-areas:
@@ -1358,6 +1479,65 @@ hr.sep{
   .timerControlsRow{
     gap:4px;
     padding:6px;
+  }
+}
+
+@media (max-width: 480px){
+  #leftCard > .cardHeader{
+    gap:8px;
+    padding:10px;
+  }
+  .operatorUtilityToolbar{
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+    overflow:visible;
+  }
+  .operatorUtilityToolbar .btn{
+    width:100%;
+    min-height:34px;
+    padding:7px 8px;
+    white-space:normal;
+  }
+  .paperSlotToolbar{
+    grid-template-columns:minmax(0, 1fr) auto;
+    align-items:center;
+    gap:8px;
+  }
+  .paperSlotToolbar .small{
+    display:none;
+  }
+  .paperSlotToolbar .btn{
+    width:auto;
+    min-height:34px;
+    white-space:nowrap;
+  }
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActions.qActionsActive{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    grid-auto-rows:minmax(38px, auto);
+  }
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionEdit{grid-column:1; grid-row:1;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSkip{grid-column:2; grid-row:1;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionUp{grid-column:1; grid-row:2;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionDown{grid-column:2; grid-row:2;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionMoveNum{grid-column:1 / -1; grid-row:3;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionNoShow{grid-column:1; grid-row:4;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionDelete{grid-column:2; grid-row:4;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialIntermission{grid-column:1 / -1; grid-row:5;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialAd{grid-column:1 / -1; grid-row:6;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialHouseBand{grid-column:1 / -1; grid-row:7;}
+  .queueItem.paperSlotEmpty .paperSlotActions{
+    grid-template-columns:1fr 1fr;
+  }
+  .showTitleStatusRow{
+    gap:8px;
+  }
+  .statusBannerInline{
+    min-width:0;
+    width:100%;
+  }
+  .statusBanner .sbItem{
+    flex:1 1 120px;
+    justify-content:center;
   }
 }
 
@@ -2821,6 +3001,7 @@ details.hbAcc .hbCatList{
   display:flex;
   align-items:center;
   gap:10px;
+  min-width:0;
 }
 .sbRange{
   width: min(360px, 60vw);
@@ -2831,6 +3012,12 @@ details.hbAcc .hbCatList{
   text-align:right;
   opacity:.95;
   font-weight:950;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:8px;
+  background:rgba(255,255,255,.05);
+  color:var(--text);
+  padding:6px 8px;
+  cursor:pointer;
 }
 
 .sbTimer{
@@ -3517,6 +3704,29 @@ details.hbAcc .hbCatList{
 .soundboardPage .sbSettingsRow .sbFreezeWrap{
   margin:0;
 }
+.soundboardPage #sbSettingsModal .modalPanel{
+  width:min(920px, calc(100vw - 20px));
+}
+.soundboardPage #sbSettingsModal .modalBody{
+  overflow:auto;
+}
+.soundboardPage #sbSettingsModal .modalBody .row.wrap{
+  min-width:0;
+}
+.soundboardPage #sbSettingsModal .modalBody .row.wrap > *{
+  min-width:0 !important;
+  max-width:100%;
+}
+.soundboardPage .sbSettingsRow{
+  display:grid !important;
+  grid-template-columns:repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+}
+.soundboardPage .sbSettingsRow .sbFadeWrap,
+.soundboardPage .sbSettingsRow .sbFreezeWrap{
+  width:100%;
+  justify-content:flex-start;
+  border-radius:10px;
+}
 
 /* =========================
    Soundboard: Embed + resizable pane
@@ -3633,7 +3843,7 @@ details.hbAcc .hbCatList{
 
 .soundboardPage .sbHeader{
   display:grid;
-  grid-template-columns: minmax(170px, .7fr) minmax(320px, 1.45fr) minmax(220px, .85fr);
+  grid-template-columns: minmax(150px, .55fr) minmax(430px, 1.8fr) minmax(220px, .75fr);
   align-items:center;
   justify-content:stretch;
   gap:10px 12px;
@@ -3652,25 +3862,34 @@ details.hbAcc .hbCatList{
 }
 
 .soundboardPage .sbShowStatusHeader{
-  flex: 1 1 auto;
   min-width:0;
-  justify-content: center;
-  gap:8px 10px;
+  display:grid;
+  grid-template-columns:minmax(88px, .72fr) minmax(96px, .78fr) repeat(3, minmax(0, 1fr));
+  align-items:stretch;
+  gap:8px;
   margin-bottom: 0;
-  padding:6px 10px;
-  border-radius:999px;
+  padding:6px;
+  border-radius:14px;
+  align-self:stretch;
 }
 
 .soundboardPage .sbShowStatusHeader .sbItem{
-  display: inline-flex;
+  display:flex;
   align-items: baseline;
   gap: 6px;
-  padding:4px 8px;
+  padding:7px 9px;
   min-width:0;
+  min-height:38px;
+  justify-content:center;
+  border-radius:10px;
 }
 
 .soundboardPage .sbMetaItem{
-  gap: 8px;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  gap:3px;
+  text-align:left;
 }
 
 .soundboardPage .sbMetaLabel{
@@ -3683,9 +3902,26 @@ details.hbAcc .hbCatList{
 .soundboardPage .sbMetaValue{
   font-weight: 800;
   min-width:0;
+  max-width:100%;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
+}
+
+.soundboardPage .sbShowStatusHeader .sbItem:nth-child(1),
+.soundboardPage .sbShowStatusHeader .sbItem:nth-child(2){
+  background:rgba(255,255,255,.075);
+  border-color:rgba(255,255,255,.14);
+}
+
+.soundboardPage .sbShowStatusHeader .sbItem:nth-child(2){
+  align-items:center;
+  justify-content:center;
+}
+
+.soundboardPage .sbShowStatusHeader .sbItem:nth-child(2) .sbTimer{
+  font-size:18px;
+  font-weight:900;
 }
 
 .soundboardPage .sbHeaderRight{
@@ -3718,7 +3954,7 @@ details.hbAcc .hbCatList{
 
 .soundboardPage .sbRow2{
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns:minmax(220px, .95fr) minmax(320px, 1.2fr) minmax(260px, .85fr);
   gap: 12px;
 }
 
@@ -3747,6 +3983,24 @@ details.hbAcc .hbCatList{
   margin-top: 0 !important;
   justify-content: flex-start;
   gap: 8px;
+}
+
+.soundboardPage .sbPanelMaster .sbMasterVol{
+  padding:0;
+  border:0;
+  background:transparent;
+}
+.soundboardPage .sbPanelMaster .sbRange{
+  width:100%;
+  min-width:0;
+}
+.soundboardPage .sbPanelMaster .sbVolReadout{
+  flex:0 0 auto;
+  min-width:88px;
+  text-align:center;
+}
+.soundboardPage .sbVolumeHint{
+  opacity:.85;
 }
 
 .soundboardPage.sbRow2Sticky .sbRow2{
@@ -3845,12 +4099,52 @@ details.hbAcc .hbCatList{
 
 /* Compact mode */
 .soundboardPage.sbCompact .sbStickyHeader{
-  padding-top: 6px;
-  padding-bottom: 6px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+.soundboardPage.sbCompact .sbHeader{
+  gap:6px 8px;
+  grid-template-columns:minmax(120px, .5fr) minmax(380px, 1.9fr) minmax(190px, .65fr);
 }
 
 .soundboardPage.sbCompact .sbSubtitle{
   display: none;
+}
+
+.soundboardPage.sbCompact .sbTitle{
+  font-size:18px;
+}
+
+.soundboardPage.sbCompact .sbShowStatusHeader{
+  gap:4px;
+  padding:4px;
+}
+
+.soundboardPage.sbCompact .sbShowStatusHeader .sbItem{
+  min-height:30px;
+  padding:4px 7px;
+}
+
+.soundboardPage.sbCompact .sbShowStatusHeader .sbItem:nth-child(2) .sbTimer{
+  font-size:16px;
+}
+
+.soundboardPage.sbCompact .sbMetaLabel{
+  font-size:9px;
+}
+
+.soundboardPage.sbCompact .sbMetaValue{
+  font-size:12px;
+}
+
+.soundboardPage.sbCompact .sbHeaderRight{
+  gap:6px;
+}
+
+.soundboardPage.sbCompact .sbHeaderRight .btn,
+.soundboardPage.sbCompact .sbToggle{
+  min-height:30px;
+  padding:5px 8px;
 }
 
 .soundboardPage.sbCompact .sbRow{
@@ -3858,17 +4152,65 @@ details.hbAcc .hbCatList{
 }
 
 .soundboardPage.sbCompact .sbPanel{
-  padding: 10px;
+  padding:8px;
+}
+.soundboardPage.sbCompact .sbPanelHeader{
+  margin-bottom:6px;
+}
+.soundboardPage.sbCompact .sbPanelTitle{
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.soundboardPage.sbCompact .sbTransportRow,
+.soundboardPage.sbCompact .sbTimeAdjustRow{
+  gap:6px;
+}
+.soundboardPage.sbCompact .sbPadsHeader{
+  gap:4px;
+  margin-bottom:8px;
+}
+.soundboardPage.sbCompact .sbPads{
+  gap:10px;
+  grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));
+}
+.soundboardPage.sbCompact .sbPadWrap{
+  grid-template-rows:minmax(112px, auto) auto;
+  gap:6px;
+}
+.soundboardPage.sbCompact .sbPad{
+  padding:11px 12px;
+  gap:10px;
+  border-radius:14px;
+}
+.soundboardPage.sbCompact .sbPadName{
+  font-size:14px;
+}
+.soundboardPage.sbCompact .sbPadControls{
+  gap:6px;
+}
+.soundboardPage.sbCompact .sbMiniBtn,
+.soundboardPage.sbCompact .sbPinSelect{
+  min-height:34px;
+  padding:6px 8px;
+}
+.soundboardPage.sbCompact .sbPadVolWrap{
+  min-height:34px;
+  padding:5px 8px;
 }
 
 @media (max-width: 1100px){
   .soundboardPage .sbHeader{
     grid-template-columns:minmax(0, 1fr) auto;
   }
+  .soundboardPage.sbCompact .sbHeader{
+    grid-template-columns:minmax(0, 1fr) auto;
+  }
   .soundboardPage .sbShowStatusHeader{
     grid-column:1 / -1;
     order:3;
-    justify-content:flex-start;
+    grid-template-columns:minmax(90px, .8fr) minmax(96px, .8fr) repeat(3, minmax(0, 1fr));
   }
   .soundboardPage .sbRow2{
     grid-template-columns: 1fr;
@@ -3896,6 +4238,10 @@ details.hbAcc .hbCatList{
   .soundboardPage .sbShowStatusHeader{
     order:0;
     border-radius:16px;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+  }
+  .soundboardPage .sbShowStatusHeader .sbItem:nth-child(n+3){
+    grid-column:auto;
   }
   .soundboardPage .sbHeaderRight{
     justify-content:flex-start;
@@ -3952,8 +4298,14 @@ details.hbAcc .hbCatList{
     justify-content:center;
   }
   .soundboardPage .sbShowStatusHeader .sbItem{
-    flex:1 1 130px;
     justify-content:center;
+  }
+  .soundboardPage .sbShowStatusHeader .sbMetaItem{
+    align-items:center;
+    text-align:center;
+  }
+  .soundboardPage .sbShowStatusHeader .sbMetaItem:nth-child(3){
+    grid-column:1 / -1;
   }
   .soundboardPage .sbPads{
     grid-template-columns:1fr;
@@ -4068,8 +4420,13 @@ details.hbAcc .hbCatList{
 }
 
 @media (max-width: 760px){
+  .viewerRoot,
+  .viewerRoot *{
+    min-width:0;
+  }
   .viewerOverlay{
     gap:12px;
+    overflow-x:hidden;
     padding:
       calc(min(var(--vPad), 22px) + var(--safe-top))
       calc(min(var(--vPad), 18px) + var(--safe-right))
@@ -4141,6 +4498,7 @@ details.hbAcc .hbCatList{
   }
   .vSplashLayout{
     gap:12px;
+    max-width:100%;
   }
   .vSplashLeft{
     max-height:28vh;
@@ -4180,6 +4538,7 @@ details.hbAcc .hbCatList{
     bottom:calc(10px + var(--safe-bottom));
     padding:10px 12px;
     border-radius:20px;
+    overflow:auto hidden;
   }
   .vFooterBandTitle{
     font-size: calc(14px * var(--vScale));
@@ -4197,6 +4556,7 @@ details.hbAcc .hbCatList{
   }
   .vCrowdPanel{
     width:100%;
+    max-width:100%;
     min-height:min(560px, calc(100vh - 36px - var(--safe-top) - var(--safe-bottom)));
     border-radius:24px;
     padding:22px 16px;
@@ -4252,6 +4612,7 @@ details.hbAcc .hbCatList{
   }
   .vFooterBandLine{
     gap:5px;
+    overflow:visible;
   }
   .hbChipFooter{
     padding:6px 8px;
@@ -4298,6 +4659,8 @@ details.hbAcc .hbCatList{
 /* ===== Settings (tabbed) ===== */
 .settingsPanelShell{
   max-width: 1080px;
+  width:min(1080px, calc(100vw - 20px));
+  max-height:calc(100dvh - 20px);
 }
 .settingsTabs{
   display:flex;
@@ -4336,6 +4699,61 @@ details.hbAcc .hbCatList{
   padding-left:6px;
 }
 .settingsPanel[hidden]{ display:none !important; }
+.settingsPanel{
+  min-width:0;
+}
+.settingsPanel .row.wrap{
+  min-width:0;
+}
+.settingsPanel .field{
+  min-width:0;
+  max-width:100%;
+}
+.settingsPanel input,
+.settingsPanel select,
+.settingsPanel textarea{
+  max-width:100%;
+  min-width:0;
+}
+.settingsPanel input[type="range"]{
+  width:100%;
+}
+.settingsPanel .pill{
+  flex-wrap:wrap;
+  border-radius:10px;
+  min-width:0;
+}
+.settingsValueControl{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:28px;
+  padding:3px 8px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.05);
+  cursor:pointer;
+  user-select:none;
+}
+.settingsValueControl:hover,
+.settingsValueControl:focus-visible{
+  border-color:rgba(255,255,255,.24);
+  background:rgba(255,255,255,.08);
+  outline:none;
+}
+
+#settingsModal [data-panel="timer"] .row.wrap,
+#settingsModal [data-panel="viewer"] .row.wrap,
+#settingsModal [data-panel="visualizer"] .row.wrap{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+  gap:10px 12px;
+}
+#settingsModal [data-panel="timer"] .field,
+#settingsModal [data-panel="viewer"] .field,
+#settingsModal [data-panel="visualizer"] .field{
+  width:auto !important;
+}
 
 @media (max-width: 920px){
   .settingsTabs{ flex-direction:column; }
@@ -4353,6 +4771,23 @@ details.hbAcc .hbCatList{
     white-space:nowrap;
   }
   .settingsPanels{ padding-left:0; }
+}
+
+@media (max-width: 640px){
+  .settingsPanelShell{
+    width:calc(100vw - 12px);
+    max-height:calc(100dvh - 12px);
+  }
+  .settingsPanel .field,
+  .settingsPanel .pill,
+  .settingsPanel button{
+    width:100%;
+  }
+  #settingsModal [data-panel="timer"] .row.wrap,
+  #settingsModal [data-panel="viewer"] .row.wrap,
+  #settingsModal [data-panel="visualizer"] .row.wrap{
+    grid-template-columns:1fr;
+  }
 }
 
 
