@@ -1,0 +1,58 @@
+﻿name: OMJN TEST Playwright
+
+on:
+  push:
+    paths:
+      - "OMJN/TEST/**"
+      - ".github/workflows/omjn-test-playwright.yml"
+  pull_request:
+    paths:
+      - "OMJN/TEST/**"
+      - ".github/workflows/omjn-test-playwright.yml"
+
+jobs:
+  test:
+    name: Run TEST Playwright suite
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: OMJN/TEST
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: OMJN/TEST/package-lock.json
+
+      - name: Install TEST dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run full TEST Playwright suite
+        run: npm run test:smoke:all -- --reporter=list,html
+
+      - name: Upload Playwright HTML report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: omjn-test-playwright-report
+          path: OMJN/TEST/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload Playwright test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: omjn-test-results
+          path: OMJN/TEST/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
