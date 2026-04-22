@@ -624,10 +624,15 @@ setBgColor: document.getElementById("setBgColor"),
     const active = s.queue.filter(x => !isDoneStatus(x?.status));
     const numbered = active.filter(isPaperSlot).sort((a,b) => (paperSlotNumber(a) || 0) - (paperSlotNumber(b) || 0));
     const specials = active.filter(x => !isPaperSlot(x));
-    const unanchored = specials.filter(x => !Number.isFinite(Number(x.afterPaperSlotNumber || 0)));
+    const activePaperNumbers = new Set(numbered.map(paperSlotNumber).filter(Boolean));
+    const unanchored = specials.filter(x => {
+      const n = Math.round(Number(x.afterPaperSlotNumber || 0));
+      return !Number.isFinite(n) || n <= 0 || !activePaperNumbers.has(n);
+    });
     const byAfter = new Map();
     for(const sp of specials){
       const n = Math.round(Number(sp.afterPaperSlotNumber || 0));
+      if(!activePaperNumbers.has(n)) continue;
       if(!Number.isFinite(n) || n <= 0) continue;
       if(!byAfter.has(n)) byAfter.set(n, []);
       byAfter.get(n).push(sp);
@@ -3062,7 +3067,10 @@ function escapeHtml(s){
     if(!Number.isFinite(n) || n <= 0) return;
     const addBtn = (label, fn) => {
       const b = document.createElement("button");
-      b.className = "btn tiny";
+      b.className = "btn tiny qActionSpecial";
+      if(label === "Intermission After") b.classList.add("qActionSpecialIntermission");
+      if(label === "Ad After") b.classList.add("qActionSpecialAd");
+      if(label === "House Band After") b.classList.add("qActionSpecialHouseBand");
       b.type = "button";
       b.textContent = label;
       const anchor = (state.queue || []).find(x => x && paperSlotNumber(x) === n) || null;
@@ -3304,11 +3312,12 @@ function escapeHtml(s){
 
     const actions = document.createElement("div");
     actions.className = "qActions";
+    if(!isDone) actions.classList.add("qActionsActive");
 
     // Edit / Close (inline expander)
     if(!isDone){
       const btnEdit = document.createElement("button");
-      btnEdit.className = "btn tiny";
+      btnEdit.className = "btn tiny qActionEdit";
       const isOpen = (editingId === slot.id);
       btnEdit.textContent = isOpen ? "Close" : "Edit";
       btnEdit.addEventListener("click", (e) => {
@@ -3321,7 +3330,7 @@ function escapeHtml(s){
 
       // Skip (swap down one spot) - disabled for current performer
       const btnSkip = document.createElement("button");
-      btnSkip.className = "btn tiny";
+      btnSkip.className = "btn tiny qActionSkip";
       btnSkip.textContent = "Skip";
       btnSkip.title = "Swap down one spot";
       btnSkip.disabled = (slot.status !== "QUEUED") || isLive;
@@ -3334,7 +3343,7 @@ function escapeHtml(s){
       // No-show (not applicable for special screens like Intermission)
       if(String(slot.slotTypeId || "") !== "intermission"){
         const btnNo = document.createElement("button");
-        btnNo.className = "btn tiny";
+        btnNo.className = "btn tiny qActionNoShow";
         btnNo.textContent = "No-show";
         btnNo.title = "Mark as no-show and move to Completed";
         btnNo.disabled = (slot.status !== "QUEUED") || isLive;
@@ -3348,7 +3357,7 @@ function escapeHtml(s){
 
     if(isDone){
       const btnRq = document.createElement("button");
-      btnRq.className = "btn tiny";
+      btnRq.className = "btn tiny qActionRequeue";
       btnRq.textContent = "Re-queue";
       btnRq.title = "Move back to Active queue";
       btnRq.addEventListener("click", (e) => {
@@ -3359,7 +3368,7 @@ function escapeHtml(s){
     }else{
       if(pNum && slot.status === "QUEUED" && !isLive){
         const btnMoveTo = document.createElement("button");
-        btnMoveTo.className = "btn tiny";
+        btnMoveTo.className = "btn tiny qActionMoveNum";
         btnMoveTo.textContent = "Move #";
         btnMoveTo.title = "Move to an Open Slot number";
         btnMoveTo.addEventListener("click", (e) => {
@@ -3370,7 +3379,7 @@ function escapeHtml(s){
       }
 
       const btnUp = document.createElement("button");
-      btnUp.className = "btn tiny";
+      btnUp.className = "btn tiny qActionReorder qActionUp";
       btnUp.textContent = "↑";
       btnUp.title = "Move up";
       btnUp.disabled = (slot.status !== "QUEUED") || isLive;
@@ -3380,7 +3389,7 @@ function escapeHtml(s){
       });
 
       const btnDn = document.createElement("button");
-      btnDn.className = "btn tiny";
+      btnDn.className = "btn tiny qActionReorder qActionDown";
       btnDn.textContent = "↓";
       btnDn.title = "Move down";
       btnDn.disabled = (slot.status !== "QUEUED") || isLive;
@@ -3398,7 +3407,7 @@ function escapeHtml(s){
     }
 
     const btnDel = document.createElement("button");
-    btnDel.className = "btn tiny danger";
+    btnDel.className = "btn tiny danger qActionDelete";
     btnDel.textContent = "✕";
     btnDel.title = "Remove from queue";
     btnDel.addEventListener("click", (e) => {

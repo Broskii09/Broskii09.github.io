@@ -1,47 +1,19 @@
 const { test, expect } = require("@playwright/test");
-const path = require("path");
-const { pathToFileURL } = require("url");
+const {
+  addPerformerFromFirstOpenSlot,
+  expectActionButtonsFit,
+  expectOpenSlotActionsFit,
+  openViewerPage,
+  startNextPerformer,
+  watchPageErrors,
+} = require("./omjn-test-helpers");
 
-function pageUrl(fileName){
-  return pathToFileURL(path.join(__dirname, "..", fileName)).href;
-}
-
-async function expectOpenSlotActionsFit(slot){
-  await expect(slot).toContainText("Open Slot");
-  await expect(slot).not.toContainText(/paper/i);
-
-  const overlappingButtons = await slot.locator(".qActions .btn").evaluateAll((buttons) => {
-    const rects = buttons.map((btn) => {
-      const r = btn.getBoundingClientRect();
-      return { text: btn.textContent || "", left: r.left, right: r.right, top: r.top, bottom: r.bottom };
-    });
-    const overlaps = [];
-    for(let i = 0; i < rects.length; i++){
-      for(let j = i + 1; j < rects.length; j++){
-        const a = rects[i], b = rects[j];
-        const overlapX = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
-        const overlapY = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
-        if(overlapX > 1 && overlapY > 1) overlaps.push(`${a.text}/${b.text}`);
-      }
-    }
-    return overlaps;
-  });
-  expect(overlappingButtons).toEqual([]);
-
-  const overflowingButtons = await slot.locator(".qActions .btn").evaluateAll((buttons) => {
-    return buttons
-      .filter((btn) => btn.scrollWidth > btn.clientWidth + 1 || btn.scrollHeight > btn.clientHeight + 1)
-      .map((btn) => btn.textContent || "");
-  });
-  expect(overflowingButtons).toEqual([]);
-}
-
-test.describe("OMJN TEST local pages", () => {
-  test("Operator page loads", async ({ page }) => {
+test.describe("OMJN TEST smoke", () => {
+  test("operator page loads", async ({ page }) => {
     const pageErrors = [];
-    page.on("pageerror", err => pageErrors.push(err.message));
+    watchPageErrors(page, pageErrors);
 
-    await page.goto(pageUrl("operator.html"));
+    await page.goto("operator.html");
 
     await expect(page.locator("body.operatorPage")).toBeVisible();
     await expect(page.locator("#btnStart")).toBeVisible();
@@ -49,31 +21,108 @@ test.describe("OMJN TEST local pages", () => {
     await expect(page.locator(".paperSlotEmpty")).toHaveCount(30);
     await expect(page.locator("#btnAddPaperSlots")).toBeVisible();
 
-    const firstSlot = page.locator(".paperSlotEmpty").first();
-    await expectOpenSlotActionsFit(firstSlot);
+    await expectOpenSlotActionsFit(page.locator(".paperSlotEmpty").first());
     await page.setViewportSize({ width: 390, height: 720 });
     await expectOpenSlotActionsFit(page.locator(".paperSlotEmpty").first());
-    await page.setViewportSize({ width: 1280, height: 720 });
-    await firstSlot.getByRole("button", { name: "Add Performer" }).click();
-    const expander = page.locator(".qExpander").first();
-    await expect(expander).toBeVisible();
-    await expect(expander.locator("select").first()).toHaveValue("");
-    await expander.locator("input[type='text']").first().fill("Alex Test");
-    await expander.locator("select").first().selectOption("musician");
-    await expander.locator("textarea").first().fill("Walkup song\nhttps://open.spotify.com/track/1234567890abcdef");
-    await expander.getByRole("button", { name: "Save" }).click();
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("add performer in operator", async ({ page }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+
+    const performerRow = await addPerformerFromFirstOpenSlot(
+      page,
+      "Alex Test",
+      "Walkup song\nhttps://open.spotify.com/track/1234567890abcdef"
+    );
 
     await expect(page.locator(".paperSlotEmpty")).toHaveCount(29);
-    await expect(page.locator(".queueItem").filter({ hasText: "Alex Test" })).toContainText("#1");
+    await expectActionButtonsFit(performerRow);
+    await expect(performerRow.locator(".qActionUp")).toHaveCount(1);
+    await expect(performerRow.locator(".qActionDown")).toHaveCount(1);
+    await page.setViewportSize({ width: 390, height: 720 });
+    await expectActionButtonsFit(page.locator(".queueItem").filter({ hasText: "Alex Test" }));
     await expect(page.getByRole("link", { name: "Spotify App" })).toBeVisible();
     expect(pageErrors).toEqual([]);
   });
 
-  test("Soundboard page loads", async ({ page }) => {
+  test("operator syncs live performer to viewer", async ({ page, context }) => {
     const pageErrors = [];
-    page.on("pageerror", err => pageErrors.push(err.message));
+    watchPageErrors(page, pageErrors);
 
-    await page.goto(pageUrl("soundboard.html"));
+    await page.goto("operator.html");
+    await addPerformerFromFirstOpenSlot(page, "Live Sync Test");
+
+    const viewer = await openViewerPage(context, pageErrors);
+
+    await expect(viewer.locator("#sNext")).toContainText("Live Sync Test");
+    await startNextPerformer(page);
+
+    await expect(viewer.locator("#nowName")).toContainText("Live Sync Test", { timeout: 10000 });
+    await expect(viewer.locator("#nowLabel")).toContainText("NOW PERFORMING");
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("end current performer returns viewer to splash", async ({ page, context }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    await addPerformerFromFirstOpenSlot(page, "End Splash Test");
+
+    const viewer = await openViewerPage(context, pageErrors);
+    await expect(viewer.locator("#sNext")).toContainText("End Splash Test");
+    await startNextPerformer(page);
+
+    await expect(viewer.locator("#root")).toHaveClass(/isLive/);
+    await expect(viewer.locator("#nowName")).toContainText("End Splash Test", { timeout: 10000 });
+
+    page.once("dialog", dialog => dialog.accept());
+    await page.locator("#btnEnd").click();
+
+    await expect(page.locator("#statusBanner")).toContainText("Phase: SPLASH");
+    await expect(viewer.locator("#root")).toHaveClass(/isSplash/, { timeout: 10000 });
+    await expect(viewer.locator("#splashInfo")).toHaveAttribute("aria-hidden", "false");
+    await expect(viewer.locator("#overlay")).toHaveAttribute("aria-hidden", "true");
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("pause and resume updates operator and viewer", async ({ page, context }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    await addPerformerFromFirstOpenSlot(page, "Pause Resume Test");
+
+    const viewer = await openViewerPage(context, pageErrors);
+    await startNextPerformer(page);
+    await expect(viewer.locator("#nowName")).toContainText("Pause Resume Test", { timeout: 10000 });
+
+    await expect(page.locator("#btnPauseResume")).toBeEnabled();
+    await page.locator("#btnPauseResume").click();
+    await expect(page.locator("#statusBanner")).toContainText("Phase: PAUSED");
+    await expect(page.locator("#btnPauseResumeLabel")).toHaveText("Resume");
+    await expect(page.locator("#btnPauseResume")).toHaveAttribute("aria-pressed", "true");
+    await expect(viewer.locator("#root")).toHaveClass(/isLive/);
+    await expect(viewer.locator("#nowName")).toContainText("Pause Resume Test");
+
+    await page.locator("#btnPauseResume").click();
+    await expect(page.locator("#statusBanner")).toContainText("Phase: LIVE");
+    await expect(page.locator("#btnPauseResumeLabel")).toHaveText("Pause");
+    await expect(page.locator("#btnPauseResume")).toHaveAttribute("aria-pressed", "false");
+    await expect(viewer.locator("#root")).toHaveClass(/isLive/);
+    await expect(viewer.locator("#nowName")).toContainText("Pause Resume Test");
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("soundboard page loads", async ({ page }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("soundboard.html");
 
     await expect(page.locator("body.soundboardPage")).toBeVisible();
     await expect(page.locator("#sbStart")).toBeVisible();

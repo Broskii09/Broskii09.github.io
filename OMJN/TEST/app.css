@@ -479,7 +479,7 @@ body::-webkit-scrollbar-corner,
 
 .queueItem{
   display:grid;
-  grid-template-columns: 48px minmax(0, 1fr) 244px;
+  grid-template-columns: 48px minmax(0, 1fr) minmax(340px, 370px);
   grid-template-rows: auto auto;
   grid-template-areas:
     "handle main actions"
@@ -735,6 +735,37 @@ body::-webkit-scrollbar-corner,
 .qActions .btn.tiny{
   padding:6px 8px;
 }
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActions.qActionsActive{
+  grid-template-columns:repeat(3, minmax(0, 1fr)) 44px;
+  grid-auto-rows:minmax(38px, auto);
+  inline-size:min(370px, 100%);
+  max-width:370px;
+}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActions.qActionsActive .btn{
+  min-width:0;
+  min-height:38px;
+  white-space:normal;
+  overflow-wrap:break-word;
+  line-height:1.12;
+  font-size:12px;
+  padding:7px 8px;
+}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionDelete{grid-column:1; grid-row:1;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionEdit{grid-column:2; grid-row:1;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSkip{grid-column:3; grid-row:1;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionNoShow{grid-column:1; grid-row:2;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionMoveNum{grid-column:2 / span 2; grid-row:2;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionUp{grid-column:4; grid-row:1;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionDown{grid-column:4; grid-row:2;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionReorder{
+  font-size:15px;
+  font-weight:1000;
+  padding-left:0;
+  padding-right:0;
+}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialIntermission{grid-column:1 / span 2; grid-row:3;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialAd{grid-column:3; grid-row:3;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialHouseBand{grid-column:1 / span 3; grid-row:4;}
 .queueItem.paperSlotEmpty .qActions.paperSlotActions{
   grid-template-columns:repeat(2, minmax(0, 1fr));
   inline-size:min(360px, 100%);
@@ -1161,6 +1192,21 @@ hr.sep{
     max-width:none;
     padding-top:0;
   }
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActions.qActionsActive{
+    grid-template-columns:repeat(2, minmax(0, 1fr)) 44px;
+    inline-size:100%;
+    max-width:none;
+  }
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionDelete{grid-column:1; grid-row:1;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionEdit{grid-column:2; grid-row:1;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSkip{grid-column:1; grid-row:2;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionNoShow{grid-column:2; grid-row:2;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionMoveNum{grid-column:1 / span 2; grid-row:3;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionUp{grid-column:3; grid-row:1;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionDown{grid-column:3; grid-row:2;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialIntermission{grid-column:1 / span 2; grid-row:4;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialAd{grid-column:3; grid-row:4;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialHouseBand{grid-column:1 / span 3; grid-row:5;}
   .queueItem.paperSlotEmpty .paperSlotActions{
     grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));
     inline-size:100%;
