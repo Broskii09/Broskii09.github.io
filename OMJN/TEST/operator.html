@@ -14,27 +14,30 @@
     <div class="container">
         <!-- LEFT: Queue -->
         <div class="card" id="leftCard">
-            <div class="cardHeader">
-                <h2 class="operatorHeaderTitle">
-                    <span>Operator — Queue</span>
-                    <span class="operatorVersionBadge" id="operatorVersionBadge" hidden></span>
-                </h2>
+            <div class="cardHeader operatorQueueHeader">
+                <div class="operatorHeaderPrimary">
+                    <h2 class="operatorHeaderTitle">
+                        <span>Operator — Queue</span>
+                        <span class="operatorVersionBadge" id="operatorVersionBadge" hidden></span>
+                    </h2>
+
+                    <div class="operatorUtilityToolbar">
+                        <a class="btn small" href="./viewer.html" target="_blank" rel="noopener">Open Viewer</a>
+                        <a class="btn small" href="./soundboard.html" target="_blank" rel="noopener">Soundboard</a>
+                        <button class="btn small" id="btnExport" title="Export the current show state as JSON">Export Show</button>
+                        <label class="btn small fileButton" for="importFile" title="Import a JSON show state into the current show">Import Show</label>
+                        <input id="importFile" type="file" accept="application/json" hidden />
+                        <button class="btn small danger" id="btnReset">New Show</button>
+                        <button class="btn small" id="btnSettings">Settings</button>
+                    </div>
+                </div>
+
                 <div class="paperSlotToolbar">
                     <div>
                         <div class="paperSlotToolbarTitle">Open Slots</div>
                         <div class="small">Click a dashed Open Slot to add a performer. Blank slots are skipped by Viewer, Soundboard, and KPIs.</div>
                     </div>
                     <button class="btn small" id="btnAddPaperSlots" type="button">Add 5 Slots</button>
-                </div>
-
-                <div class="row operatorUtilityToolbar">
-                    <a class="btn small" href="./viewer.html" target="_blank" rel="noopener">Open Viewer</a>
-                    <a class="btn small" href="./soundboard.html" target="_blank" rel="noopener">Soundboard</a>
-<button class="btn small" id="btnExport" title="Export the current show state as JSON">Export Show</button>
-                    <label class="btn small" for="importFile" style="cursor:pointer;" title="Import a JSON show state into the current show">Import Show</label>
-                    <input id="importFile" type="file" accept="application/json" hidden />
-                    <button class="btn small danger" id="btnReset">New Show</button>
-                    <button class="btn small" id="btnSettings">Settings</button>
                 </div>
             </div>
 
@@ -47,15 +50,15 @@
                     <div class="statusBanner statusBannerInline" id="statusBanner"></div>
                 </div>
 
-                <div class="tabs" style="margin-bottom:12px;">
+                <div class="tabs operatorTabs">
                     <button class="tabBtn active" id="tabBtnPerformers" type="button">Performers</button>
                     <button class="tabBtn" id="tabBtnHouseBand" type="button">House Band</button>
                     <span class="tabsSpacer"></span>
-                    <label class="small" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                    <label class="small hbFooterToggle">
                         <input type="checkbox" id="toggleHBFooter" />
                         <span>HB Footer</span>
                     </label>
-                    <select id="hbFooterFormat" title="HB Footer format" style="width:auto; padding:6px 10px; border-radius:999px; font-weight:900; font-size:12px;">
+                    <select id="hbFooterFormat" class="hbFooterSelect" title="HB Footer format">
                         <option value="categoryFirst">Drums: Mike</option>
                         <option value="nameFirst">Mike (Drums)</option>
                     </select>

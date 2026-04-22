@@ -647,6 +647,23 @@ setBgColor: document.getElementById("setBgColor"),
     s.queue = [...next, ...done];
   }
 
+  function syncSpecialAnchorsToCurrentOrder(s){
+    if(!s || !Array.isArray(s.queue)) return;
+    let lastPaperNumber = null;
+    for(const slot of s.queue){
+      if(!slot || isDoneStatus(slot.status)) continue;
+      if(isPaperSlot(slot)){
+        const n = paperSlotNumber(slot);
+        if(n) lastPaperNumber = n;
+        continue;
+      }
+      if(isSpecialSlot(slot)){
+        if(lastPaperNumber) slot.afterPaperSlotNumber = lastPaperNumber;
+        else delete slot.afterPaperSlotNumber;
+      }
+    }
+  }
+
   // Select a performer in the queue, and apply sensible defaults for legacy/empty media settings.
   // If a slot has no uploaded image, no URL, and no explicit layout, default it to QR_ONLY so the
   // Viewer shows the default QR image (assets/OMJN-QR.png) without extra operator clicks.
@@ -3872,6 +3889,7 @@ function getDragAfterElement(container, y){
         }
 
         s.queue = [...next, ...done];
+        syncSpecialAnchorsToCurrentOrder(s);
       });
     });
   }
@@ -3912,6 +3930,7 @@ function getDragAfterElement(container, y){
 
       const [it] = s.queue.splice(idx, 1);
       s.queue.splice(idx2, 0, it);
+      syncSpecialAnchorsToCurrentOrder(s);
     });
   }
 
@@ -5531,10 +5550,35 @@ function updateAdPreview(){
     else s.queue.push(slot);
   }
 
+  function activateAdSlotFromModal(s, slot){
+    if(!s || !slot) return "";
+    const liveish = (s.phase === "LIVE" || s.phase === "PAUSED") && !!s.currentSlotId;
+    if(liveish && s.currentSlotId !== slot.id){
+      // Don't interrupt a live act; match the existing Add -> Arm Next behavior.
+      s.operatorPrefs = s.operatorPrefs || {};
+      s.operatorPrefs.armedNextSlotId = slot.id;
+      return "armed";
+    }
+
+    const idx = s.queue.findIndex(x => x && x.id === slot.id);
+    if(idx > 0){
+      const [moved] = s.queue.splice(idx, 1);
+      s.queue.unshift(moved);
+    }
+    s.currentSlotId = slot.id;
+    s.phase = "LIVE";
+    if(!s.timer) s.timer = {};
+    // Ads are untimed; keep timer stopped.
+    s.timer.running = false;
+    s.timer.startedAt = null;
+    s.timer.elapsedMs = 0;
+    s.timer.baseDurationMs = 0;
+    return "live";
+  }
+
   async function submitAdModal({ goLive=false }={}){
     try{
       if(!state) return;
-      const liveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
 
       if(adCtx?.mode === "edit" && adCtx.slotId){
         // Update existing slot in-place
@@ -5568,18 +5612,24 @@ function updateAdPreview(){
           await OMJN.putAsset(assetId, f);
           newAd = { kind, source:"upload", assetId, ...videoOpts };
         }
-updateState(s => {
+        let adGoLiveResult = "";
+        updateState(s => {
           const slot = s.queue.find(x => x.id === adCtx.slotId);
           if(!slot) return;
           slot.slotTypeId = (newAd && newAd.kind === "video") ? "ad_video" : "ad_graphic";
           slot.displayName = label || slot.displayName || "Ad";
           slot.ad = newAd || slot.ad;
+          if(goLive) adGoLiveResult = activateAdSlotFromModal(s, slot);
         });
         closeAdModal();
+        if(goLive && adGoLiveResult === "armed"){
+          toast("Armed ad to run next.");
+        }
         return;
       }
 
       const slot = await buildAdSlotFromModal();
+      let adGoLiveResult = "";
 
       updateState(s => {
         const afterPaperSlotNumber = Math.round(Number(adInsertAfterPaperSlot || 0)) || null;
@@ -5587,32 +5637,12 @@ updateState(s => {
         else insertSlotSmart(s, slot);
 
         if(goLive){
-          const liveish2 = (s.phase === "LIVE" || s.phase === "PAUSED") && !!s.currentSlotId;
-          if(liveish2){
-            // Don't interrupt — arm next
-            s.operatorPrefs = s.operatorPrefs || {};
-            s.operatorPrefs.armedNextSlotId = slot.id;
-          } else {
-            // Go live immediately
-            // Pin to top
-            const idx = s.queue.findIndex(x=>x.id===slot.id);
-            if(idx > 0){
-              const [moved] = s.queue.splice(idx, 1);
-              s.queue.unshift(moved);
-            }
-            s.currentSlotId = slot.id;
-            s.phase = "LIVE";
-            // Ads are untimed; keep timer stopped
-            s.timer.running = false;
-            s.timer.startedAt = null;
-            s.timer.elapsedMs = 0;
-            s.timer.baseDurationMs = 0;
-          }
+          adGoLiveResult = activateAdSlotFromModal(s, slot);
         }
       });
 
       closeAdModal();
-      if(goLive && liveish){
+      if(goLive && adGoLiveResult === "armed"){
         toast("Armed ad to run next.");
       }
     }catch(err){
