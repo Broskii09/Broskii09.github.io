@@ -19,6 +19,7 @@ const APP_SCOPE = (() => {
 
 const CHANNEL_NAME = `omjn_${APP_SCOPE}_channel_v1`;
 const STORAGE_KEY = `omjn.${APP_SCOPE}.showState.v1`;
+const COMMAND_KEY = scopedKey("command.v1");
 const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
 
   function scopedKey(suffix){
@@ -348,9 +349,9 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
       },
       slotTypes: [
         { id:"musician", label:"Musician", defaultMinutes:15, isJamMode:false, color:"#00c2ff", enabled:true },
-        { id:"jamaoke", label:"Jamaoke", defaultMinutes:10, isJamMode:false, color:"#f97316", enabled:true },
         { id:"comedian", label:"Comedian", defaultMinutes:10, isJamMode:false, color:"#2dd4bf", enabled:true },
         { id:"comedian5", label:"Comedian", defaultMinutes:5, isJamMode:false, color:"#2dd4bf", enabled:true },
+        { id:"jamaoke", label:"Jamaoke", defaultMinutes:10, isJamMode:false, color:"#f97316", enabled:true },
         { id:"poetry", label:"Poetry", defaultMinutes:10, isJamMode:false, color:"#fbbf24", enabled:true },
         { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
         { id:"ad_graphic", label:"Ad (Graphic)", defaultMinutes:0, isJamMode:false, color:"#ef4444", enabled:false, special:true },
@@ -1007,9 +1008,9 @@ function houseBandActiveMembersByCategory(state){
     const candidates = (() => {
       if(hasCurrent){
         const idx = q.findIndex(s => s && s.id === state.currentSlotId);
-        return (idx >= 0 ? q.slice(idx+1) : q).filter(s => s && s.status === "QUEUED" && !isAdSlotType(s.slotTypeId));
+        return (idx >= 0 ? q.slice(idx+1) : q).filter(s => s && s.status === "QUEUED" && !s.isPlaceholder && !isAdSlotType(s.slotTypeId));
       }
-      return q.filter(s => s && s.status === "QUEUED" && !isAdSlotType(s.slotTypeId));
+      return q.filter(s => s && s.status === "QUEUED" && !s.isPlaceholder && !isAdSlotType(s.slotTypeId));
     })();
 
     const out = [];
@@ -1146,17 +1147,26 @@ async function loadBitmapFromFile(f){
   let _onState = null;
   let _onCommand = null;
 
+  function deliverCommandMessage(d){
+    if(d && d.type === "CMD" && typeof _onCommand === "function"){
+      _onCommand(d);
+    }
+  }
+
   if(bc){
     bc.onmessage = (ev) => {
       const d = ev?.data || {};
       if(d.type === "STATE" && d.payload && typeof _onState === "function"){
         _onState(d.payload);
       }
-      if(d.type === "CMD" && typeof _onCommand === "function"){
-        _onCommand(d);
-      }
+      deliverCommandMessage(d);
     };
   }
+
+  window.addEventListener("storage", (e) => {
+    if(e.key !== COMMAND_KEY || !e.newValue) return;
+    try{ deliverCommandMessage(JSON.parse(e.newValue)); }catch(_){}
+  });
 
   function publish(state){
     try{
@@ -1175,8 +1185,15 @@ async function loadBitmapFromFile(f){
 
   function sendCommand(cmd, payload){
     try{
-      if(!bc) return;
-      bc.postMessage({ type:"CMD", cmd: String(cmd || ""), payload: (payload === undefined ? null : payload) });
+      const msg = {
+        type:"CMD",
+        cmd: String(cmd || ""),
+        payload: (payload === undefined ? null : payload),
+        id: uid("cmd"),
+        at: now()
+      };
+      if(bc) bc.postMessage(msg);
+      else localStorage.setItem(COMMAND_KEY, JSON.stringify(msg));
     }catch(e){
       console.error("Command send failed:", e);
     }

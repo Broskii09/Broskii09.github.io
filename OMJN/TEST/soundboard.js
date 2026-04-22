@@ -3,6 +3,21 @@
 // ---- UI scope (separate /TEST vs /OMJN) ----
 const SB_UI_SCOPE = (typeof OMJN !== "undefined" && OMJN.appScope) ? OMJN.appScope : "prod";
 
+function sbScopedStorageKey(suffix, legacyKey = ""){
+  const key = (typeof OMJN !== "undefined" && OMJN.scopedKey)
+    ? OMJN.scopedKey(suffix)
+    : `omjn.${SB_UI_SCOPE}.${String(suffix || "").replace(/^\.+/, "")}`;
+  if(legacyKey && legacyKey !== key){
+    try{
+      if(localStorage.getItem(key) === null){
+        const legacy = localStorage.getItem(legacyKey);
+        if(legacy !== null) localStorage.setItem(key, legacy);
+      }
+    }catch(_){}
+  }
+  return key;
+}
+
 /* Soundboard page (public Google Drive folder or local) */
 (() => {
   let state = OMJN.loadState();
@@ -20,7 +35,6 @@ const SB_UI_SCOPE = (typeof OMJN !== "undefined" && OMJN.appScope) ? OMJN.appSco
     start: document.getElementById("sbStart"),
     pauseResume: document.getElementById("sbPauseResume"),
     pauseResumeLabel: document.getElementById("sbPauseResumeLabel"),
-    livePauseBadge: document.getElementById("sbLivePauseBadge"),
     end: document.getElementById("sbEnd"),
     minus30: document.getElementById("sbMinus30"),
     plus30: document.getElementById("sbPlus30"),
@@ -167,7 +181,7 @@ const SB_UI_SCOPE = (typeof OMJN !== "undefined" && OMJN.appScope) ? OMJN.appSco
   }
 
 // ---- UI prefs (compact rows + optional sticky controls) ----
-const UI_PREF_KEY = `omjn.sb.ui.v1.${SB_UI_SCOPE}`;
+const UI_PREF_KEY = sbScopedStorageKey("sb.ui.v1", `omjn.sb.ui.v1.${SB_UI_SCOPE}`);
 
 function loadUiPrefs(){
   try{
@@ -270,8 +284,8 @@ function initUiPrefs(){
 
   // ---- Volume (master + per-sound) ----
   // Slider scale is 0–100. 50% = unity (1.0). Above 50% boosts gain.
-  const MASTER_VOL_KEY = "omjn_soundboard_master_vol_v1";
-  const SOUND_VOL_KEY  = "omjn_soundboard_sound_vol_v1";
+  const MASTER_VOL_KEY = sbScopedStorageKey("soundboard.masterVol.v1", "omjn_soundboard_master_vol_v1");
+  const SOUND_VOL_KEY  = sbScopedStorageKey("soundboard.soundVol.v1", "omjn_soundboard_sound_vol_v1");
 
   function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
 
@@ -289,7 +303,7 @@ function initUiPrefs(){
   }
 
   // ---- Stop Fade (persisted) ----
-  const STOP_FADE_KEY = "omjn_soundboard_stop_fade_v1";
+  const STOP_FADE_KEY = sbScopedStorageKey("soundboard.stopFade.v1", "omjn_soundboard_stop_fade_v1");
   let stopFadeMs = parseInt(localStorage.getItem(STOP_FADE_KEY) || "150", 10);
   if(!Number.isFinite(stopFadeMs) || stopFadeMs < 0) stopFadeMs = 150;
 
@@ -681,8 +695,8 @@ function setStatus(msg, isErr=false){
   let soundById = new Map();
 
   // ---- Favorites + Recents (persisted across shows) ----
-  const FAV_KEY = "omjn_soundboard_favs_v1";
-  const RECENTS_KEY = "omjn_soundboard_recents_v1";
+  const FAV_KEY = sbScopedStorageKey("soundboard.favs.v1", "omjn_soundboard_favs_v1");
+  const RECENTS_KEY = sbScopedStorageKey("soundboard.recents.v1", "omjn_soundboard_recents_v1");
   const RECENTS_CAP = 60;
 
   let favList = loadJson(FAV_KEY, []);
@@ -753,10 +767,10 @@ function setStatus(msg, isErr=false){
   }
 
   // ---- Learning Hotkeys (decayed usage + pinning) ----
-  const USAGE_KEY = "omjn_soundboard_usage_v1";
-  const PINS_KEY = "omjn_soundboard_pins_v1";
-  const FREEZE_KEY = "omjn_soundboard_freeze_hotkeys_v1";
-  const SNAPSHOT_KEY = "omjn_soundboard_hotkeys_snapshot_v1";
+  const USAGE_KEY = sbScopedStorageKey("soundboard.usage.v1", "omjn_soundboard_usage_v1");
+  const PINS_KEY = sbScopedStorageKey("soundboard.pins.v1", "omjn_soundboard_pins_v1");
+  const FREEZE_KEY = sbScopedStorageKey("soundboard.freezeHotkeys.v1", "omjn_soundboard_freeze_hotkeys_v1");
+  const SNAPSHOT_KEY = sbScopedStorageKey("soundboard.hotkeysSnapshot.v1", "omjn_soundboard_hotkeys_snapshot_v1");
   const HOTKEY_KEYS = ["1","2","3","4","5","6","7","8","9","0"];
   const HALF_LIFE_DAYS = 7;
   const DECAY_LAMBDA = Math.log(2) / (HALF_LIFE_DAYS * 24 * 60 * 60 * 1000);
@@ -1621,7 +1635,7 @@ function setStatus(msg, isErr=false){
   const DEFAULT_DRIVE_API_KEY = "AIzaSyCMdXo_5usjx4UcQkeDwbY1zl73HLO0AhA";
   const DEFAULT_DRIVE_FOLDER = "1S3MJnnsvpMKmE5pNKqdw2PxoYQeCEF54";
 
-const CFG_KEY = "omjn_soundboard_drive_cfg_v1";
+const CFG_KEY = sbScopedStorageKey("soundboard.driveCfg.v1", "omjn_soundboard_drive_cfg_v1");
   function loadCfg(){
     try{ return JSON.parse(localStorage.getItem(CFG_KEY) || "{}"); }catch(_){ return {}; }
   }
@@ -1636,7 +1650,7 @@ const CFG_KEY = "omjn_soundboard_drive_cfg_v1";
 
   
   // ---- Per-sound Layer (overlap) preference ----
-  const LAYER_KEY = "omjn_soundboard_layer_v1";
+  const LAYER_KEY = sbScopedStorageKey("soundboard.layerPrefs.v1", "omjn_soundboard_layer_v1");
   function loadLayerPrefs(){
     try{ return JSON.parse(localStorage.getItem(LAYER_KEY) || "{}"); }catch(_){ return {}; }
   }
@@ -1774,106 +1788,66 @@ els.refresh.addEventListener("click", refreshFromDrive);
     renderPads();
   }
 
-  // ---- Live controls (minimal) ----
-  function updateState(mut){
-    const s = JSON.parse(JSON.stringify(state));
-    mut(s);
-    // normalize + theme
-    state = s;
-    OMJN.applyThemeToDocument(document, state);
-    OMJN.publish(state);
-    renderMeta();
+  // ---- Live controls: Soundboard sends commands; Operator owns show-state mutations. ----
+  function soundboardSlotLabel(slot){
+    if(!slot) return "—";
+    const name = String(slot.displayName || "—").trim() || "—";
+    const n = Math.round(Number(slot.paperSlotNumber || 0));
+    const paper = Number.isFinite(n) && n > 0 ? `#${n} ` : "";
+    const type = (typeof OMJN !== "undefined" && OMJN && typeof OMJN.displaySlotTypeLabel === "function")
+      ? OMJN.displaySlotTypeLabel(state, slot)
+      : "";
+    const notes = String(slot.notes || "").replace(/\r/g, "").split("\n").map(x => x.trim()).filter(Boolean).slice(0, 2).join(" / ");
+    const meta = [type, notes].filter(Boolean).join(" | ");
+    return meta ? `${paper}${name} (${meta})` : `${paper}${name}`;
+  }
+
+  function queuedStartPick(){
+    const q = Array.isArray(state?.queue) ? state.queue : [];
+    return q.find(x => x && x.status === "QUEUED" && !x.isPlaceholder) || null;
+  }
+
+  function confirmSoundboardStart(){
+    if(!state?.operatorPrefs?.startGuard) return true;
+    const pick = queuedStartPick();
+    return confirm(`Start now: "${soundboardSlotLabel(pick)}"?`);
+  }
+
+  function confirmSoundboardEnd(){
+    if(!state?.operatorPrefs?.endGuard || state.phase === "SPLASH") return true;
+    const q = Array.isArray(state?.queue) ? state.queue : [];
+    const current = q.find(x => x && x.id === state.currentSlotId) || null;
+    return confirm(`End performance and return to Splash? (Current: "${soundboardSlotLabel(current)}")`);
+  }
+
+  function sendOperatorCommand(cmd, payload = null){
+    if(typeof OMJN === "undefined" || typeof OMJN.sendCommand !== "function"){
+      setStatus("Operator command channel unavailable.", true);
+      return;
+    }
+    OMJN.sendCommand(cmd, payload);
   }
 
   function start(){
-    updateState(s => {
-      const eligible = (x) => x.status === "QUEUED";
-      const pick = s.queue.find(eligible);
-      if(!pick) return;
-
-      const idx = s.queue.findIndex(x=>x.id===pick.id);
-      if(idx > 0){
-        const [moved] = s.queue.splice(idx, 1);
-        s.queue.unshift(moved);
-      }
-
-      s.currentSlotId = pick.id;
-      s.phase = "LIVE";
-      s.timer.running = true;
-      s.timer.startedAt = Date.now();
-      s.timer.elapsedMs = 0;
-      s.timer.baseDurationMs = OMJN.effectiveMinutes(s, pick) * 60 * 1000;
-    });
-  }
-
-  function pause(){
-    updateState(s => {
-      if(!s.timer.running) return;
-      s.timer.elapsedMs = (s.timer.elapsedMs || 0) + (Date.now() - (s.timer.startedAt || Date.now()));
-      s.timer.running = false;
-      s.timer.startedAt = null;
-      s.phase = "PAUSED";
-    });
-  }
-
-  function resume(){
-    updateState(s => {
-      if(s.timer.running) return;
-      if(!s.currentSlotId) return;
-      s.timer.running = true;
-      s.timer.startedAt = Date.now();
-      s.phase = "LIVE";
-    });
+    if(!confirmSoundboardStart()) return;
+    sendOperatorCommand("OPERATOR_START");
   }
 
   function togglePauseResume(){
-    if(state.phase === "PAUSED") return resume();
-    return pause();
+    sendOperatorCommand("OPERATOR_TOGGLE_PAUSE");
   }
 
   function endToSplash(){
-    updateState(s => {
-      if(!s.currentSlotId){
-        s.phase = "SPLASH";
-        return;
-      }
-      const cur = s.queue.find(x=>x.id===s.currentSlotId);
-      if(cur){ cur.status = "DONE"; cur.completedAt = Date.now(); }
-      const idx = s.queue.findIndex(x=>x.id===cur.id);
-      if(idx >= 0){
-        const [moved] = s.queue.splice(idx, 1);
-        s.queue.push(moved);
-      }
-      s.currentSlotId = null;
-      s.phase = "SPLASH";
-      s.timer.running = false;
-      s.timer.startedAt = null;
-      s.timer.elapsedMs = 0;
-      s.timer.baseDurationMs = null;
-    });
+    if(!confirmSoundboardEnd()) return;
+    sendOperatorCommand("OPERATOR_END_TO_SPLASH");
   }
 
   function addSeconds(delta){
-    updateState(s => {
-      const cur = s.queue.find(x=>x.id===s.currentSlotId);
-      if(!cur) return;
-      const base = (s.timer.baseDurationMs ?? (OMJN.effectiveMinutes(s, cur) * 60 * 1000));
-      let next = base + (delta * 1000);
-      const minMs = 30 * 1000;
-      if(next < minMs) next = minMs;
-      s.timer.baseDurationMs = next;
-    });
+    sendOperatorCommand("OPERATOR_ADD_SECONDS", { deltaSec: delta });
   }
 
   function resetTime(){
-    updateState(s => {
-      const cur = s.queue.find(x=>x.id===s.currentSlotId);
-      if(!cur) return;
-      const baseMs = OMJN.effectiveMinutes(s, cur) * 60 * 1000;
-      s.timer.baseDurationMs = baseMs;
-      s.timer.elapsedMs = 0;
-      s.timer.startedAt = s.timer.running ? Date.now() : null;
-    });
+    sendOperatorCommand("OPERATOR_RESET_TIMER");
   }
 
   els.start.addEventListener("click", start);
@@ -1892,8 +1866,8 @@ els.refresh.addEventListener("click", refreshFromDrive);
 // ---- Music embed pane ----
 const SB_SCOPE = SB_UI_SCOPE;
 
-const EMBED_STORE_KEY = `omjn.sb.embeds.v1.${SB_SCOPE}`;
-const EMBED_WIDTH_KEY = `omjn.sb.embedWidth.v1.${SB_SCOPE}`;
+const EMBED_STORE_KEY = sbScopedStorageKey("sb.embeds.v1", `omjn.sb.embeds.v1.${SB_SCOPE}`);
+const EMBED_WIDTH_KEY = sbScopedStorageKey("sb.embedWidth.v1", `omjn.sb.embedWidth.v1.${SB_SCOPE}`);
 
 const DEFAULT_EMBEDS = [
   {
@@ -2177,7 +2151,7 @@ initEmbeds();
   if(!els.safariTip || !els.embedFrameWrap) return;
   const ua = navigator.userAgent || "";
   const isSafari = /Safari/.test(ua) && !/Chrome|Chromium|Edg/.test(ua);
-  const TIP_KEY = `omjn.sb.safariEmbedTipDismissed.v1.${SB_UI_SCOPE}`;
+  const TIP_KEY = sbScopedStorageKey("sb.safariEmbedTipDismissed.v1", `omjn.sb.safariEmbedTipDismissed.v1.${SB_UI_SCOPE}`);
   if(!isSafari) return;
   try{
     const dismissed = localStorage.getItem(TIP_KEY) === "1";
@@ -2237,22 +2211,17 @@ initEmbeds();
         : "No timed live slot is active";
     }
 
-    if(els.livePauseBadge){
-      els.livePauseBadge.hidden = !paused;
-      els.livePauseBadge.setAttribute("aria-hidden", paused ? "false" : "true");
-    }
-
     // Now / Next / Deck
     const q = (state && Array.isArray(state.queue)) ? state.queue : [];
     const cur = q.find(x => x && x.id === state.currentSlotId) || null;
-    if(els.now)  els.now.textContent  = (cur && cur.displayName) ? cur.displayName : "—";
+    if(els.now)  els.now.textContent  = cur ? soundboardSlotLabel(cur) : "—";
 
     const pair = (typeof OMJN !== "undefined" && OMJN && typeof OMJN.computeNextTwo === "function")
       ? OMJN.computeNextTwo(state)
       : [null, null];
     const n1 = pair[0], n2 = pair[1];
-    if(els.next) els.next.textContent = (n1 && n1.displayName) ? n1.displayName : "—";
-    if(els.deck) els.deck.textContent = (n2 && n2.displayName) ? n2.displayName : "—";
+    if(els.next) els.next.textContent = n1 ? soundboardSlotLabel(n1) : "—";
+    if(els.deck) els.deck.textContent = n2 ? soundboardSlotLabel(n2) : "—";
 
     // Timer
     if(els.timer && typeof OMJN !== "undefined" && OMJN && typeof OMJN.computeTimer === "function" && typeof OMJN.formatMMSS === "function"){

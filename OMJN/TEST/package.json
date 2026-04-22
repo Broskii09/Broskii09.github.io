@@ -1,0 +1,19 @@
+{
+  "name": "omjn-test",
+  "version": "1.0.0",
+  "description": "Playwright tooling for the OMJN TEST build.",
+  "main": "operator.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
+  }
+}

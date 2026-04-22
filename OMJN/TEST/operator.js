@@ -8,6 +8,7 @@ let adPresetsTried = false;
 let adPresets = [];
 let adSelectedPresetId = null;
 let adPreviewBlobUrl = null;
+let adInsertAfterPaperSlot = null;
   OMJN.applyThemeToDocument(document, state);
   OMJN.ensureHouseBandQueues(state);
   normalizeQueueSpecialSlots(state);
@@ -17,6 +18,7 @@ let adPreviewBlobUrl = null;
     addName: document.getElementById("addName"),
     addType: document.getElementById("addType"),
     btnAdd: document.getElementById("btnAdd"),
+    btnAddPaperSlots: document.getElementById("btnAddPaperSlots"),
     btnAddIntermission: document.getElementById("btnAddIntermission"),
     btnAddAd: document.getElementById("btnAddAd"),
     btnAddHouseBandSlot: document.getElementById("btnAddHouseBandSlot"),
@@ -157,13 +159,6 @@ setBgColor: document.getElementById("setBgColor"),
     settingsModal: document.getElementById("settingsModal"),
     btnCloseSettings: document.getElementById("btnCloseSettings"),
 
-    statusLine: document.getElementById("statusLine"),
-    liveStatusBanner: document.getElementById("liveStatusBanner"),
-    livePhaseDot: document.getElementById("livePhaseDot"),
-    liveNowItem: document.getElementById("liveNowItem"),
-    liveNowName: document.getElementById("liveNowName"),
-    liveOTItem: document.getElementById("liveOTItem"),
-    liveOTVal: document.getElementById("liveOTVal"),
     kpiPhaseChip: document.getElementById("kpiPhaseChip"),
     kpiDeckSummary: document.getElementById("kpiDeckSummary"),
     kpiMathSummary: document.getElementById("kpiMathSummary"),
@@ -193,7 +188,6 @@ setBgColor: document.getElementById("setBgColor"),
     btnStart: document.getElementById("btnStart"),
     btnPauseResume: document.getElementById("btnPauseResume"),
     btnPauseResumeLabel: document.getElementById("btnPauseResumeLabel"),
-    livePauseBadge: document.getElementById("livePauseBadge"),
     btnEnd: document.getElementById("btnEnd"),
     btnUndo: document.getElementById("btnUndo"),
     btnRedo: document.getElementById("btnRedo"),
@@ -227,7 +221,7 @@ setBgColor: document.getElementById("setBgColor"),
 
     // House Band Set Builder modal
     hbBuildModal: document.getElementById("hbBuildModal"),
-    // Ads (Graphic-only v1)
+    // Ads
     adModal: document.getElementById("adModal"),
     adModalTitle: document.getElementById("adModalTitle"),
     adModalSub: document.getElementById("adModalSub"),
@@ -328,12 +322,18 @@ setBgColor: document.getElementById("setBgColor"),
 
   // Intermission Builder
   let imDraft = null; // { minutes: number | 'custom' }
+  let imInsertAfterPaperSlot = null;
+
+  const PAPER_SLOT_DEFAULT_COUNT = 30;
+  const PAPER_SLOT_ADD_COUNT = 5;
+  const PAPER_EMPTY_STATUS = "EMPTY";
 
 
   const VIEWER_HEARTBEAT_KEY = OMJN.scopedKey("viewerHeartbeat.v1");
 
   // ---- Undo/Redo (operator-only) ----
-  const HISTORY_KEY = "OMJN_HISTORY_V1";
+  const HISTORY_KEY = OMJN.scopedKey("operator.history.v1");
+  const SETTINGS_TAB_KEY = OMJN.scopedKey("operator.settingsTab.v1");
   const HISTORY_LIMIT = 20;
   let undoStack = [];
   let redoStack = [];
@@ -416,12 +416,235 @@ setBgColor: document.getElementById("setBgColor"),
       .filter(t => !excludeSpecial || (t.special !== true));
   }
 
-  function visibleSlotTypes(){
-    return slotTypesForSelect();
+  function isDoneStatus(status){
+    return status === "DONE" || status === "SKIPPED";
   }
+
+  function isAdSlotTypeId(slotTypeId){
+    return OMJN.isAdSlotType ? OMJN.isAdSlotType(slotTypeId) : String(slotTypeId || "").startsWith("ad_");
+  }
+
+  function isSpecialSlot(slot){
+    const typeId = String(slot?.slotTypeId || "");
+    return isAdSlotTypeId(typeId) || typeId === "intermission" || typeId === "houseband";
+  }
+
+  function isPaperSlot(slot){
+    return !!slot && !isSpecialSlot(slot);
+  }
+
+  function isPaperPlaceholder(slot){
+    return !!slot && isPaperSlot(slot) && (slot.status === PAPER_EMPTY_STATUS || slot.isPlaceholder === true);
+  }
+
+  function paperSlotNumber(slot){
+    const n = Math.round(Number(slot?.paperSlotNumber || 0));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  function paperSlotLabel(slot){
+    const n = paperSlotNumber(slot);
+    return n ? `#${n}` : "";
+  }
+
+  function ensureOperatorPrefs(s){
+    s.operatorPrefs = s.operatorPrefs || {};
+    if(!Number.isFinite(Number(s.operatorPrefs.paperSlotCount))){
+      s.operatorPrefs.paperSlotCount = PAPER_SLOT_DEFAULT_COUNT;
+    }
+    s.operatorPrefs.paperSlotCount = Math.max(PAPER_SLOT_DEFAULT_COUNT, Math.round(Number(s.operatorPrefs.paperSlotCount) || PAPER_SLOT_DEFAULT_COUNT));
+    if(!Array.isArray(s.operatorPrefs.retiredPaperSlots)) s.operatorPrefs.retiredPaperSlots = [];
+    s.operatorPrefs.retiredPaperSlots = Array.from(new Set(
+      s.operatorPrefs.retiredPaperSlots
+        .map(n => Math.round(Number(n)))
+        .filter(n => Number.isFinite(n) && n > 0)
+    )).sort((a,b) => a-b);
+    return s.operatorPrefs;
+  }
+
+  function makePaperPlaceholder(num){
+    return {
+      id: OMJN.uid("empty"),
+      createdAt: Date.now(),
+      displayName: "",
+      slotTypeId: "",
+      minutesOverride: null,
+      customTypeLabel: "",
+      status: PAPER_EMPTY_STATUS,
+      isPlaceholder: true,
+      paperSlotNumber: num,
+      notes: "",
+      media: { donationUrl: null, imageAssetId: null, mediaLayout: "NONE" }
+    };
+  }
+
+  function normalizePaperSlotState(s){
+    if(!s) return;
+    if(!Array.isArray(s.queue)) s.queue = [];
+    const prefs = ensureOperatorPrefs(s);
+    const retired = new Set(prefs.retiredPaperSlots);
+    let nextNumber = 1;
+    let maxNumber = prefs.paperSlotCount;
+    const reservedNumbers = new Set(
+      s.queue
+        .filter(isPaperSlot)
+        .map(paperSlotNumber)
+        .filter(Boolean)
+    );
+
+    for(const slot of s.queue){
+      if(!slot || typeof slot !== "object") continue;
+      if(isPaperSlot(slot)){
+        if(!paperSlotNumber(slot)){
+          while(retired.has(nextNumber) || reservedNumbers.has(nextNumber)) nextNumber++;
+          slot.paperSlotNumber = nextNumber;
+          reservedNumbers.add(nextNumber);
+          nextNumber++;
+        }
+        const n = paperSlotNumber(slot);
+        if(n) maxNumber = Math.max(maxNumber, n);
+        if(isPaperPlaceholder(slot)){
+          slot.status = PAPER_EMPTY_STATUS;
+          slot.isPlaceholder = true;
+          slot.displayName = "";
+          slot.notes = slot.notes || "";
+        }else{
+          slot.isPlaceholder = false;
+          if(slot.status === PAPER_EMPTY_STATUS) slot.status = "QUEUED";
+        }
+      }else{
+        delete slot.isPlaceholder;
+      }
+    }
+
+    prefs.paperSlotCount = Math.max(PAPER_SLOT_DEFAULT_COUNT, maxNumber);
+
+    const occupied = new Set(
+      s.queue
+        .filter(isPaperSlot)
+        .map(paperSlotNumber)
+        .filter(Boolean)
+    );
+    for(let n=1; n<=prefs.paperSlotCount; n++){
+      if(occupied.has(n) || retired.has(n)) continue;
+      s.queue.push(makePaperPlaceholder(n));
+      occupied.add(n);
+    }
+  }
+
+  function pruneLeadingEmptyPaperSlots(s){
+    normalizePaperSlotState(s);
+    const prefs = ensureOperatorPrefs(s);
+    const retired = new Set(prefs.retiredPaperSlots);
+    const activePaper = s.queue
+      .filter(slot => isPaperSlot(slot) && !isDoneStatus(slot.status))
+      .sort((a,b) => (paperSlotNumber(a) || 0) - (paperSlotNumber(b) || 0));
+
+    for(const slot of activePaper){
+      if(!isPaperPlaceholder(slot)) break;
+      const n = paperSlotNumber(slot);
+      if(n) retired.add(n);
+      const idx = s.queue.findIndex(x => x && x.id === slot.id);
+      if(idx >= 0) s.queue.splice(idx, 1);
+    }
+    prefs.retiredPaperSlots = Array.from(retired).sort((a,b) => a-b);
+  }
+
+  function addPaperSlots(s, count = PAPER_SLOT_ADD_COUNT){
+    const prefs = ensureOperatorPrefs(s);
+    prefs.paperSlotCount += Math.max(1, Math.round(Number(count) || PAPER_SLOT_ADD_COUNT));
+    normalizePaperSlotState(s);
+  }
+
+  function movePaperSlotNumberInState(s, slotId, destinationNumber){
+    normalizePaperSlotState(s);
+    const dest = Math.round(Number(destinationNumber || 0));
+    if(!Number.isFinite(dest) || dest <= 0) return false;
+
+    const moving = (s.queue || []).find(x => x && x.id === slotId);
+    if(!moving || !isPaperSlot(moving) || isDoneStatus(moving.status)) return false;
+
+    const completedAtDest = (s.queue || []).some(x =>
+      x && x.id !== slotId && isPaperSlot(x) && isDoneStatus(x.status) && paperSlotNumber(x) === dest
+    );
+    if(completedAtDest) return "completed";
+
+    const prefs = ensureOperatorPrefs(s);
+    if(dest > prefs.paperSlotCount){
+      prefs.paperSlotCount = dest;
+      normalizePaperSlotState(s);
+    }
+    prefs.retiredPaperSlots = (prefs.retiredPaperSlots || []).filter(n => n !== dest);
+
+    const from = paperSlotNumber(moving);
+    if(!from || from === dest) return true;
+
+    const activePaper = (s.queue || []).filter(x =>
+      x && x.id !== slotId && isPaperSlot(x) && !isDoneStatus(x.status)
+    );
+
+    if(dest < from){
+      for(const slot of activePaper){
+        const n = paperSlotNumber(slot);
+        if(n && n >= dest && n < from) slot.paperSlotNumber = n + 1;
+      }
+    }else{
+      for(const slot of activePaper){
+        const n = paperSlotNumber(slot);
+        if(n && n <= dest && n > from) slot.paperSlotNumber = n - 1;
+      }
+    }
+
+    moving.paperSlotNumber = dest;
+    return true;
+  }
+
+  function insertSpecialAfterPaperSlot(s, slot, paperNumber){
+    if(!Array.isArray(s.queue)) s.queue = [];
+    const n = Math.round(Number(paperNumber || 0));
+    if(Number.isFinite(n) && n > 0){
+      slot.afterPaperSlotNumber = n;
+      let insertAt = -1;
+      for(let i=0; i<s.queue.length; i++){
+        const it = s.queue[i];
+        if(paperSlotNumber(it) === n || Number(it?.afterPaperSlotNumber || 0) === n) insertAt = i;
+      }
+      if(insertAt >= 0){
+        s.queue.splice(insertAt + 1, 0, slot);
+        return;
+      }
+    }
+    insertQueuedSlotSmart(s, slot);
+  }
+
+  function sortPaperQueue(s){
+    normalizePaperSlotState(s);
+    const done = s.queue.filter(x => isDoneStatus(x?.status)).slice()
+      .sort((a,b) => (a.completedAt || 0) - (b.completedAt || 0));
+    const active = s.queue.filter(x => !isDoneStatus(x?.status));
+    const numbered = active.filter(isPaperSlot).sort((a,b) => (paperSlotNumber(a) || 0) - (paperSlotNumber(b) || 0));
+    const specials = active.filter(x => !isPaperSlot(x));
+    const unanchored = specials.filter(x => !Number.isFinite(Number(x.afterPaperSlotNumber || 0)));
+    const byAfter = new Map();
+    for(const sp of specials){
+      const n = Math.round(Number(sp.afterPaperSlotNumber || 0));
+      if(!Number.isFinite(n) || n <= 0) continue;
+      if(!byAfter.has(n)) byAfter.set(n, []);
+      byAfter.get(n).push(sp);
+    }
+
+    const next = [...unanchored];
+    for(const slot of numbered){
+      next.push(slot);
+      const n = paperSlotNumber(slot);
+      if(n && byAfter.has(n)) next.push(...byAfter.get(n));
+    }
+    s.queue = [...next, ...done];
+  }
+
   // Select a performer in the queue, and apply sensible defaults for legacy/empty media settings.
   // If a slot has no uploaded image, no URL, and no explicit layout, default it to QR_ONLY so the
-  // Viewer shows the default QR image (assets/OMJN-QR.jpg) without extra operator clicks.
+  // Viewer shows the default QR image (assets/OMJN-QR.png) without extra operator clicks.
   function selectSlot(slotId){
     selectedId = slotId;
 
@@ -462,7 +685,7 @@ setBgColor: document.getElementById("setBgColor"),
     const media = slot?.media || { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
     editDraft = {
       displayName: slot?.displayName || "",
-      slotTypeId: slot?.slotTypeId || "musician",
+      slotTypeId: isPaperPlaceholder(slot) ? "" : (slot?.slotTypeId || "musician"),
       customTypeLabel: slot?.customTypeLabel || "",
       minutesOverride: (slot?.minutesOverride ?? ""),
       notes: slot?.notes || "",
@@ -495,7 +718,7 @@ setBgColor: document.getElementById("setBgColor"),
     const layout = String(editDraft.mediaLayout || "NONE");
     const intermissionMessage = String(editDraft.intermissionMessage || "").trim();
 
-    const slotTypeId = String(editDraft.slotTypeId || "musician");
+    const slotTypeId = String(editDraft.slotTypeId || "");
     const customLabel = OMJN.sanitizeText(editDraft.customTypeLabel || "");
     const moRaw = (editDraft.minutesOverride ?? "");
     let minutesOverride = null;
@@ -504,9 +727,20 @@ setBgColor: document.getElementById("setBgColor"),
       if(Number.isFinite(n) && n > 0) minutesOverride = n;
     }
 
+    const currentSlot = state.queue.find(x => x.id === slotId);
+    if(isPaperPlaceholder(currentSlot) && !name){
+      alert("Performer name is required.");
+      return;
+    }
+    if(isPaperPlaceholder(currentSlot) && !slotTypeId){
+      alert("Choose a slot type.");
+      return;
+    }
+
     updateState(s => {
       const slot = s.queue.find(x => x.id === slotId);
       if(!slot) return;
+      const wasPlaceholder = isPaperPlaceholder(slot);
       const prevName = OMJN.sanitizeText(slot.displayName || "");
       const prevType = String(slot.slotTypeId || "");
       const prevMedia = slot.media || { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
@@ -517,6 +751,10 @@ setBgColor: document.getElementById("setBgColor"),
 
       slot.displayName = name;
       slot.slotTypeId = slotTypeId;
+      if(wasPlaceholder){
+        slot.status = "QUEUED";
+        slot.isPlaceholder = false;
+      }
       slot.minutesOverride = minutesOverride;
       slot.customTypeLabel = (slotTypeId === "custom") ? customLabel : "";
       slot.notes = notes;
@@ -566,12 +804,78 @@ setBgColor: document.getElementById("setBgColor"),
     render();
   }
 
-  function firstLineOfNotes(txt){
-    const s = String(txt || "").trim();
-    if(!s) return "";
-    // Avoid newline escape issues across environments
-    const parts = s.split(String.fromCharCode(10));
-    return (parts[0] || "").trim();
+  function notesPreviewData(txt, maxLines = 3){
+    const lines = String(txt || "")
+      .replace(/\r/g, "")
+      .split(String.fromCharCode(10))
+      .map(line => line.trim())
+      .filter(Boolean);
+    if(!lines.length) return { preview:"", full:"", hasMore:false };
+    const previewLines = lines.slice(0, Math.max(1, maxLines));
+    return {
+      preview: previewLines.join(String.fromCharCode(10)),
+      full: lines.join(String.fromCharCode(10)),
+      hasMore: lines.length > previewLines.length
+    };
+  }
+
+  function appendNotesPreview(root, notes){
+    const data = notesPreviewData(notes);
+    if(!data.preview || !root) return;
+    const sub = document.createElement("div");
+    sub.className = "qNotesSub";
+    const text = document.createElement("span");
+    text.textContent = data.preview;
+    sub.appendChild(text);
+    if(data.hasMore){
+      const btn = document.createElement("button");
+      btn.className = "btn tiny qNotesToggle";
+      btn.type = "button";
+      btn.textContent = "Show notes";
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const expanded = sub.classList.toggle("isExpanded");
+        text.textContent = expanded ? data.full : data.preview;
+        btn.textContent = expanded ? "Hide notes" : "Show notes";
+      });
+      sub.appendChild(btn);
+    }
+    root.appendChild(sub);
+  }
+
+  function formatClockTime(ts){
+    const n = Number(ts || 0);
+    if(!Number.isFinite(n) || n <= 0) return "";
+    return new Date(n).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" });
+  }
+
+  function appendDoneKpis(meta, slot, scheduledMinutes){
+    if(!meta || !slot) return;
+    const wrap = document.createElement("span");
+    wrap.className = "qDoneKpis";
+
+    const add = (label, value, cls = "") => {
+      if(!value) return;
+      const item = document.createElement("span");
+      item.className = `qDoneKpi ${cls}`.trim();
+      item.textContent = `${label}: ${value}`;
+      wrap.appendChild(item);
+    };
+
+    if(slot.noShow) add("Status", "NO SHOW", "qNoShowLabel");
+    add("ETA", formatClockTime(slot.expectedStartAt));
+    add("Start", formatClockTime(slot.actualStartedAt));
+    add("End", formatClockTime(slot.actualEndedAt || slot.completedAt));
+
+    const actualMs = Number(slot.actualDurationMs);
+    const hasActual = Number.isFinite(actualMs) && actualMs > 0;
+    const scheduledMs = Number(slot.scheduledDurationMs || 0) || (Number(scheduledMinutes || 0) * 60 * 1000);
+    if(hasActual) add("Actual", OMJN.formatMMSS(actualMs));
+    if(scheduledMs > 0) add("Scheduled", OMJN.formatMMSS(scheduledMs));
+    if(hasActual && scheduledMs > 0) add("Over/Under", formatSignedDurationMs(actualMs - scheduledMs));
+
+    if(wrap.childElementCount) meta.appendChild(wrap);
   }
 
   function houseBandQueueTitle(raw){
@@ -629,10 +933,6 @@ setBgColor: document.getElementById("setBgColor"),
   async function handleImageUploadForSlot(slotId, file){
     if(!file) return;
     await handleImageUpload(file, slotId);
-  }
-
-  function clearImageForSlot(slotId){
-    clearImage(slotId);
   }
 
   function buildInlineExpander(slot){
@@ -770,6 +1070,12 @@ setBgColor: document.getElementById("setBgColor"),
     lType.textContent = "Slot Type";
     const selType = document.createElement("select");
     fillTypeSelect(selType, { includeDisabled:true });
+    if(isPaperPlaceholder(slot)){
+      const ph = document.createElement("option");
+      ph.value = "";
+      ph.textContent = "- CHOOSE A SLOT -";
+      selType.insertBefore(ph, selType.firstChild);
+    }
     selType.value = editDraft?.slotTypeId ?? (slot.slotTypeId || "musician");
     fType.appendChild(lType);
     fType.appendChild(selType);
@@ -790,7 +1096,7 @@ setBgColor: document.getElementById("setBgColor"),
     fCustom.appendChild(lCustom); fCustom.appendChild(iCustom);
 
     function syncCustomVisibility(){
-      const cur = String(selType.value || "musician");
+      const cur = String(selType.value || "");
       if(editDraft) editDraft.slotTypeId = cur;
       fCustom.style.display = (cur === "custom") ? "" : "none";
     }
@@ -873,7 +1179,7 @@ setBgColor: document.getElementById("setBgColor"),
     fIM.appendChild(tIM);
 
     function syncSpecialFields(){
-      const curType = String(selType.value || "musician");
+      const curType = String(selType.value || "");
       fHB.style.display = (curType === "houseband") ? "" : "none";
       fIM.style.display = (curType === "intermission") ? "" : "none";
     }
@@ -1053,21 +1359,7 @@ setBgColor: document.getElementById("setBgColor"),
   
   function normalizePerformerQueue(s){
     if(!Array.isArray(s.queue)) s.queue = [];
-    const isDone = (x) => x && (x.status === "DONE" || x.status === "SKIPPED");
-    const active = s.queue.filter(x => !isDone(x));
-    const done = s.queue.filter(isDone).slice()
-      .sort((a,b) => (a.completedAt || 0) - (b.completedAt || 0));
-    // Keep the currently-live slot pinned to top (Operator clarity)
-    const lockCurrent = !!s.currentSlotId && (s.phase === "LIVE" || s.phase === "PAUSED");
-    if(lockCurrent){
-      const liveIdx = active.findIndex(x => x.id === s.currentSlotId);
-      if(liveIdx > 0){
-        const [live] = active.splice(liveIdx, 1);
-        active.unshift(live);
-      }
-    }
-
-    s.queue = [...active, ...done];
+    sortPaperQueue(s);
   }
 
 function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
@@ -1203,7 +1495,7 @@ function escapeHtml(s){
   function renderSlotTypesEditor(){
     if(!els.slotTypesEditor) return;
     els.slotTypesEditor.innerHTML = "";
-    const order = ["musician","jamaoke","comedian","poetry","custom"];
+    const order = ["musician","comedian","comedian5","jamaoke","poetry","custom"];
     const types = [...(state.slotTypes||[])].sort((a,b)=>{
       const ia = order.indexOf(a.id); const ib = order.indexOf(b.id);
       if(ia===-1 && ib===-1) return String(a.label).localeCompare(String(b.label));
@@ -1617,7 +1909,7 @@ function escapeHtml(s){
 
 
 // ---- Sponsor Bug (Operator settings) ----
-  const SPONSOR_VIEWER_STATUS_KEY = "omjn.sponsorBug.viewerStatus.v1";
+  const SPONSOR_VIEWER_STATUS_KEY = OMJN.scopedKey("sponsorBug.viewerStatus.v1");
   let sponsorPreviewObjectUrl = null;
   let lastSponsorPreviewKey = null;
 
@@ -2658,7 +2950,7 @@ function escapeHtml(s){
         panels.forEach(p => {
           p.hidden = (p.dataset.panel !== tabId);
         });
-        try{ localStorage.setItem("omjn_settingsTab", tabId); }catch(_){}
+        try{ localStorage.setItem(SETTINGS_TAB_KEY, tabId); }catch(_){}
       }
 
       navBtns.forEach(btn => {
@@ -2667,7 +2959,7 @@ function escapeHtml(s){
 
       // Initial tab (remember last)
       let firstTab = "viewer";
-      try{ firstTab = localStorage.getItem("omjn_settingsTab") || "viewer"; }catch(_){}
+      try{ firstTab = localStorage.getItem(SETTINGS_TAB_KEY) || "viewer"; }catch(_){}
       activateSettingsTab(firstTab);
     }
 
@@ -2719,7 +3011,121 @@ function escapeHtml(s){
     return "fa-solid fa-wand-magic-sparkles";
   }
 
+  function extractMusicLinks(text){
+    const s = String(text || "");
+    const urls = s.match(/https?:\/\/[^\s<>"')]+/gi) || [];
+    const out = [];
+    urls.forEach((raw, idx) => {
+      const url = raw.replace(/[.,;]+$/g, "");
+      const lower = url.toLowerCase();
+      const add = (buttonUrl, label) => out.push({ url: buttonUrl, label, id: `${idx}_${label}_${buttonUrl}` });
+      if(lower.includes("open.spotify.com")){
+        const match = url.match(/open\.spotify\.com\/(track|album|playlist)\/([A-Za-z0-9]+)/i);
+        if(match) add(`spotify:${match[1]}:${match[2]}`, "Spotify App");
+        add(url, "Spotify Web");
+      }else if(lower.includes("music.apple.com")){
+        add(url.replace(/^https?:\/\//i, "music://"), "Apple Music App");
+        add(url, "Apple Music Web");
+      }else if(lower.includes("youtube.com") || lower.includes("youtu.be")){
+        add(url, "Open YouTube");
+      }else if(lower.includes("drive.google.com")){
+        add(url, "Open Drive");
+      }else{
+        add(url, "Open Link");
+      }
+    });
+    return out;
+  }
+
+  function appendMusicButtons(root, slot){
+    const links = extractMusicLinks(slot?.notes || "");
+    if(!links.length || !root) return;
+    const wrap = document.createElement("div");
+    wrap.className = "qMusicLinks";
+    for(const link of links){
+      const a = document.createElement("a");
+      a.className = "btn tiny qMusicBtn";
+      a.href = link.url;
+      if(/^https?:\/\//i.test(link.url)){
+        a.target = "_blank";
+        a.rel = "noopener";
+      }
+      a.textContent = link.label;
+      a.addEventListener("click", (e) => e.stopPropagation());
+      wrap.appendChild(a);
+    }
+    root.appendChild(wrap);
+  }
+
+  function addSpecialButtons(actions, paperNumber){
+    const n = Math.round(Number(paperNumber || 0));
+    if(!Number.isFinite(n) || n <= 0) return;
+    const addBtn = (label, fn) => {
+      const b = document.createElement("button");
+      b.className = "btn tiny";
+      b.type = "button";
+      b.textContent = label;
+      const anchor = (state.queue || []).find(x => x && paperSlotNumber(x) === n) || null;
+      const eta = anchor ? queueEtaMap.get(anchor.id) : null;
+      b.title = eta
+        ? `Insert after Open Slot #${n}. That slot's ETA is ${formatClockTime(eta)}.`
+        : `Insert after Open Slot #${n}.`;
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        fn(n);
+      });
+      actions.appendChild(b);
+    };
+    addBtn("Intermission After", (after) => openIntermissionModal(after));
+    addBtn("Ad After", (after) => openAdModal(null, after));
+    addBtn("House Band After", (after) => addHouseBandSlot(after));
+  }
+
+  function placeholderRow(slot){
+    const div = document.createElement("div");
+    div.className = "queueItem paperSlotEmpty";
+    div.dataset.id = slot.id;
+    div.dataset.paperSlot = String(paperSlotNumber(slot) || "");
+    if(editingId === slot.id) div.classList.add("isEditing");
+
+    const handle = document.createElement("div");
+    handle.className = "paperSlotNumber";
+    handle.textContent = paperSlotLabel(slot);
+
+    const main = document.createElement("div");
+    main.className = "qMain";
+    const title = document.createElement("div");
+    title.className = "paperEmptyTitle";
+    title.textContent = "Open Slot";
+    const hint = document.createElement("div");
+    hint.className = "small";
+    hint.textContent = "Viewer and KPIs skip this blank spot.";
+    main.appendChild(title);
+    main.appendChild(hint);
+
+    const actions = document.createElement("div");
+    actions.className = "qActions paperSlotActions";
+    const add = document.createElement("button");
+    add.className = "btn tiny good";
+    add.type = "button";
+    add.textContent = editingId === slot.id ? "Close" : "Add Performer";
+    add.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleInlineEdit(slot.id);
+    });
+    actions.appendChild(add);
+    addSpecialButtons(actions, paperSlotNumber(slot));
+
+    div.appendChild(handle);
+    div.appendChild(main);
+    div.appendChild(actions);
+    if(editingId === slot.id && editDraft) div.appendChild(buildInlineExpander(slot));
+    div.addEventListener("click", () => toggleInlineEdit(slot.id));
+    return div;
+  }
+
   function queueRow(slot){
+    if(isPaperPlaceholder(slot)) return placeholderRow(slot);
     const { t, mins, icons, typeLabel } = slotBadge(slot);
     const div = document.createElement("div");
 
@@ -2740,7 +3146,8 @@ function escapeHtml(s){
     if(selectedId === slot.id) div.classList.add("isSelected");
     if(editingId === slot.id) div.classList.add("isEditing");
 
-    div.draggable = (slot.status === "QUEUED") && !isLive && !isDone && (editingId !== slot.id);
+    const pNum = paperSlotNumber(slot);
+    div.draggable = (slot.status === "QUEUED") && !isLive && !isDone && !pNum && (editingId !== slot.id);
     div.dataset.id = slot.id;
     div.dataset.slotType = String(slot.slotTypeId || "");
     if(t?.color) div.style.borderLeft = `6px solid ${t.color}`;
@@ -2786,6 +3193,12 @@ function escapeHtml(s){
     const handle = document.createElement("div");
     handle.className = "dragHandle";
     handle.textContent = "≡";
+
+    if(pNum){
+      handle.classList.add("paperSlotNumber");
+      handle.textContent = `#${pNum}`;
+      handle.title = `Open Slot #${pNum}`;
+    }
 
     const main = document.createElement("div");
     main.className = "qMain";
@@ -2878,9 +3291,16 @@ function escapeHtml(s){
       meta.appendChild(ic);
     }
 
-    const notesLine = firstLineOfNotes(slot.notes);
+    const afterPaper = Math.round(Number(slot.afterPaperSlotNumber || 0));
+    if(Number.isFinite(afterPaper) && afterPaper > 0){
+      const after = document.createElement("span");
+      after.textContent = `After #${afterPaper}`;
+      meta.appendChild(after);
+    }
+
+    if(isDone) appendDoneKpis(meta, slot, mins);
+
     const houseBandLine = isHouseBand ? houseBandLineupSummary(slot) : "";
-    const subLine = isHouseBand ? houseBandLine : (notesLine || houseBandLine);
 
     const actions = document.createElement("div");
     actions.className = "qActions";
@@ -2937,6 +3357,18 @@ function escapeHtml(s){
       });
       actions.appendChild(btnRq);
     }else{
+      if(pNum && slot.status === "QUEUED" && !isLive){
+        const btnMoveTo = document.createElement("button");
+        btnMoveTo.className = "btn tiny";
+        btnMoveTo.textContent = "Move #";
+        btnMoveTo.title = "Move to an Open Slot number";
+        btnMoveTo.addEventListener("click", (e) => {
+          e.stopPropagation();
+          moveSlotToPaperNumber(slot.id);
+        });
+        actions.appendChild(btnMoveTo);
+      }
+
       const btnUp = document.createElement("button");
       btnUp.className = "btn tiny";
       btnUp.textContent = "↑";
@@ -2959,6 +3391,10 @@ function escapeHtml(s){
 
       actions.appendChild(btnUp);
       actions.appendChild(btnDn);
+
+      if(pNum && slot.status === "QUEUED"){
+        addSpecialButtons(actions, pNum);
+      }
     }
 
     const btnDel = document.createElement("button");
@@ -2973,12 +3409,15 @@ function escapeHtml(s){
 
     main.appendChild(bar);
     main.appendChild(nameRow);
-    if(subLine){
+    if(isHouseBand && houseBandLine){
       const sub = document.createElement("div");
       sub.className = "qNotesSub";
-      sub.textContent = subLine;
+      sub.textContent = houseBandLine;
       main.appendChild(sub);
+    }else{
+      appendNotesPreview(main, slot.notes);
     }
+    appendMusicButtons(main, slot);
     main.appendChild(meta);
 
     div.appendChild(handle);
@@ -3019,7 +3458,7 @@ function escapeHtml(s){
       const empty = document.createElement("div");
       empty.className = "small";
       empty.textContent = done.length
-        ? "No active performers. Completed performers are hidden below."
+        ? "No active performers. Completed / No Show rows are hidden below."
         : "No active signups yet. Add a performer above.";
       els.queue.appendChild(empty);
     } else {
@@ -3039,7 +3478,7 @@ function escapeHtml(s){
       const summary = document.createElement("summary");
       summary.className = "queueDivider";
       const left = document.createElement("div");
-      left.textContent = "Completed";
+      left.textContent = "Completed / No Show";
       const right = document.createElement("div");
       right.className = "mono";
       right.textContent = String(done.length);
@@ -3250,14 +3689,6 @@ function escapeHtml(s){
     };
   }
 
-  function computeQueueEtaMap(nowMs){
-    return buildQueueForecast(nowMs).etaMap;
-  }
-
-  function computeEstimatedEndTs(nowMs){
-    return buildQueueForecast(nowMs).estEndTs;
-  }
-
   function updateQueueEtaLabels(nowMs = Date.now()){
     let nodes;
     try{
@@ -3450,6 +3881,17 @@ function getDragAfterElement(container, y){
       // do not move the live slot while LIVE/PAUSED
       if(lockCurrent && slotId === s.currentSlotId) return;
 
+      if(isPaperSlot(slot) && paperSlotNumber(slot)){
+        const activePaper = s.queue
+          .filter(x => x && isPaperSlot(x) && !isDoneStatus(x.status))
+          .sort((a,b) => (paperSlotNumber(a) || 0) - (paperSlotNumber(b) || 0));
+        const paperIdx = activePaper.findIndex(x => x.id === slotId);
+        const target = activePaper[paperIdx + delta] || null;
+        const targetNumber = paperSlotNumber(target);
+        if(targetNumber) movePaperSlotNumberInState(s, slotId, targetNumber);
+        return;
+      }
+
       const liveIdx = lockCurrent ? s.queue.findIndex(x=>x.id===s.currentSlotId) : -1;
       const minIdx = (liveIdx >= 0) ? liveIdx + 1 : 0;
 
@@ -3464,6 +3906,28 @@ function getDragAfterElement(container, y){
     });
   }
 
+  function moveSlotToPaperNumber(slotId){
+    const slot = state.queue.find(x => x && x.id === slotId);
+    if(!slot || !isPaperSlot(slot) || isDoneStatus(slot.status)) return;
+    const current = paperSlotNumber(slot) || "";
+    const raw = prompt(`Move "${slot.displayName || "this performer"}" to Open Slot number:`, String(current));
+    if(raw === null) return;
+    const dest = Math.round(Number(raw));
+    if(!Number.isFinite(dest) || dest <= 0){
+      alert("Enter a valid Open Slot number.");
+      return;
+    }
+
+    let result = true;
+    updateState(s => {
+      result = movePaperSlotNumberInState(s, slotId, dest);
+    });
+
+    if(result === "completed"){
+      alert(`Open Slot #${dest} is already in Completed / No Show. Choose an open active slot number.`);
+    }
+  }
+
 
   function requeueSlot(slotId){
     updateState(s => {
@@ -3476,7 +3940,19 @@ function getDragAfterElement(container, y){
 
       slot.status = "QUEUED";
       slot.completedAt = null;
+      slot.actualEndedAt = null;
+      slot.actualDurationMs = null;
+      slot.actualWallDurationMs = null;
       slot.noShow = false;
+      slot.isPlaceholder = false;
+
+      const prefs = ensureOperatorPrefs(s);
+      const activeMax = (s.queue || [])
+        .filter(x => x && isPaperSlot(x) && !isDoneStatus(x.status) && x.id !== slotId)
+        .reduce((max, x) => Math.max(max, paperSlotNumber(x) || 0), 0);
+      const nextNumber = Math.max(prefs.paperSlotCount, activeMax) + 1;
+      prefs.paperSlotCount = Math.max(prefs.paperSlotCount, nextNumber);
+      slot.paperSlotNumber = nextNumber;
 
       // move to bottom of Active (before first completed)
       const [moved] = s.queue.splice(idx, 1);
@@ -3497,6 +3973,13 @@ function getDragAfterElement(container, y){
       const idx = s.queue.findIndex(x=>x.id===slotId);
       if(idx < 0) return;
       const [removed] = s.queue.splice(idx, 1);
+      if(removed && isPaperSlot(removed) && isDoneStatus(removed.status)){
+        const n = paperSlotNumber(removed);
+        if(n){
+          const prefs = ensureOperatorPrefs(s);
+          prefs.retiredPaperSlots = Array.from(new Set([...(prefs.retiredPaperSlots || []), n])).sort((a,b) => a-b);
+        }
+      }
 
       if(s.currentSlotId === slotId){
         s.currentSlotId = null;
@@ -3882,9 +4365,6 @@ function renderKPIs(nowMs = Date.now()){
       els.kpiMathSummary.textContent = `Queue Math: ${parts.join(" • ")}`;
     }
 
-    if(els.liveNowItem) els.liveNowItem.hidden = !inLive;
-    if(inLive && els.liveNowName) els.liveNowName.textContent = current.displayName || "—";
-
     if(inLive){
       const t = OMJN.computeTimer(state);
       const showOT = (t.remainingMs === 0 && (t.overtimeMs || 0) > 0);
@@ -3892,11 +4372,8 @@ function renderKPIs(nowMs = Date.now()){
         els.kpiOvertimeSummary.hidden = !showOT;
         if(showOT) els.kpiOvertimeSummary.textContent = `Overtime: +${OMJN.formatMMSS(t.overtimeMs)}`;
       }
-      if(els.liveOTItem) els.liveOTItem.hidden = !showOT;
-      if(showOT && els.liveOTVal) els.liveOTVal.textContent = `+${OMJN.formatMMSS(t.overtimeMs)}`;
     }else{
       if(els.kpiOvertimeSummary) els.kpiOvertimeSummary.hidden = true;
-      if(els.liveOTItem) els.liveOTItem.hidden = true;
     }
   }
 
@@ -3922,11 +4399,6 @@ function renderKPIs(nowMs = Date.now()){
       els.btnPauseResume.title = timedLive
         ? (paused ? "Resume the current timed slot" : "Pause the current timed slot")
         : "No timed live slot is active";
-    }
-
-    if(els.livePauseBadge){
-      els.livePauseBadge.hidden = !paused;
-      els.livePauseBadge.setAttribute("aria-hidden", paused ? "false" : "true");
     }
 
     const showViewerTimer = state.viewerPrefs?.showTimer !== false;
@@ -4118,6 +4590,7 @@ function renderTimerLine(){
 
 
 function render(){
+    sortPaperQueue(state);
     // sync header inputs
     els.showTitle.value = state.showTitle || "";
     renderStatusBanner();
@@ -4387,7 +4860,9 @@ function render(){
         OMJN.reorderHouseBandCategorySelectedWithSuggestedNext(s, catKey, memberId);
       }
 
-      insertQueuedSlotSmart(s, slot);
+      const afterPaperSlotNumber = Math.round(Number(hbBuildCtx?.afterPaperSlotNumber || 0)) || null;
+      if(afterPaperSlotNumber) insertSpecialAfterPaperSlot(s, slot, afterPaperSlotNumber);
+      else insertQueuedSlotSmart(s, slot);
     });
 
     closeHbBuildModal();
@@ -4411,7 +4886,7 @@ function render(){
     }
 
     // Otherwise, insert before completed items (DONE/SKIPPED) to keep the active queue grouped.
-    const firstCompletedIdx = s.queue.findIndex(x => x && x.status !== "QUEUED");
+    const firstCompletedIdx = s.queue.findIndex(x => x && isDoneStatus(x.status));
     if(firstCompletedIdx >= 0) s.queue.splice(firstCompletedIdx, 0, slot);
     else s.queue.push(slot);
   }
@@ -4456,6 +4931,14 @@ function render(){
     recordObservedTransitionForStart(s, slot, Date.now());
     prepareSlotForLive(s, slot, { pinToTop });
 
+    const startedAt = Date.now();
+    if(!slot.expectedStartAt) slot.expectedStartAt = startedAt;
+    slot.actualStartedAt = startedAt;
+    slot.actualEndedAt = null;
+    slot.actualDurationMs = null;
+    slot.actualWallDurationMs = null;
+    slot.scheduledDurationMs = OMJN.effectiveMinutes(s, slot) * 60 * 1000;
+
     s.currentSlotId = slot.id;
     s.phase = "LIVE";
     if(!s.viewerPrefs) s.viewerPrefs = {};
@@ -4469,7 +4952,7 @@ function render(){
       s.timer.baseDurationMs = 0;
     }else{
       s.timer.running = true;
-      s.timer.startedAt = Date.now();
+      s.timer.startedAt = startedAt;
       s.timer.elapsedMs = 0;
       s.timer.baseDurationMs = OMJN.effectiveMinutes(s, slot) * 60 * 1000;
     }
@@ -4482,19 +4965,20 @@ function render(){
       els.btnImLive.title = liveish ? "Insert Intermission next and arm it to start when the current act ends." : "Start this Intermission immediately.";
     }
     if(els.btnImAdd){
-      els.btnImAdd.textContent = liveish ? "Add Next" : "Add to Top";
-      els.btnImAdd.title = liveish ? "Insert Intermission directly after the current live act." : "Insert Intermission at the top of the queue.";
+      if(imInsertAfterPaperSlot){
+        els.btnImAdd.textContent = `Add After #${imInsertAfterPaperSlot}`;
+        els.btnImAdd.title = `Insert Intermission directly after Open Slot #${imInsertAfterPaperSlot}.`;
+      }else{
+        els.btnImAdd.textContent = liveish ? "Add Next" : "Add to Top";
+        els.btnImAdd.title = liveish ? "Insert Intermission directly after the current live act." : "Insert Intermission at the top of the queue.";
+      }
     }
   }
 
-  function addIntermissionSlot(){
-    // Backwards compatible default add (no prompt)
-    return addIntermissionSlotWithOptions({});
-  }
-
-  function openIntermissionModal(){
+  function openIntermissionModal(afterPaperSlotNumber = null){
     if(!els.intermissionModal) return;
     imDraft = { minutes: 10 };
+    imInsertAfterPaperSlot = Math.round(Number(afterPaperSlotNumber || 0)) || null;
 
     if(els.imName) els.imName.value = "INTERMISSION";
     if(els.imMsg) els.imMsg.value = "WE'LL BE RIGHT BACK";
@@ -4510,13 +4994,14 @@ function render(){
 
   function closeIntermissionModal(){
     imDraft = null;
+    imInsertAfterPaperSlot = null;
     if(!els.intermissionModal) return;
     els.intermissionModal.hidden = true;
     document.body.classList.remove("modalOpen");
   }
 
   // ------------------------------
-  // Ads (Graphic-only v1) — Presets + Modal + One-click Live
+  // Ads — Presets + Modal + One-click Live
   // ------------------------------
 
   function isFileProtocol(){
@@ -4890,9 +5375,10 @@ function updateAdPreview(){
     }
   }
 
-  function openAdModal(editSlotId=null){
+  function openAdModal(editSlotId=null, afterPaperSlotNumber = null){
     if(!els.adModal) return;
     adCtx = editSlotId ? { mode:"edit", slotId: editSlotId } : { mode:"add", slotId: null };
+    adInsertAfterPaperSlot = editSlotId ? null : (Math.round(Number(afterPaperSlotNumber || 0)) || null);
 
     // reset
     if(els.adLabel) els.adLabel.value = "";
@@ -4948,6 +5434,7 @@ function updateAdPreview(){
 
   function closeAdModal(){
     adCtx = null;
+    adInsertAfterPaperSlot = null;
     clearAdPreviewBlob();
     setAdModalVisible(false);
   }
@@ -5086,7 +5573,9 @@ updateState(s => {
       const slot = await buildAdSlotFromModal();
 
       updateState(s => {
-        insertSlotSmart(s, slot);
+        const afterPaperSlotNumber = Math.round(Number(adInsertAfterPaperSlot || 0)) || null;
+        if(afterPaperSlotNumber) insertSpecialAfterPaperSlot(s, slot, afterPaperSlotNumber);
+        else insertSlotSmart(s, slot);
 
         if(goLive){
           const liveish2 = (s.phase === "LIVE" || s.phase === "PAUSED") && !!s.currentSlotId;
@@ -5163,9 +5652,12 @@ updateState(s => {
         media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
       };
 
+      const afterPaperSlotNumber = Math.round(Number(opts.afterPaperSlotNumber || 0)) || null;
+
       if(goLive){
         if(isLiveishState(s)){
-          insertIntermissionSlotSmart(s, slot);
+          if(afterPaperSlotNumber) insertSpecialAfterPaperSlot(s, slot, afterPaperSlotNumber);
+          else insertIntermissionSlotSmart(s, slot);
           s.operatorPrefs = s.operatorPrefs || {};
           s.operatorPrefs.armedNextSlotId = slot.id;
           armedNext = true;
@@ -5177,7 +5669,8 @@ updateState(s => {
         return;
       }
 
-      insertIntermissionSlotSmart(s, slot);
+      if(afterPaperSlotNumber) insertSpecialAfterPaperSlot(s, slot, afterPaperSlotNumber);
+      else insertIntermissionSlotSmart(s, slot);
     });
 
     return { armedNext };
@@ -5197,7 +5690,7 @@ updateState(s => {
     }
     minutes = clamp(minutes, 1, 600);
 
-    const result = addIntermissionSlotWithOptions({ title, minutes, message, goLive });
+    const result = addIntermissionSlotWithOptions({ title, minutes, message, goLive, afterPaperSlotNumber: imInsertAfterPaperSlot });
     closeIntermissionModal();
     render();
     if(result?.armedNext){
@@ -5205,15 +5698,16 @@ updateState(s => {
     }
   }
 
-  function addHouseBandSlot(){
-    openHbBuildModal({ mode: 'add' });
+  function addHouseBandSlot(afterPaperSlotNumber = null){
+    openHbBuildModal({ mode: 'add', afterPaperSlotNumber });
   }
 
   
   function guardedStart(){
     // determine who would start
-    const pick = (state.queue || []).find(x => x && x.status === "QUEUED");
+    const pick = (state.queue || []).find(x => x && x.status === "QUEUED" && !isPaperPlaceholder(x));
 
+    if(!pick) return;
     if(state.operatorPrefs?.startGuard){
       const name = pick ? ((String(pick.slotTypeId || "") === "houseband") ? houseBandQueueTitle(pick.displayName || "") : (pick.displayName || "—")) : "—";
       const ok = confirm(`Start now: "${name}"?`);
@@ -5232,10 +5726,15 @@ updateState(s => {
   }
 
 function start(){
+    const eligible = (x) => x && x.status === "QUEUED" && !isPaperPlaceholder(x);
+    const prePick = (state.queue || []).find(x => eligible(x));
+    if(!prePick) return;
+    const expectedStartAt = prePick ? (queueEtaMap.get(prePick.id) || null) : null;
     updateState(s => {
-      const eligible = (x) => x.status==="QUEUED" && true;
+      pruneLeadingEmptyPaperSlots(s);
       const pick = s.queue.find(x => eligible(x));
       if(!pick) return;
+      if(expectedStartAt) pick.expectedStartAt = expectedStartAt;
       activateSlotLive(s, pick, { pinToTop:true });
     });
   }
@@ -5294,7 +5793,18 @@ function start(){
       const idx = s.queue.findIndex(x => x.id === s.currentSlotId);
       const cur = idx >= 0 ? s.queue[idx] : null;
       const endedAt = Date.now();
-      if(cur){ cur.status = "DONE"; cur.completedAt = endedAt; }
+      const timerSnapshot = OMJN.computeTimer(s);
+      if(cur){
+        const startedAt = Number(cur.actualStartedAt || s.timer.startedAt || 0);
+        const elapsedMs = Number(timerSnapshot?.elapsedMs || 0);
+        const scheduledMs = Number(timerSnapshot?.durationMs || 0) || (OMJN.effectiveMinutes(s, cur) * 60 * 1000);
+        cur.status = "DONE";
+        cur.completedAt = endedAt;
+        cur.actualEndedAt = endedAt;
+        cur.actualDurationMs = elapsedMs > 0 ? elapsedMs : (startedAt ? Math.max(0, endedAt - startedAt) : null);
+        cur.actualWallDurationMs = startedAt ? Math.max(0, endedAt - startedAt) : null;
+        cur.scheduledDurationMs = scheduledMs;
+      }
       markTransitionPendingFromSlot(s, cur, endedAt);
       // If a HOUSE BAND slot just ended, rotate each featured lineup member
       // to the end of their category queue.
@@ -5311,6 +5821,8 @@ function start(){
         const [moved] = s.queue.splice(idx, 1);
         s.queue.push(moved);
       }
+
+      pruneLeadingEmptyPaperSlots(s);
 
       // If a slot was armed to run next, start it immediately instead of returning to Splash.
       const armedId = s.operatorPrefs?.armedNextSlotId || null;
@@ -5357,6 +5869,9 @@ function start(){
     try{ fresh.settings = JSON.parse(JSON.stringify(state.settings || fresh.settings)); }catch(_){ }
     try{ fresh.viewerPrefs = JSON.parse(JSON.stringify(state.viewerPrefs || fresh.viewerPrefs)); }catch(_){ }
     try{ fresh.operatorPrefs = JSON.parse(JSON.stringify(state.operatorPrefs || fresh.operatorPrefs)); }catch(_){ }
+    fresh.operatorPrefs.paperSlotCount = PAPER_SLOT_DEFAULT_COUNT;
+    fresh.operatorPrefs.retiredPaperSlots = [];
+    fresh.operatorPrefs.armedNextSlotId = null;
     // preserve show title
     fresh.showTitle = state.showTitle || fresh.showTitle;
     setState(fresh);
@@ -5468,7 +5983,7 @@ function start(){
     refreshModalOpenClass();
     // restore last-opened tab
     try{
-      const tab = localStorage.getItem("omjn_settingsTab") || "viewer";
+      const tab = localStorage.getItem(SETTINGS_TAB_KEY) || "viewer";
       const btn = els.settingsModal.querySelector(`.settingsTabBtn[data-tab="${tab}"]`);
       btn?.click?.();
     }catch(_){/* ignore */}
@@ -5512,6 +6027,13 @@ toggleCustomAddFields();
       if(e.key === "Enter"){ e.preventDefault(); addPerformer(); }
     });
     els.btnAdd.addEventListener("click", addPerformer);
+
+    if(els.btnAddPaperSlots){
+      els.btnAddPaperSlots.addEventListener("click", (e) => {
+        e.preventDefault();
+        updateState(s => addPaperSlots(s, PAPER_SLOT_ADD_COUNT));
+      });
+    }
 
     // Quick add special screens
     if(els.btnAddIntermission){
@@ -5578,39 +6100,6 @@ if(els.btnAddHouseBandSlot){
 
 
     if(els.imCustomMins) els.imCustomMins.addEventListener("keydown", (e) => { if(e.key === "Enter"){ e.preventDefault(); commitIntermissionModal(); } if(e.key === "Escape"){ e.preventDefault(); closeIntermissionModal(); } });
-    // Ad (Graphic) modal
-    if(els.btnAdClose) els.btnAdClose.addEventListener("click", (e) => { e.preventDefault(); closeAdModal(); });
-    if(els.btnAdCancel) els.btnAdCancel.addEventListener("click", (e) => { e.preventDefault(); closeAdModal(); });
-    if(els.btnAdSave) els.btnAdSave.addEventListener("click", (e) => { e.preventDefault(); submitAdModal({ goLive:false }); });
-    if(els.btnAdLive) els.btnAdLive.addEventListener("click", (e) => { e.preventDefault(); submitAdModal({ goLive:true }); });
-    if(els.adSource) els.adSource.addEventListener("change", () => { showAdSourceUI(); });
-    if(els.adUrl) els.adUrl.addEventListener("input", () => { if(!els.adLabel.value) els.adLabel.value = deriveLabelFromPath(els.adUrl.value); updateAdPreview(); });
-    if(els.adFile) els.adFile.addEventListener("change", () => { const f = els.adFile.files?.[0]; if(f && !els.adLabel.value) els.adLabel.value = deriveLabelFromPath(f.name); updateAdPreview(); });
-    if(els.adPresetSearch) els.adPresetSearch.addEventListener("input", () => { renderAdPresetList(); });
-    if(els.btnAdPresetRefresh) els.btnAdPresetRefresh.addEventListener("click", (e) => { e.preventDefault(); ensureAdPresets(true).catch(()=>{}); });
-    if(els.btnLoadAdManifest && els.adManifestFile){
-      els.btnLoadAdManifest.addEventListener("click", (e) => { e.preventDefault(); els.adManifestFile.click(); });
-      els.adManifestFile.addEventListener("change", async () => {
-        const f = els.adManifestFile.files?.[0] || null;
-        if(!f) return;
-        try{
-          const txt = await f.text();
-          const json = JSON.parse(txt);
-          const base = location.href;
-          adPresets = normalizeAdManifest(json, base);
-          adSelectedPresetId = null;
-          if(els.adPresetStatus){
-            els.adPresetStatus.style.display = "";
-            els.adPresetStatus.textContent = adPresets.length ? `Loaded ${adPresets.length} preset${adPresets.length===1?"":"s"} from file.` : "No presets found in that file.";
-          }
-          renderAdPresetList();
-        }catch(err){
-          toast("Manifest load failed.", { tone:"bad" });
-        }
-      });
-    }
-
-
 
 
     // House Band Set Builder modal
@@ -5882,26 +6371,63 @@ els.showTitle.addEventListener("input", () => {
   // Subscribe to changes from other tabs (in case operator is duplicated)
   OMJN.subscribe((s) => {
     OMJN.ensureHouseBandQueues(s);
+    normalizeQueueSpecialSlots(s);
     state = s;
+    OMJN.applyThemeToDocument(document, state);
     render();
   });
 
-  // Commands from other tabs (Viewer -> Operator), used for video-ad auto-end.
+  function runOperatorCommand(cmd, payload = {}){
+    if(cmd === "AD_ENDED"){
+      const slotId = payload?.slotId || null;
+      if(!slotId) return;
+      if(state.phase !== "LIVE" && state.phase !== "PAUSED") return;
+      if(state.currentSlotId !== slotId) return;
+      const cur = (state.queue || []).find(x => x && x.id === slotId) || null;
+      if(!cur) return;
+      const st = String(cur.slotTypeId || "");
+      if(st !== "ad_video" && st !== "ad_graphic") return;
+      endToSplash();
+      return;
+    }
+
+    if(cmd === "OPERATOR_START"){
+      start();
+      return;
+    }
+    if(cmd === "OPERATOR_END_TO_SPLASH"){
+      endToSplash();
+      return;
+    }
+    if(cmd === "OPERATOR_PAUSE"){
+      pause();
+      return;
+    }
+    if(cmd === "OPERATOR_RESUME"){
+      resume();
+      return;
+    }
+    if(cmd === "OPERATOR_TOGGLE_PAUSE"){
+      togglePauseResume();
+      return;
+    }
+    if(cmd === "OPERATOR_ADD_SECONDS"){
+      const deltaSec = Number(payload?.deltaSec);
+      if(Number.isFinite(deltaSec) && deltaSec !== 0) addSeconds(deltaSec);
+      return;
+    }
+    if(cmd === "OPERATOR_RESET_TIMER"){
+      resetTimer();
+    }
+  }
+
+  // Commands from other tabs (Viewer/Soundboard -> Operator).
   if(typeof OMJN.subscribeCommand === "function"){
     OMJN.subscribeCommand((msg) => {
       try{
         if(!msg || msg.type !== "CMD") return;
         const cmd = String(msg.cmd || "");
-        if(cmd !== "AD_ENDED") return;
-        const slotId = msg.payload?.slotId || null;
-        if(!slotId) return;
-        if(state.phase !== "LIVE" && state.phase !== "PAUSED") return;
-        if(state.currentSlotId !== slotId) return;
-        const cur = (state.queue || []).find(x => x && x.id === slotId) || null;
-        if(!cur) return;
-        const st = String(cur.slotTypeId || "");
-        if(st !== "ad_video" && st !== "ad_graphic") return;
-        endToSplash();
+        runOperatorCommand(cmd, msg.payload || {});
       }catch(_){ }
     });
   }

@@ -458,9 +458,28 @@ body::-webkit-scrollbar-corner,
   letter-spacing:.08em;
 }
 
+.paperSlotToolbar,
+.operatorUtilityToolbar{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-top:10px;
+}
+.paperSlotToolbarTitle{
+  font-size:13px;
+  font-weight:950;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.operatorUtilityToolbar{
+  justify-content:flex-start;
+}
+
 .queueItem{
   display:grid;
-  grid-template-columns: 26px minmax(0, 1fr) 244px;
+  grid-template-columns: 48px minmax(0, 1fr) 244px;
   grid-template-rows: auto auto;
   grid-template-areas:
     "handle main actions"
@@ -471,6 +490,46 @@ body::-webkit-scrollbar-corner,
   border-radius:16px;
   border:1px solid rgba(255,255,255,.10);
   background: radial-gradient(120% 120% at 18% 40%, var(--qGlow, rgba(255,255,255,.06)) 0%, rgba(0,0,0,.18) 72%);
+}
+
+.queueItem.paperSlotEmpty{
+  grid-template-columns:48px minmax(0, 1fr) minmax(360px, 380px);
+  border:2px dashed rgba(184,198,234,.42);
+  background:rgba(255,255,255,.035);
+  opacity:.94;
+}
+.paperSlotNumber{
+  grid-area:handle;
+  width:42px;
+  min-width:42px;
+  height:30px;
+  border-radius:8px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:13px;
+  font-weight:1000;
+  color:rgba(255,255,255,.92);
+  background:rgba(0,0,0,.24);
+  border:1px solid rgba(255,255,255,.16);
+  user-select:none;
+}
+.paperEmptyTitle{
+  font-size:15px;
+  font-weight:950;
+  color:rgba(255,255,255,.9);
+}
+.paperSlotActions{
+  grid-template-columns:repeat(2, minmax(150px, 1fr));
+  inline-size:min(380px, 100%);
+  max-width:380px;
+}
+.paperSlotActions .btn{
+  min-width:0;
+  white-space:normal;
+  line-height:1.15;
+  padding-left:8px;
+  padding-right:8px;
 }
 
 /* Broadcast-style role color system for the Show Queue */
@@ -602,9 +661,52 @@ body::-webkit-scrollbar-corner,
   color:var(--muted);
   opacity:.95;
   margin-top:-2px;
-  white-space:nowrap;
+  white-space:pre-line;
+  overflow:hidden;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  gap:8px;
+}
+.qNotesSub > span{
+  min-width:0;
   overflow:hidden;
   text-overflow:ellipsis;
+}
+.qNotesSub:not(.isExpanded) > span{
+  display:-webkit-box;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+}
+.qNotesToggle{
+  flex:0 0 auto;
+}
+.qMusicLinks{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.qMusicBtn{
+  width:auto;
+  min-height:28px;
+}
+.qDoneKpis{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.qDoneKpi{
+  padding:3px 7px;
+  border-radius:999px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.10);
+  color:rgba(231,238,251,.84);
+  font-weight:800;
+}
+.qNoShowLabel{
+  color:#fecaca;
+  border-color:rgba(239,68,68,.42);
+  background:rgba(239,68,68,.16);
 }
 .qActions{
   grid-area: actions;
@@ -633,6 +735,20 @@ body::-webkit-scrollbar-corner,
 .qActions .btn.tiny{
   padding:6px 8px;
 }
+.queueItem.paperSlotEmpty .qActions.paperSlotActions{
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  inline-size:min(360px, 100%);
+  max-width:360px;
+}
+.queueItem.paperSlotEmpty .qActions.paperSlotActions .btn{
+  min-width:0;
+  min-height:40px;
+  white-space:normal;
+  overflow-wrap:break-word;
+  line-height:1.15;
+  font-size:12px;
+  padding:7px 8px;
+}
 .queueItem.isDone .qActions{
   grid-template-columns:repeat(2, minmax(0, 1fr));
   inline-size:160px;
@@ -649,7 +765,15 @@ body::-webkit-scrollbar-corner,
   background:rgba(0,0,0,.18);
 }
 
-.qExpGrid{display:grid; grid-template-columns: 1fr 240px; gap:10px;}
+.qExpGrid{display:grid; grid-template-columns: minmax(0, 1fr) 240px; gap:10px;}
+.qExpGrid .col:first-child{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:10px;
+}
+.qExpGrid .col:first-child .field:nth-child(6){
+  grid-column:1 / -1;
+}
 .qExpGrid .field{margin:0;}
 .qExpActions{display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-top:10px;}
 
@@ -1021,11 +1145,14 @@ hr.sep{
     text-align:left;
   }
   .queueItem{
-    grid-template-columns:26px minmax(0, 1fr);
+    grid-template-columns:48px minmax(0, 1fr);
     grid-template-areas:
       "handle main"
       "actions actions"
       "expander expander";
+  }
+  .queueItem.paperSlotEmpty{
+    grid-template-columns:48px minmax(0, 1fr);
   }
   .qActions{
     grid-template-columns:repeat(auto-fit, minmax(88px, 1fr));
@@ -1033,6 +1160,15 @@ hr.sep{
     inline-size:100%;
     max-width:none;
     padding-top:0;
+  }
+  .queueItem.paperSlotEmpty .paperSlotActions{
+    grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));
+    inline-size:100%;
+    max-width:none;
+  }
+  .qExpGrid,
+  .qExpGrid .col:first-child{
+    grid-template-columns:1fr;
   }
   .queueItem.isDone .qActions{
     grid-template-columns:repeat(2, minmax(0, 1fr));
@@ -2205,9 +2341,6 @@ details.hbAcc .hbCatList{
 
 /* Main card visuals: static (no shimmer). Cues still apply via border/glow/background. */
 #vMainCard::before{ content:none; }
-
-100%{ transform: translateX(45%); }
-}
 
 /* Corner accents (4 corners using layered backgrounds) */
 #vMainCard::after{
