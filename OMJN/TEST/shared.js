@@ -255,6 +255,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         showTimer: true,
         showHouseBandFooter:true,
         hbFooterFormat:"categoryFirst",
+        houseBandDisplayMode:"fullRosterByCategory",
         uiScale: 1.0, // manual font scale multiplier (Operator slider)
         nameScale: 2.10, // performer names multiplier (default ~2.1×)
         hbLineupScale: 1.00, // house band lineup text multiplier
@@ -360,7 +361,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         { id:"intermission", label:"Intermission", defaultMinutes:10, isJamMode:false, color:"#a855f7", enabled:false, special:true },
       ],
       // House Band: independent per-instrument queues.
-      // Viewer footer shows the FIRST active person from each category.
+      // Viewer roster follows this category order and each category's queue order.
       houseBandQueues: {
         drums: [],
         vocals: [],
@@ -430,6 +431,7 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(s.viewerPrefs.visualizerSensitivity === undefined) s.viewerPrefs.visualizerSensitivity = 1.0;
       if(s.viewerPrefs.visualizerMode === undefined) s.viewerPrefs.visualizerMode = "eq";
       if(s.viewerPrefs.visualizerDirection === undefined) s.viewerPrefs.visualizerDirection = "mirror";
+      if(s.viewerPrefs.houseBandDisplayMode === undefined) s.viewerPrefs.houseBandDisplayMode = "fullRosterByCategory";
       if(s.viewerPrefs.uiScale === undefined) s.viewerPrefs.uiScale = 1.0;
       if(s.viewerPrefs.nameScale === undefined) s.viewerPrefs.nameScale = 2.10;
       if(s.viewerPrefs.hbLineupScale === undefined) s.viewerPrefs.hbLineupScale = 1.00;
@@ -804,6 +806,25 @@ return s;
         return m.active !== false;
       });
       if(top) out.push({ categoryKey: cat.key, categoryLabel: cat.label, member: { ...top } });
+    }
+    return out;
+  }
+
+  function getHouseBandRosterByCategory(state, opts={}){
+    ensureHouseBandQueues(state);
+    const activeOnly = (opts.activeOnly !== false);
+    const out = [];
+    for(const cat of HOUSE_BAND_CATEGORIES){
+      const list = state.houseBandQueues[cat.key] || [];
+      const members = [];
+      for(const m of list){
+        normalizeHouseBandMember(m);
+        if(activeOnly && m.active === false) continue;
+        members.push({ ...m });
+      }
+      if(members.length){
+        out.push({ categoryKey: cat.key, categoryLabel: cat.label, members });
+      }
     }
     return out;
   }
@@ -1376,6 +1397,7 @@ async function loadBitmapFromFile(f){
     houseBandCategoryKeyForInstrumentId, houseBandCategoryKeyForMember,
     ensureHouseBandQueues, addHouseBandMember, removeHouseBandMember,
     rotateHouseBandMemberToEnd, rotateHouseBandTopToEnd, reorderHouseBandCategory, getHouseBandTopPerCategory,
+    getHouseBandRosterByCategory,
     allHouseBandMembers, findHouseBandMemberById, getHouseBandFeaturedForSlot,
     houseBandInstrumentLabelForMember, houseBandMembersInCategory, houseBandActiveMembersByCategory, houseBandSuggestedInCategory,
     reorderHouseBandCategorySelectedWithSuggestedNext, buildHouseBandLineupFromSelections,

@@ -198,6 +198,7 @@
 
   let lastHbSplashKey = null;
   let lastHbLiveKey = null;
+  let hbRosterCycleIndex = 0;
 
   let lastTimerText = null;
   let lastChipStateKey = null;
@@ -773,57 +774,146 @@
   }
 
   // ---- House Band ----
-  function renderHouseBandLineup(targetEl, opts = {}) {
-    if (!targetEl) return;
-    const top = OMJN.getHouseBandTopPerCategory(state);
-    const fmt = state.viewerPrefs?.hbFooterFormat || "categoryFirst";
-    targetEl.innerHTML = "";
-    if (!top.length) return;
+  const HB_ROSTER_MODE_FULL = "fullRosterByCategory";
+  const HB_ROSTER_CYCLE_MS = 4200;
 
-    const instrumentLabel = (m) => {
-      if (!m) return "";
-      if (m.instrumentId === "custom") return OMJN.sanitizeText(m.customInstrument || "");
-      return OMJN.houseBandInstrumentOptions().find((x) => x.id === m.instrumentId)?.label || "";
-    };
-
-    for (const item of top) {
-      const m = item.member;
-      const chip = document.createElement("span");
-      chip.className = "hbChip" + (opts.compact ? " hbChipFooter" : "");
-
-      const name = OMJN.sanitizeText(m?.name || "");
-      const inst = instrumentLabel(m);
-      const cat = item.categoryLabel;
-      let txt = "";
-
-      const catLower = (cat || "").toLowerCase();
-      const instLower = (inst || "").toLowerCase();
-      const instExtra = inst && instLower && instLower !== catLower ? inst : "";
-
-      if (fmt === "nameFirst") {
-        if (name) {
-          txt = instExtra ? `${name} (${cat} - ${instExtra})` : `${name} (${cat})`;
-        } else if (inst) {
-          txt = instExtra ? `${instExtra} (${cat})` : `${cat}: ${inst}`;
-        } else {
-          txt = cat;
-        }
-      } else {
-        if (name && instExtra) txt = `${cat}: ${name} (${instExtra})`;
-        else if (name) txt = `${cat}: ${name}`;
-        else if (inst) txt = `${cat}: ${inst}`;
-        else txt = cat;
-      }
-
-      chip.textContent = txt;
-      targetEl.appendChild(chip);
-    }
+  function houseBandRosterMode() {
+    return String(state.viewerPrefs?.houseBandDisplayMode || HB_ROSTER_MODE_FULL);
   }
 
-  function hbKey() {
-    const top = OMJN.getHouseBandTopPerCategory(state);
-    const fmt = state.viewerPrefs?.hbFooterFormat || "categoryFirst";
-    return JSON.stringify({ fmt, top: top.map((t) => ({ c: t.categoryLabel, n: t.member?.name || "", i: t.member?.instrumentId || "", x: t.member?.customInstrument || "" })) });
+  function houseBandRosterEnabled() {
+    return state.viewerPrefs?.showHouseBandFooter !== false && houseBandRosterMode() === HB_ROSTER_MODE_FULL;
+  }
+
+  function houseBandRosterGroups() {
+    if (!houseBandRosterEnabled()) return [];
+    if (typeof OMJN.getHouseBandRosterByCategory === "function") {
+      return OMJN.getHouseBandRosterByCategory(state, { activeOnly: true });
+    }
+    return OMJN.houseBandCategories().map((cat) => ({
+      categoryKey: cat.key,
+      categoryLabel: cat.label,
+      members: OMJN.houseBandMembersInCategory(state, cat.key, { activeOnly: true }).map((x) => x.member)
+    })).filter((x) => x.members.length);
+  }
+
+  function houseBandRosterStateKey() {
+    const groups = houseBandRosterGroups();
+    return JSON.stringify({
+      mode: houseBandRosterMode(),
+      enabled: houseBandRosterEnabled(),
+      groups: groups.map((g) => ({
+        k: g.categoryKey,
+        l: g.categoryLabel,
+        n: (g.members || []).map((m) => ({ id: m.id || "", name: m.name || "" }))
+      }))
+    });
+  }
+
+  function houseBandRosterLayout(targetEl, opts = {}) {
+    const width = Math.max(0, Math.round(targetEl?.clientWidth || window.innerWidth || 0));
+    const compact = opts.compact === true;
+    if (compact) {
+      return {
+        categoriesPerPage: width >= 1180 ? 3 : (width >= 760 ? 2 : 1),
+        namesPerCategory: width >= 1180 ? 4 : (width >= 760 ? 3 : 2)
+      };
+    }
+    return {
+      categoriesPerPage: width >= 1180 ? 4 : (width >= 820 ? 3 : (width >= 540 ? 2 : 1)),
+      namesPerCategory: width >= 1180 ? 6 : (width >= 820 ? 5 : (width >= 540 ? 3 : 2))
+    };
+  }
+
+  function buildHouseBandRosterPages(groups, targetEl, opts = {}) {
+    const layout = houseBandRosterLayout(targetEl, opts);
+    const chunks = [];
+    for (const group of groups) {
+      const names = (group.members || [])
+        .map((m) => OMJN.sanitizeText(m?.name || ""))
+        .filter(Boolean);
+      if (!names.length) continue;
+      const perChunk = Math.max(1, layout.namesPerCategory);
+      for (let i = 0; i < names.length; i += perChunk) {
+        chunks.push({
+          categoryKey: group.categoryKey,
+          categoryLabel: group.categoryLabel,
+          names: names.slice(i, i + perChunk)
+        });
+      }
+    }
+
+    const pages = [];
+    const perPage = Math.max(1, layout.categoriesPerPage);
+    for (let i = 0; i < chunks.length; i += perPage) {
+      pages.push(chunks.slice(i, i + perPage));
+    }
+    return pages.length ? pages : [];
+  }
+
+  function clearHouseBandRoster(targetEl) {
+    if (!targetEl) return;
+    targetEl.innerHTML = "";
+    targetEl.classList.remove("hbRoster", "hbRosterCompact");
+    delete targetEl.dataset.hbRosterPages;
+    delete targetEl.dataset.hbRosterPage;
+  }
+
+  function renderHouseBandLineup(targetEl, opts = {}) {
+    if (!targetEl) return false;
+    targetEl.innerHTML = "";
+    targetEl.classList.add("hbRoster");
+    targetEl.classList.toggle("hbRosterCompact", opts.compact === true);
+
+    const groups = houseBandRosterGroups();
+    const pages = buildHouseBandRosterPages(groups, targetEl, opts);
+    targetEl.dataset.hbRosterPages = String(Math.max(1, pages.length || 0));
+    targetEl.dataset.hbRosterPage = pages.length ? String((hbRosterCycleIndex % pages.length) + 1) : "0";
+    if (!pages.length) return false;
+
+    const page = pages[hbRosterCycleIndex % pages.length] || [];
+    for (const group of page) {
+      const item = document.createElement("span");
+      item.className = "hbRosterGroup";
+
+      const cat = document.createElement("span");
+      cat.className = "hbRosterCategory";
+      cat.textContent = group.categoryLabel;
+
+      const names = document.createElement("span");
+      names.className = "hbRosterNames";
+      names.textContent = group.names.join(", ");
+
+      item.appendChild(cat);
+      item.appendChild(names);
+      targetEl.appendChild(item);
+    }
+    return true;
+  }
+
+  function currentLiveSlot() {
+    const isLiveish = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
+    return isLiveish ? (state.queue || []).find((x) => x && x.id === state.currentSlotId) : null;
+  }
+
+  function shouldShowLiveHouseBandRoster(cur) {
+    return !!cur && String(cur.slotTypeId || "") === "intermission" && houseBandRosterGroups().length > 0;
+  }
+
+  function renderVisibleHouseBandRoster() {
+    const cur = currentLiveSlot();
+    if (!cur) {
+      const shown = renderHouseBandLineup(el.hbLineup, { compact: false });
+      if (el.splashHBCard) el.splashHBCard.style.display = shown ? "" : "none";
+      try{ if(el.root) el.root.classList.toggle("splashNoHB", !shown); }catch(_){ }
+      return;
+    }
+
+    if (shouldShowLiveHouseBandRoster(cur)) {
+      renderHouseBandLineup(el.hbLiveLineup, { compact: true });
+    } else {
+      clearHouseBandRoster(el.hbLiveLineup);
+    }
   }
 
   // ---- Card cues ----
@@ -1353,10 +1443,7 @@
     if (!isLiveish) {
       showSplashShell();
     } else {
-      // Footer visibility depends on HB + toggle
-      const hbHasAny = OMJN.getHouseBandTopPerCategory(state).length > 0;
-      const footerEnabled = state.viewerPrefs?.showHouseBandFooter !== false;
-      showLiveShell(footerEnabled && hbHasAny);
+      showLiveShell(shouldShowLiveHouseBandRoster(currentLiveSlot()));
     }
   }
 
@@ -1372,8 +1459,8 @@
       n1: n1 ? { id: n1.id, n: n1.displayName, t: OMJN.displaySlotTypeLabel(state, n1), m: OMJN.effectiveMinutes(state, n1) } : null,
       n2: n2 ? { id: n2.id, n: n2.displayName, t: OMJN.displaySlotTypeLabel(state, n2), m: OMJN.effectiveMinutes(state, n2) } : null,
       n3: n3 ? { id: n3.id, n: n3.displayName, t: OMJN.displaySlotTypeLabel(state, n3), m: OMJN.effectiveMinutes(state, n3) } : null,
-      hb: hbKey(),
-      hbEnabled: state.viewerPrefs?.showHouseBandFooter !== false,
+      hb: houseBandRosterStateKey(),
+      hbEnabled: houseBandRosterEnabled(),
     });
     if (key === lastSplashKey) return;
     lastSplashKey = key;
@@ -1397,21 +1484,18 @@
       if(el.splashLayout) el.splashLayout.classList.toggle('noUpcoming', !showUpcoming);
     }catch(_){ }
 
-    // House Band row on Splash (full width)
-    const footerEnabled = state.viewerPrefs?.showHouseBandFooter !== false;
-    const hbTop = OMJN.getHouseBandTopPerCategory(state);
-
-    const hbK = hbKey();
+    // House Band roster row on Splash (full width)
+    const hbK = houseBandRosterStateKey();
     if (hbK !== lastHbSplashKey) {
       lastHbSplashKey = hbK;
-      renderHouseBandLineup(el.hbLineup, { maxQueued: 10 });
+      renderHouseBandLineup(el.hbLineup, { compact: false });
     }
 
     const hasHB = !!(el.hbLineup && el.hbLineup.childElementCount);
-    if (el.splashHBCard) el.splashHBCard.style.display = (footerEnabled && hbTop.length && hasHB) ? "" : "none";
+    if (el.splashHBCard) el.splashHBCard.style.display = hasHB ? "" : "none";
 
     // If HB is hidden, slightly bump the upcoming card scale
-    try{ if(el.root) el.root.classList.toggle('splashNoHB', !(footerEnabled && hbTop.length && hasHB)); }catch(_){ }
+    try{ if(el.root) el.root.classList.toggle('splashNoHB', !hasHB); }catch(_){ }
 
   }
 
@@ -1575,11 +1659,16 @@
     // Next/Deck
     renderNextDeckStatic();
 
-    // House Band footer (LIVE)
-    const hbK = hbKey();
-    if (hbK !== lastHbLiveKey) {
-      lastHbLiveKey = hbK;
-      renderHouseBandLineup(el.hbLiveLineup, { compact: true });
+    // House Band roster appears during intermission only, not regular or HB live slots.
+    const hbK = houseBandRosterStateKey();
+    if (shouldShowLiveHouseBandRoster(cur)) {
+      if (hbK !== lastHbLiveKey) {
+        lastHbLiveKey = hbK;
+        renderHouseBandLineup(el.hbLiveLineup, { compact: true });
+      }
+    } else {
+      lastHbLiveKey = null;
+      clearHouseBandRoster(el.hbLiveLineup);
     }
 
   }
@@ -1780,10 +1869,7 @@ function renderStateDriven() {
       renderAdSlot(cur).catch(() => {});
     } else {
       setAdVisible(false);
-      // Footer visibility may change if HB changes (toggle handled by state)
-      const hbHasAny = OMJN.getHouseBandTopPerCategory(state).length > 0;
-      const footerEnabled = state.viewerPrefs?.showHouseBandFooter !== false;
-      showLiveShell(footerEnabled && hbHasAny);
+      showLiveShell(shouldShowLiveHouseBandRoster(cur));
       renderLiveStatic();
     }
 
@@ -1930,12 +2016,19 @@ function renderStateDriven() {
     syncViewerLayoutMetrics();
     scheduleAdaptiveTextFit();
     lastSponsorKey = null;
+    lastHbSplashKey = null;
+    lastHbLiveKey = null;
     setSponsorBug().catch(() => {});
     resizeVizCanvas();
+    renderVisibleHouseBandRoster();
   });
 
   renderStateDriven();
 
   // Cheap live timer updates
   setInterval(updateTimerAndCues, 120);
+  setInterval(() => {
+    hbRosterCycleIndex = (hbRosterCycleIndex + 1) % 100000;
+    renderVisibleHouseBandRoster();
+  }, HB_ROSTER_CYCLE_MS);
 })();

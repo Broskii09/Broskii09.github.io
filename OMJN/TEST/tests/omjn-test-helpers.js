@@ -150,7 +150,7 @@ async function addHouseBandMember(page, name, instrumentId = "guitar"){
   await page.locator("#hbAddInstrument").selectOption(instrumentId);
   await page.locator("#btnAddHBQ").click();
 
-  const memberInput = page.locator(`#hbCat_${categoryKey} input[type="text"]`).first();
+  const memberInput = page.locator(`#hbCat_${categoryKey} .queueItem`).last().locator('input[type="text"]').first();
   await expect(memberInput).toHaveValue(name);
   return memberInput;
 }

@@ -4962,11 +4962,6 @@ function render(){
         media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
       };
 
-      // Smart reorder: if you skip the suggested (top) player, keep them NEXT.
-      for(const [catKey, memberId] of Object.entries(selections)){
-        OMJN.reorderHouseBandCategorySelectedWithSuggestedNext(s, catKey, memberId);
-      }
-
       const afterPaperSlotNumber = Math.round(Number(hbBuildCtx?.afterPaperSlotNumber || 0)) || null;
       if(afterPaperSlotNumber) insertSpecialAfterPaperSlot(s, slot, afterPaperSlotNumber);
       else insertQueuedSlotSmart(s, slot);

@@ -2244,6 +2244,64 @@ hr.sep{
 }
 .vBandLine.compact{gap:8px; overflow:hidden;}
 
+.vBandLine.hbRoster,
+.vFooterBandLine.hbRoster{
+  flex:1 1 auto;
+  flex-wrap:wrap;
+  align-items:stretch;
+  gap:8px;
+  min-width:0;
+  white-space:normal;
+}
+.vSplashHB .hbRoster{
+  max-height:clamp(64px, 12vh, 116px);
+  overflow:hidden;
+}
+.vFooterBandLine.hbRoster{
+  flex-wrap:nowrap;
+  overflow:hidden;
+}
+.hbRosterGroup{
+  display:grid;
+  grid-template-columns:auto minmax(0, 1fr);
+  align-items:baseline;
+  gap:7px;
+  min-width:0;
+  flex:1 1 210px;
+  max-width:100%;
+  padding:7px 9px;
+  border-radius:8px;
+  background:rgba(255,255,255,.055);
+  border:1px solid rgba(255,255,255,.09);
+}
+.hbRosterCategory{
+  color:var(--muted);
+  font-size:calc(12px * var(--hbLineupScale));
+  font-weight:900;
+}
+.hbRosterCategory::after{
+  content:":";
+}
+.hbRosterNames{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:var(--text);
+  font-size:calc(14px * var(--hbLineupScale));
+  font-weight:850;
+}
+.hbRosterCompact .hbRosterGroup{
+  flex-basis:260px;
+  padding:6px 8px;
+}
+.hbRosterCompact .hbRosterCategory{
+  font-size:calc(12px * var(--hbLineupScale));
+}
+.hbRosterCompact .hbRosterNames{
+  font-size:calc(15px * var(--hbLineupScale));
+}
+
 .hbChip{
   display:inline-flex;
   align-items:center;
@@ -2322,6 +2380,7 @@ hr.sep{
   display:flex;
   align-items:center;
   gap:10px;
+  flex:1 1 auto;
   min-width:0;
   overflow:hidden;
 }
@@ -4528,6 +4587,18 @@ details.hbAcc .hbCatList{
   .vBandLine{
     gap:6px;
   }
+  .vSplashHB .hbRoster{
+    max-height:88px;
+  }
+  .hbRosterGroup{
+    flex-basis:100%;
+    padding:6px 8px;
+    gap:6px;
+  }
+  .hbRosterCategory,
+  .hbRosterNames{
+    font-size:calc(12px * var(--hbLineupScale));
+  }
   .hbChip{
     padding:7px 9px;
     font-size: calc(12px * var(--hbLineupScale));
@@ -4597,6 +4668,9 @@ details.hbAcc .hbCatList{
   }
   .vSplashLeft{
     max-height:24vh;
+  }
+  .vSplashHB .hbRoster{
+    max-height:76px;
   }
   .vSplashInfo .vCard{
     padding:12px 14px;
