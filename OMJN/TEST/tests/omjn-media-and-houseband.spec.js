@@ -80,9 +80,12 @@ test.describe("OMJN TEST media and house band", () => {
     const viewer = await openViewerPage(context, pageErrors);
     await expect(viewer.locator("#root")).toHaveClass(/isSplash/, { timeout: 10000 });
     await expect(viewer.locator("#splashHBCard")).toBeVisible();
-    await expect(viewer.locator("#hbLineup")).toContainText("Guitar");
+    await expect(viewer.locator("#hbLineup .hbRosterHeadingPill")).toHaveText("Tonight's House Band Roster");
+    await expect(viewer.locator("#hbLineup .hbRosterCard")).toHaveCount(2);
+    await expect(viewer.locator("#hbLineup .hbRosterLabel")).toContainText(["Drummers", "Guitarists"]);
+    await expect(viewer.locator("#hbLineup")).toContainText("Guitarists");
     await expect(viewer.locator("#hbLineup")).toContainText("Roster Guitarist");
-    await expect(viewer.locator("#hbLineup")).toContainText("Drums");
+    await expect(viewer.locator("#hbLineup")).toContainText("Drummers");
     await expect(viewer.locator("#hbLineup")).toContainText("Roster Drummer");
     await expect(viewer.locator("#hbLineup")).not.toContainText("Bass");
 
@@ -92,9 +95,10 @@ test.describe("OMJN TEST media and house band", () => {
 
     await expect(viewer.locator("#nowLabel")).toHaveText("INTERMISSION", { timeout: 10000 });
     await expect(viewer.locator("#liveFooterBar")).toBeVisible();
-    await expect(viewer.locator("#hbLiveLineup")).toContainText("Guitar");
+    await expect(viewer.locator("#hbLiveLineup .hbRosterHeadingPill")).toHaveText("Tonight's House Band Roster");
+    await expect(viewer.locator("#hbLiveLineup")).toContainText("Guitarists");
     await expect(viewer.locator("#hbLiveLineup")).toContainText("Roster Guitarist");
-    await expect(viewer.locator("#hbLiveLineup")).toContainText("Drums");
+    await expect(viewer.locator("#hbLiveLineup")).toContainText("Drummers");
     await expect(viewer.locator("#hbLiveLineup")).toContainText("Roster Drummer");
     expect(pageErrors).toEqual([]);
   });
@@ -153,6 +157,34 @@ test.describe("OMJN TEST media and house band", () => {
     expect(pageErrors).toEqual([]);
   });
 
+  test("house band roster transition duration setting syncs to viewer", async ({ page, context }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    for (const name of ["Duration One", "Duration Two", "Duration Three", "Duration Four"]) {
+      await addHouseBandMember(page, name, "guitar");
+    }
+
+    const viewer = await openViewerPage(context, pageErrors);
+    await expect(viewer.locator("#hbLineup")).toHaveAttribute("data-hb-roster-transition-ms", "1100");
+
+    await page.locator("#setViewerHBRosterTransitionSec").evaluate((el, value) => {
+      el.value = value;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    }, "1.8");
+    await expect(viewer.locator("#hbLineup")).toHaveAttribute("data-hb-roster-transition-ms", "1800");
+
+    await page.locator("#setViewerHBRosterTransitionSec").evaluate((el, value) => {
+      el.value = value;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    }, "0.55");
+    await expect(viewer.locator("#hbLineup")).toHaveAttribute("data-hb-roster-transition-ms", "550");
+    expect(pageErrors).toEqual([]);
+  });
+
   test("house band roster stays compact across requested viewer widths", async ({ page, context }) => {
     const pageErrors = [];
     watchPageErrors(page, pageErrors);
@@ -172,17 +204,27 @@ test.describe("OMJN TEST media and house band", () => {
       await expect(viewer.locator("#splashHBCard")).toBeVisible();
       const metrics = await viewer.locator("#splashHBCard").evaluate((card) => {
         const line = card.querySelector("#hbLineup");
+        const currentPageCards = line.querySelectorAll(".hbRosterPage.isCurrent .hbRosterCard").length;
         const cr = card.getBoundingClientRect();
-        const lr = line.getBoundingClientRect();
+        const shell = line.querySelector(".hbRosterShell");
+        const sr = shell.getBoundingClientRect();
         return {
           cardHeight: cr.height,
-          lineHeight: lr.height,
+          cardWidth: cr.width,
+          shellHeight: sr.height,
+          shellWidth: sr.width,
           childCount: line.childElementCount,
+          currentPageCards,
         };
       });
       expect(metrics.childCount).toBeGreaterThan(0);
-      expect(metrics.cardHeight).toBeLessThanOrEqual(width <= 430 ? 150 : 190);
-      expect(metrics.lineHeight).toBeLessThanOrEqual(width <= 430 ? 90 : 125);
+      expect(metrics.currentPageCards).toBeGreaterThanOrEqual(1);
+      expect(metrics.currentPageCards).toBeLessThanOrEqual(2);
+      if (width >= 1024) expect(metrics.currentPageCards).toBe(2);
+      if (width <= 430) expect(metrics.currentPageCards).toBe(1);
+      expect(metrics.cardHeight).toBeLessThanOrEqual(width <= 430 ? 210 : 250);
+      expect(metrics.shellWidth).toBeLessThanOrEqual(metrics.cardWidth + 1);
+      expect(metrics.shellHeight).toBeLessThanOrEqual(width <= 430 ? 150 : 190);
     }
     expect(pageErrors).toEqual([]);
   });

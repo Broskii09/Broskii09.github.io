@@ -2157,7 +2157,7 @@ hr.sep{
   gap:18px;
   align-content:stretch;
 }
-.vSplashHB{ grid-area:hb; padding:16px 18px; }
+.vSplashHB{ grid-area:hb; padding:16px 18px; display:flex; justify-content:center; }
 
 .vSplashLeftCard{ padding:0; border-radius:24px; display:flex; align-items:center; justify-content:center; overflow:hidden; background:transparent; border:none; box-shadow:none; }
 .vSplashLeftCard img{ width:100%; height:100%; object-fit:contain; border-radius:18px; }
@@ -2244,62 +2244,154 @@ hr.sep{
 }
 .vBandLine.compact{gap:8px; overflow:hidden;}
 
-.vBandLine.hbRoster,
-.vFooterBandLine.hbRoster{
-  flex:1 1 auto;
-  flex-wrap:wrap;
-  align-items:stretch;
-  gap:8px;
-  min-width:0;
+#splashHBCard > h3,
+#liveFooterBar .vFooterBandTitle{
+  display:none;
+}
+
+.hbRosterHost{
+  display:block;
+  width:100%;
   white-space:normal;
 }
-.vSplashHB .hbRoster{
-  max-height:clamp(64px, 12vh, 116px);
-  overflow:hidden;
+.hbRosterShell{
+  --hbRosterTransitionMs: 1100ms;
+  width:100%;
+  max-width:min(980px, 100%);
+  margin:0 auto;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:12px;
+  text-align:center;
+  white-space:normal;
 }
-.vFooterBandLine.hbRoster{
-  flex-wrap:nowrap;
-  overflow:hidden;
+.hbRosterShellCompact{
+  max-width:min(940px, 100%);
+  gap:10px;
 }
-.hbRosterGroup{
-  display:grid;
-  grid-template-columns:auto minmax(0, 1fr);
-  align-items:baseline;
-  gap:7px;
-  min-width:0;
-  flex:1 1 210px;
-  max-width:100%;
-  padding:7px 9px;
-  border-radius:8px;
-  background:rgba(255,255,255,.055);
-  border:1px solid rgba(255,255,255,.09);
-}
-.hbRosterCategory{
-  color:var(--muted);
-  font-size:calc(12px * var(--hbLineupScale));
-  font-weight:900;
-}
-.hbRosterCategory::after{
-  content:":";
-}
-.hbRosterNames{
-  min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
+.hbRosterHeadingPill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:36px;
+  padding:8px 18px;
+  border-radius:999px;
+  background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.16);
+  box-shadow:0 10px 26px rgba(0,0,0,.18);
   color:var(--text);
   font-size:calc(14px * var(--hbLineupScale));
+  font-weight:950;
+}
+.hbRosterShellCompact .hbRosterHeadingPill{
+  min-height:34px;
+  padding:7px 16px;
+  font-size:calc(13px * var(--hbLineupScale));
+}
+.hbRosterViewport{
+  position:relative;
+  width:100%;
+  overflow:hidden;
+  display:flex;
+  justify-content:center;
+}
+.hbRosterTrack{
+  position:relative;
+  width:min(980px, 100%);
+  min-height:136px;
+}
+.hbRosterTrackCompact{
+  width:min(940px, 100%);
+  min-height:118px;
+}
+.hbRosterPage{
+  position:absolute;
+  inset:0;
+  width:100%;
+  display:grid;
+  grid-template-columns:repeat(var(--hbRosterCols), minmax(0, 1fr));
+  align-content:center;
+  justify-content:center;
+  gap:14px;
+  opacity:0;
+  transform:translateX(100%);
+  pointer-events:none;
+  white-space:normal;
+}
+.hbRosterPage.isCurrent{
+  position:relative;
+  opacity:1;
+  transform:translateX(0);
+  pointer-events:auto;
+}
+.hbRosterPage.isNext{
+  opacity:.01;
+  transform:translateX(100%);
+}
+.hbRosterTrack.isAnimating .hbRosterPage.isCurrent{
+  transition:
+    transform var(--hbRosterTransitionMs) cubic-bezier(.22,.61,.36,1),
+    opacity calc(var(--hbRosterTransitionMs) * .8) ease;
+  transform:translateX(-100%);
+  opacity:0;
+}
+.hbRosterTrack.isAnimating .hbRosterPage.isNext{
+  transition:
+    transform var(--hbRosterTransitionMs) cubic-bezier(.22,.61,.36,1),
+    opacity calc(var(--hbRosterTransitionMs) * .65) ease;
+  transform:translateX(0);
+  opacity:1;
+}
+.hbRosterPage[data-count="1"]{
+  max-width:min(680px, 100%);
+  margin:0 auto;
+}
+.hbRosterPage[data-count="2"]{
+  max-width:min(920px, 100%);
+  margin:0 auto;
+}
+.hbRosterCard{
+  min-height:100px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:14px 18px;
+  border-radius:22px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.11);
+  box-shadow:0 18px 38px rgba(0,0,0,.20);
+  backdrop-filter:blur(6px);
+}
+.hbRosterPageCompact .hbRosterCard{
+  min-height:88px;
+  padding:12px 16px;
+  gap:8px;
+  border-radius:20px;
+}
+.hbRosterLabel{
+  display:block;
+  color:var(--muted);
+  font-size:calc(15px * var(--hbLineupScale));
   font-weight:850;
 }
-.hbRosterCompact .hbRosterGroup{
-  flex-basis:260px;
-  padding:6px 8px;
+.hbRosterNames{
+  display:block;
+  color:var(--text);
+  font-size:calc(21px * var(--hbLineupScale));
+  line-height:1.22;
+  font-weight:950;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  text-wrap:balance;
 }
-.hbRosterCompact .hbRosterCategory{
-  font-size:calc(12px * var(--hbLineupScale));
+.hbRosterPageCompact .hbRosterLabel{
+  font-size:calc(14px * var(--hbLineupScale));
 }
-.hbRosterCompact .hbRosterNames{
-  font-size:calc(15px * var(--hbLineupScale));
+.hbRosterPageCompact .hbRosterNames{
+  font-size:calc(18px * var(--hbLineupScale));
 }
 
 .hbChip{
@@ -2350,6 +2442,7 @@ hr.sep{
   backdrop-filter: blur(8px);
   display:flex;
   align-items:center;
+  justify-content:center;
   gap:18px;
   overflow:hidden;
   white-space:nowrap;
@@ -2379,6 +2472,7 @@ hr.sep{
 .vFooterBand{
   display:flex;
   align-items:center;
+  justify-content:center;
   gap:10px;
   flex:1 1 auto;
   min-width:0;
@@ -4587,17 +4681,29 @@ details.hbAcc .hbCatList{
   .vBandLine{
     gap:6px;
   }
-  .vSplashHB .hbRoster{
-    max-height:88px;
+  .hbRosterShell{
+    gap:10px;
   }
-  .hbRosterGroup{
-    flex-basis:100%;
-    padding:6px 8px;
-    gap:6px;
-  }
-  .hbRosterCategory,
-  .hbRosterNames{
+  .hbRosterHeadingPill{
+    min-height:34px;
+    padding:7px 14px;
     font-size:calc(12px * var(--hbLineupScale));
+  }
+  .hbRosterTrack,
+  .hbRosterTrackCompact{
+    min-height:104px;
+  }
+  .hbRosterCard{
+    min-height:86px;
+    padding:11px 13px;
+    gap:7px;
+    border-radius:18px;
+  }
+  .hbRosterLabel{
+    font-size:calc(13px * var(--hbLineupScale));
+  }
+  .hbRosterNames{
+    font-size:calc(16px * var(--hbLineupScale));
   }
   .hbChip{
     padding:7px 9px;
@@ -4669,8 +4775,28 @@ details.hbAcc .hbCatList{
   .vSplashLeft{
     max-height:24vh;
   }
-  .vSplashHB .hbRoster{
-    max-height:76px;
+  .hbRosterShell{
+    gap:8px;
+  }
+  .hbRosterHeadingPill{
+    min-height:32px;
+    padding:6px 12px;
+    font-size:calc(11px * var(--hbLineupScale));
+  }
+  .hbRosterTrack,
+  .hbRosterTrackCompact{
+    min-height:94px;
+  }
+  .hbRosterCard{
+    min-height:78px;
+    padding:10px 12px;
+    gap:6px;
+  }
+  .hbRosterLabel{
+    font-size:calc(12px * var(--hbLineupScale));
+  }
+  .hbRosterNames{
+    font-size:calc(15px * var(--hbLineupScale));
   }
   .vSplashInfo .vCard{
     padding:12px 14px;

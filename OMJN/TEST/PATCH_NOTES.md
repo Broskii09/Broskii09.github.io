@@ -1,40 +1,36 @@
 # Summary
-- Updates the TEST Viewer House Band display to default to a full active roster by category.
-- Shows the roster on splash and active intermission only.
-- Hides the roster during active House Band slots, where the manually selected set remains the main display.
-- Adds compact roster paging/cycling so tight screens and long categories eventually show every active name.
-- Keeps House Band category rotation tied to the real category queues and moves selected set members to the bottom only when that House Band slot ends.
+- Refines TEST queue behavior so moving a performer into a blank numbered slot swaps directly with that blank instead of shifting the whole numbered paper queue.
+- Adds manual blank-slot controls for moving and deleting blank rows.
+- Adds confirmation-gated `Delete Blank` behavior that removes the blank row, renumbers later active paper slots to close that gap, and re-anchors following special slots from visible queue order.
+- Preserves existing special-slot, ad, intermission, House Band, viewer sync, and smoke behaviors.
 
 # File list
-- OMJN/TEST/shared.js
 - OMJN/TEST/operator.js
-- OMJN/TEST/viewer.js
-- OMJN/TEST/app.css
-- OMJN/TEST/tests/omjn-media-and-houseband.spec.js
+- OMJN/TEST/tests/omjn-queue-state.spec.js
+- OMJN/TEST/tests/omjn-special-slots.spec.js
 - OMJN/TEST/tests/omjn-test-helpers.js
 - OMJN/TEST/PATCH_NOTES.md
 
 # Install steps (exact paths)
-1. Copy `shared.js` to `OMJN/TEST/shared.js`.
-2. Copy `operator.js` to `OMJN/TEST/operator.js`.
-3. Copy `viewer.js` to `OMJN/TEST/viewer.js`.
-4. Copy `app.css` to `OMJN/TEST/app.css`.
-5. Copy `tests/omjn-media-and-houseband.spec.js` to `OMJN/TEST/tests/omjn-media-and-houseband.spec.js`.
-6. Copy `tests/omjn-test-helpers.js` to `OMJN/TEST/tests/omjn-test-helpers.js`.
-7. Keep `PATCH_NOTES.md` with the patch archive for reference.
+1. Copy `operator.js` to `OMJN/TEST/operator.js`.
+2. Copy `tests/omjn-queue-state.spec.js` to `OMJN/TEST/tests/omjn-queue-state.spec.js`.
+3. Copy `tests/omjn-special-slots.spec.js` to `OMJN/TEST/tests/omjn-special-slots.spec.js`.
+4. Copy `tests/omjn-test-helpers.js` to `OMJN/TEST/tests/omjn-test-helpers.js`.
+5. Keep `PATCH_NOTES.md` with the patch archive for reference.
 
 # Smoke test checklist
-- From `OMJN/TEST`, run `npm.cmd run test:media-houseband`.
+- From `OMJN/TEST`, run `npm.cmd run test:queue-state`.
+- From `OMJN/TEST`, run `npm.cmd run test:special-slots`.
 - From `OMJN/TEST`, run `npm.cmd run test:smoke:all`.
-- Confirm the Viewer splash shows grouped House Band categories when active House Band members exist.
-- Confirm active intermission shows the grouped House Band roster in the compact footer.
-- Confirm active House Band slots do not show the full roster footer.
-- Confirm the House Band tab category order changes only after ending a House Band slot with selected players.
+- Confirm moving a performer into an earlier blank fills that blank and moves the blank to the old performer position.
+- Confirm blank rows now show `Delete Blank`, prompt for confirmation, and renumber later active paper slots right away.
+- Confirm a special visually following a deleted blank stays in the same visible queue spot after re-anchor.
+- Confirm special-slot drag/drop and arrow/button moves still work.
 
 # Known risks/limitations
-- The new display mode shows active House Band members. Inactive members remain available in the Operator roster but are hidden from the Viewer roster.
-- The existing `HB Footer` toggle still controls this secondary Viewer roster visibility; the label was preserved to avoid a broader Operator redesign.
-- Roster cycling uses viewport-width buckets and a fixed timer rather than measuring every rendered word, keeping the change small and predictable.
+- Explicit blank deletion now allows the active paper-slot count to shrink below the initial default until the operator adds more open slots again.
+- Renumbering after blank deletion respects preserved retired/completed slot numbers, so historical numbering can still create intentional gaps outside the active blank being removed.
+- Blank rows are movable through the existing up/down controls; this patch does not redesign performer drag/drop to cover numbered paper rows.
 
 # Target environment
 - TEST directory only: `OMJN/TEST`.

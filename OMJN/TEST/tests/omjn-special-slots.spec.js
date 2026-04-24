@@ -4,6 +4,7 @@ const {
   addHouseBandMember,
   addHouseBandSetAfterFirstOpenSlot,
   addIntermissionAfterFirstOpenSlot,
+  addPerformerFromFirstOpenSlot,
   endCurrentToSplash,
   openViewerPage,
   startNextPerformer,
@@ -85,6 +86,55 @@ test.describe("OMJN TEST special slots", () => {
     const houseBandRow = await addHouseBandSetAfterFirstOpenSlot(page, "Move Guitarist");
     await houseBandRow.locator(".qActionDown").click();
     await expect(page.locator('.queueItem[data-slot-type="houseband"]').filter({ hasText: "Move Guitarist" })).toContainText("After #2");
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("special slots can still be drag-dropped within the active queue", async ({ page }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+
+    const intermissionRow = await addIntermissionAfterFirstOpenSlot(page, "DRAG BREAK", "DRAG TEST INTERMISSION");
+    const adRow = await addGraphicAdAfterFirstOpenSlot(page, "Drag Graphic Ad");
+
+    await adRow.dragTo(intermissionRow);
+
+    const activeRows = page.locator("#queue > .queueItem");
+    await expect(activeRows.nth(1)).toContainText("Drag Graphic Ad");
+    await expect(activeRows.nth(2)).toContainText("DRAG BREAK");
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("deleting a blank slot keeps a following special in the same visual queue position", async ({ page }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    await addPerformerFromFirstOpenSlot(page, "Anchor One");
+    const secondPerformer = await addPerformerFromFirstOpenSlot(page, "Anchor Two");
+
+    page.once("dialog", dialog => dialog.accept("3"));
+    await secondPerformer.getByRole("button", { name: "Move #" }).click();
+
+    const intermissionRow = await addIntermissionAfterFirstOpenSlot(page, "Anchor Break", "ANCHOR TEST INTERMISSION");
+    await expect(intermissionRow).toContainText("After #2");
+
+    let confirmMessage = "";
+    page.once("dialog", dialog => {
+      confirmMessage = dialog.message();
+      dialog.accept();
+    });
+    await page.locator('.paperSlotEmpty[data-paper-slot="2"]').getByRole("button", { name: "Delete Blank" }).click();
+
+    expect(confirmMessage).toContain("Delete blank Open Slot #2");
+    const activeRows = page.locator("#queue > .queueItem");
+    await expect(activeRows.nth(0)).toContainText("#1");
+    await expect(activeRows.nth(0)).toContainText("Anchor One");
+    await expect(activeRows.nth(1)).toContainText("ANCHOR BREAK");
+    await expect(activeRows.nth(1)).toContainText("After #1");
+    await expect(activeRows.nth(2)).toContainText("#2");
+    await expect(activeRows.nth(2)).toContainText("Anchor Two");
     expect(pageErrors).toEqual([]);
   });
 

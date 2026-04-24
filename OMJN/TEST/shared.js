@@ -259,6 +259,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         uiScale: 1.0, // manual font scale multiplier (Operator slider)
         nameScale: 2.10, // performer names multiplier (default ~2.1×)
         hbLineupScale: 1.00, // house band lineup text multiplier
+        hbRosterTransitionSec: 1.10, // roster ticker slide duration
         upcomingScale: 1.00, // splash/live upcoming cards multiplier
         framePaddingPx: 48, // viewer edge padding (helps avoid browser zoom hacks on projectors)
         mediaPaneScale: 1.00, // right-side media pane width multiplier
@@ -435,6 +436,7 @@ if(!s.operatorPrefs) s.operatorPrefs = { startGuard:true, endGuard:true, hotkeys
       if(s.viewerPrefs.uiScale === undefined) s.viewerPrefs.uiScale = 1.0;
       if(s.viewerPrefs.nameScale === undefined) s.viewerPrefs.nameScale = 2.10;
       if(s.viewerPrefs.hbLineupScale === undefined) s.viewerPrefs.hbLineupScale = 1.00;
+      if(s.viewerPrefs.hbRosterTransitionSec === undefined) s.viewerPrefs.hbRosterTransitionSec = 1.10;
       if(s.viewerPrefs.upcomingScale === undefined) s.viewerPrefs.upcomingScale = 1.00;
       if(s.viewerPrefs.framePaddingPx === undefined) s.viewerPrefs.framePaddingPx = 48;
       if(s.viewerPrefs.mediaPaneScale === undefined) s.viewerPrefs.mediaPaneScale = 1.00;

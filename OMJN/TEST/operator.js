@@ -48,6 +48,8 @@ setBgColor: document.getElementById("setBgColor"),
     setViewerNameScaleVal: document.getElementById("setViewerNameScaleVal"),
     setViewerHBScale: document.getElementById("setViewerHBScale"),
     setViewerHBScaleVal: document.getElementById("setViewerHBScaleVal"),
+    setViewerHBRosterTransitionSec: document.getElementById("setViewerHBRosterTransitionSec"),
+    setViewerHBRosterTransitionSecVal: document.getElementById("setViewerHBRosterTransitionSecVal"),
     setViewerUpcomingScale: document.getElementById("setViewerUpcomingScale"),
     setViewerUpcomingScaleVal: document.getElementById("setViewerUpcomingScaleVal"),
     setViewerPadPx: document.getElementById("setViewerPadPx"),
@@ -452,7 +454,7 @@ setBgColor: document.getElementById("setBgColor"),
     if(!Number.isFinite(Number(s.operatorPrefs.paperSlotCount))){
       s.operatorPrefs.paperSlotCount = PAPER_SLOT_DEFAULT_COUNT;
     }
-    s.operatorPrefs.paperSlotCount = Math.max(PAPER_SLOT_DEFAULT_COUNT, Math.round(Number(s.operatorPrefs.paperSlotCount) || PAPER_SLOT_DEFAULT_COUNT));
+    s.operatorPrefs.paperSlotCount = Math.max(0, Math.round(Number(s.operatorPrefs.paperSlotCount) || 0));
     if(!Array.isArray(s.operatorPrefs.retiredPaperSlots)) s.operatorPrefs.retiredPaperSlots = [];
     s.operatorPrefs.retiredPaperSlots = Array.from(new Set(
       s.operatorPrefs.retiredPaperSlots
@@ -517,7 +519,7 @@ setBgColor: document.getElementById("setBgColor"),
       }
     }
 
-    prefs.paperSlotCount = Math.max(PAPER_SLOT_DEFAULT_COUNT, maxNumber);
+    prefs.paperSlotCount = Math.max(0, maxNumber);
 
     const occupied = new Set(
       s.queue
@@ -556,6 +558,42 @@ setBgColor: document.getElementById("setBgColor"),
     normalizePaperSlotState(s);
   }
 
+  function reservedPaperSlotNumbers(s){
+    const prefs = ensureOperatorPrefs(s);
+    const reserved = new Set(
+      (prefs.retiredPaperSlots || [])
+        .map(n => Math.round(Number(n)))
+        .filter(n => Number.isFinite(n) && n > 0)
+    );
+    for(const slot of (s.queue || [])){
+      if(!slot || !isPaperSlot(slot) || !isDoneStatus(slot.status)) continue;
+      const n = paperSlotNumber(slot);
+      if(n) reserved.add(n);
+    }
+    return reserved;
+  }
+
+  function compactActivePaperSlotsAfterNumber(s, startNumber){
+    const start = Math.max(1, Math.round(Number(startNumber || 0)) || 1);
+    const reserved = reservedPaperSlotNumbers(s);
+    const activePaper = (s.queue || [])
+      .filter(slot => slot && isPaperSlot(slot) && !isDoneStatus(slot.status))
+      .sort((a,b) => (paperSlotNumber(a) || 0) - (paperSlotNumber(b) || 0));
+
+    let nextNumber = start;
+    for(const slot of activePaper){
+      const current = paperSlotNumber(slot);
+      if(!current || current < start) continue;
+      while(reserved.has(nextNumber)) nextNumber++;
+      slot.paperSlotNumber = nextNumber;
+      nextNumber++;
+    }
+
+    const prefs = ensureOperatorPrefs(s);
+    const activeMax = activePaper.reduce((max, slot) => Math.max(max, paperSlotNumber(slot) || 0), 0);
+    prefs.paperSlotCount = Math.max(0, activeMax);
+  }
+
   function movePaperSlotNumberInState(s, slotId, destinationNumber){
     normalizePaperSlotState(s);
     const dest = Math.round(Number(destinationNumber || 0));
@@ -582,6 +620,13 @@ setBgColor: document.getElementById("setBgColor"),
     const activePaper = (s.queue || []).filter(x =>
       x && x.id !== slotId && isPaperSlot(x) && !isDoneStatus(x.status)
     );
+    const targetSlot = activePaper.find(x => paperSlotNumber(x) === dest) || null;
+
+    if(targetSlot && (isPaperPlaceholder(targetSlot) || isPaperPlaceholder(moving))){
+      targetSlot.paperSlotNumber = from;
+      moving.paperSlotNumber = dest;
+      return true;
+    }
 
     if(dest < from){
       for(const slot of activePaper){
@@ -597,6 +642,37 @@ setBgColor: document.getElementById("setBgColor"),
 
     moving.paperSlotNumber = dest;
     return true;
+  }
+
+  function deleteBlankPaperSlot(slotId){
+    const slot = state.queue.find(x => x && x.id === slotId);
+    if(!slot || !isPaperPlaceholder(slot) || isDoneStatus(slot.status)) return;
+    const n = paperSlotNumber(slot);
+    const ok = confirm(`Delete blank Open Slot #${n}? Later active slots will renumber to close the gap.`);
+    if(!ok) return;
+
+    if(selectedId === slotId) selectedId = null;
+    if(editingId === slotId) closeInlineEdit();
+
+    updateState(s => {
+      const idx = s.queue.findIndex(x => x && x.id === slotId);
+      if(idx < 0) return;
+      const blank = s.queue[idx];
+      if(!blank || !isPaperPlaceholder(blank) || isDoneStatus(blank.status)) return;
+      const removedNumber = paperSlotNumber(blank);
+
+      s.queue.splice(idx, 1);
+
+      const prefs = ensureOperatorPrefs(s);
+      prefs.retiredPaperSlots = (prefs.retiredPaperSlots || [])
+        .map(value => Math.round(Number(value)))
+        .filter(value => Number.isFinite(value) && value > 0 && value !== removedNumber);
+
+      if(removedNumber) compactActivePaperSlotsAfterNumber(s, removedNumber);
+      else prefs.paperSlotCount = Math.max(0, Math.round(Number(prefs.paperSlotCount || 0)));
+
+      syncSpecialAnchorsToCurrentOrder(s);
+    });
   }
 
   function insertSpecialAfterPaperSlot(s, slot, paperNumber){
@@ -2090,6 +2166,13 @@ function escapeHtml(s){
       if(els.setViewerHBScaleVal) els.setViewerHBScaleVal.textContent = `${v.toFixed(2)}×`;
     }
 
+    if(els.setViewerHBRosterTransitionSec){
+      const raw = Number(state.viewerPrefs?.hbRosterTransitionSec ?? 1.10);
+      const v = Number.isFinite(raw) ? clamp(raw, 0.40, 3.00) : 1.10;
+      els.setViewerHBRosterTransitionSec.value = String(v);
+      if(els.setViewerHBRosterTransitionSecVal) els.setViewerHBRosterTransitionSecVal.textContent = formatCutSeconds(v);
+    }
+
     if(els.setViewerUpcomingScale){
       const raw = Number(state.viewerPrefs?.upcomingScale ?? 1.00);
       const v = Number.isFinite(raw) ? clamp(raw, 0.75, 1.30) : 1.00;
@@ -2498,6 +2581,20 @@ function escapeHtml(s){
       };
       els.setViewerHBScale.addEventListener("input", onInput);
       els.setViewerHBScale.addEventListener("change", onInput);
+    }
+
+    if(els.setViewerHBRosterTransitionSec){
+      const onInput = () => {
+        const v = clamp(parseFloat(String(els.setViewerHBRosterTransitionSec.value||"1.10")), 0.40, 3.00);
+        els.setViewerHBRosterTransitionSec.value = String(v);
+        if(els.setViewerHBRosterTransitionSecVal) els.setViewerHBRosterTransitionSecVal.textContent = formatCutSeconds(v);
+        updateState(s => {
+          s.viewerPrefs = s.viewerPrefs || {};
+          s.viewerPrefs.hbRosterTransitionSec = v;
+        }, { recordHistory:false });
+      };
+      els.setViewerHBRosterTransitionSec.addEventListener("input", onInput);
+      els.setViewerHBRosterTransitionSec.addEventListener("change", onInput);
     }
 
     if(els.setViewerUpcomingScale){
@@ -2968,6 +3065,7 @@ function escapeHtml(s){
     enhanceSettingValue(els.setViewerUiScale, els.setViewerUiScaleVal, 1.00, "viewer font scale");
     enhanceSettingValue(els.setViewerNameScale, els.setViewerNameScaleVal, 2.10, "performer name size");
     enhanceSettingValue(els.setViewerHBScale, els.setViewerHBScaleVal, 1.00, "house band text size");
+    enhanceSettingValue(els.setViewerHBRosterTransitionSec, els.setViewerHBRosterTransitionSecVal, 1.10, "house band roster ticker transition");
     enhanceSettingValue(els.setViewerUpcomingScale, els.setViewerUpcomingScaleVal, 1.00, "upcoming card text scale");
     enhanceSettingValue(els.setViewerPadPx, els.setViewerPadPxVal, 48, "viewer edge padding");
     enhanceSettingValue(els.setViewerMediaPaneScale, els.setViewerMediaPaneScaleVal, 1.00, "media pane width scale");
@@ -3218,6 +3316,40 @@ function escapeHtml(s){
       toggleInlineEdit(slot.id);
     });
     actions.appendChild(add);
+
+    const btnUp = document.createElement("button");
+    btnUp.className = "btn tiny qActionReorder qActionUp";
+    btnUp.type = "button";
+    btnUp.textContent = "↑";
+    btnUp.title = "Move blank up";
+    btnUp.addEventListener("click", (e) => {
+      e.stopPropagation();
+      moveSlot(slot.id, -1);
+    });
+    actions.appendChild(btnUp);
+
+    const btnDn = document.createElement("button");
+    btnDn.className = "btn tiny qActionReorder qActionDown";
+    btnDn.type = "button";
+    btnDn.textContent = "↓";
+    btnDn.title = "Move blank down";
+    btnDn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      moveSlot(slot.id, +1);
+    });
+    actions.appendChild(btnDn);
+
+    const btnDelete = document.createElement("button");
+    btnDelete.className = "btn tiny danger qActionDeleteBlank";
+    btnDelete.type = "button";
+    btnDelete.textContent = "Delete Blank";
+    btnDelete.title = "Delete this blank slot and renumber later active slots";
+    btnDelete.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteBlankPaperSlot(slot.id);
+    });
+    actions.appendChild(btnDelete);
+
     addSpecialButtons(actions, paperSlotNumber(slot));
 
     div.appendChild(handle);
@@ -3254,6 +3386,7 @@ function escapeHtml(s){
     div.draggable = (slot.status === "QUEUED") && !isLive && !isDone && !pNum && (editingId !== slot.id);
     div.dataset.id = slot.id;
     div.dataset.slotType = String(slot.slotTypeId || "");
+    if(pNum) div.dataset.paperSlot = String(pNum);
     if(t?.color) div.style.borderLeft = `6px solid ${t.color}`;
 
     // Role-based styling for quick scanning (broadcast-style)

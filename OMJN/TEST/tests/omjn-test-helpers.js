@@ -39,6 +39,7 @@ async function expectOpenSlotActionsFit(slot){
 
 async function addPerformerFromFirstOpenSlot(page, name, notes = ""){
   const firstSlot = page.locator(".paperSlotEmpty").first();
+  const paperSlot = (await firstSlot.getAttribute("data-paper-slot")) || "";
   await firstSlot.getByRole("button", { name: "Add Performer" }).click();
 
   const expander = page.locator(".qExpander").first();
@@ -51,7 +52,7 @@ async function addPerformerFromFirstOpenSlot(page, name, notes = ""){
   await expander.getByRole("button", { name: "Save" }).click();
 
   const performerRow = page.locator(".queueItem").filter({ hasText: name });
-  await expect(performerRow).toContainText("#1");
+  if(paperSlot) await expect(performerRow).toContainText(`#${paperSlot}`);
   return performerRow;
 }
 
@@ -75,9 +76,11 @@ async function endCurrentToSplash(page){
 }
 
 async function addIntermissionAfterFirstOpenSlot(page, title, message){
-  await page.locator(".paperSlotEmpty").first().getByRole("button", { name: "Intermission After" }).click();
+  const firstSlot = page.locator(".paperSlotEmpty").first();
+  const paperSlot = (await firstSlot.getAttribute("data-paper-slot")) || "";
+  await firstSlot.getByRole("button", { name: "Intermission After" }).click();
   await expect(page.locator("#intermissionModal")).toBeVisible();
-  await expect(page.locator("#btnImAdd")).toHaveText("Add After #1");
+  if(paperSlot) await expect(page.locator("#btnImAdd")).toHaveText(`Add After #${paperSlot}`);
   await page.locator("#imName").fill(title);
   await page.locator("#imMsg").fill(message);
   await page.locator("#imDur5").click();
@@ -87,7 +90,7 @@ async function addIntermissionAfterFirstOpenSlot(page, title, message){
   const intermissionRow = page.locator(".queueItem").filter({ hasText: title });
   await expect(intermissionRow).toBeVisible();
   await expect(intermissionRow).toContainText("Intermission");
-  await expect(intermissionRow).toContainText("After #1");
+  if(paperSlot) await expect(intermissionRow).toContainText(`After #${paperSlot}`);
   return intermissionRow;
 }
 
@@ -95,7 +98,9 @@ async function addGraphicAdAfterFirstOpenSlot(page, label){
   const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='800' height='450'><rect width='800' height='450' fill='%23001524'/><text x='400' y='240' fill='white' font-size='64' font-family='Arial' text-anchor='middle'>SMOKE AD</text></svg>";
   const dataUrl = `data:image/svg+xml,${svg}`;
 
-  await page.locator(".paperSlotEmpty").first().getByRole("button", { name: "Ad After" }).click();
+  const firstSlot = page.locator(".paperSlotEmpty").first();
+  const paperSlot = (await firstSlot.getAttribute("data-paper-slot")) || "";
+  await firstSlot.getByRole("button", { name: "Ad After" }).click();
   await expect(page.locator("#adModal")).toBeVisible();
   await expect(page.locator("#btnAdSave")).toHaveText("Add to Queue");
   await page.locator("#adLabel").fill(label);
@@ -108,14 +113,16 @@ async function addGraphicAdAfterFirstOpenSlot(page, label){
   const adRow = page.locator(".queueItem").filter({ hasText: label });
   await expect(adRow).toBeVisible();
   await expect(adRow).toContainText("Ad");
-  await expect(adRow).toContainText("After #1");
+  if(paperSlot) await expect(adRow).toContainText(`After #${paperSlot}`);
   return adRow;
 }
 
 async function addVideoAdAfterFirstOpenSlot(page, label){
   const tinyVideoUrl = "data:video/mp4;base64,AAAA";
 
-  await page.locator(".paperSlotEmpty").first().getByRole("button", { name: "Ad After" }).click();
+  const firstSlot = page.locator(".paperSlotEmpty").first();
+  const paperSlot = (await firstSlot.getAttribute("data-paper-slot")) || "";
+  await firstSlot.getByRole("button", { name: "Ad After" }).click();
   await expect(page.locator("#adModal")).toBeVisible();
   await page.locator("#adLabel").fill(label);
   await page.locator("#adKind").selectOption("video");
@@ -129,7 +136,7 @@ async function addVideoAdAfterFirstOpenSlot(page, label){
   const adRow = page.locator(".queueItem").filter({ hasText: label });
   await expect(adRow).toBeVisible();
   await expect(adRow).toContainText("Ad");
-  await expect(adRow).toContainText("After #1");
+  if(paperSlot) await expect(adRow).toContainText(`After #${paperSlot}`);
   return adRow;
 }
 
@@ -158,7 +165,9 @@ async function addHouseBandMember(page, name, instrumentId = "guitar"){
 async function addHouseBandSetAfterFirstOpenSlot(page, memberName){
   await page.locator("#tabBtnPerformers").click();
   await expect(page.locator("#tabPerformers")).toBeVisible();
-  await page.locator(".paperSlotEmpty").first().getByRole("button", { name: "House Band After" }).click();
+  const firstSlot = page.locator(".paperSlotEmpty").first();
+  const paperSlot = (await firstSlot.getAttribute("data-paper-slot")) || "";
+  await firstSlot.getByRole("button", { name: "House Band After" }).click();
 
   await expect(page.locator("#hbBuildModal")).toBeVisible();
   await expect(page.locator("#hbPreviewNames")).toContainText(memberName);
@@ -169,7 +178,7 @@ async function addHouseBandSetAfterFirstOpenSlot(page, memberName){
   const houseBandRow = page.locator('.queueItem[data-slot-type="houseband"]').filter({ hasText: "HOUSE BAND" });
   await expect(houseBandRow).toBeVisible();
   await expect(houseBandRow).toContainText(memberName);
-  await expect(houseBandRow).toContainText("After #1");
+  if(paperSlot) await expect(houseBandRow).toContainText(`After #${paperSlot}`);
   return houseBandRow;
 }
 
