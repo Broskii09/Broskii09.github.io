@@ -643,6 +643,26 @@ return s;
     return Number.isFinite(slot.minutesOverride) && slot.minutesOverride !== null ? Number(slot.minutesOverride) : Number(t.defaultMinutes);
   }
 
+  function getSlotOriginalScheduledDurationMs(state, slot){
+    if(!slot) return 0;
+    const stored = Number(slot.originalScheduledDurationMs);
+    if(Number.isFinite(stored) && stored > 0) return stored;
+    return Math.max(0, effectiveMinutes(state, slot) * 60 * 1000);
+  }
+
+  function getSlotScheduleAdjustmentMs(slot){
+    const value = Number(slot?.scheduleAdjustmentMs ?? 0);
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  function getSlotEffectiveScheduledDurationMs(state, slot){
+    if(!slot) return 0;
+    const stored = Number(slot.scheduledDurationMs);
+    if(Number.isFinite(stored) && stored > 0) return stored;
+    const originalMs = getSlotOriginalScheduledDurationMs(state, slot);
+    return Math.max(0, originalMs + getSlotScheduleAdjustmentMs(slot));
+  }
+
   
   function displaySlotTypeLabel(state, slot){
     const t = getSlotType(state, slot.slotTypeId);
@@ -656,6 +676,12 @@ return s;
   function normalizeSlot(slot){
     if(!slot.media) slot.media = { donationUrl: null, imageAssetId: null, mediaLayout: "NONE" };
     if(!("customTypeLabel" in slot)) slot.customTypeLabel = "";
+    const originalMs = Number(slot.originalScheduledDurationMs);
+    slot.originalScheduledDurationMs = Number.isFinite(originalMs) && originalMs > 0 ? originalMs : null;
+    const adjustmentMs = Number(slot.scheduleAdjustmentMs ?? 0);
+    slot.scheduleAdjustmentMs = Number.isFinite(adjustmentMs) ? adjustmentMs : 0;
+    const scheduledMs = Number(slot.scheduledDurationMs);
+    slot.scheduledDurationMs = Number.isFinite(scheduledMs) && scheduledMs > 0 ? scheduledMs : null;
     return slot;
   }
 
@@ -1059,7 +1085,7 @@ function houseBandActiveMembersByCategory(state){
     const current = computeCurrent(state);
     if(!current) return { elapsedMs:0, durationMs:0, remainingMs:0, overtimeMs:0, running:false };
 
-    const durationMs = (state.timer.baseDurationMs ?? (effectiveMinutes(state, current) * 60 * 1000));
+    const durationMs = (state.timer.baseDurationMs ?? getSlotEffectiveScheduledDurationMs(state, current));
     let elapsedMs = state.timer.elapsedMs || 0;
 
     if(state.timer.running && state.timer.startedAt){
@@ -1392,7 +1418,7 @@ async function loadBitmapFromFile(f){
   return {
     appScope: APP_SCOPE, scopedKey, isAdSlotType, ensureFormA11y,
     uid, defaultState, loadState, saveState, publish, subscribe, sendCommand, subscribeCommand,
-    getSlotType, effectiveMinutes, displaySlotTypeLabel, normalizeSlot,
+    getSlotType, effectiveMinutes, getSlotOriginalScheduledDurationMs, getSlotScheduleAdjustmentMs, getSlotEffectiveScheduledDurationMs, displaySlotTypeLabel, normalizeSlot,
     // House Band
     houseBandInstrumentOptions, houseBandCategories,
     normalizeHouseBandMember, houseBandMemberLabel,

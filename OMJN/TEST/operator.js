@@ -19,6 +19,7 @@ let adInsertAfterPaperSlot = null;
     addType: document.getElementById("addType"),
     btnAdd: document.getElementById("btnAdd"),
     btnAddPaperSlots: document.getElementById("btnAddPaperSlots"),
+    btnDeleteAllBlankSlots: document.getElementById("btnDeleteAllBlankSlots"),
     btnAddIntermission: document.getElementById("btnAddIntermission"),
     btnAddAd: document.getElementById("btnAddAd"),
     btnAddHouseBandSlot: document.getElementById("btnAddHouseBandSlot"),
@@ -317,6 +318,9 @@ setBgColor: document.getElementById("setBgColor"),
   let editingId = null;
   let editDraft = null;
   let completedExpanded = false;
+  let inlineSavedSlotId = null;
+  let inlineSavedNoticeTimer = null;
+  let pendingOutsideEditSaveId = null;
 
   // House Band Set Builder
   let hbBuildCtx = null; // { mode:'add'|'edit', slotId?:string }
@@ -389,20 +393,7 @@ setBgColor: document.getElementById("setBgColor"),
   }
 
     function addSeconds(deltaSec) {
-        updateState(s => {
-            const cur = s.queue.find(x => x.id === s.currentSlotId);
-            if (!cur) return;
-
-            const base = (s.timer.baseDurationMs ?? (OMJN.effectiveMinutes(s, cur) * 60 * 1000));
-            let next = base + (deltaSec * 1000);
-
-            // Prevent going below :30
-            const minMs = 30 * 1000;
-            if (next < minMs) next = minMs;
-
-            // IMPORTANT: do NOT set minutesOverride here (keep it seconds-accurate)
-            s.timer.baseDurationMs = next;
-        });
+        adjustLiveTimerDuration(deltaSec * 1000, 30 * 1000);
     }
 
   // ---- House Band shape ----
@@ -644,6 +635,27 @@ setBgColor: document.getElementById("setBgColor"),
     return true;
   }
 
+  function deleteBlankPaperSlotInState(s, slotId){
+    const idx = s.queue.findIndex(x => x && x.id === slotId);
+    if(idx < 0) return false;
+    const blank = s.queue[idx];
+    if(!blank || !isPaperPlaceholder(blank) || isDoneStatus(blank.status)) return false;
+    const removedNumber = paperSlotNumber(blank);
+
+    s.queue.splice(idx, 1);
+
+    const prefs = ensureOperatorPrefs(s);
+    prefs.retiredPaperSlots = (prefs.retiredPaperSlots || [])
+      .map(value => Math.round(Number(value)))
+      .filter(value => Number.isFinite(value) && value > 0 && value !== removedNumber);
+
+    if(removedNumber) compactActivePaperSlotsAfterNumber(s, removedNumber);
+    else prefs.paperSlotCount = Math.max(0, Math.round(Number(prefs.paperSlotCount || 0)));
+
+    syncSpecialAnchorsToCurrentOrder(s);
+    return true;
+  }
+
   function deleteBlankPaperSlot(slotId){
     const slot = state.queue.find(x => x && x.id === slotId);
     if(!slot || !isPaperPlaceholder(slot) || isDoneStatus(slot.status)) return;
@@ -655,22 +667,30 @@ setBgColor: document.getElementById("setBgColor"),
     if(editingId === slotId) closeInlineEdit();
 
     updateState(s => {
-      const idx = s.queue.findIndex(x => x && x.id === slotId);
-      if(idx < 0) return;
-      const blank = s.queue[idx];
-      if(!blank || !isPaperPlaceholder(blank) || isDoneStatus(blank.status)) return;
-      const removedNumber = paperSlotNumber(blank);
+      deleteBlankPaperSlotInState(s, slotId);
+    });
+  }
 
-      s.queue.splice(idx, 1);
+  function deleteAllBlankPaperSlots(){
+    const blanks = (state.queue || []).filter(x => x && isPaperPlaceholder(x) && !isDoneStatus(x.status));
+    if(!blanks.length) return;
+    const ok = confirm(`Delete all ${blanks.length} blank Open Slot${blanks.length === 1 ? "" : "s"}? Specials will stay in their current visual order and 5 fresh blank slots will be added at the bottom.`);
+    if(!ok) return;
 
-      const prefs = ensureOperatorPrefs(s);
-      prefs.retiredPaperSlots = (prefs.retiredPaperSlots || [])
-        .map(value => Math.round(Number(value)))
-        .filter(value => Number.isFinite(value) && value > 0 && value !== removedNumber);
+    if(editingId){
+      const saved = saveInlineEdit(editingId, { showNotice:false });
+      if(!saved) return;
+    }
+    if(blanks.some(slot => selectedId === slot.id)) selectedId = null;
 
-      if(removedNumber) compactActivePaperSlotsAfterNumber(s, removedNumber);
-      else prefs.paperSlotCount = Math.max(0, Math.round(Number(prefs.paperSlotCount || 0)));
-
+    updateState(s => {
+      const blankIds = (s.queue || [])
+        .filter(x => x && isPaperPlaceholder(x) && !isDoneStatus(x.status))
+        .map(x => x.id);
+      for(const blankId of blankIds){
+        deleteBlankPaperSlotInState(s, blankId);
+      }
+      addPaperSlots(s, PAPER_SLOT_ADD_COUNT);
       syncSpecialAnchorsToCurrentOrder(s);
     });
   }
@@ -775,9 +795,51 @@ setBgColor: document.getElementById("setBgColor"),
     return tag === "input" || tag === "textarea" || tag === "select" || !!el.isContentEditable;
   }
 
+  function clearInlineSavedNotice({ rerender = false } = {}){
+    inlineSavedSlotId = null;
+    if(inlineSavedNoticeTimer){
+      clearTimeout(inlineSavedNoticeTimer);
+      inlineSavedNoticeTimer = null;
+    }
+    if(rerender) render();
+  }
+
+  function showInlineSavedNotice(slotId){
+    inlineSavedSlotId = slotId || null;
+    if(inlineSavedNoticeTimer){
+      clearTimeout(inlineSavedNoticeTimer);
+      inlineSavedNoticeTimer = null;
+    }
+    inlineSavedNoticeTimer = setTimeout(() => {
+      inlineSavedNoticeTimer = null;
+      if(inlineSavedSlotId === slotId){
+        inlineSavedSlotId = null;
+        render();
+      }
+    }, 1400);
+  }
+
+  function isInlineSavedNoticeVisible(slotId){
+    return !!slotId && inlineSavedSlotId === slotId;
+  }
+
+  function cancelPendingOutsideEditSave(){
+    pendingOutsideEditSaveId = null;
+  }
+
+  function queueOutsideEditSave(slotId){
+    if(!slotId || pendingOutsideEditSaveId === slotId) return;
+    pendingOutsideEditSaveId = slotId;
+    setTimeout(() => {
+      const targetId = pendingOutsideEditSaveId;
+      pendingOutsideEditSaveId = null;
+      if(!targetId || editingId !== targetId || !editDraft) return;
+      saveInlineEdit(targetId);
+    }, 0);
+  }
+
   function openInlineEdit(slotId){
-    // Editing implies selection (keeps highlights consistent)
-    selectSlot(slotId);
+    clearInlineSavedNotice();
     editingId = slotId;
     const slot = state.queue.find(x => x.id === slotId) || null;
     const media = slot?.media || { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
@@ -794,11 +856,17 @@ setBgColor: document.getElementById("setBgColor"),
   }
 
   function closeInlineEdit(){
+    cancelPendingOutsideEditSave();
     editingId = null;
     editDraft = null;
   }
 
   function toggleInlineEdit(slotId){
+    if(editingId && editingId !== slotId){
+      const priorId = editingId;
+      const saved = saveInlineEdit(priorId, { showNotice:false });
+      if(!saved) return;
+    }
     if(editingId === slotId){
       closeInlineEdit();
       render();
@@ -808,8 +876,9 @@ setBgColor: document.getElementById("setBgColor"),
     render();
   }
 
-  function saveInlineEdit(slotId){
-    if(!editDraft) return;
+  function saveInlineEdit(slotId, opts = {}){
+    if(!editDraft) return false;
+    const showNotice = opts.showNotice !== false;
     const name = OMJN.sanitizeText(editDraft.displayName || "");
     const notes = String(editDraft.notes || "");
     const url = OMJN.sanitizeText(editDraft.donationUrl || "");
@@ -828,13 +897,14 @@ setBgColor: document.getElementById("setBgColor"),
     const currentSlot = state.queue.find(x => x.id === slotId);
     if(isPaperPlaceholder(currentSlot) && !name){
       alert("Performer name is required.");
-      return;
+      return false;
     }
     if(isPaperPlaceholder(currentSlot) && !slotTypeId){
       alert("Choose a slot type.");
-      return;
+      return false;
     }
 
+    closeInlineEdit();
     updateState(s => {
       const slot = s.queue.find(x => x.id === slotId);
       if(!slot) return;
@@ -893,8 +963,11 @@ setBgColor: document.getElementById("setBgColor"),
       }
     });
 
-    closeInlineEdit();
-    render();
+    if(showNotice){
+      showInlineSavedNotice(slotId);
+      render();
+    }
+    return true;
   }
 
   function cancelInlineEdit(){
@@ -968,7 +1041,12 @@ setBgColor: document.getElementById("setBgColor"),
 
     const actualMs = Number(slot.actualDurationMs);
     const hasActual = Number.isFinite(actualMs) && actualMs > 0;
+    const originalScheduledMs = Number(slot.originalScheduledDurationMs || 0);
+    const adjustmentMs = Number(slot.scheduleAdjustmentMs || 0);
     const scheduledMs = Number(slot.scheduledDurationMs || 0) || (Number(scheduledMinutes || 0) * 60 * 1000);
+    if(originalScheduledMs > 0 && adjustmentMs) add("Planned", OMJN.formatMMSS(originalScheduledMs));
+    if(adjustmentMs > 0) add("Added", `+${OMJN.formatMMSS(adjustmentMs)}`);
+    if(adjustmentMs < 0) add("Adjusted", `-${OMJN.formatMMSS(Math.abs(adjustmentMs))}`);
     if(hasActual) add("Actual", OMJN.formatMMSS(actualMs));
     if(scheduledMs > 0) add("Scheduled", OMJN.formatMMSS(scheduledMs));
     if(hasActual && scheduledMs > 0) add("Over/Under", formatSignedDurationMs(actualMs - scheduledMs));
@@ -1036,6 +1114,7 @@ setBgColor: document.getElementById("setBgColor"),
   function buildInlineExpander(slot){
     const wrap = document.createElement("div");
     wrap.className = "qExpander";
+    wrap.dataset.inlineEditRoot = slot.id;
 
     // Prevent row-click selection from stealing focus while editing
     const stopRowClick = (e) => { e.stopPropagation(); };
@@ -1489,6 +1568,71 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
   function formatSignedDurationMs(ms){
     const sign = ms < 0 ? "-" : "+";
     return `${sign}${OMJN.formatMMSS(Math.abs(ms || 0))}`;
+  }
+
+  function getSlotEffectiveScheduledDurationMs(s, slot){
+    if(typeof OMJN.getSlotEffectiveScheduledDurationMs === "function"){
+      return OMJN.getSlotEffectiveScheduledDurationMs(s, slot);
+    }
+    return OMJN.effectiveMinutes(s, slot) * 60 * 1000;
+  }
+
+  function getSlotOriginalScheduledDurationMs(s, slot){
+    if(typeof OMJN.getSlotOriginalScheduledDurationMs === "function"){
+      return OMJN.getSlotOriginalScheduledDurationMs(s, slot);
+    }
+    return OMJN.effectiveMinutes(s, slot) * 60 * 1000;
+  }
+
+  function syncSlotScheduledDuration(slot, s, nextDurationMs){
+    if(!slot) return 0;
+    const safeNext = Math.max(0, Math.round(Number(nextDurationMs || 0)));
+    const originalMs = getSlotOriginalScheduledDurationMs(s, slot);
+    slot.originalScheduledDurationMs = originalMs > 0 ? originalMs : null;
+    slot.scheduleAdjustmentMs = safeNext - originalMs;
+    slot.scheduledDurationMs = safeNext > 0 ? safeNext : null;
+    return safeNext;
+  }
+
+  function describeSlotSchedule(slot){
+    if(!slot) return "";
+    const originalMs = Number(slot.originalScheduledDurationMs || 0);
+    const adjustmentMs = Number(slot.scheduleAdjustmentMs || 0);
+    const finalMs = Number(slot.scheduledDurationMs || 0);
+    if(!(originalMs > 0) || !adjustmentMs || !(finalMs > 0)) return "";
+    const sign = adjustmentMs > 0 ? "+" : "-";
+    return `Plan ${OMJN.formatMMSS(originalMs)} ${sign} ${OMJN.formatMMSS(Math.abs(adjustmentMs))} = ${OMJN.formatMMSS(finalMs)}`;
+  }
+
+  function resetTimerUpReminderState(){
+    timerUpArmed = true;
+    timerUpDismissedSlotId = null;
+    timerUpSnoozeForSlotId = null;
+    timerUpSnoozeUntil = 0;
+    if(els.timerUpModal && !els.timerUpModal.hidden) closeTimerUpModal();
+  }
+
+  function adjustLiveTimerDuration(deltaMs, minDurationMs){
+    let nextRemainingMs = null;
+
+    updateState(s => {
+      const cur = s.queue.find(x => x.id === s.currentSlotId);
+      if(!cur) return;
+
+      const liveElapsedMs = Number(s.timer.elapsedMs || 0)
+        + ((s.timer.running && s.timer.startedAt) ? Math.max(0, Date.now() - s.timer.startedAt) : 0);
+      const baseMs = (s.timer.baseDurationMs ?? getSlotEffectiveScheduledDurationMs(s, cur));
+      let next = baseMs + deltaMs;
+      if(next < minDurationMs) next = minDurationMs;
+
+      syncSlotScheduledDuration(cur, s, next);
+      s.timer.baseDurationMs = next;
+      nextRemainingMs = next - liveElapsedMs;
+    });
+
+    if(nextRemainingMs !== null && nextRemainingMs > 0){
+      resetTimerUpReminderState();
+    }
   }
 
   function computeMedianSec(values){
@@ -3288,7 +3432,8 @@ function escapeHtml(s){
     div.className = "queueItem paperSlotEmpty";
     div.dataset.id = slot.id;
     div.dataset.paperSlot = String(paperSlotNumber(slot) || "");
-    if(editingId === slot.id) div.classList.add("isEditing");
+    const isEditing = editingId === slot.id;
+    if(isEditing) div.classList.add("isEditing");
 
     const handle = document.createElement("div");
     handle.className = "paperSlotNumber";
@@ -3298,19 +3443,36 @@ function escapeHtml(s){
     main.className = "qMain";
     const title = document.createElement("div");
     title.className = "paperEmptyTitle";
-    title.textContent = "Open Slot";
+    title.textContent = isEditing ? "Add Performer" : "Open Slot";
     const hint = document.createElement("div");
     hint.className = "small";
-    hint.textContent = "Viewer and KPIs skip this blank spot.";
+    hint.textContent = isEditing
+      ? "Fill this blank slot without changing its current place in the queue."
+      : "Viewer and KPIs skip this blank spot.";
     main.appendChild(title);
     main.appendChild(hint);
+
+    if(isInlineSavedNoticeVisible(slot.id)){
+      const saved = document.createElement("div");
+      saved.className = "qInlineSavedChip";
+      saved.textContent = "Saved";
+      main.appendChild(saved);
+    }
+
+    if(isEditing && editDraft){
+      div.appendChild(handle);
+      main.appendChild(buildInlineExpander(slot));
+      div.appendChild(main);
+      return div;
+    }
 
     const actions = document.createElement("div");
     actions.className = "qActions paperSlotActions";
     const add = document.createElement("button");
-    add.className = "btn tiny good";
+    add.className = "btn tiny good qActionAddPerformer";
     add.type = "button";
-    add.textContent = editingId === slot.id ? "Close" : "Add Performer";
+    add.dataset.inlineEditOpen = slot.id;
+    add.textContent = "Add Performer";
     add.addEventListener("click", (e) => {
       e.stopPropagation();
       toggleInlineEdit(slot.id);
@@ -3326,7 +3488,6 @@ function escapeHtml(s){
       e.stopPropagation();
       moveSlot(slot.id, -1);
     });
-    actions.appendChild(btnUp);
 
     const btnDn = document.createElement("button");
     btnDn.className = "btn tiny qActionReorder qActionDown";
@@ -3337,10 +3498,15 @@ function escapeHtml(s){
       e.stopPropagation();
       moveSlot(slot.id, +1);
     });
-    actions.appendChild(btnDn);
+
+    const moveStack = document.createElement("div");
+    moveStack.className = "qBlankMoveStack";
+    moveStack.appendChild(btnUp);
+    moveStack.appendChild(btnDn);
+    actions.appendChild(moveStack);
 
     const btnDelete = document.createElement("button");
-    btnDelete.className = "btn tiny danger qActionDeleteBlank";
+    btnDelete.className = "btn tiny subtleDanger qActionDeleteBlank";
     btnDelete.type = "button";
     btnDelete.textContent = "Delete Blank";
     btnDelete.title = "Delete this blank slot and renumber later active slots";
@@ -3355,8 +3521,6 @@ function escapeHtml(s){
     div.appendChild(handle);
     div.appendChild(main);
     div.appendChild(actions);
-    if(editingId === slot.id && editDraft) div.appendChild(buildInlineExpander(slot));
-    div.addEventListener("click", () => toggleInlineEdit(slot.id));
     return div;
   }
 
@@ -3372,6 +3536,7 @@ function escapeHtml(s){
     const isDone = (slot.status === "DONE" || slot.status === "SKIPPED");
     const isNext = (!isLive && !isDone && n1 && slot.id === n1.id);
     const isDeck = (!isLive && !isDone && n2 && slot.id === n2.id);
+    const isEditing = editingId === slot.id;
 
     div.className = "queueItem";
     if(isLive) div.classList.add("livePinned");
@@ -3380,10 +3545,10 @@ function escapeHtml(s){
     if(isDone) div.classList.add("isDone");
     if(slot.status !== "QUEUED") div.classList.add("notQueued");
     if(selectedId === slot.id) div.classList.add("isSelected");
-    if(editingId === slot.id) div.classList.add("isEditing");
+    if(isEditing) div.classList.add("isEditing");
 
     const pNum = paperSlotNumber(slot);
-    div.draggable = (slot.status === "QUEUED") && !isLive && !isDone && !pNum && (editingId !== slot.id);
+    div.draggable = (slot.status === "QUEUED") && !isLive && !isDone && !pNum && !isEditing;
     div.dataset.id = slot.id;
     div.dataset.slotType = String(slot.slotTypeId || "");
     if(pNum) div.dataset.paperSlot = String(pNum);
@@ -3535,6 +3700,22 @@ function escapeHtml(s){
       meta.appendChild(after);
     }
 
+    if(!isDone){
+      const scheduleSummary = describeSlotSchedule(slot);
+      if(scheduleSummary){
+        const schedule = document.createElement("span");
+        schedule.textContent = scheduleSummary;
+        meta.appendChild(schedule);
+      }
+    }
+
+    if(isInlineSavedNoticeVisible(slot.id)){
+      const saved = document.createElement("span");
+      saved.className = "qInlineSavedChip";
+      saved.textContent = "Saved";
+      meta.appendChild(saved);
+    }
+
     if(isDone) appendDoneKpis(meta, slot, mins);
 
     const houseBandLine = isHouseBand ? houseBandLineupSummary(slot) : "";
@@ -3547,8 +3728,9 @@ function escapeHtml(s){
     if(!isDone){
       const btnEdit = document.createElement("button");
       btnEdit.className = "btn tiny qActionEdit";
-      const isOpen = (editingId === slot.id);
-      btnEdit.textContent = isOpen ? "Close" : "Edit";
+      btnEdit.type = "button";
+      btnEdit.dataset.inlineEditOpen = slot.id;
+      btnEdit.textContent = "Edit";
       btnEdit.addEventListener("click", (e) => {
         e.stopPropagation();
         if(isAdSlotType(slot.slotTypeId)){ openAdModal(slot.id); return; }
@@ -3646,6 +3828,15 @@ function escapeHtml(s){
     actions.prepend(btnDel);
 
     main.appendChild(bar);
+    div.appendChild(handle);
+    div.appendChild(main);
+    if(isEditing && editDraft){
+      try{
+        main.appendChild(buildInlineExpander(slot));
+      }catch(_){ /* never block queue rendering */ }
+      return div;
+    }
+
     main.appendChild(nameRow);
     if(isHouseBand && houseBandLine){
       const sub = document.createElement("div");
@@ -3657,20 +3848,7 @@ function escapeHtml(s){
     }
     appendMusicButtons(main, slot);
     main.appendChild(meta);
-
-    div.appendChild(handle);
-    div.appendChild(main);
     div.appendChild(actions);
-    // Inline expander under row (text-only edits)
-    if(editingId === slot.id && editDraft){
-      try{
-        div.appendChild(buildInlineExpander(slot));
-      }catch(_){ /* never block queue rendering */ }
-    }
-
-    div.addEventListener("click", () => {
-      selectSlot(slot.id);
-    });
 
     return div;
   }
@@ -3691,6 +3869,14 @@ function escapeHtml(s){
     const isDone = (x) => x && (x.status === "DONE" || x.status === "SKIPPED");
     const active = (state.queue || []).filter(x => !isDone(x));
     const done = (state.queue || []).filter(isDone);
+    const activeBlankCount = active.filter(isPaperPlaceholder).length;
+
+    if(els.btnDeleteAllBlankSlots){
+      els.btnDeleteAllBlankSlots.disabled = activeBlankCount === 0;
+      els.btnDeleteAllBlankSlots.title = activeBlankCount
+        ? `Delete all ${activeBlankCount} active blank slot${activeBlankCount === 1 ? "" : "s"} and add 5 fresh blanks at the bottom.`
+        : "No blank slots to delete.";
+    }
 
     if(!active.length){
       const empty = document.createElement("div");
@@ -5167,12 +5353,15 @@ function render(){
     prepareSlotForLive(s, slot, { pinToTop });
 
     const startedAt = Date.now();
+    const slotDurationMs = OMJN.effectiveMinutes(s, slot) * 60 * 1000;
     if(!slot.expectedStartAt) slot.expectedStartAt = startedAt;
     slot.actualStartedAt = startedAt;
     slot.actualEndedAt = null;
     slot.actualDurationMs = null;
     slot.actualWallDurationMs = null;
-    slot.scheduledDurationMs = OMJN.effectiveMinutes(s, slot) * 60 * 1000;
+    slot.originalScheduledDurationMs = slotDurationMs > 0 ? slotDurationMs : null;
+    slot.scheduleAdjustmentMs = 0;
+    slot.scheduledDurationMs = slotDurationMs > 0 ? slotDurationMs : null;
 
     s.currentSlotId = slot.id;
     s.phase = "LIVE";
@@ -5189,7 +5378,7 @@ function render(){
       s.timer.running = true;
       s.timer.startedAt = startedAt;
       s.timer.elapsedMs = 0;
-      s.timer.baseDurationMs = OMJN.effectiveMinutes(s, slot) * 60 * 1000;
+      s.timer.baseDurationMs = slotDurationMs;
     }
   }
 
@@ -6022,7 +6211,7 @@ function start(){
     updateState(s => {
       const cur = s.queue.find(x=>x.id===s.currentSlotId);
       if(!cur) return;
-      const baseMs = OMJN.effectiveMinutes(s, cur) * 60 * 1000;
+      const baseMs = getSlotEffectiveScheduledDurationMs(s, cur);
       s.timer.baseDurationMs = baseMs;
       s.timer.elapsedMs = 0;
       s.timer.startedAt = s.timer.running ? Date.now() : null;
@@ -6043,13 +6232,13 @@ function start(){
       if(cur){
         const startedAt = Number(cur.actualStartedAt || s.timer.startedAt || 0);
         const elapsedMs = Number(timerSnapshot?.elapsedMs || 0);
-        const scheduledMs = Number(timerSnapshot?.durationMs || 0) || (OMJN.effectiveMinutes(s, cur) * 60 * 1000);
+        const scheduledMs = Number(timerSnapshot?.durationMs || 0) || getSlotEffectiveScheduledDurationMs(s, cur);
         cur.status = "DONE";
         cur.completedAt = endedAt;
         cur.actualEndedAt = endedAt;
         cur.actualDurationMs = elapsedMs > 0 ? elapsedMs : (startedAt ? Math.max(0, endedAt - startedAt) : null);
         cur.actualWallDurationMs = startedAt ? Math.max(0, endedAt - startedAt) : null;
-        cur.scheduledDurationMs = scheduledMs;
+        syncSlotScheduledDuration(cur, s, scheduledMs);
       }
       markTransitionPendingFromSlot(s, cur, endedAt);
       // If a HOUSE BAND slot just ended, rotate each featured lineup member
@@ -6093,6 +6282,8 @@ function start(){
   }
 
   function addMinutes(deltaMin){
+    adjustLiveTimerDuration(deltaMin * 60 * 1000, 60 * 1000);
+    return;
     updateState(s => {
       const cur = s.queue.find(x=>x.id===s.currentSlotId);
       if(!cur) return;
@@ -6278,6 +6469,12 @@ toggleCustomAddFields();
       els.btnAddPaperSlots.addEventListener("click", (e) => {
         e.preventDefault();
         updateState(s => addPaperSlots(s, PAPER_SLOT_ADD_COUNT));
+      });
+    }
+    if(els.btnDeleteAllBlankSlots){
+      els.btnDeleteAllBlankSlots.addEventListener("click", (e) => {
+        e.preventDefault();
+        deleteAllBlankPaperSlots();
       });
     }
 
@@ -6518,6 +6715,34 @@ els.showTitle.addEventListener("input", () => {
     els.settingsModal.addEventListener("mousedown", (e) => {
       if(e.target === els.settingsModal) closeSettingsModal();
     });
+    document.addEventListener("click", (e) => {
+      if(!editingId || !editDraft) return;
+      const currentEditId = editingId;
+      const target = e.target;
+      const editingRow = document.querySelector(`.queueItem.isEditing[data-id="${currentEditId}"]`);
+      if(editingRow && target && editingRow.contains(target)) return;
+      if(target && target.closest && target.closest("[data-inline-edit-open]")) return;
+      queueOutsideEditSave(currentEditId);
+    });
+    document.addEventListener("keydown", (e) => {
+      if(!editingId || !editDraft) return;
+      const currentEditId = editingId;
+      const target = e.target;
+      const editor = document.querySelector(`.queueItem.isEditing[data-id="${currentEditId}"] [data-inline-edit-root]`);
+      if(!editor || !target || !editor.contains(target)) return;
+      const tag = (target.tagName || "").toLowerCase();
+      if(e.key === "Escape"){
+        e.preventDefault();
+        e.stopPropagation();
+        saveInlineEdit(currentEditId);
+        return;
+      }
+      if(e.key === "Enter" && tag !== "textarea" && tag !== "button"){
+        e.preventDefault();
+        e.stopPropagation();
+        saveInlineEdit(currentEditId);
+      }
+    }, true);
     document.addEventListener("keydown", (e) => {
       const k = e.key;
 

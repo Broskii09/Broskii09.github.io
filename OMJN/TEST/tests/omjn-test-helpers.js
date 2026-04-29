@@ -75,6 +75,44 @@ async function endCurrentToSplash(page){
   await expect(page.locator("#statusBanner")).toContainText("Phase: SPLASH");
 }
 
+async function seedCurrentTimerState(page, options = {}){
+  await page.evaluate((cfg) => {
+    const s = OMJN.loadState();
+    if(!s.currentSlotId) throw new Error("No live slot is active.");
+    const cur = (s.queue || []).find(x => x && x.id === s.currentSlotId);
+    if(!cur) throw new Error("Current slot data is missing.");
+
+    const baseDurationMs = Math.max(0, Math.round(Number(cfg.baseDurationMs || 0)));
+    const elapsedMs = Math.max(0, Math.round(Number(cfg.elapsedMs || 0)));
+    const originalScheduledDurationMs = Math.max(0, Math.round(Number(cfg.originalScheduledDurationMs ?? baseDurationMs)));
+    const scheduleAdjustmentMs = Math.round(Number(cfg.scheduleAdjustmentMs ?? (baseDurationMs - originalScheduledDurationMs)));
+    const running = !!cfg.running;
+
+    if(!s.transitionForecast) s.transitionForecast = {};
+    s.transitionForecast.defaultBufferSec = Math.max(0, Math.round(Number(cfg.transitionBufferSec ?? 0)));
+    s.transitionForecast.manualAdjustSec = Math.round(Number(cfg.manualAdjustSec ?? 0));
+    s.transitionForecast.autoLearn = cfg.autoLearn === true;
+    s.transitionForecast.observedSamplesSec = [];
+
+    cur.originalScheduledDurationMs = originalScheduledDurationMs > 0 ? originalScheduledDurationMs : null;
+    cur.scheduleAdjustmentMs = Number.isFinite(scheduleAdjustmentMs) ? scheduleAdjustmentMs : 0;
+    cur.scheduledDurationMs = baseDurationMs > 0 ? baseDurationMs : null;
+
+    s.timer.baseDurationMs = baseDurationMs;
+    s.timer.elapsedMs = elapsedMs;
+    s.timer.running = running;
+    s.timer.startedAt = running ? Date.now() : null;
+    s.phase = String(cfg.phase || (running ? "LIVE" : "PAUSED"));
+
+    OMJN.saveState(s);
+    OMJN.publish(s);
+  }, options);
+
+  if(options.reloadOperator !== false){
+    await page.reload();
+  }
+}
+
 async function addIntermissionAfterFirstOpenSlot(page, title, message){
   const firstSlot = page.locator(".paperSlotEmpty").first();
   const paperSlot = (await firstSlot.getAttribute("data-paper-slot")) || "";
@@ -193,6 +231,7 @@ module.exports = {
   expectActionButtonsFit,
   expectOpenSlotActionsFit,
   openViewerPage,
+  seedCurrentTimerState,
   startNextPerformer,
   watchPageErrors,
 };

@@ -208,7 +208,10 @@
   // Cue tracking
   let lastRemainingMs = null;
   let overtimeFlashTimeout = null;
+  let nextOvertimeFlashAt = null;
   let lastCue = null;
+  const OVERTIME_FLASH_DURATION_MS = 2000;
+  const OVERTIME_FLASH_REPEAT_MS = 30 * 1000;
 
   // Start intro runtime
   let startIntroPending = false;
@@ -1041,6 +1044,7 @@
       clearTimeout(overtimeFlashTimeout);
       overtimeFlashTimeout = null;
     }
+    nextOvertimeFlashAt = null;
   }
 
   function triggerOvertimeFlash() {
@@ -1054,14 +1058,33 @@
     overtimeFlashTimeout = setTimeout(() => {
       el.vMainCard.classList.remove("overtimeFlash");
       overtimeFlashTimeout = null;
-    }, 1050);
+    }, OVERTIME_FLASH_DURATION_MS);
   }
 
   function applyCardCues(remainingMs, warnAtMs, finalAtMs) {
     if (!el.vMainCard) return;
 
-    if (lastRemainingMs !== null && lastRemainingMs > 0 && remainingMs <= 0) {
-      triggerOvertimeFlash();
+    const nowMs = Date.now();
+    const crossedIntoOvertime = lastRemainingMs !== null && lastRemainingMs > 0 && remainingMs <= 0;
+    if (remainingMs <= 0) {
+      if (crossedIntoOvertime) {
+        triggerOvertimeFlash();
+        nextOvertimeFlashAt = nowMs + OVERTIME_FLASH_REPEAT_MS;
+      } else if (nextOvertimeFlashAt === null) {
+        nextOvertimeFlashAt = nowMs + OVERTIME_FLASH_REPEAT_MS;
+      } else if (nowMs >= nextOvertimeFlashAt) {
+        triggerOvertimeFlash();
+        while (nextOvertimeFlashAt <= nowMs) {
+          nextOvertimeFlashAt += OVERTIME_FLASH_REPEAT_MS;
+        }
+      }
+    } else {
+      nextOvertimeFlashAt = null;
+      if (overtimeFlashTimeout) {
+        clearTimeout(overtimeFlashTimeout);
+        overtimeFlashTimeout = null;
+      }
+      el.vMainCard.classList.remove("overtimeFlash");
     }
 
     const cue = remainingMs <= 0 ? "overtime" : remainingMs <= finalAtMs ? "final" : remainingMs <= warnAtMs ? "warn" : "normal";

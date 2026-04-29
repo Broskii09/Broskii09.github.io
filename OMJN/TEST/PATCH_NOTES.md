@@ -1,36 +1,34 @@
 # Summary
-- Refines TEST queue behavior so moving a performer into a blank numbered slot swaps directly with that blank instead of shifting the whole numbered paper queue.
-- Adds manual blank-slot controls for moving and deleting blank rows.
-- Adds confirmation-gated `Delete Blank` behavior that removes the blank row, renumbers later active paper slots to close that gap, and re-anchors following special slots from visible queue order.
-- Preserves existing special-slot, ad, intermission, House Band, viewer sync, and smoke behaviors.
+- Tightens the TEST-only Operator queue UX by shrinking blank-slot controls into a denser layout, adding `Delete All Blank Slots` to the queue header, and keeping the numbered blank-slot model from the latest TEST queue pass.
+- Replaces the old under-row performer editor with an inline row-transform edit mode that opens only from explicit controls, auto-saves on outside click, and saves/closes on `Esc` or `Enter` outside the notes textarea.
+- Adds focused Playwright coverage for bulk blank deletion, inline edit entry rules, outside-click save, and `Esc` save/close while preserving the current green TEST smoke suite.
 
 # File list
+- OMJN/TEST/app.css
+- OMJN/TEST/operator.html
 - OMJN/TEST/operator.js
 - OMJN/TEST/tests/omjn-queue-state.spec.js
-- OMJN/TEST/tests/omjn-special-slots.spec.js
-- OMJN/TEST/tests/omjn-test-helpers.js
 - OMJN/TEST/PATCH_NOTES.md
 
 # Install steps (exact paths)
-1. Copy `operator.js` to `OMJN/TEST/operator.js`.
-2. Copy `tests/omjn-queue-state.spec.js` to `OMJN/TEST/tests/omjn-queue-state.spec.js`.
-3. Copy `tests/omjn-special-slots.spec.js` to `OMJN/TEST/tests/omjn-special-slots.spec.js`.
-4. Copy `tests/omjn-test-helpers.js` to `OMJN/TEST/tests/omjn-test-helpers.js`.
+1. Copy `app.css` to `OMJN/TEST/app.css`.
+2. Copy `operator.html` to `OMJN/TEST/operator.html`.
+3. Copy `operator.js` to `OMJN/TEST/operator.js`.
+4. Copy `tests/omjn-queue-state.spec.js` to `OMJN/TEST/tests/omjn-queue-state.spec.js`.
 5. Keep `PATCH_NOTES.md` with the patch archive for reference.
 
 # Smoke test checklist
 - From `OMJN/TEST`, run `npm.cmd run test:queue-state`.
-- From `OMJN/TEST`, run `npm.cmd run test:special-slots`.
 - From `OMJN/TEST`, run `npm.cmd run test:smoke:all`.
-- Confirm moving a performer into an earlier blank fills that blank and moves the blank to the old performer position.
-- Confirm blank rows now show `Delete Blank`, prompt for confirmation, and renumber later active paper slots right away.
-- Confirm a special visually following a deleted blank stays in the same visible queue spot after re-anchor.
-- Confirm special-slot drag/drop and arrow/button moves still work.
+- Confirm blank-slot rows are visibly shorter and the main four blank actions stay visible in a compact grid.
+- Confirm `Delete All Blank Slots` prompts first, removes all current blanks, preserves special visual order, and adds 5 fresh blanks at the bottom.
+- Confirm clicking a row or performer name does not open edit mode.
+- Confirm clicking `Edit` transforms the row inline, hides normal row actions, and shows `Saved` briefly after auto-save or `Esc` save.
 
 # Known risks/limitations
-- Explicit blank deletion now allows the active paper-slot count to shrink below the initial default until the operator adds more open slots again.
-- Renumbering after blank deletion respects preserved retired/completed slot numbers, so historical numbering can still create intentional gaps outside the active blank being removed.
-- Blank rows are movable through the existing up/down controls; this patch does not redesign performer drag/drop to cover numbered paper rows.
+- The blank-slot action grid is forced to four columns on small screens when space permits, so labels can feel tighter on the narrowest phones.
+- Outside-click save depends on the browser document click cycle; custom overlays added later should continue to respect the current inline-edit containment checks.
+- This pass intentionally leaves timer/overtime, last-call, refresh-notification, and All Star Jam behavior untouched.
 
 # Target environment
 - TEST directory only: `OMJN/TEST`.
