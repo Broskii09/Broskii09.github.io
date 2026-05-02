@@ -63,6 +63,42 @@ async function openViewerPage(context, pageErrors){
   return viewer;
 }
 
+async function openOperatorAdvancedSettings(page){
+  await page.locator("#btnSettings").click();
+  await expect(page.locator("#settingsModal")).toBeVisible();
+  await page.locator('.settingsTabBtn[data-tab="advanced"]').click();
+  await expect(page.locator('.settingsPanel[data-panel="advanced"]')).toBeVisible();
+}
+
+async function openSoundboardSettings(page){
+  const enableBtn = page.locator("#sbEnableBtn");
+  if(await enableBtn.isVisible().catch(() => false)){
+    await enableBtn.click({ force: true });
+    await page.evaluate(() => {
+      const overlay = document.getElementById("sbEnable");
+      if(!overlay) return;
+      overlay.style.display = "none";
+      overlay.setAttribute("aria-hidden", "true");
+    });
+  }
+  await page.locator("#sbSettingsBtn").click();
+  await expect(page.locator("#sbSettingsModal")).toBeVisible();
+}
+
+async function setOperatorTestNow(page, value){
+  await page.evaluate((nextValue) => {
+    const nextMs = (typeof nextValue === "number") ? nextValue : Date.parse(String(nextValue || ""));
+    if(!Number.isFinite(nextMs)) throw new Error("Invalid last-call test time.");
+    window.__OMJN_TEST_LAST_CALL_NOW_MS = nextMs;
+  }, value);
+}
+
+async function clearOperatorTestNow(page){
+  await page.evaluate(() => {
+    try{ delete window.__OMJN_TEST_LAST_CALL_NOW_MS; }catch(_){ window.__OMJN_TEST_LAST_CALL_NOW_MS = undefined; }
+  });
+}
+
 async function startNextPerformer(page){
   page.once("dialog", dialog => dialog.accept());
   await page.locator("#btnStart").click();
@@ -220,18 +256,69 @@ async function addHouseBandSetAfterFirstOpenSlot(page, memberName){
   return houseBandRow;
 }
 
+async function addAllStarJamAfterFirstOpenSlot(page, title = "All Star Finale", notes = ""){
+  const firstSlot = page.locator(".paperSlotEmpty").first();
+  const paperSlot = (await firstSlot.getAttribute("data-paper-slot")) || "";
+  await firstSlot.getByRole("button", { name: "All Star Jam After" }).click();
+
+  const jamRow = page.locator('.queueItem[data-slot-type="allstarjam"]').last();
+  await expect(jamRow).toBeVisible();
+  const expander = jamRow.locator(".qExpander");
+  await expect(expander).toBeVisible();
+
+  if(title){
+    await expander.locator("input[type='text']").first().fill(title);
+  }
+  if(notes){
+    await expander.locator("textarea").first().fill(notes);
+  }
+  await expander.getByRole("button", { name: "Save" }).click();
+
+  await expect(jamRow).toContainText("All Star Jam");
+  if(title) await expect(jamRow).toContainText(title);
+  if(paperSlot) await expect(jamRow).toContainText(`After #${paperSlot}`);
+  return jamRow;
+}
+
+async function addAllStarJamAtQueueEnd(page, title = "Finale Jam"){
+  const lastSlot = page.locator(".paperSlotEmpty").last();
+  const paperSlot = (await lastSlot.getAttribute("data-paper-slot")) || "";
+  await lastSlot.getByRole("button", { name: "All Star Jam After" }).click();
+
+  const jamRow = page.locator('.queueItem[data-slot-type="allstarjam"]').last();
+  await expect(jamRow).toBeVisible();
+  const expander = jamRow.locator(".qExpander");
+  await expect(expander).toBeVisible();
+
+  if(title){
+    await expander.locator("input[type='text']").first().fill(title);
+  }
+  await expander.getByRole("button", { name: "Save" }).click();
+
+  await expect(jamRow).toContainText("All Star Jam");
+  if(title) await expect(jamRow).toContainText(title);
+  if(paperSlot) await expect(jamRow).toContainText(`After #${paperSlot}`);
+  return jamRow;
+}
+
 module.exports = {
+  addAllStarJamAfterFirstOpenSlot,
+  addAllStarJamAtQueueEnd,
   addGraphicAdAfterFirstOpenSlot,
   addHouseBandMember,
   addHouseBandSetAfterFirstOpenSlot,
   addIntermissionAfterFirstOpenSlot,
   addPerformerFromFirstOpenSlot,
   addVideoAdAfterFirstOpenSlot,
+  clearOperatorTestNow,
   endCurrentToSplash,
   expectActionButtonsFit,
   expectOpenSlotActionsFit,
+  openOperatorAdvancedSettings,
+  openSoundboardSettings,
   openViewerPage,
   seedCurrentTimerState,
+  setOperatorTestNow,
   startNextPerformer,
   watchPageErrors,
 };

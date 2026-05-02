@@ -1,8 +1,46 @@
 const { test, expect } = require("@playwright/test");
 const {
   addPerformerFromFirstOpenSlot,
+  clearOperatorTestNow,
+  openViewerPage,
+  seedCurrentTimerState,
+  setOperatorTestNow,
+  startNextPerformer,
   watchPageErrors,
 } = require("./omjn-test-helpers");
+
+async function readMoveColumnMetrics(row){
+  return row.evaluate((node) => {
+    const actions = node.querySelector(".qActions");
+    const grid = node.querySelector(".qActionGrid");
+    const move = node.querySelector(".qMoveColumn");
+    const up = node.querySelector(".qActionUp");
+    const down = node.querySelector(".qActionDown");
+    const danger = node.querySelector(".qDangerColumn");
+    if(!actions || !grid || !move || !up || !down){
+      return null;
+    }
+    const actionsRect = actions.getBoundingClientRect();
+    const gridRect = grid.getBoundingClientRect();
+    const moveRect = move.getBoundingClientRect();
+    const upRect = up.getBoundingClientRect();
+    const downRect = down.getBoundingClientRect();
+    const dangerRect = danger ? danger.getBoundingClientRect() : null;
+    return {
+      actionsRight: actionsRect.right,
+      gridRight: gridRect.right,
+      moveLeft: moveRect.left,
+      moveRight: moveRect.right,
+      moveHeight: moveRect.height,
+      upHeight: upRect.height,
+      downHeight: downRect.height,
+      upTop: upRect.top,
+      downTop: downRect.top,
+      dangerLeft: dangerRect ? dangerRect.left : null,
+      dangerRight: dangerRect ? dangerRect.right : null,
+    };
+  });
+}
 
 test.describe("OMJN TEST queue state", () => {
   test("moving a performer into a blank slot swaps with that blank instead of shifting the whole queue", async ({ page }) => {
@@ -107,7 +145,33 @@ test.describe("OMJN TEST queue state", () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test("inline editor opens only from explicit controls and saves on outside click and Escape", async ({ page }) => {
+  test("filled and blank rows keep dedicated move columns and separated blank delete action", async ({ page }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    const performerRow = await addPerformerFromFirstOpenSlot(page, "Move Column Target");
+    const blankRow = page.locator(".paperSlotEmpty").first();
+
+    const performerMetrics = await readMoveColumnMetrics(performerRow);
+    expect(performerMetrics).not.toBeNull();
+    expect(Math.abs(performerMetrics.actionsRight - performerMetrics.moveRight)).toBeLessThan(2);
+    expect(performerMetrics.moveLeft).toBeGreaterThan(performerMetrics.gridRight);
+    expect(Math.abs(performerMetrics.upHeight - performerMetrics.downHeight)).toBeLessThan(3);
+    expect(performerMetrics.upTop).toBeLessThan(performerMetrics.downTop);
+
+    await expect(blankRow.locator(".qDangerColumn .qActionDeleteBlank")).toBeVisible();
+    const blankMetrics = await readMoveColumnMetrics(blankRow);
+    expect(blankMetrics).not.toBeNull();
+    expect(Math.abs(blankMetrics.actionsRight - blankMetrics.moveRight)).toBeLessThan(2);
+    expect(blankMetrics.moveLeft).toBeGreaterThan(blankMetrics.dangerRight);
+    expect(blankMetrics.dangerLeft).toBeGreaterThan(blankMetrics.gridRight);
+    expect(Math.abs(blankMetrics.upHeight - blankMetrics.downHeight)).toBeLessThan(3);
+    expect(blankMetrics.upTop).toBeLessThan(blankMetrics.downTop);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("inline editor opens only from explicit controls, keeps save/cancel top-right, and cancel discards unsaved changes", async ({ page }) => {
     const pageErrors = [];
     watchPageErrors(page, pageErrors);
 
@@ -123,9 +187,20 @@ test.describe("OMJN TEST queue state", () => {
 
     await row.getByRole("button", { name: "Edit" }).click();
     await expect(row.locator(".qExpander")).toBeVisible();
-    await expect(row.locator(":scope > .qExpander")).toHaveCount(0);
-    await expect(row.locator(":scope > .qActions")).toHaveCount(0);
+    await expect(row.locator(".qExpHead .qExpActions")).toBeVisible();
+    await expect(row.locator(".qExpHead .btn.good")).toHaveText("Save");
+    const performerHeadBox = await row.locator(".qExpHead").boundingBox();
+    const performerGridBox = await row.locator(".qExpGrid").boundingBox();
+    expect(performerHeadBox.y).toBeLessThan(performerGridBox.y);
 
+    await row.locator(".qExpander input[type='text']").first().fill("Cancel Should Discard");
+    await row.locator(".qExpHead").getByRole("button", { name: "Cancel" }).click();
+    await expect(row.locator(".qExpander")).toHaveCount(0);
+    await expect(row).toContainText("Inline Edit Target");
+    await expect(row).not.toContainText("Cancel Should Discard");
+
+    await row.getByRole("button", { name: "Edit" }).click();
+    await expect(row.locator(".qExpander")).toBeVisible();
     await row.locator(".qExpander input[type='text']").first().fill("Outside Save Name");
     await page.locator("#showTitle").click();
     await expect(row.locator(".qExpander")).toHaveCount(0);
@@ -143,6 +218,139 @@ test.describe("OMJN TEST queue state", () => {
     await page.keyboard.press("Escape");
     await expect(row.locator(".qExpander")).toHaveCount(0);
     await expect(row).toContainText("Escape Save Name");
+
+    const blankRow = page.locator(".paperSlotEmpty").first();
+    await blankRow.getByRole("button", { name: "Add Performer" }).click();
+    await expect(blankRow.locator(".qExpHead .qExpActions")).toBeVisible();
+    const blankHeadBox = await blankRow.locator(".qExpHead").boundingBox();
+    const blankGridBox = await blankRow.locator(".qExpGrid").boundingBox();
+    expect(blankHeadBox.y).toBeLessThan(blankGridBox.y);
+    await blankRow.locator(".qExpHead").getByRole("button", { name: "Cancel" }).click();
+    await expect(blankRow.locator(".qExpander")).toHaveCount(0);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("ending an expired performer does not wipe all blank slots", async ({ page }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    await addPerformerFromFirstOpenSlot(page, "End Blank Safety");
+    await expect(page.locator(".paperSlotEmpty")).toHaveCount(29);
+
+    await startNextPerformer(page);
+    await seedCurrentTimerState(page, {
+      baseDurationMs: 60 * 1000,
+      elapsedMs: 61 * 1000,
+      originalScheduledDurationMs: 60 * 1000,
+      scheduleAdjustmentMs: 0,
+      running: true,
+      phase: "LIVE",
+      reloadOperator: false,
+    });
+
+    page.once("dialog", dialog => dialog.accept());
+    await page.locator("#btnEnd").click();
+
+    await expect(page.locator("#statusBanner")).toContainText("Phase: SPLASH");
+    await expect(page.locator(".paperSlotEmpty")).toHaveCount(29);
+    await expect(page.locator('.paperSlotEmpty[data-paper-slot="2"]')).toBeVisible();
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("last-call settings can show a manual operator-only reminder and snooze or dismiss it", async ({ page, context }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    const viewer = await openViewerPage(context, pageErrors);
+    await setOperatorTestNow(page, "2026-04-29T23:20:00-05:00");
+
+    await page.locator("#btnSettings").click();
+    await expect(page.locator("#settingsModal")).toBeVisible();
+    await page.locator('.settingsTabBtn[data-tab="advanced"]').click();
+    await expect(page.locator('.settingsPanel[data-panel="advanced"]')).toBeVisible();
+    await expect(page.locator("#setLastCallEnabled")).toBeChecked();
+    await expect(page.locator("#setLastCallCloseMode")).toHaveValue("midnight");
+
+    await page.locator("#btnLastCallShowNow").click();
+    const prompt = page.locator("#lastCallPrompt");
+    await expect(prompt).toBeVisible();
+    await expect(prompt).toContainText("Venue close set to 12:00 AM");
+    await expect(prompt).toContainText("Prompt patrons to tip bartenders and servers");
+    await expect(viewer.locator("#lastCallPrompt")).toHaveCount(0);
+
+    await page.locator("#btnLastCallSnooze").click();
+    await expect(prompt).toBeHidden();
+
+    await setOperatorTestNow(page, "2026-04-29T23:31:00-05:00");
+    await expect(prompt).toBeVisible();
+    await expect(prompt).toContainText("30 minutes before close");
+
+    await page.locator("#btnLastCallDismiss").click();
+    await expect(prompt).toBeHidden();
+    await expect(page.locator("#lastCallStatus")).toContainText("Dismissed for tonight");
+    await clearOperatorTestNow(page);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("last-call reminder can use a custom close time schedule", async ({ page }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    await setOperatorTestNow(page, "2026-04-29T23:40:00-05:00");
+
+    await page.locator("#btnSettings").click();
+    await expect(page.locator("#settingsModal")).toBeVisible();
+    await page.locator('.settingsTabBtn[data-tab="advanced"]').click();
+    await expect(page.locator('.settingsPanel[data-panel="advanced"]')).toBeVisible();
+    await page.locator("#setLastCallCloseMode").selectOption("custom");
+    await page.locator("#setLastCallCustomTime").fill("00:20");
+    await page.locator("#setLastCallCustomTime").dispatchEvent("change");
+
+    await expect(page.locator("#lastCallStatus")).toContainText("Close set to 12:20 AM");
+
+    await setOperatorTestNow(page, "2026-04-29T23:50:00-05:00");
+    const prompt = page.locator("#lastCallPrompt");
+    await expect(prompt).toBeVisible();
+    await expect(prompt).toContainText("30 minutes before close");
+    await clearOperatorTestNow(page);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("last-call due reminders surface on END and extending to 1 AM reschedules the remaining prompts", async ({ page }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    await addPerformerFromFirstOpenSlot(page, "Last Call End Flow");
+    await setOperatorTestNow(page, "2026-04-29T23:20:00-05:00");
+
+    await startNextPerformer(page);
+    await setOperatorTestNow(page, "2026-04-29T23:50:00-05:00");
+    page.once("dialog", dialog => dialog.accept());
+    await page.locator("#btnEnd").click();
+
+    const prompt = page.locator("#lastCallPrompt");
+    await expect(prompt).toBeVisible();
+    await expect(prompt).toContainText("10 minutes before close confirmation");
+
+    await page.locator("#btnLastCallExtend").click();
+    await expect(prompt).toBeHidden();
+    await expect(page.locator("#setLastCallCloseMode")).toHaveValue("oneam");
+
+    await setOperatorTestNow(page, "2026-04-30T00:31:00-05:00");
+    await expect(prompt).toBeVisible();
+    await expect(prompt).toContainText("30 minutes before close");
+
+    await page.locator("#btnLastCallMade").click();
+    await expect(prompt).toBeHidden();
+
+    await setOperatorTestNow(page, "2026-04-30T00:51:00-05:00");
+    await page.waitForTimeout(350);
+    await expect(prompt).toBeHidden();
+    await clearOperatorTestNow(page);
     expect(pageErrors).toEqual([]);
   });
 

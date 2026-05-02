@@ -1,0 +1,29 @@
+[
+  {
+    "title": "Upcoming Ray Leo’s Show",
+    "date": "TBA",
+    "time": "Doors and music times vary by event",
+    "summary": "Replace this placeholder with an Eventbrite event or a door-only show listing.",
+    "image": "assets/img/placeholders/event-01.svg",
+    "ticketUrl": "https://www.eventbrite.com/o/ray-leos-at-lamasco-121162835137",
+    "tag": "Live Music"
+  },
+  {
+    "title": "Franklin Street Night",
+    "date": "TBA",
+    "time": "Pay at the door when available",
+    "summary": "Use this fallback card for local bills, touring acts, benefits, and venue-run nights.",
+    "image": "assets/img/placeholders/event-02.svg",
+    "ticketUrl": "https://www.eventbrite.com/o/ray-leos-at-lamasco-121162835137",
+    "tag": "Door / Ticketed"
+  },
+  {
+    "title": "Touring Band Hold",
+    "date": "TBA",
+    "time": "Booking pending",
+    "summary": "This card proves the layout before live Eventbrite/API data is connected.",
+    "image": "assets/img/placeholders/event-03.svg",
+    "ticketUrl": "#booking",
+    "tag": "Booking"
+  }
+]

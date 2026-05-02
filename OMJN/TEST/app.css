@@ -582,9 +582,9 @@ body::-webkit-scrollbar-corner,
 
 .queueItem.paperSlotEmpty{
   grid-template-columns:48px minmax(0, 1fr) minmax(260px, 328px);
-  border:2px dashed rgba(184,198,234,.42);
-  background:rgba(255,255,255,.035);
-  opacity:.94;
+  border:1px dashed rgba(184,198,234,.34);
+  background:radial-gradient(120% 120% at 18% 40%, rgba(148,163,184,.10) 0%, rgba(0,0,0,.16) 72%);
+  opacity:.98;
 }
 .paperSlotNumber{
   grid-area:handle;
@@ -614,6 +614,7 @@ body::-webkit-scrollbar-corner,
 .queueItem.role-deck{ --qBar: rgba(34, 197, 94, .50); --qGlow: rgba(34, 197, 94, .16); }
 .queueItem.role-intermission{ --qBar: rgba(245, 158, 11, .48); --qGlow: rgba(245, 158, 11, .14); }
 .queueItem.role-houseband{ --qBar: rgba(99, 102, 241, .48); --qGlow: rgba(99, 102, 241, .14); }
+.queueItem.role-allstarjam{ --qBar: rgba(245, 158, 11, .58); --qGlow: rgba(245, 158, 11, .18); }
 .queueItem.role-ad{ --qBar: rgba(236, 72, 153, .48); --qGlow: rgba(236, 72, 153, .14); }
 .queueItem.role-done{ --qBar: rgba(148, 163, 184, .35); --qGlow: rgba(148, 163, 184, .10); }
 .queueItem.role-queued{ --qBar: rgba(148, 163, 184, .18); --qGlow: rgba(148, 163, 184, .06); }
@@ -787,17 +788,20 @@ body::-webkit-scrollbar-corner,
 .qActions{
   grid-area: actions;
   display:grid;
-  grid-template-columns:repeat(3, minmax(0, 1fr));
-  grid-auto-rows:minmax(34px, auto);
   gap:8px;
-  align-items:start;
+  align-items:stretch;
   align-content:start;
-  align-self:flex-start;
+  align-self:stretch;
   justify-self:end;
-  justify-items:stretch;
   inline-size:100%;
-  max-width:390px;
+  max-width:430px;
   padding-top:0;
+}
+.qActionGrid{
+  display:grid;
+  gap:8px;
+  min-width:0;
+  align-content:start;
 }
 .qActions .btn{
   inline-size:100%;
@@ -815,67 +819,74 @@ body::-webkit-scrollbar-corner,
   padding:6px 8px;
 }
 .queueItem:not(.paperSlotEmpty):not(.isDone) .qActions.qActionsActive{
-  grid-template-columns:repeat(3, minmax(0, 1fr)) 44px;
-  grid-auto-rows:minmax(38px, auto);
+  grid-template-columns:minmax(0, 1fr) 54px;
   inline-size:100%;
-  max-width:390px;
+  max-width:430px;
+}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActions.qActionsActive .qActionGrid{
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  grid-auto-rows:minmax(38px, auto);
 }
 .queueItem:not(.paperSlotEmpty):not(.isDone) .qActions.qActionsActive .btn{
   min-height:38px;
   font-size:12px;
   padding:7px 8px;
 }
-.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionDelete{grid-column:1; grid-row:1;}
-.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionEdit{grid-column:2; grid-row:1;}
-.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSkip{grid-column:3; grid-row:1;}
-.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionNoShow{grid-column:1; grid-row:2;}
-.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionMoveNum{grid-column:2 / span 2; grid-row:2;}
-.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionUp{grid-column:4; grid-row:1;}
-.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionDown{grid-column:4; grid-row:2;}
-.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionReorder{
-  font-size:15px;
-  font-weight:1000;
-  padding-left:0;
-  padding-right:0;
-}
-.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialIntermission{grid-column:1 / span 2; grid-row:3;}
-.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialAd{grid-column:3; grid-row:3;}
-.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialHouseBand{grid-column:1 / span 3; grid-row:4;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionDelete{grid-column:1; grid-row:1;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionEdit{grid-column:2; grid-row:1;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionSkip{grid-column:3; grid-row:1;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionNoShow{grid-column:1; grid-row:2;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionMoveNum{grid-column:2 / span 2; grid-row:2;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionSpecialIntermission{grid-column:1 / span 2; grid-row:3;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionSpecialAd{grid-column:3; grid-row:3;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionSpecialAllStarJam{grid-column:1 / span 3; grid-row:4;}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionSpecialHouseBand{grid-column:1 / span 3; grid-row:5;}
 .queueItem.paperSlotEmpty .qActions.paperSlotActions{
-  grid-template-columns:repeat(4, minmax(0, 1fr));
-  grid-auto-rows:minmax(34px, auto);
-  inline-size:min(360px, 100%);
-  max-width:360px;
-  gap:6px;
+  grid-template-columns:minmax(0, 1fr) 96px 54px;
+  inline-size:min(420px, 100%);
+  max-width:420px;
+  gap:8px;
 }
 .queueItem.paperSlotEmpty .qActions.paperSlotActions .btn{
   min-width:0;
-  min-height:34px;
+  min-height:36px;
   white-space:normal;
-  line-height:1.05;
-  font-size:11px;
-  padding:6px 7px;
+  line-height:1.08;
+  font-size:11.5px;
+  padding:6px 8px;
+}
+.queueItem.paperSlotEmpty .paperSlotActions .qBlankActionGrid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  grid-auto-rows:minmax(36px, auto);
+  gap:6px;
 }
 .queueItem.paperSlotEmpty .paperSlotActions .qActionAddPerformer{grid-column:1; grid-row:1;}
 .queueItem.paperSlotEmpty .paperSlotActions .qActionSpecialIntermission{grid-column:2; grid-row:1;}
-.queueItem.paperSlotEmpty .paperSlotActions .qActionSpecialAd{grid-column:3; grid-row:1;}
-.queueItem.paperSlotEmpty .paperSlotActions .qActionSpecialHouseBand{grid-column:4; grid-row:1;}
-.queueItem.paperSlotEmpty .paperSlotActions .qActionDeleteBlank{
-  grid-column:4;
-  grid-row:2;
-}
-.qBlankMoveStack{
-  grid-column:1;
-  grid-row:2;
+.queueItem.paperSlotEmpty .paperSlotActions .qActionSpecialAd{grid-column:1; grid-row:2;}
+.queueItem.paperSlotEmpty .paperSlotActions .qActionSpecialAllStarJam{grid-column:2; grid-row:2;}
+.queueItem.paperSlotEmpty .paperSlotActions .qActionSpecialHouseBand{grid-column:1 / span 2; grid-row:3;}
+.qDangerColumn{
   display:grid;
-  grid-template-columns:repeat(2, minmax(0, 1fr));
-  gap:4px;
+  align-self:stretch;
 }
-.qBlankMoveStack .btn{
-  min-height:30px !important;
-  font-size:14px !important;
+.qDangerColumn .btn{
+  min-height:0 !important;
+  height:100%;
+}
+.qMoveColumn{
+  display:grid;
+  grid-template-rows:1fr 1fr;
+  gap:6px;
+  min-width:54px;
+  align-self:stretch;
+}
+.qMoveColumn .btn{
+  min-height:0 !important;
+  height:100%;
+  font-size:16px !important;
   font-weight:1000;
-  padding:4px 0 !important;
+  padding:0 !important;
 }
 .qInlineSavedChip{
   display:inline-flex;
@@ -899,8 +910,11 @@ body::-webkit-scrollbar-corner,
 
 /* Inline performer editor (Stage 2) */
 .qExpander{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
   margin-top:2px;
-  padding-top:10px;
+  padding-top:8px;
   border-top:1px solid rgba(255,255,255,.10);
 }
 
@@ -914,7 +928,13 @@ body::-webkit-scrollbar-corner,
   grid-column:1 / -1;
 }
 .qExpGrid .field{margin:0;}
-.qExpActions{display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-top:10px;}
+.qExpHead{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+}
+.qExpActions{display:flex; gap:8px; align-items:center; justify-content:flex-end;}
+.qExpActions .btn.good{font-weight:900;}
 .queueItem.isEditing .qMain{
   gap:10px;
 }
@@ -1472,29 +1492,30 @@ hr.sep{
     grid-template-columns:48px minmax(0, 1fr);
   }
   .qActions{
-    grid-template-columns:repeat(auto-fit, minmax(88px, 1fr));
     justify-self:stretch;
     inline-size:100%;
     max-width:none;
     padding-top:0;
   }
   .queueItem:not(.paperSlotEmpty):not(.isDone) .qActions.qActionsActive{
-    grid-template-columns:repeat(2, minmax(0, 1fr)) 44px;
+    grid-template-columns:minmax(0, 1fr) 54px;
     inline-size:100%;
     max-width:none;
   }
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionDelete{grid-column:1; grid-row:1;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionEdit{grid-column:2; grid-row:1;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSkip{grid-column:1; grid-row:2;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionNoShow{grid-column:2; grid-row:2;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionMoveNum{grid-column:1 / span 2; grid-row:3;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionUp{grid-column:3; grid-row:1;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionDown{grid-column:3; grid-row:2;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialIntermission{grid-column:1 / span 2; grid-row:4;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialAd{grid-column:3; grid-row:4;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialHouseBand{grid-column:1 / span 3; grid-row:5;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActions.qActionsActive .qActionGrid{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+  }
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionDelete{grid-column:1; grid-row:1;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionEdit{grid-column:2; grid-row:1;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionSkip{grid-column:1; grid-row:2;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionNoShow{grid-column:2; grid-row:2;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionMoveNum{grid-column:1 / span 2; grid-row:3;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionSpecialIntermission{grid-column:1 / span 2; grid-row:4;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionSpecialAd{grid-column:1; grid-row:5;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionSpecialAllStarJam{grid-column:2; grid-row:5;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionSpecialHouseBand{grid-column:1 / span 2; grid-row:6;}
   .queueItem.paperSlotEmpty .paperSlotActions{
-    grid-template-columns:repeat(4, minmax(0, 1fr));
+    grid-template-columns:minmax(0, 1fr) 92px 54px;
     inline-size:100%;
     max-width:none;
   }
@@ -1574,21 +1595,23 @@ hr.sep{
     white-space:normal;
   }
   .queueItem:not(.paperSlotEmpty):not(.isDone) .qActions.qActionsActive{
+    grid-template-columns:minmax(0, 1fr) 50px;
+  }
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActions.qActionsActive .qActionGrid{
     grid-template-columns:repeat(2, minmax(0, 1fr));
     grid-auto-rows:minmax(38px, auto);
   }
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionEdit{grid-column:1; grid-row:1;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSkip{grid-column:2; grid-row:1;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionUp{grid-column:1; grid-row:2;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionDown{grid-column:2; grid-row:2;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionMoveNum{grid-column:1 / -1; grid-row:3;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionNoShow{grid-column:1; grid-row:4;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionDelete{grid-column:2; grid-row:4;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialIntermission{grid-column:1 / -1; grid-row:5;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialAd{grid-column:1 / -1; grid-row:6;}
-  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionSpecialHouseBand{grid-column:1 / -1; grid-row:7;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionEdit{grid-column:1; grid-row:1;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionSkip{grid-column:2; grid-row:1;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionMoveNum{grid-column:1 / -1; grid-row:2;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionNoShow{grid-column:1; grid-row:3;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionDelete{grid-column:2; grid-row:3;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionSpecialIntermission{grid-column:1 / -1; grid-row:4;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionSpecialAd{grid-column:1 / -1; grid-row:5;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionSpecialAllStarJam{grid-column:1 / -1; grid-row:6;}
+  .queueItem:not(.paperSlotEmpty):not(.isDone) .qActionsActive .qActionGrid .qActionSpecialHouseBand{grid-column:1 / -1; grid-row:7;}
   .queueItem.paperSlotEmpty .paperSlotActions{
-    grid-template-columns:repeat(4, minmax(0, 1fr));
+    grid-template-columns:minmax(0, 1fr) 84px 48px;
   }
   .showTitleStatusRow{
     gap:8px;
@@ -2017,6 +2040,32 @@ hr.sep{
 }
 .viewerRoot.isHB .vTimer{ margin-top:14px; }
 
+.viewerRoot.isAllStarJam .viewerBg{
+  background:linear-gradient(128deg, #2a1404, #8a4700, #251104);
+}
+.viewerRoot.isAllStarJam #vMainCard{
+  background:
+    radial-gradient(120% 140% at 50% 0%, rgba(245,158,11,.18), rgba(255,255,255,0) 55%),
+    var(--card-bg);
+  border-color:rgba(245,158,11,.34);
+  box-shadow:0 24px 64px rgba(0,0,0,.42), 0 0 0 1px rgba(245,158,11,.10) inset;
+}
+.viewerRoot.isAllStarJam #nowLabel{
+  color:#ffd79b;
+  letter-spacing:.32em;
+}
+.viewerRoot.isAllStarJam .vNowName{
+  font-size: calc(clamp(40px, 5.8vw, 78px) * var(--vScale));
+  letter-spacing:.16em;
+  text-shadow:0 0 28px rgba(245,158,11,.24);
+}
+.viewerRoot.isAllStarJam .vHBInstruments{
+  color:rgba(255,239,206,.88);
+}
+.viewerRoot.isAllStarJam .vTimer{
+  color:#fff1c1;
+}
+
 .vTimer{
   margin-top:18px;
   font-size: calc(clamp(72px, 10vw, 120px) * var(--vScale));
@@ -2113,6 +2162,11 @@ hr.sep{
   padding: 14px 22px;
   font-weight: 950;
   letter-spacing: .02em;
+}
+.viewerRoot.isAllStarJam #chipType{
+  background:rgba(245,158,11,.16);
+  border-color:rgba(245,158,11,.34);
+  color:#fff0be;
 }
 .vNext{
   margin-top:18px;
@@ -5336,7 +5390,8 @@ details.hbAcc .hbCatList{
 /* ============================================================
    Shared site update prompt
    ============================================================ */
-.omjnRefreshPrompt{
+.omjnRefreshPrompt,
+.omjnLastCallPrompt{
   position: fixed;
   right: 18px;
   bottom: 18px;
@@ -5357,7 +5412,12 @@ details.hbAcc .hbCatList{
   overflow: hidden;
 }
 
-.omjnRefreshPrompt::before{
+.omjnRefreshPrompt{
+  bottom: calc(18px + var(--omjn-refresh-offset, 0px));
+}
+
+.omjnRefreshPrompt::before,
+.omjnLastCallPrompt::before{
   content: "";
   display: block;
   height: 3px;
@@ -5365,51 +5425,128 @@ details.hbAcc .hbCatList{
   opacity: .95;
 }
 
-.omjnRefreshPrompt.isVisible{
+.omjnRefreshPrompt.isVisible,
+.omjnLastCallPrompt.isVisible{
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
 }
 
-.omjnRefreshPromptBody{
+.omjnRefreshPromptBody,
+.omjnLastCallPromptBody{
   padding: 14px 15px 15px;
 }
 
-.omjnRefreshPromptTitle{
+.omjnRefreshPromptTitle,
+.omjnLastCallPromptTitle{
   font-weight: 800;
   letter-spacing: .02em;
 }
 
-.omjnRefreshPromptText{
+.omjnRefreshPromptText,
+.omjnLastCallPromptText{
   margin-top: 6px;
   color: rgba(255,255,255,.82);
   line-height: 1.45;
 }
 
-.omjnRefreshPromptActions{
+.omjnRefreshPromptActions,
+.omjnLastCallPromptActions{
   display: flex;
   align-items: center;
   gap: 10px;
   margin-top: 12px;
 }
 
-.omjnRefreshPromptActions .btn{
+.omjnRefreshPromptActions .btn,
+.omjnLastCallPromptActions .btn{
   min-width: 110px;
 }
 
+.omjnLastCallPrompt{
+  bottom: 96px;
+  border-color: rgba(245, 158, 11, .42);
+  background:
+    linear-gradient(180deg, rgba(42,18,8,.97), rgba(24,10,6,.99));
+  box-shadow:
+    0 18px 42px rgba(0,0,0,.38),
+    0 0 0 1px rgba(245, 158, 11, .12) inset;
+}
+
+.omjnLastCallPrompt::before{
+  background: linear-gradient(90deg, #f59e0b 0%, #ff6b35 55%, #f59e0b 100%);
+}
+
+.omjnLastCallPromptEyebrow{
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: rgba(255, 214, 153, .88);
+}
+
+.omjnLastCallPromptMeta,
+.lastCallStatus{
+  line-height: 1.45;
+}
+
+.omjnLastCallPromptMeta{
+  margin-top: 8px;
+  color: rgba(255, 232, 201, .88);
+}
+
+.omjnLastCallPromptActions{
+  flex-wrap: wrap;
+}
+
+.omjnLastCallPromptActions .btn{
+  flex: 1 1 140px;
+}
+
+.siteUpdateSettingsRow{
+  gap: 10px;
+}
+
+.siteUpdateSettingsRow .btn{
+  flex: 0 0 auto;
+}
+
+.siteUpdateStatus{
+  line-height: 1.45;
+  color: rgba(255,255,255,.82);
+}
+
+.siteUpdateStatus.isWarn{
+  color: rgba(255, 221, 120, .96);
+}
+
+.siteUpdateStatus.isError{
+  color: rgba(255, 173, 173, .96);
+}
+
 @media (max-width: 640px){
-  .omjnRefreshPrompt{
+  .omjnRefreshPrompt,
+  .omjnLastCallPrompt{
     left: 12px;
     right: 12px;
-    bottom: 12px;
     width: auto;
   }
 
-  .omjnRefreshPromptActions{
+  .omjnRefreshPrompt{
+    bottom: calc(12px + var(--omjn-refresh-offset, 0px));
+  }
+
+  .omjnLastCallPrompt{
+    bottom: 84px;
+  }
+
+  .omjnRefreshPromptActions,
+  .omjnLastCallPromptActions{
     flex-wrap: wrap;
   }
 
-  .omjnRefreshPromptActions .btn{
+  .omjnRefreshPromptActions .btn,
+  .omjnLastCallPromptActions .btn{
     flex: 1 1 140px;
   }
 }

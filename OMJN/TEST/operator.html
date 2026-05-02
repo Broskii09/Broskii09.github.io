@@ -314,7 +314,7 @@
                     <div class="timerReadoutBlock">
                         <div class="timerReadoutHead">
                             <div class="timerReadoutCopy">
-                                <div class="timerSub">Elapsed / Remaining</div>
+                                <div class="timerSub" id="timerSubLabel">Elapsed / Remaining</div>
                                 <div class="timerBig mono" id="timerLine">0:00 / 0:00</div>
                             </div>
                             <div class="pauseResumeWrap viewerTimerWrap" id="viewerTimerWrap">
@@ -851,6 +851,56 @@
 
                     <hr class="sep" />
 
+                    <h3 class="subhead">Last Call Reminder</h3>
+                    <div class="small" style="margin-bottom:10px; opacity:.9;">
+                      Operator-only reminder shown in the bottom-right corner. Viewer never sees this notification.
+                    </div>
+                    <div class="row wrap lastCallSettingsRow" style="align-items:flex-end; gap:12px; margin-bottom:10px;">
+                        <span class="pill" title="Show last-call reminders automatically based on the close time">
+                            Enabled
+                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="setLastCallEnabled" />
+                                <span class="small">on</span>
+                            </label>
+                        </span>
+
+                        <div class="field" style="flex:0 1 200px;">
+                            <label for="setLastCallCloseMode">Venue Close Time</label>
+                            <select id="setLastCallCloseMode">
+                                <option value="midnight">12:00 AM</option>
+                                <option value="oneam">1:00 AM</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+
+                        <div class="field" id="lastCallCustomTimeWrap" style="flex:0 1 180px;" hidden>
+                            <label for="setLastCallCustomTime">Custom Close</label>
+                            <input id="setLastCallCustomTime" type="time" step="300" value="00:00" />
+                        </div>
+
+                        <button class="btn small" id="btnLastCallShowNow" type="button" title="Show the reminder immediately on Operator">Show Now</button>
+                    </div>
+                    <div class="small lastCallStatus" id="lastCallStatus" style="opacity:.9;">
+                      Next reminder: 11:30 PM.
+                    </div>
+
+                    <hr class="sep" />
+
+                    <h3 class="subhead">Site Update Prompt</h3>
+                    <div class="small" style="margin-bottom:10px; opacity:.9;">
+                      Shared refresh prompt for this TEST environment only. Same-browser OMJN tabs can be prompted to refresh, but remote devices cannot be force-refreshed from static hosting.
+                    </div>
+                    <div class="row wrap siteUpdateSettingsRow" style="align-items:flex-end; gap:12px; margin-bottom:10px;">
+                        <button class="btn small" id="btnSiteUpdateCheckNow" type="button" title="Fetch ./site-version.json now and surface the shared refresh prompt if a newer build is available.">Force Check for Update</button>
+                        <button class="btn small" id="btnSiteUpdateResetDismissal" type="button" title="Clear the dismissed refresh version for this TEST environment in this browser.">Reset Refresh Dismissal</button>
+                        <button class="btn small" id="btnSiteUpdatePromptTabs" type="button" title="Ask currently open OMJN TEST tabs in this browser to show a safe refresh prompt.">Prompt Open Tabs to Refresh</button>
+                    </div>
+                    <div class="small siteUpdateStatus" id="siteUpdateStatus" style="opacity:.9;">
+                      Waiting for the shared site-version check.
+                    </div>
+
+                    <hr class="sep" />
+
                     <h3 class="subhead">Backup</h3>
                     <div class="row">
                         <button class="btn small" id="btnExportSettings">Export Settings</button>
@@ -1172,6 +1222,21 @@
             </div>
         </div>
     </div>
+
+    <aside class="omjnLastCallPrompt" id="lastCallPrompt" hidden aria-live="assertive" aria-atomic="true">
+        <div class="omjnLastCallPromptBody">
+            <div class="omjnLastCallPromptEyebrow">Operator only</div>
+            <div class="omjnLastCallPromptTitle" id="lastCallPromptTitle">Last call reminder</div>
+            <div class="omjnLastCallPromptText" id="lastCallPromptText">Venue close set to 12:00 AM | Prompt patrons to tip bartenders and servers</div>
+            <div class="small omjnLastCallPromptMeta" id="lastCallPromptMeta">30 minutes before close</div>
+            <div class="omjnRefreshPromptActions omjnLastCallPromptActions">
+                <button class="btn small good" id="btnLastCallMade" type="button">Last Call Made</button>
+                <button class="btn small" id="btnLastCallSnooze" type="button">Snooze 10 min</button>
+                <button class="btn small" id="btnLastCallExtend" type="button">Extend to 1 AM</button>
+                <button class="btn small danger" id="btnLastCallDismiss" type="button">Dismiss Tonight</button>
+            </div>
+        </div>
+    </aside>
 
   <script src="./shared.js"></script>
   <script src="./operator.js"></script>

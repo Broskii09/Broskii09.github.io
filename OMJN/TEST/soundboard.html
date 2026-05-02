@@ -275,6 +275,23 @@
           </div>
         </div>
 
+        <div class="card nested" style="margin-top:12px;">
+          <div class="cardHeader"><h2>Site update prompt</h2></div>
+          <div class="cardBody">
+            <div class="small" style="opacity:.9; margin-bottom:10px;">
+              Shared refresh controls for this TEST environment. Same-browser OMJN tabs can be prompted to refresh, but remote devices cannot be force-refreshed from static hosting.
+            </div>
+            <div class="row wrap siteUpdateSettingsRow" style="gap:10px; justify-content:flex-start; align-items:flex-end;">
+              <button class="btn small" id="sbSiteUpdateCheckNow" type="button" title="Fetch ./site-version.json now and surface the shared refresh prompt if a newer build is available.">Force Check for Update</button>
+              <button class="btn small" id="sbSiteUpdateResetDismissal" type="button" title="Clear the dismissed refresh version for this TEST environment in this browser.">Reset Refresh Dismissal</button>
+              <button class="btn small" id="sbSiteUpdatePromptTabs" type="button" title="Ask currently open OMJN TEST tabs in this browser to show a safe refresh prompt.">Prompt Open Tabs to Refresh</button>
+            </div>
+            <div class="small siteUpdateStatus" id="sbSiteUpdateStatus" role="status" aria-live="polite" style="margin-top:10px; opacity:.9;">
+              Waiting for the shared site-version check.
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

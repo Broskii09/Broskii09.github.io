@@ -9,6 +9,10 @@ let adPresets = [];
 let adSelectedPresetId = null;
 let adPreviewBlobUrl = null;
 let adInsertAfterPaperSlot = null;
+const LAST_CALL_RESET_HOUR = 6;
+const LAST_CALL_CLOSE_MODE_MIDNIGHT = "midnight";
+const LAST_CALL_CLOSE_MODE_ONE_AM = "oneam";
+const LAST_CALL_CLOSE_MODE_CUSTOM = "custom";
   OMJN.applyThemeToDocument(document, state);
   OMJN.ensureHouseBandQueues(state);
   normalizeQueueSpecialSlots(state);
@@ -33,6 +37,16 @@ let adInsertAfterPaperSlot = null;
     startGuard: document.getElementById("startGuard"),
     endGuard: document.getElementById("endGuard"),
     hotkeysEnabled: document.getElementById("hotkeysEnabled"),
+    setLastCallEnabled: document.getElementById("setLastCallEnabled"),
+    setLastCallCloseMode: document.getElementById("setLastCallCloseMode"),
+    lastCallCustomTimeWrap: document.getElementById("lastCallCustomTimeWrap"),
+    setLastCallCustomTime: document.getElementById("setLastCallCustomTime"),
+    btnLastCallShowNow: document.getElementById("btnLastCallShowNow"),
+    lastCallStatus: document.getElementById("lastCallStatus"),
+    btnSiteUpdateCheckNow: document.getElementById("btnSiteUpdateCheckNow"),
+    btnSiteUpdateResetDismissal: document.getElementById("btnSiteUpdateResetDismissal"),
+    btnSiteUpdatePromptTabs: document.getElementById("btnSiteUpdatePromptTabs"),
+    siteUpdateStatus: document.getElementById("siteUpdateStatus"),
 
     // Settings
 setBgColor: document.getElementById("setBgColor"),
@@ -179,6 +193,14 @@ setBgColor: document.getElementById("setBgColor"),
     btnTimerUpPlus1: document.getElementById("btnTimerUpPlus1"),
     btnTimerUpPlus5: document.getElementById("btnTimerUpPlus5"),
     btnTimerUpReset: document.getElementById("btnTimerUpReset"),
+    lastCallPrompt: document.getElementById("lastCallPrompt"),
+    lastCallPromptTitle: document.getElementById("lastCallPromptTitle"),
+    lastCallPromptText: document.getElementById("lastCallPromptText"),
+    lastCallPromptMeta: document.getElementById("lastCallPromptMeta"),
+    btnLastCallMade: document.getElementById("btnLastCallMade"),
+    btnLastCallSnooze: document.getElementById("btnLastCallSnooze"),
+    btnLastCallExtend: document.getElementById("btnLastCallExtend"),
+    btnLastCallDismiss: document.getElementById("btnLastCallDismiss"),
     kpiCurrent: document.getElementById("kpiCurrent"),
     kpiNext: document.getElementById("kpiNext"),
     kpiLeft: document.getElementById("kpiLeft"),
@@ -202,7 +224,9 @@ setBgColor: document.getElementById("setBgColor"),
     btnPlus30: document.getElementById("btnPlus30"),
     btnResetTime: document.getElementById("btnResetTime"),
     btnViewerTimerToggle: document.getElementById("btnViewerTimerToggle"),
+    timerSubLabel: document.getElementById("timerSubLabel"),
     timerLine: document.getElementById("timerLine"),
+    timerHint: document.getElementById("timerHint"),
 // Tabs
     tabBtnPerformers: document.getElementById("tabBtnPerformers"),
     tabBtnHouseBand: document.getElementById("tabBtnHouseBand"),
@@ -308,10 +332,60 @@ setBgColor: document.getElementById("setBgColor"),
     renderSiteVersionBadge(detail?.currentVersion || OMJN.getSiteVersion?.() || "");
   }
 
+  function formatSiteUpdateCheckedTime(ms){
+    const value = Number(ms || 0);
+    if(!Number.isFinite(value) || value <= 0) return "";
+    try{
+      return new Date(value).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }catch(_){
+      return "";
+    }
+  }
+
+  function renderSiteUpdateDiagnostics(detail){
+    const statusEl = els.siteUpdateStatus;
+    if(!statusEl) return;
+    const info = detail || OMJN.getSiteUpdateStatus?.() || {};
+    const currentLabel = formatSiteVersionLabel(info.currentVersion || "") || "Build unknown";
+    const latestLabel = formatSiteVersionLabel(info.latestVersion || "");
+    const dismissedLabel = formatSiteVersionLabel(info.dismissedVersion || "");
+    const parts = [`Current: ${currentLabel}`];
+    if(info.canCheck === false){
+      parts.push("Checks require http:// or https:// (not file://)");
+    }else if(info.updateAvailable){
+      parts.push(`Update ready: ${latestLabel || "Newer build detected"}`);
+    }else if(latestLabel){
+      parts.push(`Latest seen: ${latestLabel}`);
+    }else{
+      parts.push("Waiting for first version check");
+    }
+    if(dismissedLabel) parts.push(`Dismissed: ${dismissedLabel}`);
+    if(info.promptVisible) parts.push("Prompt visible");
+    const checkedAt = formatSiteUpdateCheckedTime(info.lastCheckedAt);
+    if(checkedAt) parts.push(`Last checked ${checkedAt}`);
+    if(info.lastError) parts.push(`Check error: ${info.lastError}`);
+    statusEl.textContent = parts.join(" | ");
+    statusEl.classList.toggle("isWarn", !!info.updateAvailable || !!info.promptVisible);
+    statusEl.classList.toggle("isError", !!info.lastError);
+  }
+
+  function setSiteUpdateBusyStatus(text){
+    if(!els.siteUpdateStatus) return;
+    els.siteUpdateStatus.textContent = text;
+    els.siteUpdateStatus.classList.remove("isWarn", "isError");
+  }
+
   syncSiteVersionBadge();
   window.addEventListener("omjn:site-version", (e) => {
-    syncSiteVersionBadge(e?.detail || {});
+    const detail = e?.detail || {};
+    syncSiteVersionBadge(detail);
+    renderSiteUpdateDiagnostics(detail);
   });
+  window.addEventListener("resize", syncRefreshPromptOffset);
 
   let selectedId = null;
   // Inline per-row editor (Stage 2)
@@ -417,9 +491,17 @@ setBgColor: document.getElementById("setBgColor"),
     return OMJN.isAdSlotType ? OMJN.isAdSlotType(slotTypeId) : String(slotTypeId || "").startsWith("ad_");
   }
 
+  function isAllStarJamSlotTypeId(slotTypeId){
+    return OMJN.isAllStarJamSlotType ? OMJN.isAllStarJamSlotType(slotTypeId) : String(slotTypeId || "").toLowerCase() === "allstarjam";
+  }
+
+  function isUntimedTimerSlot(slot){
+    return isAllStarJamSlotTypeId(slot?.slotTypeId);
+  }
+
   function isSpecialSlot(slot){
     const typeId = String(slot?.slotTypeId || "");
-    return isAdSlotTypeId(typeId) || typeId === "intermission" || typeId === "houseband";
+    return isAdSlotTypeId(typeId) || typeId === "intermission" || typeId === "houseband" || isAllStarJamSlotTypeId(typeId);
   }
 
   function isPaperSlot(slot){
@@ -440,6 +522,90 @@ setBgColor: document.getElementById("setBgColor"),
     return n ? `#${n}` : "";
   }
 
+  function getLastCallNowMs(){
+    const forced = Number(window.__OMJN_TEST_LAST_CALL_NOW_MS);
+    return Number.isFinite(forced) && forced > 0 ? forced : Date.now();
+  }
+
+  function pad2(n){
+    return String(Math.max(0, Math.floor(Number(n) || 0))).padStart(2, "0");
+  }
+
+  function formatClockMinutes12h(totalMinutes){
+    const minutes = Math.max(0, Math.round(Number(totalMinutes) || 0)) % (24 * 60);
+    const hour24 = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    const suffix = hour24 >= 12 ? "PM" : "AM";
+    const hour12 = hour24 % 12 || 12;
+    return `${hour12}:${pad2(mins)} ${suffix}`;
+  }
+
+  function normalizeLastCallCustomTime(raw){
+    const text = String(raw || "").trim();
+    const match = text.match(/^(\d{1,2}):(\d{2})$/);
+    if(!match) return "00:00";
+    const hour = clamp(parseInt(match[1], 10) || 0, 0, 23);
+    const minute = clamp(parseInt(match[2], 10) || 0, 0, 59);
+    return `${pad2(hour)}:${pad2(minute)}`;
+  }
+
+  function buildLastCallDefaults(){
+    return {
+      enabled: true,
+      closeMode: LAST_CALL_CLOSE_MODE_MIDNIGHT,
+      customCloseTime: "00:00",
+      runtimeNightKey: "",
+      confirmedAtMs: 0,
+      dismissedAtMs: 0,
+      snoozeUntilMs: 0,
+      manualShowRequestedAtMs: 0,
+    };
+  }
+
+  function getLastCallNightKey(nowMs = getLastCallNowMs()){
+    const shifted = new Date((Number(nowMs) || Date.now()) - (LAST_CALL_RESET_HOUR * 60 * 60 * 1000));
+    return `${shifted.getFullYear()}-${pad2(shifted.getMonth() + 1)}-${pad2(shifted.getDate())}`;
+  }
+
+  function resetLastCallNightState(lastCall, nightKey = getLastCallNightKey()){
+    if(!lastCall) return;
+    lastCall.runtimeNightKey = String(nightKey || "");
+    lastCall.confirmedAtMs = 0;
+    lastCall.dismissedAtMs = 0;
+    lastCall.snoozeUntilMs = 0;
+    lastCall.manualShowRequestedAtMs = 0;
+  }
+
+  function ensureLastCallPrefs(prefs){
+    const defaults = buildLastCallDefaults();
+    if(!prefs.lastCall || typeof prefs.lastCall !== "object"){
+      prefs.lastCall = defaults;
+    }else{
+      for(const key of Object.keys(defaults)){
+        if(prefs.lastCall[key] === undefined) prefs.lastCall[key] = defaults[key];
+      }
+    }
+    const lastCall = prefs.lastCall;
+    lastCall.enabled = lastCall.enabled !== false;
+    if(![
+      LAST_CALL_CLOSE_MODE_MIDNIGHT,
+      LAST_CALL_CLOSE_MODE_ONE_AM,
+      LAST_CALL_CLOSE_MODE_CUSTOM
+    ].includes(String(lastCall.closeMode || ""))){
+      lastCall.closeMode = LAST_CALL_CLOSE_MODE_MIDNIGHT;
+    }
+    lastCall.customCloseTime = normalizeLastCallCustomTime(lastCall.customCloseTime);
+    lastCall.runtimeNightKey = String(lastCall.runtimeNightKey || "");
+    lastCall.confirmedAtMs = Math.max(0, Math.round(Number(lastCall.confirmedAtMs) || 0));
+    lastCall.dismissedAtMs = Math.max(0, Math.round(Number(lastCall.dismissedAtMs) || 0));
+    lastCall.snoozeUntilMs = Math.max(0, Math.round(Number(lastCall.snoozeUntilMs) || 0));
+    lastCall.manualShowRequestedAtMs = Math.max(0, Math.round(Number(lastCall.manualShowRequestedAtMs) || 0));
+    if(!lastCall.runtimeNightKey){
+      lastCall.runtimeNightKey = getLastCallNightKey();
+    }
+    return lastCall;
+  }
+
   function ensureOperatorPrefs(s){
     s.operatorPrefs = s.operatorPrefs || {};
     if(!Number.isFinite(Number(s.operatorPrefs.paperSlotCount))){
@@ -452,7 +618,90 @@ setBgColor: document.getElementById("setBgColor"),
         .map(n => Math.round(Number(n)))
         .filter(n => Number.isFinite(n) && n > 0)
     )).sort((a,b) => a-b);
+    ensureLastCallPrefs(s.operatorPrefs);
     return s.operatorPrefs;
+  }
+
+  function getLastCallCloseMinutes(lastCall){
+    const mode = String(lastCall?.closeMode || LAST_CALL_CLOSE_MODE_MIDNIGHT);
+    if(mode === LAST_CALL_CLOSE_MODE_ONE_AM) return 60;
+    if(mode === LAST_CALL_CLOSE_MODE_CUSTOM){
+      const [hourRaw, minuteRaw] = normalizeLastCallCustomTime(lastCall?.customCloseTime).split(":");
+      const hour = clamp(parseInt(hourRaw, 10) || 0, 0, 23);
+      const minute = clamp(parseInt(minuteRaw, 10) || 0, 0, 59);
+      return (hour * 60) + minute;
+    }
+    return 0;
+  }
+
+  function getLastCallCloseLabel(lastCall){
+    return formatClockMinutes12h(getLastCallCloseMinutes(lastCall));
+  }
+
+  function getLastCallNightBaseMs(nightKey){
+    const match = String(nightKey || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!match) return Date.now();
+    const year = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1;
+    const day = parseInt(match[3], 10);
+    return new Date(year, month, day, 0, 0, 0, 0).getTime();
+  }
+
+  function getLastCallCloseAtMs(lastCall, nowMs = getLastCallNowMs()){
+    const closeMinutes = getLastCallCloseMinutes(lastCall);
+    const nightKey = String(lastCall?.runtimeNightKey || getLastCallNightKey(nowMs));
+    const baseMs = getLastCallNightBaseMs(nightKey);
+    const dayOffset = closeMinutes < (LAST_CALL_RESET_HOUR * 60) ? 24 * 60 * 60 * 1000 : 0;
+    return baseMs + dayOffset + (closeMinutes * 60 * 1000);
+  }
+
+  function getLastCallSchedule(lastCall, nowMs = getLastCallNowMs()){
+    const closeAtMs = getLastCallCloseAtMs(lastCall, nowMs);
+    return [
+      { id:"minus30", title:"30 minutes before close", dueAtMs: closeAtMs - (30 * 60 * 1000) },
+      { id:"minus15", title:"15 minutes before close", dueAtMs: closeAtMs - (15 * 60 * 1000) },
+      { id:"confirm10", title:"10 minutes before close confirmation", dueAtMs: closeAtMs - (10 * 60 * 1000) },
+    ];
+  }
+
+  function maybeResetLastCallNightBoundary(nowMs = getLastCallNowMs()){
+    const currentKey = getLastCallNightKey(nowMs);
+    const lastCall = ensureOperatorPrefs(state).lastCall;
+    if(String(lastCall.runtimeNightKey || "") === currentKey) return false;
+    updateState(s => {
+      const nextLastCall = ensureOperatorPrefs(s).lastCall;
+      resetLastCallNightState(nextLastCall, currentKey);
+    }, { recordHistory:false });
+    return true;
+  }
+
+  function getLastCallReminderInfo(sourceState = state, nowMs = getLastCallNowMs()){
+    const lastCall = ensureOperatorPrefs(sourceState).lastCall;
+    const closeAtMs = getLastCallCloseAtMs(lastCall, nowMs);
+    const closeLabel = getLastCallCloseLabel(lastCall);
+    const schedule = getLastCallSchedule(lastCall, nowMs);
+    const resolved = !!(lastCall.confirmedAtMs || lastCall.dismissedAtMs);
+    const dueReminder = schedule.filter(item => nowMs >= item.dueAtMs).pop() || null;
+    const manualRequested = lastCall.manualShowRequestedAtMs > 0;
+    const snoozed = lastCall.snoozeUntilMs > nowMs;
+    const canShow = lastCall.enabled && !snoozed && (manualRequested || (!resolved && !!dueReminder));
+    const activeReminder = dueReminder || (manualRequested ? { id:"manual", title:"Manual reminder", dueAtMs: nowMs } : null);
+    const overdueMs = dueReminder ? Math.max(0, nowMs - dueReminder.dueAtMs) : 0;
+    const nextReminder = schedule.find(item => item.dueAtMs > nowMs) || null;
+    return {
+      lastCall,
+      closeAtMs,
+      closeLabel,
+      schedule,
+      resolved,
+      dueReminder,
+      manualRequested,
+      snoozed,
+      canShow,
+      activeReminder,
+      overdueMs,
+      nextReminder,
+    };
   }
 
   function makePaperPlaceholder(num){
@@ -532,6 +781,9 @@ setBgColor: document.getElementById("setBgColor"),
     const activePaper = s.queue
       .filter(slot => isPaperSlot(slot) && !isDoneStatus(slot.status))
       .sort((a,b) => (paperSlotNumber(a) || 0) - (paperSlotNumber(b) || 0));
+
+    const firstRealPaper = activePaper.find(slot => !isPaperPlaceholder(slot));
+    if(!firstRealPaper) return;
 
     for(const slot of activePaper){
       if(!isPaperPlaceholder(slot)) break;
@@ -848,6 +1100,7 @@ setBgColor: document.getElementById("setBgColor"),
       slotTypeId: isPaperPlaceholder(slot) ? "" : (slot?.slotTypeId || "musician"),
       customTypeLabel: slot?.customTypeLabel || "",
       minutesOverride: (slot?.minutesOverride ?? ""),
+      featuredPerformersText: slot?.featuredPerformersText || "",
       notes: slot?.notes || "",
       donationUrl: (media.donationUrl || ""),
       mediaLayout: media.mediaLayout || "NONE",
@@ -880,6 +1133,7 @@ setBgColor: document.getElementById("setBgColor"),
     if(!editDraft) return false;
     const showNotice = opts.showNotice !== false;
     const name = OMJN.sanitizeText(editDraft.displayName || "");
+    const featuredPerformersText = OMJN.sanitizeText(editDraft.featuredPerformersText || "");
     const notes = String(editDraft.notes || "");
     const url = OMJN.sanitizeText(editDraft.donationUrl || "");
     const layout = String(editDraft.mediaLayout || "NONE");
@@ -893,6 +1147,7 @@ setBgColor: document.getElementById("setBgColor"),
       const n = Math.round(Number(moRaw));
       if(Number.isFinite(n) && n > 0) minutesOverride = n;
     }
+    if(isAllStarJamSlotTypeId(slotTypeId)) minutesOverride = null;
 
     const currentSlot = state.queue.find(x => x.id === slotId);
     if(isPaperPlaceholder(currentSlot) && !name){
@@ -923,7 +1178,7 @@ setBgColor: document.getElementById("setBgColor"),
         slot.status = "QUEUED";
         slot.isPlaceholder = false;
       }
-      slot.minutesOverride = minutesOverride;
+      slot.minutesOverride = isAllStarJamSlotTypeId(slotTypeId) ? null : minutesOverride;
       slot.customTypeLabel = (slotTypeId === "custom") ? customLabel : "";
       slot.notes = notes;
 
@@ -961,6 +1216,13 @@ setBgColor: document.getElementById("setBgColor"),
       }else{
         try{ delete slot.intermissionMessage; }catch(_){ }
       }
+
+      if(isAllStarJamSlotTypeId(slotTypeId)){
+        slot.displayName = name || slot.displayName || "ALL STAR JAM";
+        slot.featuredPerformersText = featuredPerformersText;
+      }else{
+        try{ delete slot.featuredPerformersText; }catch(_){ }
+      }
     });
 
     if(showNotice){
@@ -973,6 +1235,37 @@ setBgColor: document.getElementById("setBgColor"),
   function cancelInlineEdit(){
     closeInlineEdit();
     render();
+  }
+
+  function buildInlineEditActionBar(slotId){
+    const head = document.createElement("div");
+    head.className = "qExpHead";
+
+    const actions = document.createElement("div");
+    actions.className = "qExpActions";
+
+    const btnCancel = document.createElement("button");
+    btnCancel.className = "btn small";
+    btnCancel.type = "button";
+    btnCancel.textContent = "Cancel";
+    btnCancel.addEventListener("click", (e) => {
+      e.preventDefault();
+      cancelInlineEdit();
+    });
+
+    const btnSave = document.createElement("button");
+    btnSave.className = "btn small good";
+    btnSave.type = "button";
+    btnSave.textContent = "Save";
+    btnSave.addEventListener("click", (e) => {
+      e.preventDefault();
+      saveInlineEdit(slotId);
+    });
+
+    actions.appendChild(btnCancel);
+    actions.appendChild(btnSave);
+    head.appendChild(actions);
+    return head;
   }
 
   function notesPreviewData(txt, maxLines = 3){
@@ -1082,6 +1375,11 @@ setBgColor: document.getElementById("setBgColor"),
         const msg = String(slot.intermissionMessage || "").trim();
         if(!msg) slot.intermissionMessage = "WE'LL BE RIGHT BACK";
       }
+      if(isAllStarJamSlotTypeId(slot.slotTypeId)){
+        slot.displayName = OMJN.sanitizeText(slot.displayName || "") || "ALL STAR JAM";
+        slot.featuredPerformersText = OMJN.sanitizeText(slot.featuredPerformersText || "");
+        slot.minutesOverride = null;
+      }
     }
   }
 
@@ -1120,6 +1418,7 @@ setBgColor: document.getElementById("setBgColor"),
     const stopRowClick = (e) => { e.stopPropagation(); };
     wrap.addEventListener("mousedown", stopRowClick);
     wrap.addEventListener("click", stopRowClick);
+    wrap.appendChild(buildInlineEditActionBar(slot.id));
 
     const grid = document.createElement("div");
     grid.className = "qExpGrid";
@@ -1206,24 +1505,6 @@ setBgColor: document.getElementById("setBgColor"),
 
       grid.appendChild(left);
       wrap.appendChild(grid);
-
-      const actions = document.createElement("div");
-      actions.className = "qExpActions";
-
-      const btnCancel = document.createElement("button");
-      btnCancel.className = "btn small";
-      btnCancel.textContent = "Cancel";
-      btnCancel.addEventListener("click", (e) => { e.preventDefault(); cancelInlineEdit(); });
-
-      const btnSave = document.createElement("button");
-      btnSave.className = "btn small";
-      btnSave.textContent = "Save";
-      btnSave.addEventListener("click", (e) => { e.preventDefault(); saveInlineEdit(slot.id); });
-
-      actions.appendChild(btnCancel);
-      actions.appendChild(btnSave);
-      wrap.appendChild(actions);
-
       return wrap;
     }
 
@@ -1299,6 +1580,21 @@ setBgColor: document.getElementById("setBgColor"),
     });
     fMins.appendChild(lMins); fMins.appendChild(iMins);
 
+    const fJamCast = document.createElement("div");
+    fJamCast.className = "field";
+    const lJamCast = document.createElement("label");
+    lJamCast.textContent = "Selected Performers";
+    const iJamCast = document.createElement("input");
+    iJamCast.type = "text";
+    iJamCast.placeholder = "Singer A • Guitar B • Drums C";
+    iJamCast.value = editDraft?.featuredPerformersText ?? (slot.featuredPerformersText || "");
+    iJamCast.addEventListener("input", () => { if(editDraft) editDraft.featuredPerformersText = iJamCast.value; });
+    iJamCast.addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){ e.preventDefault(); saveInlineEdit(slot.id); }
+      if(e.key === "Escape"){ e.preventDefault(); cancelInlineEdit(); }
+    });
+    fJamCast.appendChild(lJamCast);
+    fJamCast.appendChild(iJamCast);
 
 
     // House Band Set (HOUSE BAND slots)
@@ -1357,11 +1653,15 @@ setBgColor: document.getElementById("setBgColor"),
 
     function syncSpecialFields(){
       const curType = String(selType.value || "");
+      const isJam = isAllStarJamSlotTypeId(curType);
       fHB.style.display = (curType === "houseband") ? "" : "none";
       fIM.style.display = (curType === "intermission") ? "" : "none";
+      fJamCast.style.display = isJam ? "" : "none";
+      fMins.style.display = isJam ? "none" : "";
+      lName.textContent = isJam ? "Title" : "Name";
+      lNotes.textContent = isJam ? "Viewer Notes / Subtitle" : "Operator Notes (private)";
+      lUrl.textContent = isJam ? "Donation / Link" : "Website / Socials";
     }
-    selType.addEventListener("change", syncSpecialFields);
-    syncSpecialFields();
     const fUrl = document.createElement("div");
     fUrl.className = "field";
     const lUrl = document.createElement("label");
@@ -1395,8 +1695,11 @@ setBgColor: document.getElementById("setBgColor"),
     left.appendChild(fType);
     left.appendChild(fCustom);
     left.appendChild(fMins);
+    left.appendChild(fJamCast);
     left.appendChild(fUrl);
     left.appendChild(fNotes);
+    selType.addEventListener("change", syncSpecialFields);
+    syncSpecialFields();
 
     const right = document.createElement("div");
     right.className = "col";
@@ -1475,24 +1778,6 @@ setBgColor: document.getElementById("setBgColor"),
     grid.appendChild(left);
     grid.appendChild(right);
     wrap.appendChild(grid);
-
-    const actions = document.createElement("div");
-    actions.className = "qExpActions";
-
-    const btnCancel = document.createElement("button");
-    btnCancel.className = "btn small";
-    btnCancel.textContent = "Cancel";
-    btnCancel.addEventListener("click", (e) => { e.preventDefault(); cancelInlineEdit(); });
-
-    const btnSave = document.createElement("button");
-    btnSave.className = "btn small";
-    btnSave.textContent = "Save";
-    btnSave.addEventListener("click", (e) => { e.preventDefault(); saveInlineEdit(slot.id); });
-
-    actions.appendChild(btnCancel);
-    actions.appendChild(btnSave);
-    wrap.appendChild(actions);
-
     return wrap;
   }
 
@@ -1618,6 +1903,7 @@ function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
     updateState(s => {
       const cur = s.queue.find(x => x.id === s.currentSlotId);
       if(!cur) return;
+      if(isUntimedTimerSlot(cur)) return;
 
       const liveElapsedMs = Number(s.timer.elapsedMs || 0)
         + ((s.timer.running && s.timer.startedAt) ? Math.max(0, Date.now() - s.timer.startedAt) : 0);
@@ -2508,6 +2794,7 @@ function escapeHtml(s){
       if(els.setSponsorSafeMarginVal) els.setSponsorSafeMarginVal.textContent = `${Math.round(v)}px`;
     }
     updateSponsorPreviewAndStatus().catch(() => {});
+    renderLastCallSettings();
 
     renderSlotTypesEditor();
   }
@@ -2609,6 +2896,77 @@ function escapeHtml(s){
     }
     if(els.hotkeysEnabled){
       els.hotkeysEnabled.addEventListener("change", () => updateState(s => { s.operatorPrefs.hotkeysEnabled = !!els.hotkeysEnabled.checked; }, { recordHistory:false }));
+    }
+    if(els.setLastCallEnabled){
+      els.setLastCallEnabled.addEventListener("change", () => {
+        updateState(s => {
+          const lastCall = ensureOperatorPrefs(s).lastCall;
+          lastCall.enabled = !!els.setLastCallEnabled.checked;
+          if(!lastCall.enabled){
+            lastCall.snoozeUntilMs = 0;
+            lastCall.manualShowRequestedAtMs = 0;
+          }
+        }, { recordHistory:false });
+      });
+    }
+    if(els.setLastCallCloseMode){
+      els.setLastCallCloseMode.addEventListener("change", () => {
+        updateState(s => {
+          const lastCall = ensureOperatorPrefs(s).lastCall;
+          lastCall.closeMode = String(els.setLastCallCloseMode.value || LAST_CALL_CLOSE_MODE_MIDNIGHT);
+          lastCall.snoozeUntilMs = 0;
+          lastCall.manualShowRequestedAtMs = 0;
+        }, { recordHistory:false });
+      });
+    }
+    if(els.setLastCallCustomTime){
+      const onLastCallCustomTime = () => {
+        updateState(s => {
+          const lastCall = ensureOperatorPrefs(s).lastCall;
+          lastCall.customCloseTime = normalizeLastCallCustomTime(els.setLastCallCustomTime.value);
+          if(String(lastCall.closeMode || "") === LAST_CALL_CLOSE_MODE_CUSTOM){
+            lastCall.snoozeUntilMs = 0;
+            lastCall.manualShowRequestedAtMs = 0;
+          }
+        }, { recordHistory:false });
+      };
+      els.setLastCallCustomTime.addEventListener("input", onLastCallCustomTime);
+      els.setLastCallCustomTime.addEventListener("change", onLastCallCustomTime);
+    }
+    if(els.btnLastCallShowNow){
+      els.btnLastCallShowNow.addEventListener("click", showLastCallReminderNow);
+    }
+    if(els.btnLastCallMade){
+      els.btnLastCallMade.addEventListener("click", markLastCallMade);
+    }
+    if(els.btnLastCallSnooze){
+      els.btnLastCallSnooze.addEventListener("click", snoozeLastCallReminder);
+    }
+    if(els.btnLastCallExtend){
+      els.btnLastCallExtend.addEventListener("click", extendLastCallToOneAm);
+    }
+    if(els.btnLastCallDismiss){
+      els.btnLastCallDismiss.addEventListener("click", dismissLastCallTonight);
+    }
+    if(els.btnSiteUpdateCheckNow){
+      els.btnSiteUpdateCheckNow.addEventListener("click", async () => {
+        setSiteUpdateBusyStatus("Checking ./site-version.json now...");
+        const detail = await OMJN.checkForSiteUpdateNow?.();
+        renderSiteUpdateDiagnostics(detail);
+      });
+    }
+    if(els.btnSiteUpdateResetDismissal){
+      els.btnSiteUpdateResetDismissal.addEventListener("click", () => {
+        const detail = OMJN.resetSiteUpdateDismissal?.();
+        renderSiteUpdateDiagnostics(detail);
+      });
+    }
+    if(els.btnSiteUpdatePromptTabs){
+      els.btnSiteUpdatePromptTabs.addEventListener("click", async () => {
+        setSiteUpdateBusyStatus("Prompting open OMJN TEST tabs to refresh...");
+        const detail = await OMJN.promptOpenTabsToRefresh?.({ sourceLabel: "Operator" });
+        renderSiteUpdateDiagnostics(detail);
+      });
     }
 
 
@@ -3350,6 +3708,7 @@ function escapeHtml(s){
     if(id === "poetry") return "fa-solid fa-masks-theater";
     if(id === "houseband") return "fa-solid fa-guitar";
     if(id === "intermission") return "fa-solid fa-pause";
+    if(id === "allstarjam") return "fa-solid fa-star";
     if(id.startsWith("ad_")) return "fa-solid fa-bullhorn";
     return "fa-solid fa-wand-magic-sparkles";
   }
@@ -3408,6 +3767,7 @@ function escapeHtml(s){
       b.className = "btn tiny qActionSpecial";
       if(label === "Intermission After") b.classList.add("qActionSpecialIntermission");
       if(label === "Ad After") b.classList.add("qActionSpecialAd");
+      if(label === "All Star Jam After") b.classList.add("qActionSpecialAllStarJam");
       if(label === "House Band After") b.classList.add("qActionSpecialHouseBand");
       b.type = "button";
       b.textContent = label;
@@ -3424,6 +3784,7 @@ function escapeHtml(s){
     };
     addBtn("Intermission After", (after) => openIntermissionModal(after));
     addBtn("Ad After", (after) => openAdModal(null, after));
+    addBtn("All Star Jam After", (after) => addAllStarJamSlot({ afterPaperSlotNumber: after, openEditor: true }));
     addBtn("House Band After", (after) => addHouseBandSlot(after));
   }
 
@@ -3468,6 +3829,19 @@ function escapeHtml(s){
 
     const actions = document.createElement("div");
     actions.className = "qActions paperSlotActions";
+
+    const actionGrid = document.createElement("div");
+    actionGrid.className = "qActionGrid qBlankActionGrid";
+    actions.appendChild(actionGrid);
+
+    const dangerColumn = document.createElement("div");
+    dangerColumn.className = "qDangerColumn";
+    actions.appendChild(dangerColumn);
+
+    const moveColumn = document.createElement("div");
+    moveColumn.className = "qMoveColumn";
+    actions.appendChild(moveColumn);
+
     const add = document.createElement("button");
     add.className = "btn tiny good qActionAddPerformer";
     add.type = "button";
@@ -3477,12 +3851,12 @@ function escapeHtml(s){
       e.stopPropagation();
       toggleInlineEdit(slot.id);
     });
-    actions.appendChild(add);
+    actionGrid.appendChild(add);
 
     const btnUp = document.createElement("button");
     btnUp.className = "btn tiny qActionReorder qActionUp";
     btnUp.type = "button";
-    btnUp.textContent = "↑";
+    btnUp.textContent = "\u2191";
     btnUp.title = "Move blank up";
     btnUp.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -3492,18 +3866,14 @@ function escapeHtml(s){
     const btnDn = document.createElement("button");
     btnDn.className = "btn tiny qActionReorder qActionDown";
     btnDn.type = "button";
-    btnDn.textContent = "↓";
+    btnDn.textContent = "\u2193";
     btnDn.title = "Move blank down";
     btnDn.addEventListener("click", (e) => {
       e.stopPropagation();
       moveSlot(slot.id, +1);
     });
-
-    const moveStack = document.createElement("div");
-    moveStack.className = "qBlankMoveStack";
-    moveStack.appendChild(btnUp);
-    moveStack.appendChild(btnDn);
-    actions.appendChild(moveStack);
+    moveColumn.appendChild(btnUp);
+    moveColumn.appendChild(btnDn);
 
     const btnDelete = document.createElement("button");
     btnDelete.className = "btn tiny subtleDanger qActionDeleteBlank";
@@ -3514,9 +3884,9 @@ function escapeHtml(s){
       e.stopPropagation();
       deleteBlankPaperSlot(slot.id);
     });
-    actions.appendChild(btnDelete);
+    dangerColumn.appendChild(btnDelete);
 
-    addSpecialButtons(actions, paperSlotNumber(slot));
+    addSpecialButtons(actionGrid, paperSlotNumber(slot));
 
     div.appendChild(handle);
     div.appendChild(main);
@@ -3558,6 +3928,7 @@ function escapeHtml(s){
     const slotTypeId = String(slot.slotTypeId || "");
     const isIntermission = slotTypeId === "intermission";
     const isHouseBand = slotTypeId === "houseband";
+    const isAllStarJam = isAllStarJamSlotTypeId(slotTypeId);
     const isJamaoke = slotTypeId === "jamaoke";
     const isAd = slotTypeId.startsWith("ad_");
     if(isLive) div.classList.add("role-live");
@@ -3566,6 +3937,7 @@ function escapeHtml(s){
     else if(isDone) div.classList.add("role-done");
     else if(isIntermission) div.classList.add("role-intermission");
     else if(isHouseBand) div.classList.add("role-houseband");
+    else if(isAllStarJam) div.classList.add("role-allstarjam");
     else if(isJamaoke) div.classList.add("role-jamaoke");
     else if(isAd) div.classList.add("role-ad");
     else div.classList.add("role-queued");
@@ -3618,6 +3990,7 @@ function escapeHtml(s){
     else if(isDeck) role.textContent = "ON DECK";
     else if(slotTypeId === "intermission") role.textContent = "INTERMISSION";
     else if(slotTypeId === "houseband") role.textContent = "HOUSE BAND SET";
+    else if(isAllStarJam) role.textContent = "ALL STAR JAM";
     else if(slotTypeId === "jamaoke") role.textContent = "JAMAOKE";
     else if(slotTypeId.startsWith("ad_")) role.textContent = "AD";
     else if(isDone) role.textContent = (slot.status === "SKIPPED" ? (slot.noShow ? "NO-SHOW" : "SKIPPED") : "DONE");
@@ -3635,7 +4008,7 @@ function escapeHtml(s){
 
     const pillMins = document.createElement("span");
     pillMins.className = "qPill qPillMins";
-    pillMins.textContent = `${mins}m`;
+    pillMins.textContent = isAllStarJam ? "Untimed" : `${mins}m`;
     pills.appendChild(pillMins);
 
     // Requested: keep pills left, next to the status role label.
@@ -3653,7 +4026,7 @@ function escapeHtml(s){
         const helper = document.createElement("span");
         helper.className = "qForecastInline";
         helper.textContent = formatQueueForecastDetail(forecastDetail);
-        helper.title = "ETA math breakdown for this queued performer.";
+        helper.title = "ETA math breakdown for this queued slot.";
         barRight.appendChild(helper);
       }
       const eta = document.createElement("span");
@@ -3724,6 +4097,18 @@ function escapeHtml(s){
     actions.className = "qActions";
     if(!isDone) actions.classList.add("qActionsActive");
 
+    let actionGrid = actions;
+    let moveColumn = null;
+    if(!isDone){
+      actionGrid = document.createElement("div");
+      actionGrid.className = "qActionGrid";
+      actions.appendChild(actionGrid);
+
+      moveColumn = document.createElement("div");
+      moveColumn.className = "qMoveColumn";
+      actions.appendChild(moveColumn);
+    }
+
     // Edit / Close (inline expander)
     if(!isDone){
       const btnEdit = document.createElement("button");
@@ -3737,7 +4122,7 @@ function escapeHtml(s){
 
         toggleInlineEdit(slot.id);
       });
-      actions.appendChild(btnEdit);
+      actionGrid.appendChild(btnEdit);
 
       // Skip (swap down one spot) - disabled for current performer
       const btnSkip = document.createElement("button");
@@ -3749,7 +4134,7 @@ function escapeHtml(s){
         e.stopPropagation();
         skipSwapDown(slot.id);
       });
-      actions.appendChild(btnSkip);
+      actionGrid.appendChild(btnSkip);
 
       // No-show (not applicable for special screens like Intermission)
       if(String(slot.slotTypeId || "") !== "intermission"){
@@ -3762,7 +4147,7 @@ function escapeHtml(s){
           e.stopPropagation();
           markNoShow(slot.id);
         });
-        actions.appendChild(btnNo);
+        actionGrid.appendChild(btnNo);
       }
     }
 
@@ -3786,12 +4171,12 @@ function escapeHtml(s){
           e.stopPropagation();
           moveSlotToPaperNumber(slot.id);
         });
-        actions.appendChild(btnMoveTo);
+        actionGrid.appendChild(btnMoveTo);
       }
 
       const btnUp = document.createElement("button");
       btnUp.className = "btn tiny qActionReorder qActionUp";
-      btnUp.textContent = "↑";
+      btnUp.textContent = "\u2191";
       btnUp.title = "Move up";
       btnUp.disabled = (slot.status !== "QUEUED") || isLive;
       btnUp.addEventListener("click", (e) => {
@@ -3801,7 +4186,7 @@ function escapeHtml(s){
 
       const btnDn = document.createElement("button");
       btnDn.className = "btn tiny qActionReorder qActionDown";
-      btnDn.textContent = "↓";
+      btnDn.textContent = "\u2193";
       btnDn.title = "Move down";
       btnDn.disabled = (slot.status !== "QUEUED") || isLive;
       btnDn.addEventListener("click", (e) => {
@@ -3809,11 +4194,13 @@ function escapeHtml(s){
         moveSlot(slot.id, +1);
       });
 
-      actions.appendChild(btnUp);
-      actions.appendChild(btnDn);
+      if(moveColumn){
+        moveColumn.appendChild(btnUp);
+        moveColumn.appendChild(btnDn);
+      }
 
       if(pNum && slot.status === "QUEUED"){
-        addSpecialButtons(actions, pNum);
+        addSpecialButtons(actionGrid, pNum);
       }
     }
 
@@ -3825,7 +4212,8 @@ function escapeHtml(s){
       e.stopPropagation();
       removeSlot(slot.id);
     });
-    actions.prepend(btnDel);
+    if(isDone) actions.prepend(btnDel);
+    else actionGrid.prepend(btnDel);
 
     main.appendChild(bar);
     div.appendChild(handle);
@@ -3941,10 +4329,15 @@ function escapeHtml(s){
     return typeId === "jamaoke";
   }
 
+  function isUnknownDurationForecastSlot(slot){
+    return isAllStarJamSlotTypeId(slot?.slotTypeId);
+  }
+
   function forecastCurrentRemainingMs(slot){
     if(!slot) return 0;
     const typeId = String(slot.slotTypeId || "");
     if(typeId.startsWith("ad_")) return 0;
+    if(isUnknownDurationForecastSlot(slot)) return 0;
     const t = OMJN.computeTimer(state);
     if((t.durationMs || 0) > 0){
       return Math.max(t.remainingMs || 0, 0);
@@ -3968,8 +4361,18 @@ function escapeHtml(s){
     return `${m}m`;
   }
 
+  function forecastBlockingSlotLabel(slot){
+    if(!slot) return "an untimed slot";
+    if(isAllStarJamSlotTypeId(slot.slotTypeId)) return "All Star Jam";
+    return OMJN.displaySlotTypeLabel(state, slot) || "an untimed slot";
+  }
+
   function formatQueueForecastDetail(detail){
     if(!detail) return "";
+    if(detail.unknownReason === "UNTIMED_AHEAD"){
+      const label = detail.blockingSlotLabel || "an untimed slot";
+      return `ETA after ${label} is unknown.`;
+    }
     const math = [];
     if(detail.currentLeftMs > 0){
       math.push(`${formatLeadDuration(detail.currentLeftMs)} current`);
@@ -3990,6 +4393,9 @@ function escapeHtml(s){
     }
     if(!math.length){
       math.push("next up now");
+    }
+    if(detail.untimedSelf){
+      math.push("untimed special slot");
     }
     return `Ahead ${formatLeadDuration(detail.aheadMs)} | ${math.join(" + ")}`;
   }
@@ -4012,6 +4418,8 @@ function escapeHtml(s){
     let performerDurationBeforeMs = 0;
     let specialDurationBeforeMs = 0;
     let currentLeftMs = 0;
+    let blockedByUntimed = false;
+    let blockingUntimedSlot = null;
 
     const phase = state.phase || "SPLASH";
     const hasCurrent = (phase === "LIVE" || phase === "PAUSED") && !!state.currentSlotId;
@@ -4027,8 +4435,14 @@ function escapeHtml(s){
       try{
         const cur = active[curIdx];
         prevSlot = cur || null;
-        currentLeftMs = forecastCurrentRemainingMs(cur);
-        cursor += currentLeftMs;
+        if(isUnknownDurationForecastSlot(cur)){
+          blockedByUntimed = true;
+          blockingUntimedSlot = cur;
+          currentLeftMs = 0;
+        }else{
+          currentLeftMs = forecastCurrentRemainingMs(cur);
+          cursor += currentLeftMs;
+        }
       }catch(_){
         currentLeftMs = 0;
         prevSlot = null;
@@ -4041,6 +4455,23 @@ function escapeHtml(s){
       const s = active[i];
       OMJN.normalizeSlot(s);
       if(s.status !== "QUEUED") continue;
+
+      const typeId = String(s.slotTypeId || "");
+      const isAd = typeId.startsWith("ad_");
+      const isIntermission = typeId === "intermission";
+      const isHouseBand = typeId === "houseband";
+      const isAllStarJam = isAllStarJamSlotTypeId(typeId);
+      const isSpecial = isAd || isIntermission || isHouseBand || isAllStarJam;
+
+      if(blockedByUntimed){
+        detailMap.set(s.id, {
+          unknownReason: "UNTIMED_AHEAD",
+          blockingSlotId: blockingUntimedSlot?.id || null,
+          blockingSlotLabel: forecastBlockingSlotLabel(blockingUntimedSlot),
+        });
+        prevSlot = s;
+        continue;
+      }
 
       if(!prevSlot && !pendingTransitionApplied){
         pendingTransitionMs = getPendingTransitionRemainingMs(s, nowMs, forecastTransitionMs, tfStats);
@@ -4057,12 +4488,6 @@ function escapeHtml(s){
         futureTransitionCount += 1;
         futureTransitionTotalMs += forecastTransitionMs;
       }
-
-      const typeId = String(s.slotTypeId || "");
-      const isAd = typeId.startsWith("ad_");
-      const isIntermission = typeId === "intermission";
-      const isHouseBand = typeId === "houseband";
-      const isSpecial = isAd || isIntermission || isHouseBand;
 
       if(!isAd && !isIntermission && !isHouseBand){
         etaMap.set(s.id, cursor);
@@ -4081,7 +4506,17 @@ function escapeHtml(s){
           pendingTransitionMs,
           futureTransitionCount,
           futureTransitionTotalMs,
+          untimedSelf: isAllStarJam,
         });
+      }
+
+      if(isAllStarJam){
+        blockedByUntimed = true;
+        blockingUntimedSlot = s;
+        slotsBeforeCount += 1;
+        specialBeforeCount += 1;
+        prevSlot = s;
+        continue;
       }
 
       const durMs = OMJN.effectiveMinutes(state, s) * 60 * 1000;
@@ -4098,11 +4533,14 @@ function escapeHtml(s){
       prevSlot = s;
     }
 
-    const estEndTs = (cursor > nowMs) ? cursor : null;
+    const estEndTs = blockedByUntimed ? null : ((cursor > nowMs) ? cursor : null);
     return {
       etaMap,
       detailMap,
       estEndTs,
+      blockedByUntimed,
+      blockingUntimedSlotId: blockingUntimedSlot?.id || null,
+      blockingUntimedSlotLabel: forecastBlockingSlotLabel(blockingUntimedSlot),
       transitionCount,
       transitionTotalMs,
       pendingTransitionMs,
@@ -4147,7 +4585,9 @@ function escapeHtml(s){
     try{
       const forecast = buildQueueForecast(nowMs);
       const ts = forecast.estEndTs;
-      if(!ts){
+      if(forecast.blockedByUntimed){
+        els.kpiEstEnd.textContent = "Untimed";
+      }else if(!ts){
         els.kpiEstEnd.textContent = "—";
       }else{
         const end = new Date(ts);
@@ -4170,7 +4610,9 @@ function escapeHtml(s){
         els.kpiTransitionMeta.textContent = meta.join(" • ");
       }
       if(els.kpiEstHint){
-        if(!ts){
+        if(forecast.blockedByUntimed){
+          els.kpiEstHint.textContent = `${forecast.blockingUntimedSlotLabel || "An untimed slot"} is in the active forecast path, so estimated end is unavailable.`;
+        }else if(!ts){
           els.kpiEstHint.textContent = "ETA appears when there is current or queued show time to forecast.";
         }else if(forecast.pendingTransitionMs > 0 && forecast.futureTransitionCount > 0){
           const plural = forecast.futureTransitionCount === 1 ? "" : "s";
@@ -4760,6 +5202,183 @@ function renderKPIs(nowMs = Date.now()){
   }
 
   
+  function hideLastCallPrompt(){
+    if(!els.lastCallPrompt) return;
+    els.lastCallPrompt.classList.remove("isVisible");
+    els.lastCallPrompt.hidden = true;
+    syncRefreshPromptOffset();
+  }
+
+  function syncRefreshPromptOffset(){
+    try{
+      const root = document.documentElement;
+      if(!root) return;
+      let offset = 0;
+      if(els.lastCallPrompt && !els.lastCallPrompt.hidden && els.lastCallPrompt.classList.contains("isVisible")){
+        const rect = els.lastCallPrompt.getBoundingClientRect();
+        const baseBottom = window.matchMedia("(max-width: 640px)").matches ? 12 : 18;
+        const desiredBottom = Math.max(baseBottom, Math.ceil(window.innerHeight - rect.top + 12));
+        offset = Math.max(0, desiredBottom - baseBottom);
+      }
+      root.style.setProperty("--omjn-refresh-offset", `${offset}px`);
+    }catch(_){}
+  }
+
+  function renderLastCallSettings(nowMs = getLastCallNowMs()){
+    const info = getLastCallReminderInfo(state, nowMs);
+    if(els.setLastCallEnabled) els.setLastCallEnabled.checked = info.lastCall.enabled !== false;
+    if(els.setLastCallCloseMode) els.setLastCallCloseMode.value = String(info.lastCall.closeMode || LAST_CALL_CLOSE_MODE_MIDNIGHT);
+    if(els.lastCallCustomTimeWrap) els.lastCallCustomTimeWrap.hidden = String(info.lastCall.closeMode || "") !== LAST_CALL_CLOSE_MODE_CUSTOM;
+    if(els.setLastCallCustomTime) els.setLastCallCustomTime.value = normalizeLastCallCustomTime(info.lastCall.customCloseTime);
+    if(els.btnLastCallShowNow){
+      els.btnLastCallShowNow.disabled = info.lastCall.enabled === false;
+      els.btnLastCallShowNow.title = (info.lastCall.enabled === false)
+        ? "Enable last-call reminders first."
+        : "Show the reminder immediately on Operator";
+    }
+    if(els.lastCallStatus){
+      const parts = [`Close set to ${info.closeLabel}`];
+      if(info.lastCall.enabled === false){
+        parts.push("Reminders off");
+      }else if(info.lastCall.confirmedAtMs){
+        parts.push(`Last Call Made at ${formatClockTime(info.lastCall.confirmedAtMs)}`);
+      }else if(info.lastCall.dismissedAtMs){
+        parts.push("Dismissed for tonight");
+      }else if(info.snoozed){
+        parts.push(`Snoozed until ${formatClockTime(info.lastCall.snoozeUntilMs)}`);
+      }else if(info.canShow && info.activeReminder && info.activeReminder.id !== "manual"){
+        parts.push(`Due now: ${info.activeReminder.title}`);
+      }else if(info.nextReminder){
+        parts.push(`Next reminder: ${formatClockTime(info.nextReminder.dueAtMs)} (${info.nextReminder.title})`);
+      }else if(info.activeReminder && info.activeReminder.id === "manual"){
+        parts.push("Shown manually");
+      }
+      els.lastCallStatus.textContent = parts.join(" | ");
+    }
+  }
+
+  function renderLastCallPrompt(nowMs = getLastCallNowMs()){
+    if(!els.lastCallPrompt) return;
+    const info = getLastCallReminderInfo(state, nowMs);
+    if(!info.canShow || !info.activeReminder){
+      hideLastCallPrompt();
+      return;
+    }
+
+    if(els.lastCallPromptTitle) els.lastCallPromptTitle.textContent = "Last call reminder";
+    if(els.lastCallPromptText){
+      els.lastCallPromptText.textContent = `Venue close set to ${info.closeLabel} | Prompt patrons to tip bartenders and servers`;
+    }
+    if(els.lastCallPromptMeta){
+      const parts = [];
+      if(info.activeReminder.id === "manual"){
+        parts.push("Shown manually");
+      }else{
+        parts.push(info.activeReminder.title);
+        if(info.overdueMs >= 60 * 1000) parts.push(`Overdue by ${OMJN.formatMMSS(info.overdueMs)}`);
+        else parts.push("Due now");
+      }
+      if(info.lastCall.confirmedAtMs) parts.push(`Marked made at ${formatClockTime(info.lastCall.confirmedAtMs)}`);
+      else if(info.lastCall.dismissedAtMs) parts.push("Dismissed for tonight");
+      els.lastCallPromptMeta.textContent = parts.join(" | ");
+    }
+
+    if(els.btnLastCallExtend){
+      const alreadyOneAm = String(info.lastCall.closeMode || "") === LAST_CALL_CLOSE_MODE_ONE_AM;
+      els.btnLastCallExtend.disabled = alreadyOneAm;
+      els.btnLastCallExtend.title = alreadyOneAm ? "Close time is already set to 1:00 AM." : "Push venue close to 1:00 AM and reschedule reminders.";
+    }
+
+    els.lastCallPrompt.hidden = false;
+    els.lastCallPrompt.classList.add("isVisible");
+    syncRefreshPromptOffset();
+  }
+
+  function showLastCallReminderNow(){
+    const nowMs = getLastCallNowMs();
+    updateState(s => {
+      const lastCall = ensureOperatorPrefs(s).lastCall;
+      const nightKey = getLastCallNightKey(nowMs);
+      if(String(lastCall.runtimeNightKey || "") !== nightKey){
+        resetLastCallNightState(lastCall, nightKey);
+      }
+      if(lastCall.enabled === false) return;
+      lastCall.manualShowRequestedAtMs = nowMs;
+      lastCall.snoozeUntilMs = 0;
+    }, { recordHistory:false });
+  }
+
+  function markLastCallMade(){
+    const nowMs = getLastCallNowMs();
+    updateState(s => {
+      const lastCall = ensureOperatorPrefs(s).lastCall;
+      const nightKey = getLastCallNightKey(nowMs);
+      if(String(lastCall.runtimeNightKey || "") !== nightKey){
+        resetLastCallNightState(lastCall, nightKey);
+      }
+      lastCall.confirmedAtMs = nowMs;
+      lastCall.dismissedAtMs = 0;
+      lastCall.snoozeUntilMs = 0;
+      lastCall.manualShowRequestedAtMs = 0;
+    }, { recordHistory:false });
+  }
+
+  function snoozeLastCallReminder(){
+    const nowMs = getLastCallNowMs();
+    updateState(s => {
+      const lastCall = ensureOperatorPrefs(s).lastCall;
+      const nightKey = getLastCallNightKey(nowMs);
+      if(String(lastCall.runtimeNightKey || "") !== nightKey){
+        resetLastCallNightState(lastCall, nightKey);
+      }
+      lastCall.snoozeUntilMs = nowMs + (10 * 60 * 1000);
+      lastCall.manualShowRequestedAtMs = 0;
+    }, { recordHistory:false });
+  }
+
+  function extendLastCallToOneAm(){
+    const nowMs = getLastCallNowMs();
+    updateState(s => {
+      const lastCall = ensureOperatorPrefs(s).lastCall;
+      const nightKey = getLastCallNightKey(nowMs);
+      if(String(lastCall.runtimeNightKey || "") !== nightKey){
+        resetLastCallNightState(lastCall, nightKey);
+      }
+      lastCall.closeMode = LAST_CALL_CLOSE_MODE_ONE_AM;
+      lastCall.snoozeUntilMs = 0;
+      lastCall.manualShowRequestedAtMs = 0;
+    }, { recordHistory:false });
+  }
+
+  function dismissLastCallTonight(){
+    const nowMs = getLastCallNowMs();
+    updateState(s => {
+      const lastCall = ensureOperatorPrefs(s).lastCall;
+      const nightKey = getLastCallNightKey(nowMs);
+      if(String(lastCall.runtimeNightKey || "") !== nightKey){
+        resetLastCallNightState(lastCall, nightKey);
+      }
+      lastCall.dismissedAtMs = nowMs;
+      lastCall.confirmedAtMs = 0;
+      lastCall.snoozeUntilMs = 0;
+      lastCall.manualShowRequestedAtMs = 0;
+    }, { recordHistory:false });
+  }
+
+  function surfaceDueLastCallOnEnd(nowMs = getLastCallNowMs()){
+    const info = getLastCallReminderInfo(state, nowMs);
+    if(!info.lastCall.enabled || info.resolved || !info.dueReminder) return;
+    updateState(s => {
+      const lastCall = ensureOperatorPrefs(s).lastCall;
+      const nightKey = getLastCallNightKey(nowMs);
+      if(String(lastCall.runtimeNightKey || "") !== nightKey){
+        resetLastCallNightState(lastCall, nightKey);
+      }
+      lastCall.snoozeUntilMs = 0;
+      lastCall.manualShowRequestedAtMs = nowMs;
+    }, { recordHistory:false });
+  }
+
   function renderLiveStatusBanner(){
     const phase = state.phase || "SPLASH";
     const [next, deck] = OMJN.computeNextTwo(state);
@@ -4769,7 +5388,7 @@ function renderKPIs(nowMs = Date.now()){
     const queued = (state.queue || []).filter(x => x && x.status === "QUEUED");
     const specialQueued = queued.filter(x => {
       const typeId = String(x?.slotTypeId || "");
-      return typeId.startsWith("ad_") || typeId === "intermission" || typeId === "houseband";
+      return typeId.startsWith("ad_") || typeId === "intermission" || typeId === "houseband" || isAllStarJamSlotTypeId(typeId);
     }).length;
 
     if(els.kpiPhaseChip){
@@ -4807,6 +5426,7 @@ function renderKPIs(nowMs = Date.now()){
     const cur = OMJN.computeCurrent(state);
     const liveish = !!cur && (state.phase === "LIVE" || state.phase === "PAUSED");
     const timer = liveish ? OMJN.computeTimer(state) : null;
+    const untimedLive = !!liveish && !!cur && isUntimedTimerSlot(cur);
     const timedLive = !!liveish && !!timer && (timer.durationMs || 0) > 0;
     const paused = state.phase === "PAUSED" && timedLive;
 
@@ -4843,6 +5463,26 @@ function renderKPIs(nowMs = Date.now()){
       els.btnViewerTimerToggle.title = showViewerTimer
         ? "Hide the Viewer timer and progress bar"
         : "Show the Viewer timer and progress bar";
+    }
+
+    const timerAdjustButtons = [
+      els.btnMinus30,
+      els.btnPlus30,
+      els.btnMinus1,
+      els.btnMinus5,
+      els.btnPlus1,
+      els.btnPlus5,
+      els.btnResetTime,
+    ].filter(Boolean);
+    const timerAdjustDisabled = !timedLive;
+    const timerAdjustTitle = untimedLive
+      ? "All Star Jam is untimed, so countdown controls are unavailable."
+      : liveish
+        ? "No timed live slot is active."
+        : "Start a timed live slot to use countdown controls.";
+    for(const btn of timerAdjustButtons){
+      btn.disabled = timerAdjustDisabled;
+      btn.title = timerAdjustDisabled ? timerAdjustTitle : "";
     }
   }
 
@@ -4994,11 +5634,15 @@ function renderKPIs(nowMs = Date.now()){
     uiTickHandle = setInterval(() => {
       try{
         const tickNow = Date.now();
+        const lastCallNow = getLastCallNowMs();
+        if(maybeResetLastCallNightBoundary(lastCallNow)) return;
         if(els.timerLine) renderTimerLine();
         renderKPIs(tickNow);
         updateQueueEtaLabels(tickNow);
         renderLiveStatusBanner();
         renderLiveControls();
+        renderLastCallSettings(lastCallNow);
+        renderLastCallPrompt(lastCallNow);
         updateCrowdQuickButtons();
         renderCrowdPromptPreview();
         syncCrowdAutoHide();
@@ -5010,12 +5654,25 @@ function renderKPIs(nowMs = Date.now()){
   }
 
 function renderTimerLine(){
+    if(!els.timerLine) return;
+    const cur = OMJN.computeCurrent(state);
     const t = OMJN.computeTimer(state);
+    const liveish = !!cur && (state.phase === "LIVE" || state.phase === "PAUSED");
+    if(liveish && cur && isUntimedTimerSlot(cur)){
+      if(els.timerSubLabel) els.timerSubLabel.textContent = "Elapsed (Untimed)";
+      els.timerLine.textContent = OMJN.formatMMSS(t.elapsedMs);
+      if(els.timerHint) els.timerHint.textContent = "All Star Jam has no countdown. Viewer shows elapsed time only.";
+      return;
+    }
+    if(els.timerSubLabel) els.timerSubLabel.textContent = "Elapsed / Remaining";
     els.timerLine.textContent = `${OMJN.formatMMSS(t.elapsedMs)} / ${OMJN.formatMMSS(t.remainingMs)}`;
+    if(els.timerHint) els.timerHint.textContent = "Hard stop at 0:00. Overtime shown on viewer.";
   }
 
 
 function render(){
+    const lastCallNow = getLastCallNowMs();
+    if(maybeResetLastCallNightBoundary(lastCallNow)) return;
     sortPaperQueue(state);
     // sync header inputs
     els.showTitle.value = state.showTitle || "";
@@ -5052,9 +5709,13 @@ function render(){
     renderKPIs();
     renderLiveStatusBanner();
     renderLiveControls();
+    renderLastCallSettings(lastCallNow);
+    renderLastCallPrompt(lastCallNow);
+    renderSiteUpdateDiagnostics();
     renderCrowdPromptPreview();
     renderTimerLine();
     renderHouseBandCategories();
+    syncRefreshPromptOffset();
     if(els.intermissionModal && !els.intermissionModal.hidden) refreshIntermissionModalActions();
   }
 
@@ -5323,6 +5984,54 @@ function render(){
     s.queue.unshift(slot);
   }
 
+  function insertSpecialAtActiveQueueEnd(s, slot){
+    if(!Array.isArray(s.queue)) s.queue = [];
+    normalizePaperSlotState(s);
+    const activePaper = (s.queue || [])
+      .filter(x => x && isPaperSlot(x) && !isDoneStatus(x.status))
+      .sort((a, b) => (paperSlotNumber(a) || 0) - (paperSlotNumber(b) || 0));
+    const lastPaperNumber = activePaper.reduce((max, item) => Math.max(max, paperSlotNumber(item) || 0), 0);
+    if(lastPaperNumber > 0){
+      insertSpecialAfterPaperSlot(s, slot, lastPaperNumber);
+      return;
+    }
+    insertQueuedSlotSmart(s, slot);
+  }
+
+  function addAllStarJamSlot(opts = {}){
+    const title = OMJN.sanitizeText(opts.title || "") || "ALL STAR JAM";
+    const notes = String(opts.notes || "");
+    const featuredPerformersText = OMJN.sanitizeText(opts.featuredPerformersText || "");
+    const donationUrl = OMJN.sanitizeText(opts.donationUrl || "");
+    const mediaLayout = String(opts.mediaLayout || (donationUrl ? "QR_ONLY" : "NONE"));
+    const afterPaperSlotNumber = Math.round(Number(opts.afterPaperSlotNumber || 0)) || null;
+    let createdSlotId = null;
+
+    updateState(s => {
+      const slot = {
+        id: OMJN.uid("slot"),
+        createdAt: Date.now(),
+        displayName: title,
+        slotTypeId: "allstarjam",
+        minutesOverride: null,
+        customTypeLabel: "",
+        status: "QUEUED",
+        notes,
+        featuredPerformersText,
+        media: { donationUrl: donationUrl || null, imageAssetId: null, mediaLayout }
+      };
+      createdSlotId = slot.id;
+      if(afterPaperSlotNumber) insertSpecialAfterPaperSlot(s, slot, afterPaperSlotNumber);
+      else insertSpecialAtActiveQueueEnd(s, slot);
+    });
+
+    if(opts.openEditor !== false && createdSlotId){
+      openInlineEdit(createdSlotId);
+      render();
+    }
+    return createdSlotId;
+  }
+
   function prepareSlotForLive(s, slot, { pinToTop = true } = {}){
     if(!slot) return;
 
@@ -5344,6 +6053,11 @@ function render(){
     if(String(slot.slotTypeId || "") === "intermission"){
       const msg = String(slot.intermissionMessage || "").trim();
       if(!msg) slot.intermissionMessage = "WE'LL BE RIGHT BACK";
+    }
+    if(isAllStarJamSlotTypeId(slot.slotTypeId)){
+      slot.displayName = OMJN.sanitizeText(slot.displayName || "") || "ALL STAR JAM";
+      slot.minutesOverride = null;
+      slot.featuredPerformersText = OMJN.sanitizeText(slot.featuredPerformersText || "");
     }
   }
 
@@ -5369,9 +6083,15 @@ function render(){
     s.viewerPrefs.showTimer = true;
 
     const isAd = isAdSlotType(slot.slotTypeId);
+    const isAllStarJam = isAllStarJamSlotTypeId(slot.slotTypeId);
     if(isAd){
       s.timer.running = false;
       s.timer.startedAt = null;
+      s.timer.elapsedMs = 0;
+      s.timer.baseDurationMs = 0;
+    }else if(isAllStarJam){
+      s.timer.running = true;
+      s.timer.startedAt = startedAt;
       s.timer.elapsedMs = 0;
       s.timer.baseDurationMs = 0;
     }else{
@@ -6158,6 +6878,7 @@ function updateAdPreview(){
       if(!ok) return;
     }
     endToSplash();
+    surfaceDueLastCallOnEnd();
   }
 
 function start(){
@@ -6211,6 +6932,7 @@ function start(){
     updateState(s => {
       const cur = s.queue.find(x=>x.id===s.currentSlotId);
       if(!cur) return;
+      if(isUntimedTimerSlot(cur)) return;
       const baseMs = getSlotEffectiveScheduledDurationMs(s, cur);
       s.timer.baseDurationMs = baseMs;
       s.timer.elapsedMs = 0;
@@ -6309,6 +7031,9 @@ function start(){
     fresh.operatorPrefs.paperSlotCount = PAPER_SLOT_DEFAULT_COUNT;
     fresh.operatorPrefs.retiredPaperSlots = [];
     fresh.operatorPrefs.armedNextSlotId = null;
+    if(fresh.operatorPrefs.lastCall){
+      resetLastCallNightState(fresh.operatorPrefs.lastCall, getLastCallNightKey());
+    }
     // preserve show title
     fresh.showTitle = state.showTitle || fresh.showTitle;
     setState(fresh);
@@ -6486,7 +7211,7 @@ toggleCustomAddFields();
     if(els.btnAddAd){
       els.btnAddAd.addEventListener("click", (e) => { e.preventDefault(); openAdModal(); });
     }
-if(els.btnAddHouseBandSlot){
+    if(els.btnAddHouseBandSlot){
       els.btnAddHouseBandSlot.addEventListener("click", (e) => { e.preventDefault(); addHouseBandSlot(); });
     }
 

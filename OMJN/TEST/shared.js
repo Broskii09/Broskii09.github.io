@@ -31,6 +31,8 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
   const SITE_VERSION_URL = "./site-version.json";
   const SITE_UPDATE_POLL_MS = 15000;
   const SITE_UPDATE_DISMISS_KEY = scopedKey("siteUpdate.dismissedVersion");
+  const SITE_UPDATE_COMMAND_PROMPT = "OMJN_SITE_UPDATE_PROMPT";
+  const SITE_UPDATE_COMMAND_CHECK = "OMJN_SITE_UPDATE_CHECK";
 
   let siteVersionBaseline = "";
   let siteVersionCheckBusy = false;
@@ -38,6 +40,17 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
   let siteUpdatePrompt = null;
   let siteUpdateVersion = "";
   let siteVersionLatest = "";
+  let siteVersionLastCheckedAt = 0;
+  let siteVersionLastError = "";
+  let siteVersionLastReason = "";
+
+  function readDismissedSiteUpdateVersion(){
+    try{
+      return String(localStorage.getItem(SITE_UPDATE_DISMISS_KEY) || "").trim();
+    }catch(_){
+      return "";
+    }
+  }
 
   function canCheckForSiteUpdate(){
     return typeof window !== "undefined"
@@ -64,15 +77,35 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
     }catch(_){}
   }
 
+  function getSiteUpdateStatus(){
+    const dismissedVersion = readDismissedSiteUpdateVersion();
+    const currentVersion = siteVersionBaseline || "";
+    const latestVersion = siteVersionLatest || siteVersionBaseline || "";
+    const updateAvailable = !!(currentVersion && latestVersion && latestVersion !== currentVersion);
+    const promptVisible = !!(siteUpdatePrompt && siteUpdatePrompt.isConnected && !siteUpdatePrompt.hidden && siteUpdatePrompt.classList.contains("isVisible"));
+    return {
+      currentVersion,
+      latestVersion,
+      dismissedVersion,
+      updateAvailable,
+      promptVisible,
+      appScope: APP_SCOPE,
+      canCheck: canCheckForSiteUpdate(),
+      protocol: String(location.protocol || ""),
+      lastCheckedAt: siteVersionLastCheckedAt || 0,
+      lastError: siteVersionLastError || "",
+      lastReason: siteVersionLastReason || ""
+    };
+  }
+
   function dispatchSiteVersionEvent(updateAvailable){
     if(typeof window === "undefined" || typeof window.dispatchEvent !== "function" || typeof CustomEvent === "undefined") return;
     try{
+      const status = getSiteUpdateStatus();
       window.dispatchEvent(new CustomEvent("omjn:site-version", {
         detail: {
-          currentVersion: siteVersionBaseline || "",
-          latestVersion: siteVersionLatest || siteVersionBaseline || "",
-          updateAvailable: !!updateAvailable,
-          appScope: APP_SCOPE
+          ...status,
+          updateAvailable: (updateAvailable === undefined) ? !!status.updateAvailable : !!updateAvailable
         }
       }));
     }catch(_){}
@@ -97,8 +130,8 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
     prompt.setAttribute("aria-live", "polite");
     prompt.innerHTML = [
       '<div class="omjnRefreshPromptBody">',
-      '  <div class="omjnRefreshPromptTitle">Refresh available</div>',
-      '  <div class="omjnRefreshPromptText">A newer version of this page is ready.</div>',
+      '  <div class="omjnRefreshPromptTitle" data-role="title">Refresh available</div>',
+      '  <div class="omjnRefreshPromptText" data-role="text">A newer version of this page is ready.</div>',
       '  <div class="omjnRefreshPromptActions">',
       '    <button class="btn primary tiny" type="button" data-action="refresh">Refresh</button>',
       '    <button class="btn tiny" type="button" data-action="dismiss">Dismiss</button>',
@@ -112,7 +145,7 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
         return;
       }
       if(action === "dismiss"){
-        dismissSiteUpdatePrompt(siteUpdateVersion);
+        dismissSiteUpdatePrompt(prompt.dataset.dismissVersion || "");
       }
     });
     (document.body || document.documentElement).appendChild(prompt);
@@ -120,10 +153,32 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
     return prompt;
   }
 
+  function setSiteUpdatePromptCopy(options = {}){
+    const prompt = ensureSiteUpdatePrompt();
+    const titleEl = prompt.querySelector('[data-role="title"]');
+    const textEl = prompt.querySelector('[data-role="text"]');
+    const mode = (options.mode === "request") ? "request" : "update";
+    const sourceLabel = String(options.sourceLabel || "").trim();
+    const title = (mode === "request")
+      ? "Refresh suggested"
+      : "Refresh available";
+    const text = (mode === "request")
+      ? (sourceLabel
+          ? `${sourceLabel} asked this page to refresh when safe.`
+          : "Another OMJN tab asked this page to refresh when safe.")
+      : "A newer version of this page is ready.";
+    prompt.dataset.mode = mode;
+    if(titleEl) titleEl.textContent = title;
+    if(textEl) textEl.textContent = text;
+  }
+
   function hideSiteUpdatePrompt(){
     const prompt = ensureSiteUpdatePrompt();
     prompt.classList.remove("isVisible");
     prompt.hidden = true;
+    prompt.dataset.mode = "";
+    prompt.dataset.dismissVersion = "";
+    dispatchSiteVersionEvent();
   }
 
   function dismissSiteUpdatePrompt(version){
@@ -133,22 +188,34 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
     hideSiteUpdatePrompt();
   }
 
-  function showSiteUpdatePrompt(version){
+  function showSiteUpdatePrompt(version, options = {}){
     siteUpdateVersion = String(version || "").trim();
-    try{
-      const dismissed = localStorage.getItem(SITE_UPDATE_DISMISS_KEY) || "";
-      if(siteUpdateVersion && dismissed === siteUpdateVersion) return;
-    }catch(_){}
+    const mode = (options.mode === "request") ? "request" : "update";
+    const dismissed = readDismissedSiteUpdateVersion();
+    const dismissVersion = (mode === "update") ? siteUpdateVersion : String(options.dismissVersion || "").trim();
+    if(mode === "update" && !options.ignoreDismissal && siteUpdateVersion && dismissed === siteUpdateVersion){
+      dispatchSiteVersionEvent(true);
+      return;
+    }
     const prompt = ensureSiteUpdatePrompt();
+    setSiteUpdatePromptCopy({
+      mode,
+      sourceLabel: options.sourceLabel || ""
+    });
+    prompt.dataset.dismissVersion = dismissVersion;
     prompt.hidden = false;
     prompt.classList.add("isVisible");
+    dispatchSiteVersionEvent(mode === "update");
   }
 
-  async function checkForSiteUpdate(){
-    if(!canCheckForSiteUpdate() || siteVersionCheckBusy) return;
+  async function checkForSiteUpdate(options = {}){
+    siteVersionLastReason = String(options.reason || "poll").trim() || "poll";
+    if(!canCheckForSiteUpdate() || siteVersionCheckBusy) return getSiteUpdateStatus();
     siteVersionCheckBusy = true;
     try{
       const version = await fetchSiteVersion();
+      siteVersionLastCheckedAt = now();
+      siteVersionLastError = "";
       if(!version) return;
       siteVersionLatest = version;
       if(!siteVersionBaseline){
@@ -156,37 +223,103 @@ const ASSET_DB = { name: `omjn_${APP_SCOPE}_assets_v1`, store: "assets" };
         syncSiteVersionAttributes();
         dispatchSiteVersionEvent(false);
         hideSiteUpdatePrompt();
-        return;
+        return getSiteUpdateStatus();
       }
+      syncSiteVersionAttributes();
       if(version !== siteVersionBaseline){
-        syncSiteVersionAttributes();
         dispatchSiteVersionEvent(true);
-        showSiteUpdatePrompt(version);
+        showSiteUpdatePrompt(version, { mode: "update" });
+      }else{
+        dispatchSiteVersionEvent(false);
+        hideSiteUpdatePrompt();
       }
-    }catch(_){
+      return getSiteUpdateStatus();
+    }catch(err){
+      siteVersionLastCheckedAt = now();
+      siteVersionLastError = String(err?.message || err || "Site version check failed.");
+      dispatchSiteVersionEvent();
       // Ignore transient network/cache errors and try again on the next poll.
+      return getSiteUpdateStatus();
     }finally{
       siteVersionCheckBusy = false;
     }
   }
 
+  function resetSiteUpdateDismissal(){
+    try{
+      localStorage.removeItem(SITE_UPDATE_DISMISS_KEY);
+    }catch(_){}
+    const status = getSiteUpdateStatus();
+    if(status.updateAvailable){
+      showSiteUpdatePrompt(status.latestVersion, { mode: "update", ignoreDismissal: true });
+    }else{
+      dispatchSiteVersionEvent();
+    }
+    return getSiteUpdateStatus();
+  }
+
+  async function promptOpenTabsToRefresh(options = {}){
+    const sourceLabel = String(options.sourceLabel || "").trim();
+    const status = await checkForSiteUpdate({ reason: "prompt-request" });
+    const nextStatus = status || getSiteUpdateStatus();
+    if(nextStatus.updateAvailable){
+      showSiteUpdatePrompt(nextStatus.latestVersion, { mode: "update", ignoreDismissal: true });
+    }else{
+      showSiteUpdatePrompt(nextStatus.latestVersion || nextStatus.currentVersion || "", {
+        mode: "request",
+        sourceLabel,
+        ignoreDismissal: true
+      });
+    }
+    if(options.broadcast !== false){
+      sendCommand(SITE_UPDATE_COMMAND_PROMPT, {
+        sourceLabel
+      });
+    }
+    return getSiteUpdateStatus();
+  }
+
+  async function handleInternalSiteUpdateCommand(message){
+    const cmd = String(message?.cmd || "");
+    if(cmd === SITE_UPDATE_COMMAND_CHECK){
+      await checkForSiteUpdate({ reason: "remote-check" });
+      return true;
+    }
+    if(cmd === SITE_UPDATE_COMMAND_PROMPT){
+      const sourceLabel = String(message?.payload?.sourceLabel || "").trim();
+      const status = await checkForSiteUpdate({ reason: "remote-prompt" });
+      const nextStatus = status || getSiteUpdateStatus();
+      if(nextStatus.updateAvailable){
+        showSiteUpdatePrompt(nextStatus.latestVersion, { mode: "update", ignoreDismissal: true });
+      }else{
+        showSiteUpdatePrompt(nextStatus.latestVersion || nextStatus.currentVersion || "", {
+          mode: "request",
+          sourceLabel,
+          ignoreDismissal: true
+        });
+      }
+      return true;
+    }
+    return false;
+  }
+
   function scheduleSiteUpdateCheck(delay){
     clearTimeout(siteVersionPollTimer);
     siteVersionPollTimer = setTimeout(async () => {
-      await checkForSiteUpdate();
+      await checkForSiteUpdate({ reason: "poll" });
       scheduleSiteUpdateCheck(SITE_UPDATE_POLL_MS);
     }, Math.max(1000, Number(delay) || SITE_UPDATE_POLL_MS));
   }
 
   function initSiteUpdatePrompt(){
     if(!canCheckForSiteUpdate()) return;
-    checkForSiteUpdate();
+    checkForSiteUpdate({ reason: "init" });
     scheduleSiteUpdateCheck(SITE_UPDATE_POLL_MS);
     document.addEventListener("visibilitychange", () => {
-      if(!document.hidden) checkForSiteUpdate();
+      if(!document.hidden) checkForSiteUpdate({ reason: "visibility" });
     });
     window.addEventListener("pageshow", () => {
-      checkForSiteUpdate();
+      checkForSiteUpdate({ reason: "pageshow" });
     });
   }
 
@@ -358,6 +491,7 @@ operatorPrefs: { startGuard:true, endGuard:true, hotkeysEnabled:true, editCollap
         { id:"custom", label:"Custom", defaultMinutes:15, isJamMode:false, color:"#a3a3a3", enabled:true },
         { id:"ad_graphic", label:"Ad (Graphic)", defaultMinutes:0, isJamMode:false, color:"#ef4444", enabled:false, special:true },
         { id:"ad_video", label:"Ad (Video)", defaultMinutes:0, isJamMode:false, color:"#ef4444", enabled:false, special:true },
+        { id:"allstarjam", label:"All Star Jam", defaultMinutes:0, isJamMode:false, color:"#f59e0b", enabled:false, special:true },
         { id:"houseband", label:"House Band", defaultMinutes:15, isJamMode:false, color:"#22c55e", enabled:false, special:true },
         { id:"intermission", label:"Intermission", defaultMinutes:10, isJamMode:false, color:"#a855f7", enabled:false, special:true },
       ],
@@ -1049,6 +1183,9 @@ function houseBandActiveMembersByCategory(state){
     // Ads are queue items but should NOT appear in Viewer Next/On Deck.
     return x.startsWith("ad_");
   }
+  function isAllStarJamSlotType(slotTypeId){
+    return String(slotTypeId || "").toLowerCase() === "allstarjam";
+  }
   function computeNextN(state, n){
     const count = Math.max(0, Math.floor(Number(n) || 0));
     const hasCurrent = !!state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
@@ -1085,7 +1222,8 @@ function houseBandActiveMembersByCategory(state){
     const current = computeCurrent(state);
     if(!current) return { elapsedMs:0, durationMs:0, remainingMs:0, overtimeMs:0, running:false };
 
-    const durationMs = (state.timer.baseDurationMs ?? getSlotEffectiveScheduledDurationMs(state, current));
+    const untimed = isAllStarJamSlotType(current.slotTypeId);
+    const durationMs = untimed ? 0 : (state.timer.baseDurationMs ?? getSlotEffectiveScheduledDurationMs(state, current));
     let elapsedMs = state.timer.elapsedMs || 0;
 
     if(state.timer.running && state.timer.startedAt){
@@ -1093,9 +1231,9 @@ function houseBandActiveMembersByCategory(state){
     }
     if(elapsedMs < 0) elapsedMs = 0;
 
-    const remainingMs = Math.max(durationMs - elapsedMs, 0);
-    const overtimeMs  = Math.max(elapsedMs - durationMs, 0);
-    return { elapsedMs, durationMs, remainingMs, overtimeMs, running: !!state.timer.running };
+    const remainingMs = untimed ? 0 : Math.max(durationMs - elapsedMs, 0);
+    const overtimeMs  = untimed ? 0 : Math.max(elapsedMs - durationMs, 0);
+    return { elapsedMs, durationMs, remainingMs, overtimeMs, running: !!state.timer.running, untimed };
   }
 
   // ---- IndexedDB helpers for assets (compressed images) ----
@@ -1197,6 +1335,9 @@ async function loadBitmapFromFile(f){
   let _onCommand = null;
 
   function deliverCommandMessage(d){
+    try{
+      void handleInternalSiteUpdateCommand(d);
+    }catch(_){}
     if(d && d.type === "CMD" && typeof _onCommand === "function"){
       _onCommand(d);
     }
@@ -1412,11 +1553,15 @@ async function loadBitmapFromFile(f){
     return siteVersionLatest || siteVersionBaseline || "";
   }
 
+  function checkForSiteUpdateNow(){
+    return checkForSiteUpdate({ reason: "manual" });
+  }
+
   initSiteUpdatePrompt();
 
 
   return {
-    appScope: APP_SCOPE, scopedKey, isAdSlotType, ensureFormA11y,
+    appScope: APP_SCOPE, scopedKey, isAdSlotType, isAllStarJamSlotType, ensureFormA11y,
     uid, defaultState, loadState, saveState, publish, subscribe, sendCommand, subscribeCommand,
     getSlotType, effectiveMinutes, getSlotOriginalScheduledDurationMs, getSlotScheduleAdjustmentMs, getSlotEffectiveScheduledDurationMs, displaySlotTypeLabel, normalizeSlot,
     // House Band
@@ -1435,6 +1580,7 @@ async function loadBitmapFromFile(f){
     computeNextTwo, computeNextThree, computeCurrent, computeTimer,
     openAssetDB, putAsset, getAsset, deleteAsset, compressImageFile,
     formatMMSS, sanitizeText, applyThemeToDocument,
-    getSiteVersion, getLatestSiteVersion
+    getSiteVersion, getLatestSiteVersion,
+    getSiteUpdateStatus, checkForSiteUpdateNow, resetSiteUpdateDismissal, promptOpenTabsToRefresh
   };
 })();

@@ -90,6 +90,10 @@ function sbScopedStorageKey(suffix, legacyKey = ""){
     settingsBtn: document.getElementById("sbSettingsBtn"),
     settingsModal: document.getElementById("sbSettingsModal"),
     settingsClose: document.getElementById("sbSettingsClose"),
+    siteUpdateCheckNow: document.getElementById("sbSiteUpdateCheckNow"),
+    siteUpdateResetDismissal: document.getElementById("sbSiteUpdateResetDismissal"),
+    siteUpdatePromptTabs: document.getElementById("sbSiteUpdatePromptTabs"),
+    siteUpdateStatus: document.getElementById("sbSiteUpdateStatus"),
   };
 
   let settingsModalReturnFocus = null;
@@ -531,6 +535,92 @@ function initUiPrefs(){
   }
 
   initSettingsModal();
+
+  function formatSiteUpdateLabel(version){
+    const raw = String(version || "").trim();
+    if(!raw) return "";
+    const isoMatch = raw.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+    if(isoMatch) return `Build ${isoMatch[1]} ${isoMatch[2]}`;
+    return `Build ${raw}`;
+  }
+
+  function formatSiteUpdateCheckedTime(ms){
+    const value = Number(ms || 0);
+    if(!Number.isFinite(value) || value <= 0) return "";
+    try{
+      return new Date(value).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }catch(_){
+      return "";
+    }
+  }
+
+  function renderSiteUpdateStatus(detail){
+    const statusEl = els.siteUpdateStatus;
+    if(!statusEl) return;
+    const info = detail || OMJN.getSiteUpdateStatus?.() || {};
+    const currentLabel = formatSiteUpdateLabel(info.currentVersion || "") || "Build unknown";
+    const latestLabel = formatSiteUpdateLabel(info.latestVersion || "");
+    const dismissedLabel = formatSiteUpdateLabel(info.dismissedVersion || "");
+    const parts = [`Current: ${currentLabel}`];
+    if(info.canCheck === false){
+      parts.push("Checks require http:// or https:// (not file://)");
+    }else if(info.updateAvailable){
+      parts.push(`Update ready: ${latestLabel || "Newer build detected"}`);
+    }else if(latestLabel){
+      parts.push(`Latest seen: ${latestLabel}`);
+    }else{
+      parts.push("Waiting for first version check");
+    }
+    if(dismissedLabel) parts.push(`Dismissed: ${dismissedLabel}`);
+    if(info.promptVisible) parts.push("Prompt visible");
+    const checkedAt = formatSiteUpdateCheckedTime(info.lastCheckedAt);
+    if(checkedAt) parts.push(`Last checked ${checkedAt}`);
+    if(info.lastError) parts.push(`Check error: ${info.lastError}`);
+    statusEl.textContent = parts.join(" | ");
+    statusEl.classList.toggle("isWarn", !!info.updateAvailable || !!info.promptVisible);
+    statusEl.classList.toggle("isError", !!info.lastError);
+  }
+
+  function setSiteUpdateBusyStatus(text){
+    if(!els.siteUpdateStatus) return;
+    els.siteUpdateStatus.textContent = text;
+    els.siteUpdateStatus.classList.remove("isWarn", "isError");
+  }
+
+  if(typeof window !== "undefined"){
+    window.addEventListener("omjn:site-version", (e) => {
+      renderSiteUpdateStatus(e?.detail || {});
+    });
+  }
+
+  if(els.siteUpdateCheckNow){
+    els.siteUpdateCheckNow.addEventListener("click", async () => {
+      setSiteUpdateBusyStatus("Checking ./site-version.json now...");
+      const detail = await OMJN.checkForSiteUpdateNow?.();
+      renderSiteUpdateStatus(detail);
+    });
+  }
+
+  if(els.siteUpdateResetDismissal){
+    els.siteUpdateResetDismissal.addEventListener("click", () => {
+      const detail = OMJN.resetSiteUpdateDismissal?.();
+      renderSiteUpdateStatus(detail);
+    });
+  }
+
+  if(els.siteUpdatePromptTabs){
+    els.siteUpdatePromptTabs.addEventListener("click", async () => {
+      setSiteUpdateBusyStatus("Prompting open OMJN TEST tabs to refresh...");
+      const detail = await OMJN.promptOpenTabsToRefresh?.({ sourceLabel: "Soundboard" });
+      renderSiteUpdateStatus(detail);
+    });
+  }
+
+  renderSiteUpdateStatus();
 
 // Enable audio
 if(els.enableBtn){

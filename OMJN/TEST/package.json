@@ -8,10 +8,11 @@
     "test": "playwright test",
     "test:smoke": "playwright test tests/omjn-smoke.spec.js",
     "test:smoke:headed": "playwright test tests/omjn-smoke.spec.js --headed",
+    "test:refresh-prompt": "playwright test tests/omjn-refresh-prompt.spec.js",
     "test:special-slots": "playwright test tests/omjn-special-slots.spec.js",
     "test:queue-state": "playwright test tests/omjn-queue-state.spec.js",
     "test:media-houseband": "playwright test tests/omjn-media-and-houseband.spec.js",
-    "test:smoke:all": "playwright test tests/omjn-smoke.spec.js tests/omjn-special-slots.spec.js tests/omjn-queue-state.spec.js tests/omjn-media-and-houseband.spec.js tests/omjn-timer-overtime.spec.js",
+    "test:smoke:all": "playwright test tests/omjn-smoke.spec.js tests/omjn-special-slots.spec.js tests/omjn-queue-state.spec.js tests/omjn-media-and-houseband.spec.js tests/omjn-timer-overtime.spec.js tests/omjn-refresh-prompt.spec.js",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui"

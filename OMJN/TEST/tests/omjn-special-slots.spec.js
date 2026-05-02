@@ -1,5 +1,7 @@
 const { test, expect } = require("@playwright/test");
 const {
+  addAllStarJamAfterFirstOpenSlot,
+  addAllStarJamAtQueueEnd,
   addGraphicAdAfterFirstOpenSlot,
   addHouseBandMember,
   addHouseBandSetAfterFirstOpenSlot,
@@ -7,6 +9,7 @@ const {
   addPerformerFromFirstOpenSlot,
   endCurrentToSplash,
   openViewerPage,
+  seedCurrentTimerState,
   startNextPerformer,
   watchPageErrors,
 } = require("./omjn-test-helpers");
@@ -159,6 +162,89 @@ test.describe("OMJN TEST special slots", () => {
     await expect(viewer.locator("#root")).toHaveClass(/isAd/, { timeout: 10000 });
     await expect(viewer.locator("#adLayer")).toBeVisible();
     await expect(viewer.locator("#adImg")).toHaveAttribute("src", /data:image\/svg\+xml/);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("all star jam can be added after a blank slot, started, shown as untimed, and ended", async ({ page, context }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    const viewer = await openViewerPage(context, pageErrors);
+
+    const jamRow = await addAllStarJamAfterFirstOpenSlot(page, "Finale Jam", "Singer A, Guitar B");
+    await expect(jamRow).toContainText("Untimed");
+
+    await startNextPerformer(page);
+
+    await expect(viewer.locator("#root")).toHaveClass(/isLive/, { timeout: 10000 });
+    await expect(viewer.locator("#root")).toHaveClass(/isAllStarJam/);
+    await expect(viewer.locator("#nowName")).toHaveText("ALL STAR JAM");
+    await expect(viewer.locator("#nowLabel")).toContainText("Finale Jam");
+    await expect(viewer.locator("#chipType")).toHaveText("UNTIMED");
+    await expect(viewer.locator("#hbInstruments")).toContainText("Singer A");
+
+    await seedCurrentTimerState(page, {
+      baseDurationMs: 0,
+      elapsedMs: 65000,
+      running: false,
+      phase: "PAUSED",
+      reloadOperator: false,
+    });
+
+    await expect(viewer.locator("#timer")).toHaveText("1:05", { timeout: 10000 });
+    await expect(viewer.locator("#progress")).toBeHidden();
+
+    await endCurrentToSplash(page);
+
+    await expect(viewer.locator("#root")).toHaveClass(/isSplash/, { timeout: 10000 });
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("all star jam can be added at the queue end from the last blank slot", async ({ page }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+
+    const jamRow = await addAllStarJamAtQueueEnd(page, "Encore Jam");
+    await expect(page.locator("#queue > .queueItem").last()).toContainText("All Star Jam");
+    await expect(page.locator("#queue > .queueItem").last()).toContainText("Encore Jam");
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("all star jam keeps the mediaBox visible when link content is present", async ({ page, context }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    const viewer = await openViewerPage(context, pageErrors);
+
+    const jamRow = await addAllStarJamAfterFirstOpenSlot(page, "Media Finale");
+    await jamRow.getByRole("button", { name: "Edit" }).click();
+    const expander = jamRow.locator(".qExpander");
+    await expect(expander).toBeVisible();
+    await expander.locator(".field").filter({ hasText: "Donation / Link" }).locator("input").fill("https://example.com/jam");
+    await expander.locator(".field").filter({ hasText: "Media Layout" }).locator("select").selectOption("NONE");
+    await expander.getByRole("button", { name: "Save" }).click();
+
+    await startNextPerformer(page);
+    await expect(viewer.locator("#root")).toHaveClass(/isAllStarJam/, { timeout: 10000 });
+    await expect(viewer.locator("#nowName")).toHaveText("ALL STAR JAM");
+    await expect(viewer.locator("#chipType")).toHaveText("UNTIMED");
+
+    await seedCurrentTimerState(page, {
+      baseDurationMs: 0,
+      elapsedMs: 35000,
+      running: false,
+      phase: "PAUSED",
+      reloadOperator: false,
+    });
+
+    await expect(viewer.locator("#timer")).toHaveText("0:35", { timeout: 10000 });
+    await expect(viewer.locator("#mediaBox")).toBeVisible();
+    await expect(viewer.locator("#mediaImg")).toBeVisible();
+    await expect(viewer.locator("#donationCard")).toBeVisible();
     expect(pageErrors).toEqual([]);
   });
 });

@@ -420,10 +420,19 @@
     return t === "ad_graphic" || t === "ad_video";
   }
 
+  function isAllStarJamSlot(slot){
+    return String(slot?.slotTypeId || "") === "allstarjam";
+  }
+
   function hideViewerTimerForSlot(slot){
     const typeId = String(slot?.slotTypeId || "");
     const prefAllows = state.viewerPrefs?.showTimer !== false;
     return !prefAllows || typeId === "jamaoke" || isAdSlot(slot);
+  }
+
+  function slotDurationSummary(slot){
+    if(!slot) return "";
+    return isAllStarJamSlot(slot) ? "Untimed" : `${OMJN.effectiveMinutes(state, slot)}m`;
   }
 
   // Sponsor bug runtime
@@ -1140,7 +1149,7 @@
   // ---- Media ----
   async function setMedia(slot) {
     const media = slot?.media || {};
-    const mediaKey = slot ? `${slot.id}|${media.mediaLayout || ""}|${media.imageAssetId || ""}` : "none";
+    const mediaKey = slot ? `${slot.id}|${media.mediaLayout || ""}|${media.imageAssetId || ""}|${String(media.donationUrl || "").trim()}` : "none";
     if (mediaKey === lastMediaKey) return;
     lastMediaKey = mediaKey;
 
@@ -1160,8 +1169,9 @@
 
     const layout = media.mediaLayout || "NONE";
     const hasUploaded = !!media.imageAssetId;
-    const usesDefaultQr = !hasUploaded && ["QR_ONLY", "IMAGE_PLUS_QR"].includes(layout);
-    const wantImage = ["IMAGE_ONLY", "QR_ONLY", "IMAGE_PLUS_QR"].includes(layout) && (hasUploaded || usesDefaultQr);
+    const jamLinkFallback = isAllStarJamSlot(slot) && !hasUploaded && layout === "NONE" && !!String(media.donationUrl || "").trim();
+    const usesDefaultQr = (!hasUploaded && ["QR_ONLY", "IMAGE_PLUS_QR"].includes(layout)) || jamLinkFallback;
+    const wantImage = (["IMAGE_ONLY", "QR_ONLY", "IMAGE_PLUS_QR"].includes(layout) || jamLinkFallback) && (hasUploaded || usesDefaultQr);
 
     if (!wantImage) {
       if (el.mediaBox) el.mediaBox.style.display = "none";
@@ -1528,7 +1538,7 @@
       el.liveFooterBar.hidden = true;
     }
     if (el.root) {
-      el.root.classList.remove("hasHbFooter", "isLive", "startIntro");
+      el.root.classList.remove("hasHbFooter", "isLive", "startIntro", "isHB", "isIM", "isAllStarJam", "isJamaoke");
       el.root.classList.add("isSplash");
     }
 
@@ -1587,9 +1597,9 @@
 
     const key = JSON.stringify({
       showUpcoming,
-      n1: n1 ? { id: n1.id, n: n1.displayName, t: OMJN.displaySlotTypeLabel(state, n1), m: OMJN.effectiveMinutes(state, n1) } : null,
-      n2: n2 ? { id: n2.id, n: n2.displayName, t: OMJN.displaySlotTypeLabel(state, n2), m: OMJN.effectiveMinutes(state, n2) } : null,
-      n3: n3 ? { id: n3.id, n: n3.displayName, t: OMJN.displaySlotTypeLabel(state, n3), m: OMJN.effectiveMinutes(state, n3) } : null,
+      n1: n1 ? { id: n1.id, n: n1.displayName, t: OMJN.displaySlotTypeLabel(state, n1), d: slotDurationSummary(n1) } : null,
+      n2: n2 ? { id: n2.id, n: n2.displayName, t: OMJN.displaySlotTypeLabel(state, n2), d: slotDurationSummary(n2) } : null,
+      n3: n3 ? { id: n3.id, n: n3.displayName, t: OMJN.displaySlotTypeLabel(state, n3), d: slotDurationSummary(n3) } : null,
       hb: houseBandRosterStateKey(),
       hbEnabled: houseBandRosterEnabled(),
     });
@@ -1653,11 +1663,13 @@
     const slotTypeId = String(cur.slotTypeId || "");
     const isHB = slotTypeId === "houseband";
     const isIM = slotTypeId === "intermission";
+    const isAllStarJam = isAllStarJamSlot(cur);
     const isJamaoke = slotTypeId === "jamaoke";
 
     if(el.root){
       el.root.classList.toggle("isHB", isHB);
       el.root.classList.toggle("isIM", isIM);
+      el.root.classList.toggle("isAllStarJam", isAllStarJam);
       el.root.classList.toggle("isJamaoke", isJamaoke);
     }
 
@@ -1683,6 +1695,17 @@
       }
       hbInstrumentsText = roles.join(" • ");
       chipTypeText = "HOUSE BAND";
+    }
+
+    if(isAllStarJam){
+      const title = cleanName(cur.displayName || "");
+      const featured = cleanName(cur.featuredPerformersText || "");
+      const notes = cleanName(cur.notes || "");
+      nowLabelText = (title && title.toUpperCase() !== "ALL STAR JAM") ? title : "SPECIAL EVENT";
+      nowNameText = "ALL STAR JAM";
+      hbInstrumentsText = [featured, notes].filter(Boolean).join(" â€¢ ");
+      chipTypeText = "UNTIMED";
+      hbInstrumentsText = [featured, notes].filter(Boolean).join(" | ");
     }
 
     // Defensive: if the headline name somehow ends up blank, restore it.
@@ -1727,7 +1750,7 @@
       if (el.nowLabel) el.nowLabel.textContent = nowLabelText;
       if (el.nowName) el.nowName.textContent = nowNameText;
       if (el.hbInstruments){
-        const show = isHB && !!hbInstrumentsText;
+        const show = (isHB || isAllStarJam) && !!hbInstrumentsText;
         el.hbInstruments.style.display = show ? "" : "none";
         el.hbInstruments.textContent = show ? hbInstrumentsText : "";
       }
@@ -1778,7 +1801,7 @@
 
       const hideTimer = hideViewerTimerForSlot(cur);
       if (el.timer) el.timer.style.display = hideTimer ? "none" : "";
-      const showProgress = !hideTimer && state.viewerPrefs?.showProgressBar !== false;
+      const showProgress = !hideTimer && !isAllStarJam && state.viewerPrefs?.showProgressBar !== false;
       if (el.progress) {
         el.progress.hidden = !showProgress;
         el.progress.setAttribute("aria-hidden", showProgress ? "false" : "true");
@@ -1815,9 +1838,10 @@
     const t = OMJN.computeTimer(state);
     const remainingMs = t.remainingMs;
     const overtimeMs = t.overtimeMs;
+    const untimed = !!t.untimed;
 
     // Timer text
-    const timerText = OMJN.formatMMSS(remainingMs);
+    const timerText = untimed ? OMJN.formatMMSS(t.elapsedMs) : OMJN.formatMMSS(remainingMs);
     if (timerText !== lastTimerText) {
       lastTimerText = timerText;
       if (el.timer) el.timer.textContent = timerText;
@@ -1841,6 +1865,22 @@
 
     const hideTimer = hideViewerTimerForSlot(cur);
     if (el.timer) el.timer.style.display = hideTimer ? "none" : "";
+    if(untimed){
+      lastWarnFinalKey = null;
+      if (el.chipWarn) el.chipWarn.style.display = "none";
+      if (el.chipFinal) el.chipFinal.style.display = "none";
+      if (el.chipOver) el.chipOver.style.display = "none";
+      if (el.progress) {
+        el.progress.hidden = true;
+        el.progress.setAttribute("aria-hidden", "true");
+      }
+      clearCardCues();
+      lastRemainingMs = null;
+      lastCue = null;
+      lastProgressKey = null;
+      maybeStartViz();
+      return;
+    }
     const warnShow = !hideTimer && remainingMs > 0 && remainingMs <= warnAtMs && remainingMs > finalAtMs;
     const finalShow = !hideTimer && remainingMs > 0 && remainingMs <= finalAtMs;
     const overShow = !hideTimer && overtimeMs > 0 && (state.viewerPrefs?.showOvertime !== false);
