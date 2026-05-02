@@ -18,8 +18,14 @@ if (navToggle && navMenu) {
 
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-if (!prefersReducedMotion) {
-  const revealItems = document.querySelectorAll("[data-reveal]");
+const makeRevealObserver = () => {
+  const revealItems = document.querySelectorAll("[data-reveal]:not(.is-visible)");
+
+  if (prefersReducedMotion || !("IntersectionObserver" in window)) {
+    revealItems.forEach((item) => item.classList.add("is-visible"));
+    return null;
+  }
+
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -33,7 +39,12 @@ if (!prefersReducedMotion) {
   );
 
   revealItems.forEach((item) => observer.observe(item));
+  return observer;
+};
 
+makeRevealObserver();
+
+if (!prefersReducedMotion) {
   const parallaxItems = [...document.querySelectorAll("[data-parallax]")];
   let ticking = false;
 
@@ -41,11 +52,11 @@ if (!prefersReducedMotion) {
     const viewportHeight = window.innerHeight;
 
     parallaxItems.forEach((item) => {
-      const speed = Number.parseFloat(item.getAttribute("data-parallax") || "0.08");
+      const speed = Number.parseFloat(item.getAttribute("data-parallax") || "0.06");
       const rect = item.getBoundingClientRect();
       const centerOffset = rect.top + rect.height / 2 - viewportHeight / 2;
-      const movement = centerOffset * speed * -1;
-      item.style.transform = `translate3d(0, ${movement.toFixed(2)}px, 0)`;
+      const movement = Math.max(-56, Math.min(56, centerOffset * speed * -1));
+      item.style.setProperty("--parallax-y", `${movement.toFixed(2)}px`);
     });
 
     ticking = false;
@@ -61,8 +72,6 @@ if (!prefersReducedMotion) {
   window.addEventListener("scroll", requestParallax, { passive: true });
   window.addEventListener("resize", requestParallax);
   requestParallax();
-} else {
-  document.querySelectorAll("[data-reveal]").forEach((item) => item.classList.add("is-visible"));
 }
 
 const eventGrid = document.querySelector("[data-events-grid]");
@@ -70,8 +79,8 @@ const fallbackEvents = [
   {
     title: "Upcoming Ray Leo’s Show",
     date: "TBA",
-    time: "Doors and music times vary by event",
-    summary: "Check the Eventbrite organizer page for current ticketed shows.",
+    time: "Times vary by event",
+    summary: "Check the Eventbrite organizer page for current ticketed shows and door details.",
     image: "assets/img/placeholders/event-01.svg",
     ticketUrl: "https://www.eventbrite.com/o/ray-leos-at-lamasco-121162835137",
     tag: "Live Music"
@@ -97,39 +106,23 @@ const renderEvents = (events) => {
     .map(
       (event) => `
         <article class="event-card" data-reveal>
-          <img src="${escapeHtml(event.image || "assets/img/placeholders/event-01.svg")}" alt="${escapeHtml(event.title)} event artwork placeholder" loading="lazy">
+          <img src="${escapeHtml(event.image || "assets/img/placeholders/event-01.svg")}" alt="${escapeHtml(event.title)} event artwork" loading="lazy">
           <div class="event-card-body">
             <span class="event-tag">${escapeHtml(event.tag || "Event")}</span>
             <h3>${escapeHtml(event.title)}</h3>
             <div class="event-meta">
-              <span>${escapeHtml(event.date)}</span>
-              <span>${escapeHtml(event.time)}</span>
+              <span>${escapeHtml(event.date || "TBA")}</span>
+              <span>${escapeHtml(event.time || "Times vary")}</span>
             </div>
-            <p>${escapeHtml(event.summary)}</p>
-            <a class="btn btn--ghost" href="${escapeHtml(event.ticketUrl || "#")}" target="_blank" rel="noopener">View details</a>
+            <p>${escapeHtml(event.summary || "Event details coming soon.")}</p>
+            <a class="btn btn--quiet" href="${escapeHtml(event.ticketUrl || "https://www.eventbrite.com/o/ray-leos-at-lamasco-121162835137")}" target="_blank" rel="noopener">View details</a>
           </div>
         </article>
       `
     )
     .join("");
 
-  if (!prefersReducedMotion) {
-    const newCards = eventGrid.querySelectorAll("[data-reveal]");
-    const cardObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("is-visible");
-            cardObserver.unobserve(entry.target);
-          }
-        });
-      },
-      { rootMargin: "0px 0px -12% 0px", threshold: 0.12 }
-    );
-    newCards.forEach((card) => cardObserver.observe(card));
-  } else {
-    eventGrid.querySelectorAll("[data-reveal]").forEach((card) => card.classList.add("is-visible"));
-  }
+  makeRevealObserver();
 };
 
 if (eventGrid) {
@@ -201,7 +194,7 @@ if (bookingForm) {
     window.location.href = `mailto:Booking@rayleos.com?subject=${subject}&body=${body}`;
 
     if (formResult) {
-      formResult.textContent = "Opening your email client with the booking submission. For production, connect this form to a secure backend or form service.";
+      formResult.textContent = "Opening your email client with the booking submission. For production, connect this to a secure form service or backend.";
     }
   });
 }

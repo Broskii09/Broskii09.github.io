@@ -1,11 +1,13 @@
-Place licensed webfont files here after converting/exporting them to WOFF2:
+Place licensed webfont files here if the font license allows web embedding.
 
+Expected filenames used by assets/css/styles.css:
 - peignot.woff2
-- peignot-demi.woff2
 - peignot-bold.woff2
-- peignot-thin.woff2
-- honey-script-light.woff2
 - honey-script-semibold.woff2
 
-The CSS already references these names and falls back safely if files are missing.
-Do not commit or publish font files unless your license allows web embedding.
+Optional filenames you may add later:
+- peignot-demi.woff2
+- peignot-thin.woff2
+- honey-script-light.woff2
+
+Do not use raw desktop font files on a public site unless the license explicitly permits web use.

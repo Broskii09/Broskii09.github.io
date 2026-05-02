@@ -1,29 +1,29 @@
 [
   {
-    "title": "Upcoming Ray Leo’s Show",
+    "title": "Upcoming Show",
     "date": "TBA",
-    "time": "Doors and music times vary by event",
-    "summary": "Replace this placeholder with an Eventbrite event or a door-only show listing.",
+    "time": "Doors and music times vary",
+    "summary": "Replace this card with a real Eventbrite show, outside-promoter event, or door-only listing.",
     "image": "assets/img/placeholders/event-01.svg",
     "ticketUrl": "https://www.eventbrite.com/o/ray-leos-at-lamasco-121162835137",
     "tag": "Live Music"
   },
   {
-    "title": "Franklin Street Night",
+    "title": "Touring Band Night",
     "date": "TBA",
-    "time": "Pay at the door when available",
-    "summary": "Use this fallback card for local bills, touring acts, benefits, and venue-run nights.",
+    "time": "Check event details",
+    "summary": "Use this format for ticketed touring bills, support acts, and outside agency shows.",
     "image": "assets/img/placeholders/event-02.svg",
     "ticketUrl": "https://www.eventbrite.com/o/ray-leos-at-lamasco-121162835137",
-    "tag": "Door / Ticketed"
+    "tag": "Ticketed Show"
   },
   {
-    "title": "Touring Band Hold",
+    "title": "Local Bill",
     "date": "TBA",
-    "time": "Booking pending",
-    "summary": "This card proves the layout before live Eventbrite/API data is connected.",
+    "time": "Door details pending",
+    "summary": "Door-only shows can live here even when they are not available through Eventbrite.",
     "image": "assets/img/placeholders/event-03.svg",
-    "ticketUrl": "#booking",
-    "tag": "Booking"
+    "ticketUrl": "https://www.facebook.com/rayleosatlamasco",
+    "tag": "Door / Updates"
   }
 ]
