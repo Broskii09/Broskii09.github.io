@@ -252,4 +252,35 @@ test.describe("OMJN TEST special slots", () => {
     await expect(viewer.locator("#donationCard")).toBeVisible();
     expect(pageErrors).toEqual([]);
   });
+  test("insert special before/after toggle clearly marks selected position", async ({ page }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    const performerRow = await addPerformerFromFirstOpenSlot(page, "Toggle Target");
+
+    await performerRow.getByRole("button", { name: "Insert Special" }).click();
+    const menu = performerRow.locator(".qSpecialMenu");
+    await expect(menu).toBeVisible();
+
+    const before = menu.getByRole("button", { name: "Before" });
+    const after = menu.getByRole("button", { name: "After" });
+    await expect(before).toHaveAttribute("aria-pressed", "false");
+    await expect(after).toHaveAttribute("aria-pressed", "false");
+    await expect(menu.locator(".qSpecialMenuHint")).toContainText("Choose Before or After");
+
+    await before.click();
+    await expect(before).toHaveAttribute("aria-pressed", "true");
+    await expect(before).toHaveClass(/isActive/);
+    await expect(after).toHaveAttribute("aria-pressed", "false");
+    await expect(menu.locator(".qSpecialMenuHint")).toContainText("Insert before this row");
+
+    await after.click();
+    await expect(after).toHaveAttribute("aria-pressed", "true");
+    await expect(after).toHaveClass(/isActive/);
+    await expect(before).toHaveAttribute("aria-pressed", "false");
+    await expect(menu.locator(".qSpecialMenuHint")).toContainText("Insert after this row");
+    expect(pageErrors).toEqual([]);
+  });
+
 });

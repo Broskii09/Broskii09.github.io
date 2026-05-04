@@ -4022,9 +4022,12 @@ function escapeHtml(s){
       for(const position of ["before", "after"]){
         const posBtn = document.createElement("button");
         posBtn.type = "button";
+        const isSelected = selectedPosition === position;
         posBtn.className = "btn tiny qSpecialMenuPositionBtn";
-        if(selectedPosition === position) posBtn.classList.add("isActive");
+        if(isSelected) posBtn.classList.add("isActive");
         posBtn.textContent = position === "before" ? "Before" : "After";
+        posBtn.setAttribute("aria-pressed", isSelected ? "true" : "false");
+        posBtn.title = position === "before" ? "Insert the special slot before this row" : "Insert the special slot after this row";
         posBtn.addEventListener("click", () => {
           specialInsertMenuState = { ownerKey, position };
           render();
@@ -4032,6 +4035,16 @@ function escapeHtml(s){
         positionRow.appendChild(posBtn);
       }
       menu.appendChild(positionRow);
+
+      const hint = document.createElement("div");
+      hint.className = "qSpecialMenuHint";
+      if(selectedPosition){
+        hint.classList.add("isReady");
+        hint.textContent = `Insert ${selectedPosition} this row`;
+      }else{
+        hint.textContent = "Choose Before or After first";
+      }
+      menu.appendChild(hint);
     }else{
       const meta = document.createElement("div");
       meta.className = "qSpecialMenuMeta";
