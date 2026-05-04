@@ -37,19 +37,42 @@ async function expectOpenSlotActionsFit(slot){
   await expectActionButtonsFit(slot);
 }
 
+async function openBlankSpecialMenu(slot){
+  await slot.getByRole("button", { name: "Insert special after this open slot" }).click();
+  const menu = slot.locator(".qSpecialMenu");
+  await expect(menu).toBeVisible();
+  return menu;
+}
+
+async function chooseMenuType(menu, label){
+  const button = menu.getByRole("button", { name: label });
+  await expect(button).toBeVisible();
+  await expect(button).toBeEnabled();
+  await button.evaluate((node) => node.click());
+}
+
+async function insertSpecialFromRow(row, position, typeLabel){
+  await row.getByRole("button", { name: "Insert Special" }).click();
+  const menu = row.locator(".qSpecialMenu");
+  await expect(menu).toBeVisible();
+  await menu.getByRole("button", { name: position === "before" ? "Before" : "After" }).click();
+  await chooseMenuType(menu, typeLabel);
+}
+
 async function addPerformerFromFirstOpenSlot(page, name, notes = ""){
   const firstSlot = page.locator(".paperSlotEmpty").first();
   const paperSlot = (await firstSlot.getAttribute("data-paper-slot")) || "";
   await firstSlot.getByRole("button", { name: "Add Performer" }).click();
 
-  const expander = page.locator(".qExpander").first();
+  const editingRow = page.locator(".queueItem.isEditing").first();
+  const expander = editingRow.locator(".qExpander");
   await expect(expander).toBeVisible();
   await expect(expander.locator("select").first()).toHaveValue("");
 
   await expander.locator("input[type='text']").first().fill(name);
   await expander.locator("select").first().selectOption("musician");
   if(notes) await expander.locator("textarea").first().fill(notes);
-  await expander.getByRole("button", { name: "Save" }).click();
+  await editingRow.locator(".qDeleteColumn.isEditing .qActionSave").click();
 
   const performerRow = page.locator(".queueItem").filter({ hasText: name });
   if(paperSlot) await expect(performerRow).toContainText(`#${paperSlot}`);
@@ -68,6 +91,16 @@ async function openOperatorAdvancedSettings(page){
   await expect(page.locator("#settingsModal")).toBeVisible();
   await page.locator('.settingsTabBtn[data-tab="advanced"]').click();
   await expect(page.locator('.settingsPanel[data-panel="advanced"]')).toBeVisible();
+}
+
+async function enableSponsorAdSlots(page){
+  await openOperatorAdvancedSettings(page);
+  const toggle = page.locator("#setEnableSponsorAdSlots");
+  if(!(await toggle.isChecked())){
+    await toggle.check();
+  }
+  await page.locator("#btnCloseSettings").click();
+  await expect(page.locator("#settingsModal")).toBeHidden();
 }
 
 async function openSoundboardSettings(page){
@@ -152,9 +185,10 @@ async function seedCurrentTimerState(page, options = {}){
 async function addIntermissionAfterFirstOpenSlot(page, title, message){
   const firstSlot = page.locator(".paperSlotEmpty").first();
   const paperSlot = (await firstSlot.getAttribute("data-paper-slot")) || "";
-  await firstSlot.getByRole("button", { name: "Intermission After" }).click();
+  const menu = await openBlankSpecialMenu(firstSlot);
+  await chooseMenuType(menu, "Intermission");
   await expect(page.locator("#intermissionModal")).toBeVisible();
-  if(paperSlot) await expect(page.locator("#btnImAdd")).toHaveText(`Add After #${paperSlot}`);
+  if(paperSlot) await expect(page.locator("#btnImAdd")).toContainText(`After #${paperSlot}`);
   await page.locator("#imName").fill(title);
   await page.locator("#imMsg").fill(message);
   await page.locator("#imDur5").click();
@@ -174,7 +208,8 @@ async function addGraphicAdAfterFirstOpenSlot(page, label){
 
   const firstSlot = page.locator(".paperSlotEmpty").first();
   const paperSlot = (await firstSlot.getAttribute("data-paper-slot")) || "";
-  await firstSlot.getByRole("button", { name: "Ad After" }).click();
+  const menu = await openBlankSpecialMenu(firstSlot);
+  await chooseMenuType(menu, "Graphic Ad");
   await expect(page.locator("#adModal")).toBeVisible();
   await expect(page.locator("#btnAdSave")).toHaveText("Add to Queue");
   await page.locator("#adLabel").fill(label);
@@ -196,10 +231,10 @@ async function addVideoAdAfterFirstOpenSlot(page, label){
 
   const firstSlot = page.locator(".paperSlotEmpty").first();
   const paperSlot = (await firstSlot.getAttribute("data-paper-slot")) || "";
-  await firstSlot.getByRole("button", { name: "Ad After" }).click();
+  const menu = await openBlankSpecialMenu(firstSlot);
+  await chooseMenuType(menu, "Video Ad");
   await expect(page.locator("#adModal")).toBeVisible();
   await page.locator("#adLabel").fill(label);
-  await page.locator("#adKind").selectOption("video");
   await expect(page.locator("#adVideoOptions")).toBeVisible();
   await page.locator("#adSource").selectOption("url");
   await expect(page.locator("#adUrlWrap")).toBeVisible();
@@ -241,7 +276,8 @@ async function addHouseBandSetAfterFirstOpenSlot(page, memberName){
   await expect(page.locator("#tabPerformers")).toBeVisible();
   const firstSlot = page.locator(".paperSlotEmpty").first();
   const paperSlot = (await firstSlot.getAttribute("data-paper-slot")) || "";
-  await firstSlot.getByRole("button", { name: "House Band After" }).click();
+  const menu = await openBlankSpecialMenu(firstSlot);
+  await chooseMenuType(menu, "House Band");
 
   await expect(page.locator("#hbBuildModal")).toBeVisible();
   await expect(page.locator("#hbPreviewNames")).toContainText(memberName);
@@ -259,7 +295,8 @@ async function addHouseBandSetAfterFirstOpenSlot(page, memberName){
 async function addAllStarJamAfterFirstOpenSlot(page, title = "All Star Finale", notes = ""){
   const firstSlot = page.locator(".paperSlotEmpty").first();
   const paperSlot = (await firstSlot.getAttribute("data-paper-slot")) || "";
-  await firstSlot.getByRole("button", { name: "All Star Jam After" }).click();
+  const menu = await openBlankSpecialMenu(firstSlot);
+  await chooseMenuType(menu, "All Star Jam");
 
   const jamRow = page.locator('.queueItem[data-slot-type="allstarjam"]').last();
   await expect(jamRow).toBeVisible();
@@ -272,7 +309,7 @@ async function addAllStarJamAfterFirstOpenSlot(page, title = "All Star Finale", 
   if(notes){
     await expander.locator("textarea").first().fill(notes);
   }
-  await expander.getByRole("button", { name: "Save" }).click();
+  await jamRow.locator(".qDeleteColumn.isEditing .qActionSave").click();
 
   await expect(jamRow).toContainText("All Star Jam");
   if(title) await expect(jamRow).toContainText(title);
@@ -283,7 +320,8 @@ async function addAllStarJamAfterFirstOpenSlot(page, title = "All Star Finale", 
 async function addAllStarJamAtQueueEnd(page, title = "Finale Jam"){
   const lastSlot = page.locator(".paperSlotEmpty").last();
   const paperSlot = (await lastSlot.getAttribute("data-paper-slot")) || "";
-  await lastSlot.getByRole("button", { name: "All Star Jam After" }).click();
+  const menu = await openBlankSpecialMenu(lastSlot);
+  await chooseMenuType(menu, "All Star Jam");
 
   const jamRow = page.locator('.queueItem[data-slot-type="allstarjam"]').last();
   await expect(jamRow).toBeVisible();
@@ -293,7 +331,7 @@ async function addAllStarJamAtQueueEnd(page, title = "Finale Jam"){
   if(title){
     await expander.locator("input[type='text']").first().fill(title);
   }
-  await expander.getByRole("button", { name: "Save" }).click();
+  await jamRow.locator(".qDeleteColumn.isEditing .qActionSave").click();
 
   await expect(jamRow).toContainText("All Star Jam");
   if(title) await expect(jamRow).toContainText(title);
@@ -314,6 +352,8 @@ module.exports = {
   endCurrentToSplash,
   expectActionButtonsFit,
   expectOpenSlotActionsFit,
+  enableSponsorAdSlots,
+  insertSpecialFromRow,
   openOperatorAdvancedSettings,
   openSoundboardSettings,
   openViewerPage,

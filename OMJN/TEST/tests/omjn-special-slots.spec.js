@@ -7,6 +7,7 @@ const {
   addHouseBandSetAfterFirstOpenSlot,
   addIntermissionAfterFirstOpenSlot,
   addPerformerFromFirstOpenSlot,
+  enableSponsorAdSlots,
   endCurrentToSplash,
   openViewerPage,
   seedCurrentTimerState,
@@ -47,7 +48,7 @@ test.describe("OMJN TEST special slots", () => {
     await expect(viewer.locator("#root")).toHaveClass(/isSplash/, { timeout: 10000 });
     await expect(viewer.locator("#splashInfo")).toHaveAttribute("aria-hidden", "false");
     await expect(viewer.locator("#overlay")).toHaveAttribute("aria-hidden", "true");
-    const completedSummary = page.locator("summary.queueDivider").filter({ hasText: "Completed / No Show" });
+    const completedSummary = page.locator("summary.queueDivider").filter({ hasText: "Completed / No Show / Deleted" });
     await expect(completedSummary).toBeVisible();
     expect(pageErrors).toEqual([]);
   });
@@ -57,6 +58,7 @@ test.describe("OMJN TEST special slots", () => {
     watchPageErrors(page, pageErrors);
 
     await page.goto("operator.html");
+    await enableSponsorAdSlots(page);
     const viewer = await openViewerPage(context, pageErrors);
 
     await addGraphicAdAfterFirstOpenSlot(page, "Smoke Graphic Ad");
@@ -76,6 +78,7 @@ test.describe("OMJN TEST special slots", () => {
     watchPageErrors(page, pageErrors);
 
     await page.goto("operator.html");
+    await enableSponsorAdSlots(page);
 
     const intermissionRow = await addIntermissionAfterFirstOpenSlot(page, "MOVE BREAK", "MOVE TEST INTERMISSION");
     await intermissionRow.locator(".qActionDown").click();
@@ -97,15 +100,16 @@ test.describe("OMJN TEST special slots", () => {
     watchPageErrors(page, pageErrors);
 
     await page.goto("operator.html");
+    await enableSponsorAdSlots(page);
 
     const intermissionRow = await addIntermissionAfterFirstOpenSlot(page, "DRAG BREAK", "DRAG TEST INTERMISSION");
     const adRow = await addGraphicAdAfterFirstOpenSlot(page, "Drag Graphic Ad");
 
-    await adRow.dragTo(intermissionRow);
+    await adRow.locator(".dragHandle").dragTo(intermissionRow);
 
-    const activeRows = page.locator("#queue > .queueItem");
-    await expect(activeRows.nth(1)).toContainText("Drag Graphic Ad");
-    await expect(activeRows.nth(2)).toContainText("DRAG BREAK");
+    const activeRows = page.locator("#queue > .queueItem:not(.paperSlotEmpty)");
+    await expect(activeRows.nth(0)).toContainText("Drag Graphic Ad");
+    await expect(activeRows.nth(1)).toContainText("DRAG BREAK");
     expect(pageErrors).toEqual([]);
   });
 
@@ -128,9 +132,9 @@ test.describe("OMJN TEST special slots", () => {
       confirmMessage = dialog.message();
       dialog.accept();
     });
-    await page.locator('.paperSlotEmpty[data-paper-slot="2"]').getByRole("button", { name: "Delete Blank" }).click();
+    await page.locator('.paperSlotEmpty[data-paper-slot="2"] .qActionDeleteBlank').click();
 
-    expect(confirmMessage).toContain("Delete blank Open Slot #2");
+    expect(confirmMessage).toContain("Delete this blank slot?");
     const activeRows = page.locator("#queue > .queueItem");
     await expect(activeRows.nth(0)).toContainText("#1");
     await expect(activeRows.nth(0)).toContainText("Anchor One");
@@ -146,6 +150,7 @@ test.describe("OMJN TEST special slots", () => {
     watchPageErrors(page, pageErrors);
 
     await page.goto("operator.html");
+    await enableSponsorAdSlots(page);
     const viewer = await openViewerPage(context, pageErrors);
 
     const adRow = await addGraphicAdAfterFirstOpenSlot(page, "Queued Edit Ad");
@@ -226,7 +231,7 @@ test.describe("OMJN TEST special slots", () => {
     await expect(expander).toBeVisible();
     await expander.locator(".field").filter({ hasText: "Donation / Link" }).locator("input").fill("https://example.com/jam");
     await expander.locator(".field").filter({ hasText: "Media Layout" }).locator("select").selectOption("NONE");
-    await expander.getByRole("button", { name: "Save" }).click();
+    await jamRow.locator(".qDeleteColumn.isEditing .qActionSave").click();
 
     await startNextPerformer(page);
     await expect(viewer.locator("#root")).toHaveClass(/isAllStarJam/, { timeout: 10000 });

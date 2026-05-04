@@ -27,7 +27,7 @@ If the owner updates the menu, keep the same Drive file ID when possible by repl
 
 ## Booking form
 
-The form currently creates a prefilled email to `Booking@rayleos.com`. GitHub Pages does not run server-side form code. Later options: Formspree, Netlify Forms, Cloudflare Pages Functions, or a custom backend.
+The form currently creates a prefilled email to `BOOKING_EMAIL`. GitHub Pages does not run server-side form code. Later options: Formspree, Netlify Forms, Cloudflare Pages Functions, or a custom backend.
 
 ## Future calendar availability
 

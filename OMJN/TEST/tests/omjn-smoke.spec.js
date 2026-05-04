@@ -43,9 +43,34 @@ test.describe("OMJN TEST smoke", () => {
     await expectActionButtonsFit(performerRow);
     await expect(performerRow.locator(".qActionUp")).toHaveCount(1);
     await expect(performerRow.locator(".qActionDown")).toHaveCount(1);
+    await expect(performerRow.locator(".qMetaChip")).toContainText(["Notes"]);
     await page.setViewportSize({ width: 390, height: 720 });
     await expectActionButtonsFit(page.locator(".queueItem").filter({ hasText: "Alex Test" }));
-    await expect(page.getByRole("link", { name: "Spotify App" })).toBeVisible();
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("queue rows stay readable across requested operator widths", async ({ page }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    await addPerformerFromFirstOpenSlot(page, "Viewport Queue Test", "Compact row sanity");
+
+    for(const width of [1440, 1280, 1024, 768, 430, 390]){
+      const height = width <= 430 ? 844 : 900;
+      await page.setViewportSize({ width, height });
+      const performerRow = page.locator(".queueItem").filter({ hasText: "Viewport Queue Test" }).first();
+      const blankRow = page.locator(".paperSlotEmpty").first();
+
+      await expect(performerRow).toBeVisible();
+      await expect(blankRow).toBeVisible();
+      await expectActionButtonsFit(performerRow);
+      await expectOpenSlotActionsFit(blankRow);
+      await expect(performerRow.locator(".dragHandle")).toBeVisible();
+      await expect(blankRow.locator(".dragHandle")).toBeVisible();
+      await expect(performerRow.locator(".qMoveColumn")).toBeVisible();
+      await expect(blankRow.locator(".qMoveColumn")).toBeVisible();
+    }
     expect(pageErrors).toEqual([]);
   });
 

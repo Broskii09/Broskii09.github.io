@@ -785,6 +785,11 @@ body::-webkit-scrollbar-corner,
   border-color:rgba(239,68,68,.42);
   background:rgba(239,68,68,.16);
 }
+.qDeletedLabel{
+  color:#fde68a;
+  border-color:rgba(245,158,11,.40);
+  background:rgba(245,158,11,.16);
+}
 .qActions{
   grid-area: actions;
   display:grid;
@@ -940,6 +945,287 @@ body::-webkit-scrollbar-corner,
 }
 .queueItem.isEditing .qBar{
   padding:7px 10px;
+}
+
+.queueUndoNotice{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:10px 0 12px;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid rgba(96,165,250,.24);
+  background:rgba(15,23,42,.78);
+  box-shadow:0 10px 24px rgba(2,6,23,.22);
+}
+.queueUndoNotice[hidden]{
+  display:none !important;
+}
+.queueUndoNoticeText{
+  font-size:13px;
+  font-weight:800;
+  color:rgba(239,246,255,.94);
+}
+
+.queueItem,
+.queueItem.paperSlotEmpty{
+  grid-template-columns:52px minmax(0, 1fr) 96px 54px;
+  grid-template-rows:auto;
+  grid-template-areas:"handle main delete move";
+  gap:10px;
+  align-items:stretch;
+}
+.queueItem.isEditing,
+.queueItem.paperSlotEmpty.isEditing{
+  grid-template-columns:52px minmax(0, 1fr) 108px 54px;
+  grid-template-areas:"handle main delete move";
+}
+.queueItem.paperSlotEmpty{
+  border-style:dashed;
+}
+.dragHandle{
+  width:52px;
+  min-width:52px;
+  min-height:100%;
+  align-self:stretch;
+  border-radius:14px;
+  flex-direction:column;
+  gap:6px;
+}
+.dragHandle.isDraggable{
+  cursor:grab;
+}
+.dragHandle[aria-disabled="true"]{
+  opacity:.56;
+  cursor:default;
+}
+.dragDots{
+  display:block;
+  width:16px;
+  height:28px;
+  border-radius:999px;
+  background:
+    radial-gradient(circle, rgba(231,238,251,.92) 0 1.6px, transparent 1.7px) 0 0 / 8px 8px,
+    radial-gradient(circle, rgba(231,238,251,.92) 0 1.6px, transparent 1.7px) 4px 4px / 8px 8px;
+  opacity:.84;
+}
+.qMain{
+  gap:6px;
+  justify-content:center;
+}
+.paperEmptyTitle{
+  padding:8px 0 2px;
+  text-align:center;
+}
+.qEditModeLabel{
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:rgba(165,180,214,.92);
+}
+.qMeta{
+  gap:8px;
+}
+.qMetaChips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.qMetaChip{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:3px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.06);
+  color:rgba(231,238,251,.86);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.03em;
+}
+.qNotesSub{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  display:block;
+}
+.qActions{
+  grid-area:auto;
+  display:block;
+  inline-size:auto;
+  max-width:none;
+  padding-top:0;
+}
+.queueItem:not(.paperSlotEmpty):not(.isDone) .qActions.qActionsActive,
+.queueItem.paperSlotEmpty .qActions.paperSlotActions,
+.queueItem.isDone .qActions{
+  display:block;
+  inline-size:auto;
+  max-width:none;
+  justify-self:auto;
+}
+.qActionGrid,
+.queueItem.paperSlotEmpty .paperSlotActions .qBlankActionGrid{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+.qActions .btn{
+  inline-size:auto;
+  min-height:34px;
+  white-space:nowrap;
+}
+.queueItem.paperSlotEmpty .qActions.paperSlotActions .btn{
+  white-space:nowrap;
+}
+.qActions .btn.tiny{
+  padding:6px 10px;
+}
+.qActionAddPerformer{
+  min-width:180px;
+  justify-content:center;
+  font-weight:900;
+}
+.qBlankActionGrid{
+  justify-content:center;
+}
+.qBlankSpecialTrigger{
+  min-width:40px;
+  padding-inline:0 !important;
+}
+.qActionGoLive,
+.qActionSave{
+  font-weight:900;
+}
+.qDeleteColumn{
+  display:grid;
+  align-self:stretch;
+}
+.qDeleteColumn .btn{
+  width:100%;
+  height:100%;
+  min-height:0 !important;
+  padding:0 10px !important;
+  font-weight:1000;
+}
+.qDeleteColumn.isEditing{
+  grid-template-rows:1fr 1fr;
+  gap:8px;
+}
+.qDeleteColumn.isEditing .btn{
+  min-height:38px !important;
+  height:auto;
+}
+.qMoveColumn{
+  min-width:54px;
+}
+.qMoveColumn .btn{
+  font-size:15px !important;
+}
+.qMoveColumn.isDisabled .btn{
+  opacity:.52;
+}
+.qSpecialMenuWrap{
+  position:relative;
+  display:inline-flex;
+}
+.qSpecialMenu{
+  position:absolute;
+  top:calc(100% + 8px);
+  left:0;
+  z-index:42;
+  display:grid;
+  gap:8px;
+  min-width:236px;
+  padding:10px;
+  border-radius:14px;
+  border:1px solid rgba(148,163,184,.22);
+  background:rgba(15,23,42,.96);
+  box-shadow:0 18px 36px rgba(2,6,23,.30);
+}
+.qSpecialMenuTitle{
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:rgba(165,180,214,.88);
+}
+.qSpecialMenuMeta{
+  font-size:12px;
+  color:rgba(226,232,240,.88);
+}
+.qSpecialMenuPositions{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:8px;
+}
+.qSpecialMenuPositionBtn.isActive{
+  border-color:rgba(96,165,250,.46);
+  background:rgba(96,165,250,.16);
+  color:#fff;
+}
+.qSpecialMenuTypes{
+  display:grid;
+  gap:8px;
+}
+.qSpecialMenuTypeBtn{
+  justify-content:flex-start !important;
+}
+.qActionsDone .qActionGrid{
+  justify-content:flex-start;
+}
+
+@media (max-width: 980px){
+  .queueItem,
+  .queueItem.paperSlotEmpty{
+    grid-template-columns:48px minmax(0, 1fr) 84px 48px;
+  }
+  .queueItem.isEditing,
+  .queueItem.paperSlotEmpty.isEditing{
+    grid-template-columns:48px minmax(0, 1fr) 96px 48px;
+  }
+  .dragHandle{
+    width:48px;
+    min-width:48px;
+  }
+}
+
+@media (max-width: 640px){
+  .queueItem,
+  .queueItem.paperSlotEmpty{
+    grid-template-columns:44px minmax(0, 1fr) 76px 44px;
+    gap:8px;
+    padding:10px;
+  }
+  .queueItem.isEditing,
+  .queueItem.paperSlotEmpty.isEditing{
+    grid-template-columns:44px minmax(0, 1fr) 88px 44px;
+  }
+  .dragHandle{
+    width:44px;
+    min-width:44px;
+  }
+  .qActions .btn{
+    min-height:32px;
+    font-size:12px;
+  }
+  .qActionAddPerformer{
+    min-width:0;
+    flex:1 1 100%;
+  }
+  .qBlankActionGrid{
+    justify-content:stretch;
+  }
+  .qSpecialMenu{
+    left:auto;
+    right:0;
+    min-width:min(260px, calc(100vw - 32px));
+  }
 }
 
 @media (max-width: 980px){

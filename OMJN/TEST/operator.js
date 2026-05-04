@@ -9,6 +9,7 @@ let adPresets = [];
 let adSelectedPresetId = null;
 let adPreviewBlobUrl = null;
 let adInsertAfterPaperSlot = null;
+let adInsertContext = null;
 const LAST_CALL_RESET_HOUR = 6;
 const LAST_CALL_CLOSE_MODE_MIDNIGHT = "midnight";
 const LAST_CALL_CLOSE_MODE_ONE_AM = "oneam";
@@ -37,6 +38,7 @@ const LAST_CALL_CLOSE_MODE_CUSTOM = "custom";
     startGuard: document.getElementById("startGuard"),
     endGuard: document.getElementById("endGuard"),
     hotkeysEnabled: document.getElementById("hotkeysEnabled"),
+    setEnableSponsorAdSlots: document.getElementById("setEnableSponsorAdSlots"),
     setLastCallEnabled: document.getElementById("setLastCallEnabled"),
     setLastCallCloseMode: document.getElementById("setLastCallCloseMode"),
     lastCallCustomTimeWrap: document.getElementById("lastCallCustomTimeWrap"),
@@ -47,6 +49,9 @@ const LAST_CALL_CLOSE_MODE_CUSTOM = "custom";
     btnSiteUpdateResetDismissal: document.getElementById("btnSiteUpdateResetDismissal"),
     btnSiteUpdatePromptTabs: document.getElementById("btnSiteUpdatePromptTabs"),
     siteUpdateStatus: document.getElementById("siteUpdateStatus"),
+    queueUndoNotice: document.getElementById("queueUndoNotice"),
+    queueUndoNoticeText: document.getElementById("queueUndoNoticeText"),
+    btnQueueUndoNotice: document.getElementById("btnQueueUndoNotice"),
 
     // Settings
 setBgColor: document.getElementById("setBgColor"),
@@ -395,6 +400,10 @@ setBgColor: document.getElementById("setBgColor"),
   let inlineSavedSlotId = null;
   let inlineSavedNoticeTimer = null;
   let pendingOutsideEditSaveId = null;
+  let specialInsertMenuState = null;
+  let queueUndoNoticeTimer = null;
+  let goLiveRowIds = new Set();
+  let draggedQueueRowId = null;
 
   // House Band Set Builder
   let hbBuildCtx = null; // { mode:'add'|'edit', slotId?:string }
@@ -403,6 +412,7 @@ setBgColor: document.getElementById("setBgColor"),
   // Intermission Builder
   let imDraft = null; // { minutes: number | 'custom' }
   let imInsertAfterPaperSlot = null;
+  let imInsertContext = null;
 
   const PAPER_SLOT_DEFAULT_COUNT = 30;
   const PAPER_SLOT_ADD_COUNT = 5;
@@ -457,13 +467,47 @@ setBgColor: document.getElementById("setBgColor"),
   }
   function undo(){
     if(!undoStack.length) return;
+    hideQueueUndoNotice();
     const prev = undoStack.pop();
     applyHistory(prev, "undo");
   }
   function redo(){
     if(!redoStack.length) return;
+    hideQueueUndoNotice();
     const next = redoStack.pop();
     applyHistory(next, "redo");
+  }
+
+  function hideQueueUndoNotice(){
+    if(queueUndoNoticeTimer){
+      clearTimeout(queueUndoNoticeTimer);
+      queueUndoNoticeTimer = null;
+    }
+    if(els.queueUndoNotice) els.queueUndoNotice.hidden = true;
+  }
+
+  function showQueueUndoNotice(message = "Deleted. Undo last action?"){
+    if(!els.queueUndoNotice || !els.queueUndoNoticeText) return;
+    if(queueUndoNoticeTimer){
+      clearTimeout(queueUndoNoticeTimer);
+      queueUndoNoticeTimer = null;
+    }
+    els.queueUndoNoticeText.textContent = message;
+    els.queueUndoNotice.hidden = false;
+    queueUndoNoticeTimer = setTimeout(() => {
+      queueUndoNoticeTimer = null;
+      if(els.queueUndoNotice) els.queueUndoNotice.hidden = true;
+    }, 10000);
+  }
+
+  function closeSpecialInsertMenu({ rerender = true } = {}){
+    if(!specialInsertMenuState) return;
+    specialInsertMenuState = null;
+    if(rerender) render();
+  }
+
+  function isSponsorAdSlotsEnabled(){
+    return !!state.operatorPrefs?.enableSponsorAdSlots;
   }
 
     function addSeconds(deltaSec) {
@@ -618,6 +662,7 @@ setBgColor: document.getElementById("setBgColor"),
         .map(n => Math.round(Number(n)))
         .filter(n => Number.isFinite(n) && n > 0)
     )).sort((a,b) => a-b);
+    if(s.operatorPrefs.enableSponsorAdSlots === undefined) s.operatorPrefs.enableSponsorAdSlots = false;
     ensureLastCallPrefs(s.operatorPrefs);
     return s.operatorPrefs;
   }
@@ -737,6 +782,12 @@ setBgColor: document.getElementById("setBgColor"),
     for(const slot of s.queue){
       if(!slot || typeof slot !== "object") continue;
       if(isPaperSlot(slot)){
+        if(isDoneStatus(slot.status) && slot.queueRemoved){
+          slot.isPlaceholder = false;
+          delete slot.paperSlotNumber;
+          delete slot.afterPaperSlotNumber;
+          continue;
+        }
         if(!paperSlotNumber(slot)){
           while(retired.has(nextNumber) || reservedNumbers.has(nextNumber)) nextNumber++;
           slot.paperSlotNumber = nextNumber;
@@ -887,6 +938,130 @@ setBgColor: document.getElementById("setBgColor"),
     return true;
   }
 
+  function buildOrderedActiveSlots(s, orderedIds, extraSlots = []){
+    const active = (s.queue || []).filter(x => x && !isDoneStatus(x.status));
+    const slots = [...active];
+    for(const slot of extraSlots){
+      if(slot && !slots.some(x => x.id === slot.id)) slots.push(slot);
+    }
+    const map = new Map(slots.map(slot => [slot.id, slot]));
+    const ordered = [];
+    const seen = new Set();
+    for(const id of orderedIds || []){
+      const slot = map.get(id);
+      if(!slot || seen.has(id)) continue;
+      ordered.push(slot);
+      seen.add(id);
+    }
+    for(const slot of slots){
+      if(slot && !seen.has(slot.id)){
+        ordered.push(slot);
+        seen.add(slot.id);
+      }
+    }
+    return ordered;
+  }
+
+  function applyVisibleActiveQueueOrder(s, orderedActive, opts = {}){
+    normalizePaperSlotState(s);
+    const preserveLivePin = opts.preserveLivePin !== false;
+    const activePaperNumbers = (s.queue || [])
+      .filter(slot => slot && !isDoneStatus(slot.status) && isPaperSlot(slot))
+      .map(paperSlotNumber)
+      .filter(Boolean)
+      .sort((a, b) => a - b);
+    const done = (s.queue || []).filter(slot => slot && isDoneStatus(slot.status));
+    const active = Array.isArray(orderedActive) ? orderedActive.filter(Boolean) : [];
+
+    if(preserveLivePin && isLiveishState(s) && s.currentSlotId){
+      const liveIdx = active.findIndex(slot => slot.id === s.currentSlotId);
+      if(liveIdx > 0){
+        const [liveSlot] = active.splice(liveIdx, 1);
+        active.unshift(liveSlot);
+      }
+    }
+
+    let paperIndex = 0;
+    let lastPaperNumber = null;
+    for(const slot of active){
+      if(isPaperSlot(slot)){
+        const nextNumber = activePaperNumbers[paperIndex++] || paperSlotNumber(slot) || (paperIndex);
+        slot.paperSlotNumber = nextNumber;
+        delete slot.afterPaperSlotNumber;
+        lastPaperNumber = nextNumber;
+        continue;
+      }
+      if(isSpecialSlot(slot)){
+        if(lastPaperNumber) slot.afterPaperSlotNumber = lastPaperNumber;
+        else delete slot.afterPaperSlotNumber;
+      }
+    }
+
+    s.queue = [...active, ...done];
+    syncSpecialAnchorsToCurrentOrder(s);
+  }
+
+  function insertSlotRelativeToRow(s, slot, targetSlotId, position = "after"){
+    normalizePaperSlotState(s);
+    const activeIds = (s.queue || [])
+      .filter(x => x && !isDoneStatus(x.status))
+      .map(x => x.id);
+    const targetIndex = activeIds.indexOf(targetSlotId);
+    if(targetIndex < 0){
+      insertQueuedSlotSmart(s, slot);
+      return false;
+    }
+    const insertIndex = position === "before" ? targetIndex : (targetIndex + 1);
+    const nextIds = [
+      ...activeIds.slice(0, insertIndex),
+      slot.id,
+      ...activeIds.slice(insertIndex),
+    ];
+    const orderedActive = buildOrderedActiveSlots(s, nextIds, [slot]);
+    applyVisibleActiveQueueOrder(s, orderedActive);
+    return true;
+  }
+
+  function insertSpecialSlotWithContext(s, slot, insertContext = null){
+    const ctx = insertContext && typeof insertContext === "object" ? insertContext : null;
+    if(ctx?.slotId){
+      const placed = insertSlotRelativeToRow(s, slot, ctx.slotId, ctx.position === "before" ? "before" : "after");
+      if(placed) return;
+    }
+
+    const afterPaperSlotNumber = Math.round(Number(ctx?.afterPaperSlotNumber || 0)) || 0;
+    if(afterPaperSlotNumber > 0){
+      insertSpecialAfterPaperSlot(s, slot, afterPaperSlotNumber);
+      return;
+    }
+
+    if(ctx?.placeAt === "queueEnd"){
+      insertSpecialAtActiveQueueEnd(s, slot);
+      return;
+    }
+
+    insertQueuedSlotSmart(s, slot);
+  }
+
+  function findQueueSlotById(slotId, sourceState = state){
+    return (sourceState?.queue || []).find(slot => slot && slot.id === slotId) || null;
+  }
+
+  function describeInsertContext(ctx){
+    if(!ctx || typeof ctx !== "object") return "";
+    const row = ctx.slotId ? findQueueSlotById(ctx.slotId) : null;
+    if(row){
+      const rowLabel = isPaperPlaceholder(row)
+        ? paperSlotLabel(row)
+        : (row.displayName || OMJN.displaySlotTypeLabel(state, row) || "selected row");
+      return `${ctx.position === "before" ? "Before" : "After"} ${rowLabel}`;
+    }
+    const afterPaperSlotNumber = Math.round(Number(ctx.afterPaperSlotNumber || 0)) || 0;
+    if(afterPaperSlotNumber > 0) return `After Open Slot #${afterPaperSlotNumber}`;
+    if(ctx.placeAt === "queueEnd") return "At queue end";
+    return "";
+  }
+
   function deleteBlankPaperSlotInState(s, slotId){
     const idx = s.queue.findIndex(x => x && x.id === slotId);
     if(idx < 0) return false;
@@ -911,8 +1086,7 @@ setBgColor: document.getElementById("setBgColor"),
   function deleteBlankPaperSlot(slotId){
     const slot = state.queue.find(x => x && x.id === slotId);
     if(!slot || !isPaperPlaceholder(slot) || isDoneStatus(slot.status)) return;
-    const n = paperSlotNumber(slot);
-    const ok = confirm(`Delete blank Open Slot #${n}? Later active slots will renumber to close the gap.`);
+    const ok = confirm("Delete this blank slot?");
     if(!ok) return;
 
     if(selectedId === slotId) selectedId = null;
@@ -921,6 +1095,7 @@ setBgColor: document.getElementById("setBgColor"),
     updateState(s => {
       deleteBlankPaperSlotInState(s, slotId);
     });
+    showQueueUndoNotice();
   }
 
   function deleteAllBlankPaperSlots(){
@@ -1092,6 +1267,7 @@ setBgColor: document.getElementById("setBgColor"),
 
   function openInlineEdit(slotId){
     clearInlineSavedNotice();
+    closeSpecialInsertMenu({ rerender:false });
     editingId = slotId;
     const slot = state.queue.find(x => x.id === slotId) || null;
     const media = slot?.media || { donationUrl:null, imageAssetId:null, mediaLayout:"NONE" };
@@ -1110,6 +1286,7 @@ setBgColor: document.getElementById("setBgColor"),
 
   function closeInlineEdit(){
     cancelPendingOutsideEditSave();
+    closeSpecialInsertMenu({ rerender:false });
     editingId = null;
     editDraft = null;
   }
@@ -1327,7 +1504,9 @@ setBgColor: document.getElementById("setBgColor"),
       wrap.appendChild(item);
     };
 
-    if(slot.noShow) add("Status", "NO SHOW", "qNoShowLabel");
+    if(slot.queueRemoved) add("Status", "DELETED", "qDeletedLabel");
+    else if(slot.noShow) add("Status", "NO SHOW", "qNoShowLabel");
+    if(slot.removedPaperSlotNumber) add("Removed", `Open Slot #${slot.removedPaperSlotNumber}`);
     add("ETA", formatClockTime(slot.expectedStartAt));
     add("Start", formatClockTime(slot.actualStartedAt));
     add("End", formatClockTime(slot.actualEndedAt || slot.completedAt));
@@ -1418,8 +1597,6 @@ setBgColor: document.getElementById("setBgColor"),
     const stopRowClick = (e) => { e.stopPropagation(); };
     wrap.addEventListener("mousedown", stopRowClick);
     wrap.addEventListener("click", stopRowClick);
-    wrap.appendChild(buildInlineEditActionBar(slot.id));
-
     const grid = document.createElement("div");
     grid.className = "qExpGrid";
 
@@ -1806,6 +1983,7 @@ setBgColor: document.getElementById("setBgColor"),
 
   function updateState(mutator, opts={}){
     const recordHistory = opts.recordHistory !== false;
+    if(recordHistory && !opts.preserveUndoNotice) hideQueueUndoNotice();
     if(recordHistory && !isApplyingHistory) pushUndoSnapshot();
     const s = cloneState(state);
     OMJN.ensureHouseBandQueues(s);
@@ -2897,6 +3075,13 @@ function escapeHtml(s){
     if(els.hotkeysEnabled){
       els.hotkeysEnabled.addEventListener("change", () => updateState(s => { s.operatorPrefs.hotkeysEnabled = !!els.hotkeysEnabled.checked; }, { recordHistory:false }));
     }
+    if(els.setEnableSponsorAdSlots){
+      els.setEnableSponsorAdSlots.addEventListener("change", () => {
+        updateState(s => {
+          ensureOperatorPrefs(s).enableSponsorAdSlots = !!els.setEnableSponsorAdSlots.checked;
+        }, { recordHistory:false });
+      });
+    }
     if(els.setLastCallEnabled){
       els.setLastCallEnabled.addEventListener("change", () => {
         updateState(s => {
@@ -3759,71 +3944,293 @@ function escapeHtml(s){
     root.appendChild(wrap);
   }
 
-  function addSpecialButtons(actions, paperNumber){
-    const n = Math.round(Number(paperNumber || 0));
-    if(!Number.isFinite(n) || n <= 0) return;
-    const addBtn = (label, fn) => {
-      const b = document.createElement("button");
-      b.className = "btn tiny qActionSpecial";
-      if(label === "Intermission After") b.classList.add("qActionSpecialIntermission");
-      if(label === "Ad After") b.classList.add("qActionSpecialAd");
-      if(label === "All Star Jam After") b.classList.add("qActionSpecialAllStarJam");
-      if(label === "House Band After") b.classList.add("qActionSpecialHouseBand");
-      b.type = "button";
-      b.textContent = label;
-      const anchor = (state.queue || []).find(x => x && paperSlotNumber(x) === n) || null;
-      const eta = anchor ? queueEtaMap.get(anchor.id) : null;
-      b.title = eta
-        ? `Insert after Open Slot #${n}. That slot's ETA is ${formatClockTime(eta)}.`
-        : `Insert after Open Slot #${n}.`;
-      b.addEventListener("click", (e) => {
-        e.stopPropagation();
-        fn(n);
+  function specialInsertTypes(){
+    const types = [
+      { id: "intermission", label: "Intermission" },
+      { id: "houseband", label: "House Band" },
+      { id: "allstarjam", label: "All Star Jam" }
+    ];
+    if(isSponsorAdSlotsEnabled()){
+      types.push({ id: "ad_graphic", label: "Graphic Ad" });
+      types.push({ id: "ad_video", label: "Video Ad" });
+    }
+    return types;
+  }
+
+  function openInsertSpecialAction(typeId, insertContext){
+    const ctx = insertContext ? { ...insertContext } : null;
+    closeSpecialInsertMenu({ rerender:false });
+    if(typeId === "intermission"){
+      openIntermissionModal(null, ctx);
+      return;
+    }
+    if(typeId === "houseband"){
+      openHbBuildModal({ mode:"add", insertContext: ctx });
+      return;
+    }
+    if(typeId === "allstarjam"){
+      addAllStarJamSlot({ insertContext: ctx, openEditor: true });
+      return;
+    }
+    if(typeId === "ad_graphic" || typeId === "ad_video"){
+      openAdModal(null, null, ctx, typeId === "ad_video" ? "video" : "graphic");
+    }
+  }
+
+  function buildInsertSpecialControl(ownerKey, context, opts = {}){
+    const wrap = document.createElement("div");
+    wrap.className = "qSpecialMenuWrap";
+    wrap.dataset.specialMenuRoot = ownerKey;
+
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = `btn tiny ${opts.compact ? "qBlankSpecialTrigger" : "qActionInsertSpecial"}`;
+    trigger.textContent = opts.compact ? "⋯" : "Insert Special";
+    trigger.title = opts.compact
+      ? "Insert a special slot after this open slot"
+      : "Insert a special slot before or after this row";
+    trigger.setAttribute("aria-label", opts.compact ? "Insert special after this open slot" : "Insert Special");
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if(specialInsertMenuState?.ownerKey === ownerKey){
+        closeSpecialInsertMenu();
+        return;
+      }
+      specialInsertMenuState = { ownerKey, position: context.fixedPosition || "" };
+      render();
+    });
+    wrap.appendChild(trigger);
+
+    if(specialInsertMenuState?.ownerKey !== ownerKey) return wrap;
+
+    const menu = document.createElement("div");
+    menu.className = "qSpecialMenu";
+    menu.addEventListener("click", (e) => e.stopPropagation());
+
+    const title = document.createElement("div");
+    title.className = "qSpecialMenuTitle";
+    title.textContent = "Insert Special";
+    menu.appendChild(title);
+
+    const fixedPosition = context.fixedPosition || "";
+    let selectedPosition = fixedPosition || specialInsertMenuState?.position || "";
+    const chosenContext = { ...context };
+
+    if(!fixedPosition){
+      const positionRow = document.createElement("div");
+      positionRow.className = "qSpecialMenuPositions";
+      for(const position of ["before", "after"]){
+        const posBtn = document.createElement("button");
+        posBtn.type = "button";
+        posBtn.className = "btn tiny qSpecialMenuPositionBtn";
+        if(selectedPosition === position) posBtn.classList.add("isActive");
+        posBtn.textContent = position === "before" ? "Before" : "After";
+        posBtn.addEventListener("click", () => {
+          specialInsertMenuState = { ownerKey, position };
+          render();
+        });
+        positionRow.appendChild(posBtn);
+      }
+      menu.appendChild(positionRow);
+    }else{
+      const meta = document.createElement("div");
+      meta.className = "qSpecialMenuMeta";
+      meta.textContent = describeInsertContext({ ...context, position: fixedPosition }) || "After this row";
+      menu.appendChild(meta);
+    }
+
+    if(!selectedPosition) selectedPosition = fixedPosition;
+    if(selectedPosition) chosenContext.position = selectedPosition;
+
+    const typeGrid = document.createElement("div");
+    typeGrid.className = "qSpecialMenuTypes";
+    const canChoose = !!(fixedPosition || selectedPosition);
+    for(const item of specialInsertTypes()){
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn tiny qSpecialMenuTypeBtn";
+      btn.textContent = item.label;
+      btn.disabled = !canChoose;
+      btn.addEventListener("click", () => {
+        if(!canChoose) return;
+        openInsertSpecialAction(item.id, chosenContext);
       });
-      actions.appendChild(b);
-    };
-    addBtn("Intermission After", (after) => openIntermissionModal(after));
-    addBtn("Ad After", (after) => openAdModal(null, after));
-    addBtn("All Star Jam After", (after) => addAllStarJamSlot({ afterPaperSlotNumber: after, openEditor: true }));
-    addBtn("House Band After", (after) => addHouseBandSlot(after));
+      typeGrid.appendChild(btn);
+    }
+    menu.appendChild(typeGrid);
+
+    wrap.appendChild(menu);
+    return wrap;
+  }
+
+  function createQueueDragHandle(slot, row, { enabled = false } = {}){
+    const handle = document.createElement("div");
+    handle.className = "dragHandle";
+    handle.title = enabled ? "Drag to reorder" : "Drag unavailable right now";
+    handle.setAttribute("aria-label", "Drag to reorder");
+    if(!enabled) handle.setAttribute("aria-disabled", "true");
+
+    const dots = document.createElement("span");
+    dots.className = "dragDots";
+    dots.setAttribute("aria-hidden", "true");
+    handle.appendChild(dots);
+
+    if(enabled){
+      handle.draggable = true;
+      handle.classList.add("isDraggable");
+      handle.addEventListener("dragstart", (e) => {
+        draggedQueueRowId = slot.id;
+        row.classList.add("dragging");
+        try{
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", slot.id);
+          e.dataTransfer.setData("text", slot.id);
+        }catch(_){}
+      });
+      handle.addEventListener("dragend", () => {
+        draggedQueueRowId = null;
+        row.classList.remove("dragging");
+      });
+    }
+    return handle;
+  }
+
+  function createMoveColumn(slotId, opts = {}){
+    const col = document.createElement("div");
+    col.className = "qMoveColumn";
+    if(opts.disabled) col.classList.add("isDisabled");
+
+    const up = document.createElement("button");
+    up.type = "button";
+    up.className = "btn tiny qActionReorder qActionUp";
+    up.textContent = "\u2191";
+    up.title = opts.upTitle || "Move up";
+    up.disabled = !!opts.disabled;
+    up.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if(up.disabled) return;
+      moveSlot(slotId, -1);
+    });
+
+    const down = document.createElement("button");
+    down.type = "button";
+    down.className = "btn tiny qActionReorder qActionDown";
+    down.textContent = "\u2193";
+    down.title = opts.downTitle || "Move down";
+    down.disabled = !!opts.disabled;
+    down.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if(down.disabled) return;
+      moveSlot(slotId, +1);
+    });
+
+    col.appendChild(up);
+    col.appendChild(down);
+    return col;
+  }
+
+  function createDeleteColumn(slot, opts = {}){
+    const col = document.createElement("div");
+    col.className = `qDeleteColumn ${opts.editing ? "isEditing" : ""}`.trim();
+
+    if(opts.editing){
+      const save = document.createElement("button");
+      save.type = "button";
+      save.className = "btn tiny primary qActionSave";
+      save.textContent = "Save";
+      save.addEventListener("click", (e) => {
+        e.stopPropagation();
+        saveInlineEdit(slot.id);
+      });
+
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.className = "btn tiny qActionCancel";
+      cancel.textContent = "Cancel";
+      cancel.addEventListener("click", (e) => {
+        e.stopPropagation();
+        cancelInlineEdit();
+      });
+
+      col.appendChild(save);
+      col.appendChild(cancel);
+      return col;
+    }
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `btn tiny ${opts.blank ? "subtleDanger qActionDeleteBlank" : "danger qActionDelete"}`.trim();
+    btn.textContent = "X";
+    btn.title = opts.blank ? "Delete this blank slot" : (opts.done ? "Delete from completed history" : "Delete from active queue");
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if(opts.blank) deleteBlankPaperSlot(slot.id);
+      else removeSlot(slot.id);
+    });
+    col.appendChild(btn);
+    return col;
+  }
+
+  function appendRowIndicatorChips(meta, slot){
+    if(!meta || !slot) return;
+    const chips = [];
+    if(String(slot.notes || "").trim()) chips.push("Notes");
+    if(String(slot.featuredPerformersText || "").trim()) chips.push("Cast");
+    if(String(slot.media?.donationUrl || "").trim()) chips.push("Link");
+    if(slot.media?.imageAssetId || ["IMAGE_ONLY", "QR_ONLY", "IMAGE_PLUS_QR"].includes(String(slot.media?.mediaLayout || ""))) chips.push("Media");
+    if(!chips.length) return;
+    const wrap = document.createElement("span");
+    wrap.className = "qMetaChips";
+    for(const label of chips){
+      const chip = document.createElement("span");
+      chip.className = "qMetaChip";
+      chip.textContent = label;
+      wrap.appendChild(chip);
+    }
+    meta.appendChild(wrap);
   }
 
   function placeholderRow(slot){
     const div = document.createElement("div");
-    div.className = "queueItem paperSlotEmpty";
+    div.className = "queueItem paperSlotEmpty role-queued";
     div.dataset.id = slot.id;
     div.dataset.paperSlot = String(paperSlotNumber(slot) || "");
     const isEditing = editingId === slot.id;
+    const canDrag = slot.status === "QUEUED" && !isEditing;
     if(isEditing) div.classList.add("isEditing");
 
-    const handle = document.createElement("div");
-    handle.className = "paperSlotNumber";
-    handle.textContent = paperSlotLabel(slot);
+    const handle = createQueueDragHandle(slot, div, { enabled: canDrag });
+    const deleteColumn = createDeleteColumn(slot, { blank: true, editing: isEditing });
+    const moveColumn = createMoveColumn(slot.id, {
+      disabled: isEditing,
+      upTitle: "Move blank up",
+      downTitle: "Move blank down"
+    });
 
     const main = document.createElement("div");
     main.className = "qMain";
     const title = document.createElement("div");
     title.className = "paperEmptyTitle";
-    title.textContent = isEditing ? "Add Performer" : "Open Slot";
-    const hint = document.createElement("div");
-    hint.className = "small";
-    hint.textContent = isEditing
-      ? "Fill this blank slot without changing its current place in the queue."
-      : "Viewer and KPIs skip this blank spot.";
+    title.textContent = `Open Slot #${paperSlotNumber(slot) || ""}`.trim();
     main.appendChild(title);
-    main.appendChild(hint);
 
     if(isInlineSavedNoticeVisible(slot.id)){
-      const saved = document.createElement("div");
+      const saved = document.createElement("span");
       saved.className = "qInlineSavedChip";
       saved.textContent = "Saved";
       main.appendChild(saved);
     }
 
     if(isEditing && editDraft){
-      div.appendChild(handle);
+      const editLabel = document.createElement("div");
+      editLabel.className = "qEditModeLabel";
+      editLabel.textContent = "Add Performer";
+      main.appendChild(editLabel);
       main.appendChild(buildInlineExpander(slot));
+      div.appendChild(handle);
       div.appendChild(main);
+      div.appendChild(deleteColumn);
+      div.appendChild(moveColumn);
       return div;
     }
 
@@ -3833,14 +4240,6 @@ function escapeHtml(s){
     const actionGrid = document.createElement("div");
     actionGrid.className = "qActionGrid qBlankActionGrid";
     actions.appendChild(actionGrid);
-
-    const dangerColumn = document.createElement("div");
-    dangerColumn.className = "qDangerColumn";
-    actions.appendChild(dangerColumn);
-
-    const moveColumn = document.createElement("div");
-    moveColumn.className = "qMoveColumn";
-    actions.appendChild(moveColumn);
 
     const add = document.createElement("button");
     add.className = "btn tiny good qActionAddPerformer";
@@ -3852,45 +4251,13 @@ function escapeHtml(s){
       toggleInlineEdit(slot.id);
     });
     actionGrid.appendChild(add);
+    actionGrid.appendChild(buildInsertSpecialControl(`blank:${slot.id}`, { slotId: slot.id, fixedPosition: "after" }, { compact: true }));
 
-    const btnUp = document.createElement("button");
-    btnUp.className = "btn tiny qActionReorder qActionUp";
-    btnUp.type = "button";
-    btnUp.textContent = "\u2191";
-    btnUp.title = "Move blank up";
-    btnUp.addEventListener("click", (e) => {
-      e.stopPropagation();
-      moveSlot(slot.id, -1);
-    });
-
-    const btnDn = document.createElement("button");
-    btnDn.className = "btn tiny qActionReorder qActionDown";
-    btnDn.type = "button";
-    btnDn.textContent = "\u2193";
-    btnDn.title = "Move blank down";
-    btnDn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      moveSlot(slot.id, +1);
-    });
-    moveColumn.appendChild(btnUp);
-    moveColumn.appendChild(btnDn);
-
-    const btnDelete = document.createElement("button");
-    btnDelete.className = "btn tiny subtleDanger qActionDeleteBlank";
-    btnDelete.type = "button";
-    btnDelete.textContent = "Delete Blank";
-    btnDelete.title = "Delete this blank slot and renumber later active slots";
-    btnDelete.addEventListener("click", (e) => {
-      e.stopPropagation();
-      deleteBlankPaperSlot(slot.id);
-    });
-    dangerColumn.appendChild(btnDelete);
-
-    addSpecialButtons(actionGrid, paperSlotNumber(slot));
-
+    main.appendChild(actions);
     div.appendChild(handle);
     div.appendChild(main);
-    div.appendChild(actions);
+    div.appendChild(deleteColumn);
+    div.appendChild(moveColumn);
     return div;
   }
 
@@ -4241,6 +4608,343 @@ function escapeHtml(s){
     return div;
   }
 
+  function placeholderRowV2(slot){
+    const div = document.createElement("div");
+    div.className = "queueItem paperSlotEmpty role-queued";
+    div.dataset.id = slot.id;
+    div.dataset.paperSlot = String(paperSlotNumber(slot) || "");
+    const isEditing = editingId === slot.id;
+    const canDrag = !isEditing && !isDoneStatus(slot.status);
+    if(isEditing) div.classList.add("isEditing");
+
+    const handle = createQueueDragHandle(slot, div, { enabled: canDrag });
+    const deleteColumn = createDeleteColumn(slot, { blank: true, editing: isEditing });
+    const moveColumn = createMoveColumn(slot.id, {
+      disabled: isEditing,
+      upTitle: "Move blank up",
+      downTitle: "Move blank down"
+    });
+
+    const main = document.createElement("div");
+    main.className = "qMain";
+
+    const title = document.createElement("div");
+    title.className = "paperEmptyTitle";
+    title.textContent = `Open Slot #${paperSlotNumber(slot) || ""}`.trim();
+    main.appendChild(title);
+
+    if(isInlineSavedNoticeVisible(slot.id)){
+      const saved = document.createElement("span");
+      saved.className = "qInlineSavedChip";
+      saved.textContent = "Saved";
+      main.appendChild(saved);
+    }
+
+    if(isEditing && editDraft){
+      const editLabel = document.createElement("div");
+      editLabel.className = "qEditModeLabel";
+      editLabel.textContent = "Add Performer";
+      main.appendChild(editLabel);
+      main.appendChild(buildInlineExpander(slot));
+      div.appendChild(handle);
+      div.appendChild(main);
+      div.appendChild(deleteColumn);
+      div.appendChild(moveColumn);
+      return div;
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "qActions paperSlotActions";
+
+    const actionGrid = document.createElement("div");
+    actionGrid.className = "qActionGrid qBlankActionGrid";
+    actions.appendChild(actionGrid);
+
+    const add = document.createElement("button");
+    add.className = "btn tiny good qActionAddPerformer";
+    add.type = "button";
+    add.dataset.inlineEditOpen = slot.id;
+    add.textContent = "Add Performer";
+    add.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleInlineEdit(slot.id);
+    });
+    actionGrid.appendChild(add);
+    actionGrid.appendChild(buildInsertSpecialControl(`blank:${slot.id}`, { slotId: slot.id, fixedPosition: "after" }, { compact: true }));
+
+    main.appendChild(actions);
+    div.appendChild(handle);
+    div.appendChild(main);
+    div.appendChild(deleteColumn);
+    div.appendChild(moveColumn);
+    return div;
+  }
+
+  function queueRowV2(slot){
+    if(isPaperPlaceholder(slot)) return placeholderRowV2(slot);
+
+    const { t, mins, icons, typeLabel } = slotBadge(slot);
+    const div = document.createElement("div");
+    const [n1, n2] = OMJN.computeNextTwo(state);
+    const lockCurrent = (state.phase === "LIVE" || state.phase === "PAUSED") && !!state.currentSlotId;
+    const isLive = lockCurrent && (slot.id === state.currentSlotId);
+    const isDone = (slot.status === "DONE" || slot.status === "SKIPPED");
+    const isNext = (!isLive && !isDone && n1 && slot.id === n1.id);
+    const isDeck = (!isLive && !isDone && n2 && slot.id === n2.id);
+    const isEditing = editingId === slot.id;
+    const slotTypeId = String(slot.slotTypeId || "");
+    const isIntermission = slotTypeId === "intermission";
+    const isHouseBand = slotTypeId === "houseband";
+    const isAllStarJam = isAllStarJamSlotTypeId(slotTypeId);
+    const isJamaoke = slotTypeId === "jamaoke";
+    const isAd = slotTypeId.startsWith("ad_");
+    const pNum = paperSlotNumber(slot);
+    const canDrag = slot.status === "QUEUED" && !isLive && !isDone && !isEditing;
+
+    div.className = "queueItem";
+    if(isLive) div.classList.add("livePinned");
+    if(isNext) div.classList.add("isNext");
+    if(isDeck) div.classList.add("isDeck");
+    if(isDone) div.classList.add("isDone");
+    if(slot.status !== "QUEUED") div.classList.add("notQueued");
+    if(selectedId === slot.id) div.classList.add("isSelected");
+    if(isEditing) div.classList.add("isEditing");
+    if(isLive) div.classList.add("role-live");
+    else if(isNext) div.classList.add("role-next");
+    else if(isDeck) div.classList.add("role-deck");
+    else if(isDone) div.classList.add("role-done");
+    else if(isIntermission) div.classList.add("role-intermission");
+    else if(isHouseBand) div.classList.add("role-houseband");
+    else if(isAllStarJam) div.classList.add("role-allstarjam");
+    else if(isJamaoke) div.classList.add("role-jamaoke");
+    else if(isAd) div.classList.add("role-ad");
+    else div.classList.add("role-queued");
+
+    div.dataset.id = slot.id;
+    div.dataset.slotType = slotTypeId;
+    if(pNum) div.dataset.paperSlot = String(pNum);
+    if(t?.color) div.style.borderLeft = `6px solid ${t.color}`;
+
+    const handle = createQueueDragHandle(slot, div, { enabled: canDrag });
+    const deleteColumn = createDeleteColumn(slot, { editing: isEditing, done: isDone });
+    const moveColumn = createMoveColumn(slot.id, { disabled: isLive || isDone || isEditing });
+
+    const main = document.createElement("div");
+    main.className = "qMain";
+
+    const bar = document.createElement("div");
+    bar.className = "qBar";
+    const barLeft = document.createElement("div");
+    barLeft.className = "qBarLeft";
+
+    const role = document.createElement("span");
+    role.className = "qRole";
+    if(isLive) role.textContent = "LIVE";
+    else if(isNext) role.textContent = "UP NEXT";
+    else if(isDeck) role.textContent = "ON DECK";
+    else if(isIntermission) role.textContent = "INTERMISSION";
+    else if(isHouseBand) role.textContent = "HOUSE BAND SET";
+    else if(isAllStarJam) role.textContent = "ALL STAR JAM";
+    else if(isJamaoke) role.textContent = "JAMAOKE";
+    else if(isAd) role.textContent = "AD";
+    else if(isDone) role.textContent = slot.queueRemoved ? "DELETED" : (slot.noShow ? "NO-SHOW" : "DONE");
+    else role.textContent = "QUEUED";
+    barLeft.appendChild(role);
+
+    const pills = document.createElement("div");
+    pills.className = "qPills";
+    if(pNum){
+      const slotPill = document.createElement("span");
+      slotPill.className = "qPill qPillSlot";
+      slotPill.textContent = `Open Slot #${pNum}`;
+      pills.appendChild(slotPill);
+    }
+    const pillType = document.createElement("span");
+    pillType.className = "qPill";
+    pillType.textContent = typeLabel;
+    pills.appendChild(pillType);
+    const pillMins = document.createElement("span");
+    pillMins.className = "qPill qPillMins";
+    pillMins.textContent = isAllStarJam ? "Untimed" : `${mins}m`;
+    pills.appendChild(pillMins);
+    barLeft.appendChild(pills);
+    bar.appendChild(barLeft);
+
+    const forecastDetail = queueEtaDetailMap.get(slot.id);
+    if(slot.status === "QUEUED" && !isAd && !isIntermission && !isHouseBand){
+      const barRight = document.createElement("div");
+      barRight.className = "qBarRight";
+      if(forecastDetail){
+        const helper = document.createElement("span");
+        helper.className = "qForecastInline";
+        helper.textContent = formatQueueForecastDetail(forecastDetail);
+        helper.title = "ETA math breakdown for this queued slot.";
+        barRight.appendChild(helper);
+      }
+      const eta = document.createElement("span");
+      eta.className = "qEta mono";
+      eta.dataset.slotId = slot.id;
+      eta.title = "Approximate start time including queued durations, special slots, and transition assumptions.";
+      eta.hidden = true;
+      barRight.appendChild(eta);
+      bar.appendChild(barRight);
+    }
+    main.appendChild(bar);
+
+    const nameRow = document.createElement("div");
+    nameRow.className = "qNameRow";
+    const ico = document.createElement("span");
+    ico.className = "qIcon";
+    ico.innerHTML = `<i class="${slotTypeIconClass(slotTypeId)}" aria-hidden="true"></i>`;
+    const name = document.createElement("div");
+    name.className = "qName";
+    name.textContent = isHouseBand ? houseBandQueueTitle(slot.displayName) : (slot.displayName || "—");
+    nameRow.appendChild(ico);
+    nameRow.appendChild(name);
+    main.appendChild(nameRow);
+
+    const meta = document.createElement("div");
+    meta.className = "qMeta";
+    const statusChip = document.createElement("span");
+    statusChip.textContent = slot.status;
+    meta.appendChild(statusChip);
+    if(icons.length){
+      const iconChip = document.createElement("span");
+      iconChip.textContent = icons.join(" ");
+      meta.appendChild(iconChip);
+    }
+    const afterPaper = Math.round(Number(slot.afterPaperSlotNumber || 0));
+    if(Number.isFinite(afterPaper) && afterPaper > 0){
+      const after = document.createElement("span");
+      after.textContent = `After #${afterPaper}`;
+      meta.appendChild(after);
+    }
+    if(slot.queueRemoved && slot.removedPaperSlotNumber){
+      const removed = document.createElement("span");
+      removed.textContent = `Removed from #${slot.removedPaperSlotNumber}`;
+      meta.appendChild(removed);
+    }
+    if(!isDone){
+      const scheduleSummary = describeSlotSchedule(slot);
+      if(scheduleSummary){
+        const schedule = document.createElement("span");
+        schedule.textContent = scheduleSummary;
+        meta.appendChild(schedule);
+      }
+    }
+    appendRowIndicatorChips(meta, slot);
+    if(isInlineSavedNoticeVisible(slot.id)){
+      const saved = document.createElement("span");
+      saved.className = "qInlineSavedChip";
+      saved.textContent = "Saved";
+      meta.appendChild(saved);
+    }
+    if(isDone) appendDoneKpis(meta, slot, mins);
+    main.appendChild(meta);
+
+    if(isHouseBand){
+      const sub = document.createElement("div");
+      sub.className = "qNotesSub";
+      sub.textContent = houseBandLineupSummary(slot);
+      main.appendChild(sub);
+    }
+
+    if(isEditing && editDraft){
+      const editLabel = document.createElement("div");
+      editLabel.className = "qEditModeLabel";
+      editLabel.textContent = "Editing";
+      main.appendChild(editLabel);
+      main.appendChild(buildInlineExpander(slot));
+      div.appendChild(handle);
+      div.appendChild(main);
+      div.appendChild(deleteColumn);
+      div.appendChild(moveColumn);
+      return div;
+    }
+
+    const actions = document.createElement("div");
+    actions.className = `qActions ${isDone ? "qActionsDone" : "qActionsActive"}`.trim();
+    const actionGrid = document.createElement("div");
+    actionGrid.className = "qActionGrid";
+    actions.appendChild(actionGrid);
+
+    if(isDone){
+      const btnRq = document.createElement("button");
+      btnRq.className = "btn tiny qActionRequeue";
+      btnRq.type = "button";
+      btnRq.textContent = "Re-queue";
+      btnRq.addEventListener("click", (e) => {
+        e.stopPropagation();
+        requeueSlot(slot.id);
+      });
+      actionGrid.appendChild(btnRq);
+    }else{
+      const btnEdit = document.createElement("button");
+      btnEdit.className = "btn tiny qActionEdit";
+      btnEdit.type = "button";
+      btnEdit.dataset.inlineEditOpen = slot.id;
+      btnEdit.textContent = "Edit";
+      btnEdit.addEventListener("click", (e) => {
+        e.stopPropagation();
+        closeSpecialInsertMenu({ rerender:false });
+        if(isAdSlotType(slot.slotTypeId)){
+          openAdModal(slot.id);
+          return;
+        }
+        toggleInlineEdit(slot.id);
+      });
+      actionGrid.appendChild(btnEdit);
+
+      if(goLiveRowIds.has(slot.id)){
+        const btnGoLive = document.createElement("button");
+        btnGoLive.className = "btn tiny primary qActionGoLive";
+        btnGoLive.type = "button";
+        btnGoLive.textContent = isLive ? "Live" : "Go Live";
+        btnGoLive.disabled = isLive;
+        btnGoLive.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if(btnGoLive.disabled) return;
+          goLiveFromQueue(slot.id);
+        });
+        actionGrid.appendChild(btnGoLive);
+      }
+
+      const btnSkip = document.createElement("button");
+      btnSkip.className = "btn tiny qActionSkip";
+      btnSkip.type = "button";
+      btnSkip.textContent = "Skip";
+      btnSkip.disabled = slot.status !== "QUEUED" || isLive;
+      btnSkip.addEventListener("click", (e) => {
+        e.stopPropagation();
+        skipSwapDown(slot.id);
+      });
+      actionGrid.appendChild(btnSkip);
+
+      if(pNum && slot.status === "QUEUED" && !isLive){
+        const btnMoveTo = document.createElement("button");
+        btnMoveTo.className = "btn tiny qActionMoveNum";
+        btnMoveTo.type = "button";
+        btnMoveTo.textContent = "Move #";
+        btnMoveTo.addEventListener("click", (e) => {
+          e.stopPropagation();
+          moveSlotToPaperNumber(slot.id);
+        });
+        actionGrid.appendChild(btnMoveTo);
+      }
+
+      if(slot.status === "QUEUED" && !isLive){
+        actionGrid.appendChild(buildInsertSpecialControl(`row:${slot.id}`, { slotId: slot.id }));
+      }
+    }
+
+    main.appendChild(actions);
+    div.appendChild(handle);
+    div.appendChild(main);
+    div.appendChild(deleteColumn);
+    div.appendChild(moveColumn);
+    return div;
+  }
+
   function renderQueue(){
     if(!els.queue) return;
 
@@ -4258,6 +4962,12 @@ function escapeHtml(s){
     const active = (state.queue || []).filter(x => !isDone(x));
     const done = (state.queue || []).filter(isDone);
     const activeBlankCount = active.filter(isPaperPlaceholder).length;
+    goLiveRowIds = new Set(
+      active
+        .filter(slot => slot && !isPaperPlaceholder(slot))
+        .slice(0, 3)
+        .map(slot => slot.id)
+    );
 
     if(els.btnDeleteAllBlankSlots){
       els.btnDeleteAllBlankSlots.disabled = activeBlankCount === 0;
@@ -4270,12 +4980,12 @@ function escapeHtml(s){
       const empty = document.createElement("div");
       empty.className = "small";
       empty.textContent = done.length
-        ? "No active performers. Completed / No Show rows are hidden below."
+        ? "No active performers. Completed / No Show / Deleted rows are hidden below."
         : "No active signups yet. Add a performer above.";
       els.queue.appendChild(empty);
     } else {
       for(const slot of active){
-        els.queue.appendChild(queueRow(slot));
+        els.queue.appendChild(queueRowV2(slot));
       }
     }
 
@@ -4290,7 +5000,7 @@ function escapeHtml(s){
       const summary = document.createElement("summary");
       summary.className = "queueDivider";
       const left = document.createElement("div");
-      left.textContent = "Completed / No Show";
+      left.textContent = "Completed / No Show / Deleted";
       const right = document.createElement("div");
       right.className = "mono";
       right.textContent = String(done.length);
@@ -4301,7 +5011,7 @@ function escapeHtml(s){
       const doneWrap = document.createElement("div");
       doneWrap.className = "doneQueue";
       for(const slot of done){
-        doneWrap.appendChild(queueRow(slot));
+        doneWrap.appendChild(queueRowV2(slot));
       }
       details.appendChild(doneWrap);
       els.queue.appendChild(details);
@@ -4697,39 +5407,8 @@ function getDragAfterElement(container, y){
       if(!activeIds.length) return;
 
       updateState(s => {
-        const isDone = (x) => x && (x.status === 'DONE' || x.status === 'SKIPPED');
-        const done = s.queue.filter(isDone);
-        const active = s.queue.filter(x => !isDone(x));
-        const map = new Map(active.map(x => [x.id, x]));
-
-        const next = [];
-        const seen = new Set();
-
-        for(const id of activeIds){
-          const slot = map.get(id);
-          if(slot && !seen.has(id)){
-            next.push(slot);
-            seen.add(id);
-          }
-        }
-        for(const slot of active){
-          if(slot && !seen.has(slot.id)){
-            next.push(slot);
-            seen.add(slot.id);
-          }
-        }
-
-        const lockCurrent = !!s.currentSlotId && (s.phase === 'LIVE' || s.phase === 'PAUSED');
-        if(lockCurrent){
-          const idx = next.findIndex(x => x.id === s.currentSlotId);
-          if(idx > 0){
-            const [cur] = next.splice(idx, 1);
-            next.unshift(cur);
-          }
-        }
-
-        s.queue = [...next, ...done];
-        syncSpecialAnchorsToCurrentOrder(s);
+        const orderedActive = buildOrderedActiveSlots(s, activeIds);
+        applyVisibleActiveQueueOrder(s, orderedActive);
       });
     });
   }
@@ -4812,6 +5491,8 @@ function getDragAfterElement(container, y){
       slot.actualDurationMs = null;
       slot.actualWallDurationMs = null;
       slot.noShow = false;
+      slot.queueRemoved = false;
+      slot.removedPaperSlotNumber = null;
       slot.isPlaceholder = false;
 
       const prefs = ensureOperatorPrefs(s);
@@ -4830,23 +5511,68 @@ function getDragAfterElement(container, y){
     });
   }
 
+  function queueSlotLabel(slot){
+    if(!slot) return "this row";
+    if(isPaperPlaceholder(slot)) return paperSlotLabel(slot);
+    if(String(slot.slotTypeId || "") === "houseband") return houseBandQueueTitle(slot.displayName || "");
+    return String(slot.displayName || OMJN.displaySlotTypeLabel(state, slot) || "this row");
+  }
+
   
   function removeSlot(slotId){
     const slot = state.queue.find(x=>x.id===slotId);
     if(!slot) return;
-    const ok = confirm(`Remove "${slot.displayName}" from the queue entirely?`);
+    const doneRow = isDoneStatus(slot.status);
+    const liveRow = slotId === state.currentSlotId && (state.phase === "LIVE" || state.phase === "PAUSED");
+    const label = queueSlotLabel(slot);
+    const ok = confirm(
+      doneRow
+        ? `Delete "${label}" from completed history entirely?`
+        : (liveRow
+          ? `Delete current live item "${label}" and return to Splash?`
+          : `Delete "${label}" from the active queue? It will stay in Completed / No Show so you can re-queue it later.`)
+    );
     if(!ok) return;
 
     updateState(s => {
       const idx = s.queue.findIndex(x=>x.id===slotId);
       if(idx < 0) return;
-      const [removed] = s.queue.splice(idx, 1);
-      if(removed && isPaperSlot(removed) && isDoneStatus(removed.status)){
-        const n = paperSlotNumber(removed);
-        if(n){
-          const prefs = ensureOperatorPrefs(s);
-          prefs.retiredPaperSlots = Array.from(new Set([...(prefs.retiredPaperSlots || []), n])).sort((a,b) => a-b);
+      const target = s.queue[idx];
+      if(!target) return;
+
+      if(isDoneStatus(target.status)){
+        const [removed] = s.queue.splice(idx, 1);
+        const assetId = removed?.media?.imageAssetId;
+        if(removed && isPaperSlot(removed) && isDoneStatus(removed.status)){
+          const n = paperSlotNumber(removed);
+          if(n){
+            const prefs = ensureOperatorPrefs(s);
+            prefs.retiredPaperSlots = Array.from(new Set([...(prefs.retiredPaperSlots || []), n])).sort((a,b) => a-b);
+          }
         }
+        if(assetId){
+          const stillUsed = s.queue.some(x => x?.media?.imageAssetId === assetId);
+          if(!stillUsed){
+            delete s.assetsIndex[assetId];
+            OMJN.deleteAsset(assetId).catch(()=>{});
+          }
+        }
+        return;
+      }
+
+      const endedAt = Date.now();
+      const timerSnapshot = (slotId === s.currentSlotId) ? OMJN.computeTimer(s) : null;
+      target.status = "SKIPPED";
+      target.noShow = false;
+      target.queueRemoved = true;
+      target.completedAt = endedAt;
+      target.actualEndedAt = slotId === s.currentSlotId ? endedAt : null;
+      target.actualDurationMs = slotId === s.currentSlotId ? Math.max(0, Number(timerSnapshot?.elapsedMs || 0)) : null;
+      target.actualWallDurationMs = target.actualStartedAt ? Math.max(0, endedAt - Number(target.actualStartedAt || endedAt)) : null;
+      target.removedPaperSlotNumber = paperSlotNumber(target) || null;
+      if(isPaperSlot(target)){
+        delete target.paperSlotNumber;
+        delete target.afterPaperSlotNumber;
       }
 
       if(s.currentSlotId === slotId){
@@ -4857,19 +5583,13 @@ function getDragAfterElement(container, y){
         s.timer.elapsedMs = 0;
         s.timer.baseDurationMs = null;
       }
-
-      const assetId = removed?.media?.imageAssetId;
-      if(assetId){
-        const stillUsed = s.queue.some(x => x?.media?.imageAssetId === assetId);
-        if(!stillUsed){
-          delete s.assetsIndex[assetId];
-          OMJN.deleteAsset(assetId).catch(()=>{});
-        }
-      }
+      if(s.operatorPrefs?.armedNextSlotId === slotId) s.operatorPrefs.armedNextSlotId = null;
     });
 
     if(selectedId === slotId) selectedId = null;
-    render();
+    if(editingId === slotId) closeInlineEdit();
+    closeSpecialInsertMenu({ rerender:false });
+    if(!doneRow) showQueueUndoNotice();
   }
 
 
@@ -5682,6 +6402,7 @@ function render(){
     els.startGuard.checked = !!state.operatorPrefs?.startGuard;
     els.endGuard.checked = !!state.operatorPrefs?.endGuard;
     els.hotkeysEnabled.checked = (state.operatorPrefs?.hotkeysEnabled !== false);
+    if(els.setEnableSponsorAdSlots) els.setEnableSponsorAdSlots.checked = !!state.operatorPrefs?.enableSponsorAdSlots;
 
     if(els.toggleHBFooter) els.toggleHBFooter.checked = (state.viewerPrefs?.showHouseBandFooter !== false);
     if(els.hbFooterFormat) els.hbFooterFormat.value = (state.viewerPrefs?.hbFooterFormat || "categoryFirst");
@@ -5943,7 +6664,10 @@ function render(){
       };
 
       const afterPaperSlotNumber = Math.round(Number(hbBuildCtx?.afterPaperSlotNumber || 0)) || null;
-      if(afterPaperSlotNumber) insertSpecialAfterPaperSlot(s, slot, afterPaperSlotNumber);
+      const insertContext = hbBuildCtx?.insertContext && typeof hbBuildCtx.insertContext === "object"
+        ? { ...hbBuildCtx.insertContext }
+        : (afterPaperSlotNumber ? { afterPaperSlotNumber } : null);
+      if(insertContext) insertSpecialSlotWithContext(s, slot, insertContext);
       else insertQueuedSlotSmart(s, slot);
     });
 
@@ -6005,6 +6729,9 @@ function render(){
     const donationUrl = OMJN.sanitizeText(opts.donationUrl || "");
     const mediaLayout = String(opts.mediaLayout || (donationUrl ? "QR_ONLY" : "NONE"));
     const afterPaperSlotNumber = Math.round(Number(opts.afterPaperSlotNumber || 0)) || null;
+    const insertContext = opts.insertContext && typeof opts.insertContext === "object"
+      ? { ...opts.insertContext }
+      : (afterPaperSlotNumber ? { afterPaperSlotNumber } : (opts.placeAt === "queueEnd" ? { placeAt: "queueEnd" } : null));
     let createdSlotId = null;
 
     updateState(s => {
@@ -6021,8 +6748,7 @@ function render(){
         media: { donationUrl: donationUrl || null, imageAssetId: null, mediaLayout }
       };
       createdSlotId = slot.id;
-      if(afterPaperSlotNumber) insertSpecialAfterPaperSlot(s, slot, afterPaperSlotNumber);
-      else insertSpecialAtActiveQueueEnd(s, slot);
+      insertSpecialSlotWithContext(s, slot, insertContext);
     });
 
     if(opts.openEditor !== false && createdSlotId){
@@ -6104,12 +6830,16 @@ function render(){
 
   function refreshIntermissionModalActions(){
     const liveish = isLiveishState(state);
+    const insertLabel = describeInsertContext(imInsertContext);
     if(els.btnImLive){
       els.btnImLive.textContent = liveish ? "Arm Next" : "Go Live Now";
       els.btnImLive.title = liveish ? "Insert Intermission next and arm it to start when the current act ends." : "Start this Intermission immediately.";
     }
     if(els.btnImAdd){
-      if(imInsertAfterPaperSlot){
+      if(insertLabel){
+        els.btnImAdd.textContent = `Add ${insertLabel}`;
+        els.btnImAdd.title = `Insert Intermission ${insertLabel.toLowerCase()}.`;
+      }else if(imInsertAfterPaperSlot){
         els.btnImAdd.textContent = `Add After #${imInsertAfterPaperSlot}`;
         els.btnImAdd.title = `Insert Intermission directly after Open Slot #${imInsertAfterPaperSlot}.`;
       }else{
@@ -6119,10 +6849,13 @@ function render(){
     }
   }
 
-  function openIntermissionModal(afterPaperSlotNumber = null){
+  function openIntermissionModal(afterPaperSlotNumber = null, insertContext = null){
     if(!els.intermissionModal) return;
     imDraft = { minutes: 10 };
     imInsertAfterPaperSlot = Math.round(Number(afterPaperSlotNumber || 0)) || null;
+    imInsertContext = insertContext && typeof insertContext === "object"
+      ? { ...insertContext }
+      : (imInsertAfterPaperSlot ? { afterPaperSlotNumber: imInsertAfterPaperSlot } : null);
 
     if(els.imName) els.imName.value = "INTERMISSION";
     if(els.imMsg) els.imMsg.value = "WE'LL BE RIGHT BACK";
@@ -6139,6 +6872,7 @@ function render(){
   function closeIntermissionModal(){
     imDraft = null;
     imInsertAfterPaperSlot = null;
+    imInsertContext = null;
     if(!els.intermissionModal) return;
     els.intermissionModal.hidden = true;
     document.body.classList.remove("modalOpen");
@@ -6519,17 +7253,22 @@ function updateAdPreview(){
     }
   }
 
-  function openAdModal(editSlotId=null, afterPaperSlotNumber = null){
+  function openAdModal(editSlotId=null, afterPaperSlotNumber = null, insertContext = null, preferredKind = "graphic"){
     if(!els.adModal) return;
     adCtx = editSlotId ? { mode:"edit", slotId: editSlotId } : { mode:"add", slotId: null };
     adInsertAfterPaperSlot = editSlotId ? null : (Math.round(Number(afterPaperSlotNumber || 0)) || null);
+    adInsertContext = editSlotId ? null : (
+      insertContext && typeof insertContext === "object"
+        ? { ...insertContext }
+        : (adInsertAfterPaperSlot ? { afterPaperSlotNumber: adInsertAfterPaperSlot } : null)
+    );
 
     // reset
     if(els.adLabel) els.adLabel.value = "";
     if(els.adUrl) els.adUrl.value = "";
     if(els.adFile) els.adFile.value = "";
     adSelectedPresetId = null;
-    if(els.adKind) els.adKind.value = "graphic";
+    if(els.adKind) els.adKind.value = String(preferredKind || "graphic").toLowerCase() === "video" ? "video" : "graphic";
     if(els.adVideoLoop) els.adVideoLoop.checked = false;
     if(els.adVideoAudio) els.adVideoAudio.checked = false;
     clearAdPreviewBlob();
@@ -6579,6 +7318,7 @@ function updateAdPreview(){
   function closeAdModal(){
     adCtx = null;
     adInsertAfterPaperSlot = null;
+    adInsertContext = null;
     clearAdPreviewBlob();
     setAdModalVisible(false);
   }
@@ -6749,7 +7489,10 @@ function updateAdPreview(){
 
       updateState(s => {
         const afterPaperSlotNumber = Math.round(Number(adInsertAfterPaperSlot || 0)) || null;
-        if(afterPaperSlotNumber) insertSpecialAfterPaperSlot(s, slot, afterPaperSlotNumber);
+        const insertContext = adInsertContext && typeof adInsertContext === "object"
+          ? { ...adInsertContext }
+          : (afterPaperSlotNumber ? { afterPaperSlotNumber } : null);
+        if(insertContext) insertSpecialSlotWithContext(s, slot, insertContext);
         else insertSlotSmart(s, slot);
 
         if(goLive){
@@ -6791,6 +7534,10 @@ function updateAdPreview(){
 
     const message = String(opts.message || "").trim() || "WE'LL BE RIGHT BACK";
     const goLive = opts.goLive === true;
+    const afterPaperSlotNumber = Math.round(Number(opts.afterPaperSlotNumber || 0)) || null;
+    const insertContext = opts.insertContext && typeof opts.insertContext === "object"
+      ? { ...opts.insertContext }
+      : (afterPaperSlotNumber ? { afterPaperSlotNumber } : null);
 
     let armedNext = false;
     updateState(s => {
@@ -6807,11 +7554,9 @@ function updateAdPreview(){
         media: { donationUrl: null, imageAssetId: null, mediaLayout: "QR_ONLY" }
       };
 
-      const afterPaperSlotNumber = Math.round(Number(opts.afterPaperSlotNumber || 0)) || null;
-
       if(goLive){
         if(isLiveishState(s)){
-          if(afterPaperSlotNumber) insertSpecialAfterPaperSlot(s, slot, afterPaperSlotNumber);
+          if(insertContext) insertSpecialSlotWithContext(s, slot, insertContext);
           else insertIntermissionSlotSmart(s, slot);
           s.operatorPrefs = s.operatorPrefs || {};
           s.operatorPrefs.armedNextSlotId = slot.id;
@@ -6824,7 +7569,7 @@ function updateAdPreview(){
         return;
       }
 
-      if(afterPaperSlotNumber) insertSpecialAfterPaperSlot(s, slot, afterPaperSlotNumber);
+      if(insertContext) insertSpecialSlotWithContext(s, slot, insertContext);
       else insertIntermissionSlotSmart(s, slot);
     });
 
@@ -6845,7 +7590,14 @@ function updateAdPreview(){
     }
     minutes = clamp(minutes, 1, 600);
 
-    const result = addIntermissionSlotWithOptions({ title, minutes, message, goLive, afterPaperSlotNumber: imInsertAfterPaperSlot });
+    const result = addIntermissionSlotWithOptions({
+      title,
+      minutes,
+      message,
+      goLive,
+      afterPaperSlotNumber: imInsertAfterPaperSlot,
+      insertContext: imInsertContext
+    });
     closeIntermissionModal();
     render();
     if(result?.armedNext){
@@ -6855,6 +7607,40 @@ function updateAdPreview(){
 
   function addHouseBandSlot(afterPaperSlotNumber = null){
     openHbBuildModal({ mode: 'add', afterPaperSlotNumber });
+  }
+
+  function goLiveFromQueue(slotId){
+    const slot = state.queue.find(x => x && x.id === slotId);
+    if(!slot || isPaperPlaceholder(slot) || isDoneStatus(slot.status)) return;
+
+    const liveish = isLiveishState(state);
+    if(liveish && state.currentSlotId === slotId) return;
+    if(liveish){
+      const replace = confirm("A performer is already live. Replace them with this performer now?");
+      if(!replace) return;
+      const keepQueued = confirm("Keep the current live item queued and switch now? Choose Cancel if you want to end it manually first.");
+      if(!keepQueued) return;
+    }
+
+    updateState(s => {
+      const current = (s.currentSlotId && s.currentSlotId !== slotId)
+        ? (s.queue || []).find(x => x && x.id === s.currentSlotId)
+        : null;
+      if(current){
+        current.completedAt = null;
+        current.actualStartedAt = null;
+        current.actualEndedAt = null;
+        current.actualDurationMs = null;
+        current.actualWallDurationMs = null;
+        current.queueRemoved = false;
+        current.noShow = false;
+      }
+      s.operatorPrefs = s.operatorPrefs || {};
+      s.operatorPrefs.armedNextSlotId = null;
+      const target = (s.queue || []).find(x => x && x.id === slotId && x.status === "QUEUED");
+      if(!target) return;
+      activateSlotLive(s, target, { pinToTop:true });
+    });
   }
 
   
@@ -7379,6 +8165,12 @@ els.showTitle.addEventListener("input", () => {
     els.btnStart.addEventListener("click", guardedStart);
     els.btnUndo.addEventListener("click", undo);
     els.btnRedo.addEventListener("click", redo);
+    if(els.btnQueueUndoNotice){
+      els.btnQueueUndoNotice.addEventListener("click", () => {
+        hideQueueUndoNotice();
+        undo();
+      });
+    }
 
     if(els.btnPauseResume) els.btnPauseResume.addEventListener("click", togglePauseResume);
     if(els.btnViewerTimerToggle) els.btnViewerTimerToggle.addEventListener("click", toggleViewerTimer);
@@ -7441,9 +8233,12 @@ els.showTitle.addEventListener("input", () => {
       if(e.target === els.settingsModal) closeSettingsModal();
     });
     document.addEventListener("click", (e) => {
+      const target = e.target;
+      if(specialInsertMenuState && !(target && target.closest && target.closest("[data-special-menu-root]"))){
+        closeSpecialInsertMenu();
+      }
       if(!editingId || !editDraft) return;
       const currentEditId = editingId;
-      const target = e.target;
       const editingRow = document.querySelector(`.queueItem.isEditing[data-id="${currentEditId}"]`);
       if(editingRow && target && editingRow.contains(target)) return;
       if(target && target.closest && target.closest("[data-inline-edit-open]")) return;

@@ -1,6 +1,7 @@
 
 (function(){
-  const base = "/RayLeos";
+  const SITE = window.RAYLEOS_CONFIG || {};
+  const BOOKING_EMAIL = SITE.bookingEmail || "BOOKING_EMAIL";const base = "/RayLeos";
   const qs = (sel, root=document) => root.querySelector(sel);
   const qsa = (sel, root=document) => Array.from(root.querySelectorAll(sel));
   const toggle = qs('[data-menu-toggle]');
@@ -148,7 +149,7 @@
         const val = String(data.get(key) || '').trim();
         if (val) lines.push(`${labels[key] || key}: ${val}`);
       });
-      window.location.href = `mailto:Booking@rayleos.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
+      window.location.href = `mailto:BOOKING_EMAIL?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
     });
   }
 })();

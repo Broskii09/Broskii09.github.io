@@ -4,6 +4,7 @@ const {
   addHouseBandSetAfterFirstOpenSlot,
   addIntermissionAfterFirstOpenSlot,
   addVideoAdAfterFirstOpenSlot,
+  enableSponsorAdSlots,
   endCurrentToSplash,
   openViewerPage,
   startNextPerformer,
@@ -24,6 +25,7 @@ test.describe("OMJN TEST media and house band", () => {
     watchPageErrors(page, pageErrors);
 
     await page.goto("operator.html");
+    await enableSponsorAdSlots(page);
     const viewer = await openViewerPage(context, pageErrors);
 
     await addVideoAdAfterFirstOpenSlot(page, "Smoke Video Ad");
@@ -64,7 +66,7 @@ test.describe("OMJN TEST media and house band", () => {
 
     await expect(viewer.locator("#root")).toHaveClass(/isSplash/, { timeout: 10000 });
     await expect(viewer.locator("#hbLineup")).toContainText("Smoke Guitarist");
-    const completedSummary = page.locator("summary.queueDivider").filter({ hasText: "Completed / No Show" });
+    const completedSummary = page.locator("summary.queueDivider").filter({ hasText: "Completed / No Show / Deleted" });
     await expect(completedSummary).toBeVisible();
     expect(pageErrors).toEqual([]);
   });

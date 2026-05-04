@@ -53,6 +53,11 @@
                     <div class="statusBanner statusBannerInline" id="statusBanner"></div>
                 </div>
 
+                <div class="queueUndoNotice" id="queueUndoNotice" hidden aria-live="polite">
+                    <div class="queueUndoNoticeText" id="queueUndoNoticeText">Deleted. Undo last action?</div>
+                    <button class="btn tiny" id="btnQueueUndoNotice" type="button">Undo</button>
+                </div>
+
                 <div class="tabs operatorTabs">
                     <button class="tabBtn active" id="tabBtnPerformers" type="button">Performers</button>
                     <button class="tabBtn" id="tabBtnHouseBand" type="button">House Band</button>
@@ -847,6 +852,19 @@
                         </span>
                         <div class="spacer"></div>
                         <div class="small">Shortcuts: Space Start/Pause/Resume · N End · Ctrl+Z Undo</div>
+                    </div>
+
+                    <hr class="sep" />
+
+                    <h3 class="subhead">Queue controls</h3>
+                    <div class="row wrap" style="margin-bottom:10px;">
+                        <span class="pill" title="Show Graphic Ad and Video Ad inside the queue Insert Special menus">
+                            Enable Sponsor/Ad Slots
+                            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="setEnableSponsorAdSlots" />
+                                <span class="small">on</span>
+                            </label>
+                        </span>
                     </div>
 
                     <hr class="sep" />

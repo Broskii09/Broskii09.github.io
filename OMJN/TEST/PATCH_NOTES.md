@@ -1,47 +1,44 @@
 # Summary
-- Diagnoses and hardens the shared TEST refresh prompt path in `shared.js`, including manual force-check/reset controls, same-environment cross-tab refresh prompting, and safer diagnostic state exposure.
-- Adds Operator and Soundboard refresh controls for `Force Check for Update`, `Reset Refresh Dismissal`, and `Prompt Open Tabs to Refresh`, without changing Prompt 1 timer/overtime, Prompt 2/2B queue/edit/blank-slot behavior, Prompt 3 All Star Jam behavior, or Prompt 4 Last Call behavior.
-- Fixes prompt coexistence so the shared refresh prompt stacks cleanly above the Operator-only Last Call prompt instead of hiding behind it.
-- Adds focused Playwright coverage for update prompting, dismissal reset, cross-tab prompt requests, and prompt stacking, and includes that spec in `test:smoke:all`.
+- Redesigns TEST queue rows around a compact drag-left / content / delete-right / move-right shell, with full-height drag handles, right-side delete `X`, slim vertical arrow controls, and smaller blank-row actions.
+- Replaces the old row clutter with an `Insert Special` popover on filled/special rows, keeps blank-slot special insertion compact, limits `Go Live` to the first three non-blank queue rows, removes No-Show from the visible row UI, and adds a lightweight delete undo notice.
+- Keeps inline edit in-row with Save/Cancel in the top-right delete column, preserves outside-click autosave and Esc/Enter behavior, and keeps blank-slot fill/delete-all behavior intact.
+- Adds/updates focused Playwright coverage for drag handles, delete confirmations, undo notice, Go Live visibility, special popover behavior, ad-slot gating, inline edit controls, deleted-history behavior, and viewport sanity across `1440`, `1280`, `1024`, `768`, `430`, and `390`.
 
 # File list
-- OMJN/TEST/shared.js
 - OMJN/TEST/operator.html
 - OMJN/TEST/operator.js
-- OMJN/TEST/soundboard.html
-- OMJN/TEST/soundboard.js
 - OMJN/TEST/app.css
-- OMJN/TEST/package.json
 - OMJN/TEST/tests/omjn-test-helpers.js
-- OMJN/TEST/tests/omjn-refresh-prompt.spec.js
+- OMJN/TEST/tests/omjn-queue-state.spec.js
+- OMJN/TEST/tests/omjn-special-slots.spec.js
+- OMJN/TEST/tests/omjn-media-and-houseband.spec.js
+- OMJN/TEST/tests/omjn-smoke.spec.js
 - OMJN/TEST/PATCH_NOTES.md
 
 # Install steps (exact paths)
-1. Copy `shared.js` to `OMJN/TEST/shared.js`.
-2. Copy `operator.html` to `OMJN/TEST/operator.html`.
-3. Copy `operator.js` to `OMJN/TEST/operator.js`.
-4. Copy `soundboard.html` to `OMJN/TEST/soundboard.html`.
-5. Copy `soundboard.js` to `OMJN/TEST/soundboard.js`.
-6. Copy `app.css` to `OMJN/TEST/app.css`.
-7. Copy `package.json` to `OMJN/TEST/package.json`.
-8. Copy `tests/omjn-test-helpers.js` to `OMJN/TEST/tests/omjn-test-helpers.js`.
-9. Copy `tests/omjn-refresh-prompt.spec.js` to `OMJN/TEST/tests/omjn-refresh-prompt.spec.js`.
-10. Keep `PATCH_NOTES.md` with the patch archive for reference.
+1. Copy `operator.html` to `OMJN/TEST/operator.html`.
+2. Copy `operator.js` to `OMJN/TEST/operator.js`.
+3. Copy `app.css` to `OMJN/TEST/app.css`.
+4. Copy `tests/omjn-test-helpers.js` to `OMJN/TEST/tests/omjn-test-helpers.js`.
+5. Copy `tests/omjn-queue-state.spec.js` to `OMJN/TEST/tests/omjn-queue-state.spec.js`.
+6. Copy `tests/omjn-special-slots.spec.js` to `OMJN/TEST/tests/omjn-special-slots.spec.js`.
+7. Copy `tests/omjn-media-and-houseband.spec.js` to `OMJN/TEST/tests/omjn-media-and-houseband.spec.js`.
+8. Copy `tests/omjn-smoke.spec.js` to `OMJN/TEST/tests/omjn-smoke.spec.js`.
+9. Keep `PATCH_NOTES.md` with the patch archive for reference.
 
 # Smoke test checklist
-- From `OMJN/TEST`, run `npm.cmd run test:refresh-prompt`.
 - From `OMJN/TEST`, run `npm.cmd run test:queue-state`.
 - From `OMJN/TEST`, run `npm.cmd run test:special-slots`.
-- From `OMJN/TEST`, run `npm.cmd run test:media-houseband`.
 - From `OMJN/TEST`, run `npm.cmd run test:smoke:all`.
-- On Operator, open `Settings -> Advanced -> Site Update Prompt` and confirm `Force Check for Update`, `Reset Refresh Dismissal`, and `Prompt Open Tabs to Refresh` are present.
-- On Soundboard, open `Settings -> Site update prompt` and confirm the same three controls are present.
-- Open Operator + Viewer + Soundboard in the same TEST environment/browser profile, click `Prompt Open Tabs to Refresh` on Operator, and confirm all three tabs show the shared refresh prompt without auto-reloading.
+- In Operator, confirm filled and special rows show a left drag handle, right delete `X`, and a vertical up/down column.
+- In Operator, confirm blank rows stay compact, still allow `Add Performer`, still allow single-blank delete with confirmation, and `Delete All Blank Slots` still re-adds five fresh blanks at the bottom.
+- In Operator, confirm `Insert Special` on filled/special rows requires an explicit `Before` or `After` choice, and ad options stay hidden until `Enable Sponsor/Ad Slots` is turned on in Advanced settings.
+- In Operator, confirm deleting a row shows the temporary undo notice near the top of the queue card and that the `Undo` button restores the deleted row.
 
 # Known risks/limitations
-- The refresh prompt still depends on `site-version.json` changing between deployments. This patch adds better diagnostics and controls, but it does not force deployments to use the version bump helper.
-- `Prompt Open Tabs to Refresh` only reaches currently open OMJN tabs in the same origin/environment/browser profile. It does not and cannot force remote devices to refresh from static GitHub Pages hosting.
-- `file://` loads still cannot poll `site-version.json`; use a local server or hosted TEST URL for real refresh checks.
+- This pass intentionally leaves older queue renderer/code paths in place but unused, so the active behavior lives in the new V2 queue row renderers while legacy helpers remain for safety.
+- The compact blank-row special menu is validated in Playwright, but its small hit area is still denser than the filled-row `Insert Special` button and may deserve another polish pass if operators want a larger target.
+- The delete undo banner only restores the most recent history-backed action through the existing undo stack; it is intentionally lightweight and not a multi-step toast history system.
 
 # Target environment
 - TEST directory only: `OMJN/TEST`.

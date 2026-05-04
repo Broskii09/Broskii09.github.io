@@ -2,6 +2,8 @@ const { test, expect } = require("@playwright/test");
 const {
   addPerformerFromFirstOpenSlot,
   clearOperatorTestNow,
+  enableSponsorAdSlots,
+  insertSpecialFromRow,
   openViewerPage,
   seedCurrentTimerState,
   setOperatorTestNow,
@@ -16,8 +18,8 @@ async function readMoveColumnMetrics(row){
     const move = node.querySelector(".qMoveColumn");
     const up = node.querySelector(".qActionUp");
     const down = node.querySelector(".qActionDown");
-    const danger = node.querySelector(".qDangerColumn");
-    if(!actions || !grid || !move || !up || !down){
+    const danger = node.querySelector(".qDeleteColumn");
+    if(!actions || !grid || !move || !up || !down || !danger){
       return null;
     }
     const actionsRect = actions.getBoundingClientRect();
@@ -25,7 +27,7 @@ async function readMoveColumnMetrics(row){
     const moveRect = move.getBoundingClientRect();
     const upRect = up.getBoundingClientRect();
     const downRect = down.getBoundingClientRect();
-    const dangerRect = danger ? danger.getBoundingClientRect() : null;
+    const dangerRect = danger.getBoundingClientRect();
     return {
       actionsRight: actionsRect.right,
       gridRight: gridRect.right,
@@ -36,8 +38,8 @@ async function readMoveColumnMetrics(row){
       downHeight: downRect.height,
       upTop: upRect.top,
       downTop: downRect.top,
-      dangerLeft: dangerRect ? dangerRect.left : null,
-      dangerRight: dangerRect ? dangerRect.right : null,
+      dangerLeft: dangerRect.left,
+      dangerRight: dangerRect.right,
     };
   });
 }
@@ -92,9 +94,10 @@ test.describe("OMJN TEST queue state", () => {
       confirmMessage = dialog.message();
       dialog.accept();
     });
-    await blankRow.getByRole("button", { name: "Delete Blank" }).click();
+    await blankRow.locator(".qActionDeleteBlank").click();
 
-    expect(confirmMessage).toContain("Delete blank Open Slot #3");
+    expect(confirmMessage).toContain("Delete this blank slot?");
+    await expect(page.locator("#queueUndoNotice")).toBeVisible();
     const activeRows = page.locator("#queue > .queueItem");
     await expect(activeRows.nth(0)).toContainText("#1");
     await expect(activeRows.nth(0)).toContainText("Open Slot");
@@ -116,7 +119,8 @@ test.describe("OMJN TEST queue state", () => {
     page.once("dialog", dialog => dialog.accept("4"));
     await secondPerformer.getByRole("button", { name: "Move #" }).click();
 
-    await page.locator('.paperSlotEmpty[data-paper-slot="3"]').getByRole("button", { name: "Intermission After" }).click();
+    await page.locator('.paperSlotEmpty[data-paper-slot="3"]').getByRole("button", { name: "Insert special after this open slot" }).click();
+    await page.locator('.paperSlotEmpty[data-paper-slot="3"] .qSpecialMenu').getByRole("button", { name: "Intermission" }).click();
     await expect(page.locator("#intermissionModal")).toBeVisible();
     await page.locator("#imName").fill("Delete All Break");
     await page.locator("#imMsg").fill("DELETE ALL BLANKS");
@@ -155,19 +159,36 @@ test.describe("OMJN TEST queue state", () => {
 
     const performerMetrics = await readMoveColumnMetrics(performerRow);
     expect(performerMetrics).not.toBeNull();
-    expect(Math.abs(performerMetrics.actionsRight - performerMetrics.moveRight)).toBeLessThan(2);
+    expect(performerMetrics.moveLeft).toBeGreaterThan(performerMetrics.dangerRight);
+    expect(performerMetrics.dangerLeft).toBeGreaterThan(performerMetrics.gridRight);
     expect(performerMetrics.moveLeft).toBeGreaterThan(performerMetrics.gridRight);
     expect(Math.abs(performerMetrics.upHeight - performerMetrics.downHeight)).toBeLessThan(3);
     expect(performerMetrics.upTop).toBeLessThan(performerMetrics.downTop);
 
-    await expect(blankRow.locator(".qDangerColumn .qActionDeleteBlank")).toBeVisible();
+    await expect(blankRow.locator(".qDeleteColumn .qActionDeleteBlank")).toBeVisible();
     const blankMetrics = await readMoveColumnMetrics(blankRow);
     expect(blankMetrics).not.toBeNull();
-    expect(Math.abs(blankMetrics.actionsRight - blankMetrics.moveRight)).toBeLessThan(2);
     expect(blankMetrics.moveLeft).toBeGreaterThan(blankMetrics.dangerRight);
     expect(blankMetrics.dangerLeft).toBeGreaterThan(blankMetrics.gridRight);
     expect(Math.abs(blankMetrics.upHeight - blankMetrics.downHeight)).toBeLessThan(3);
     expect(blankMetrics.upTop).toBeLessThan(blankMetrics.downTop);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("queue rows use dedicated drag handles instead of whole-row drag triggers", async ({ page }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    const performerRow = await addPerformerFromFirstOpenSlot(page, "Drag Handle Target");
+    const blankRow = page.locator(".paperSlotEmpty").first();
+
+    await expect(performerRow.locator(".dragHandle")).toHaveAttribute("aria-label", "Drag to reorder");
+    await expect(blankRow.locator(".dragHandle")).toHaveAttribute("aria-label", "Drag to reorder");
+    expect(await performerRow.evaluate((node) => node.draggable)).toBe(false);
+    expect(await performerRow.locator(".dragHandle").evaluate((node) => node.draggable)).toBe(true);
+    expect(await blankRow.evaluate((node) => node.draggable)).toBe(false);
+    expect(await blankRow.locator(".dragHandle").evaluate((node) => node.draggable)).toBe(true);
     expect(pageErrors).toEqual([]);
   });
 
@@ -187,14 +208,18 @@ test.describe("OMJN TEST queue state", () => {
 
     await row.getByRole("button", { name: "Edit" }).click();
     await expect(row.locator(".qExpander")).toBeVisible();
-    await expect(row.locator(".qExpHead .qExpActions")).toBeVisible();
-    await expect(row.locator(".qExpHead .btn.good")).toHaveText("Save");
-    const performerHeadBox = await row.locator(".qExpHead").boundingBox();
+    await expect(row.locator(".qDeleteColumn.isEditing .qActionSave")).toBeVisible();
+    await expect(row.locator(".qDeleteColumn.isEditing .qActionCancel")).toBeVisible();
+    await expect(row.locator(".dragHandle")).toHaveAttribute("aria-disabled", "true");
+    await expect(row.locator(".qActionUp")).toBeDisabled();
+    await expect(row.locator(".qActionDown")).toBeDisabled();
+    const performerSaveBox = await row.locator(".qDeleteColumn.isEditing .qActionSave").boundingBox();
     const performerGridBox = await row.locator(".qExpGrid").boundingBox();
-    expect(performerHeadBox.y).toBeLessThan(performerGridBox.y);
+    expect(performerSaveBox.x).toBeGreaterThan(performerGridBox.x);
+    expect(performerSaveBox.y).toBeLessThan(performerGridBox.y + 16);
 
     await row.locator(".qExpander input[type='text']").first().fill("Cancel Should Discard");
-    await row.locator(".qExpHead").getByRole("button", { name: "Cancel" }).click();
+    await row.locator(".qDeleteColumn.isEditing .qActionCancel").click();
     await expect(row.locator(".qExpander")).toHaveCount(0);
     await expect(row).toContainText("Inline Edit Target");
     await expect(row).not.toContainText("Cancel Should Discard");
@@ -221,12 +246,132 @@ test.describe("OMJN TEST queue state", () => {
 
     const blankRow = page.locator(".paperSlotEmpty").first();
     await blankRow.getByRole("button", { name: "Add Performer" }).click();
-    await expect(blankRow.locator(".qExpHead .qExpActions")).toBeVisible();
-    const blankHeadBox = await blankRow.locator(".qExpHead").boundingBox();
+    await expect(blankRow.locator(".qDeleteColumn.isEditing .qActionSave")).toBeVisible();
+    await expect(blankRow.locator(".qDeleteColumn.isEditing .qActionCancel")).toBeVisible();
+    await expect(blankRow.locator(".dragHandle")).toHaveAttribute("aria-disabled", "true");
+    await expect(blankRow.locator(".qActionUp")).toBeDisabled();
+    await expect(blankRow.locator(".qActionDown")).toBeDisabled();
+    const blankHeadBox = await blankRow.locator(".qDeleteColumn.isEditing .qActionSave").boundingBox();
     const blankGridBox = await blankRow.locator(".qExpGrid").boundingBox();
     expect(blankHeadBox.y).toBeLessThan(blankGridBox.y);
-    await blankRow.locator(".qExpHead").getByRole("button", { name: "Cancel" }).click();
+    await blankRow.locator(".qDeleteColumn.isEditing .qActionCancel").click();
     await expect(blankRow.locator(".qExpander")).toHaveCount(0);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("filled row delete confirms, moves into deleted history, and shows an undo notice", async ({ page }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    const performerRow = await addPerformerFromFirstOpenSlot(page, "Delete Queue Target");
+
+    let confirmMessage = "";
+    page.once("dialog", (dialog) => {
+      confirmMessage = dialog.message();
+      dialog.accept();
+    });
+    await performerRow.locator(".qActionDelete").click();
+
+    expect(confirmMessage).toContain('Delete "Delete Queue Target" from the active queue?');
+    await expect(page.locator("#queueUndoNotice")).toBeVisible();
+    const completedSummary = page.locator("summary.queueDivider").filter({ hasText: "Completed / No Show / Deleted" });
+    await expect(completedSummary).toBeVisible();
+    await completedSummary.click();
+
+    const completedRow = page.locator(".doneQueue .queueItem").filter({ hasText: "Delete Queue Target" });
+    await expect(completedRow).toBeVisible();
+    await expect(completedRow).toContainText("DELETED");
+    await expect(completedRow.getByRole("button", { name: "Re-queue" })).toBeVisible();
+
+    await page.locator("#btnQueueUndoNotice").click();
+    await expect(page.locator("#queueUndoNotice")).toBeHidden();
+    await expect(page.locator("#queue > .queueItem").filter({ hasText: "Delete Queue Target" })).toBeVisible();
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("go live appears only on the first three non-blank rows and includes specials in that count", async ({ page }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    await addPerformerFromFirstOpenSlot(page, "Go Live One");
+    await addPerformerFromFirstOpenSlot(page, "Go Live Two");
+    const thirdRow = await addPerformerFromFirstOpenSlot(page, "Go Live Three");
+    await addPerformerFromFirstOpenSlot(page, "Go Live Four");
+
+    await insertSpecialFromRow(thirdRow, "before", "Intermission");
+    await expect(page.locator("#intermissionModal")).toBeVisible();
+    await page.locator("#imName").fill("Go Live Break");
+    await page.locator("#imMsg").fill("GO LIVE BREAK");
+    await page.locator("#imDur5").click();
+    await page.locator("#btnImAdd").click();
+    await expect(page.locator("#intermissionModal")).toBeHidden();
+
+    const queueRows = page.locator("#queue > .queueItem:not(.paperSlotEmpty)");
+    await expect(queueRows.nth(0)).toContainText("Go Live One");
+    await expect(queueRows.nth(0).locator(".qActionGoLive")).toBeVisible();
+    await expect(queueRows.nth(1)).toContainText("Go Live Two");
+    await expect(queueRows.nth(1).locator(".qActionGoLive")).toBeVisible();
+    await expect(queueRows.nth(2)).toContainText("GO LIVE BREAK");
+    await expect(queueRows.nth(2).locator(".qActionGoLive")).toBeVisible();
+    await expect(queueRows.nth(3)).toContainText("Go Live Three");
+    await expect(queueRows.nth(3).locator(".qActionGoLive")).toHaveCount(0);
+    await expect(queueRows.nth(4)).toContainText("Go Live Four");
+    await expect(queueRows.nth(4).locator(".qActionGoLive")).toHaveCount(0);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("insert special popover opens and closes, supports before/after insertion, and keeps ad options behind the setting", async ({ page }) => {
+    const pageErrors = [];
+    watchPageErrors(page, pageErrors);
+
+    await page.goto("operator.html");
+    await addPerformerFromFirstOpenSlot(page, "Insert Base One");
+    const targetRow = await addPerformerFromFirstOpenSlot(page, "Insert Base Two");
+
+    await targetRow.getByRole("button", { name: "Insert Special" }).click();
+    const popover = targetRow.locator(".qSpecialMenu");
+    await expect(popover).toBeVisible();
+    await expect(popover.getByRole("button", { name: "Before" })).toBeVisible();
+    await expect(popover.getByRole("button", { name: "After" })).toBeVisible();
+    await expect(popover.getByRole("button", { name: "Graphic Ad" })).toHaveCount(0);
+    await expect(popover.getByRole("button", { name: "Video Ad" })).toHaveCount(0);
+    await page.locator("#showTitle").click();
+    await expect(popover).toBeHidden();
+
+    await insertSpecialFromRow(targetRow, "before", "Intermission");
+    await expect(page.locator("#intermissionModal")).toBeVisible();
+    await page.locator("#imName").fill("Before Insert Break");
+    await page.locator("#imMsg").fill("BEFORE INSERT");
+    await page.locator("#imDur5").click();
+    await page.locator("#btnImAdd").click();
+    await expect(page.locator("#intermissionModal")).toBeHidden();
+
+    const activeRows = page.locator("#queue > .queueItem");
+    await expect(activeRows.nth(0)).toContainText("Insert Base One");
+    await expect(activeRows.nth(1)).toContainText("BEFORE INSERT BREAK");
+    await expect(activeRows.nth(2)).toContainText("Insert Base Two");
+
+    const refreshedTarget = page.locator("#queue > .queueItem").filter({ hasText: "Insert Base Two" }).first();
+    await insertSpecialFromRow(refreshedTarget, "after", "All Star Jam");
+    const jamRow = page.locator('.queueItem[data-slot-type="allstarjam"]').last();
+    await expect(jamRow.locator(".qExpander")).toBeVisible();
+    await jamRow.locator(".qExpander input[type='text']").first().fill("After Insert Jam");
+    await jamRow.locator(".qDeleteColumn.isEditing .qActionSave").click();
+
+    await expect(activeRows.nth(2)).toContainText("Insert Base Two");
+    await expect(activeRows.nth(3)).toContainText("After Insert Jam");
+
+    await enableSponsorAdSlots(page);
+    await refreshedTarget.getByRole("button", { name: "Insert Special" }).click();
+    const adPopover = refreshedTarget.locator(".qSpecialMenu");
+    await expect(adPopover).toBeVisible();
+    await adPopover.getByRole("button", { name: "After" }).click();
+    await expect(adPopover.getByRole("button", { name: "Graphic Ad" })).toBeVisible();
+    await expect(adPopover.getByRole("button", { name: "Video Ad" })).toBeVisible();
+    await page.locator("#showTitle").click();
+    await expect(adPopover).toBeHidden();
     expect(pageErrors).toEqual([]);
   });
 
@@ -354,24 +499,15 @@ test.describe("OMJN TEST queue state", () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test("no-show moves performer to completed state", async ({ page }) => {
+  test("no-show controls are removed from the main queue row UI", async ({ page }) => {
     const pageErrors = [];
     watchPageErrors(page, pageErrors);
 
     await page.goto("operator.html");
-    const performerRow = await addPerformerFromFirstOpenSlot(page, "No Show Test");
+    const performerRow = await addPerformerFromFirstOpenSlot(page, "No Show Hidden");
 
-    page.once("dialog", dialog => dialog.accept());
-    await performerRow.getByRole("button", { name: "No-show" }).click();
-
-    const completedSummary = page.locator("summary.queueDivider").filter({ hasText: "Completed / No Show" });
-    await expect(completedSummary).toBeVisible();
-    await completedSummary.click();
-
-    const completedRow = page.locator(".doneQueue .queueItem").filter({ hasText: "No Show Test" });
-    await expect(completedRow).toBeVisible();
-    await expect(completedRow).toContainText("NO SHOW");
-    await expect(completedRow.getByRole("button", { name: "Re-queue" })).toBeVisible();
+    await expect(performerRow.locator(".qActionNoShow")).toHaveCount(0);
+    await expect(performerRow.getByRole("button", { name: /No-show/i })).toHaveCount(0);
     expect(pageErrors).toEqual([]);
   });
 
@@ -383,15 +519,15 @@ test.describe("OMJN TEST queue state", () => {
     const performerRow = await addPerformerFromFirstOpenSlot(page, "Collapsed Done Test");
 
     page.once("dialog", dialog => dialog.accept());
-    await performerRow.getByRole("button", { name: "No-show" }).click();
-    await expect(page.locator("summary.queueDivider").filter({ hasText: "Completed / No Show" })).toBeVisible();
+    await performerRow.locator(".qActionDelete").click();
+    await expect(page.locator("summary.queueDivider").filter({ hasText: "Completed / No Show / Deleted" })).toBeVisible();
 
     await page.reload();
 
     const completedDetails = page.locator("details.doneDetails");
     await expect(completedDetails).toBeVisible();
     await expect(completedDetails).not.toHaveAttribute("open", "");
-    await expect(page.locator("summary.queueDivider").filter({ hasText: "Completed / No Show" })).toBeVisible();
+    await expect(page.locator("summary.queueDivider").filter({ hasText: "Completed / No Show / Deleted" })).toBeVisible();
     await expect(page.locator(".doneQueue .queueItem").filter({ hasText: "Collapsed Done Test" })).toBeHidden();
     expect(pageErrors).toEqual([]);
   });
