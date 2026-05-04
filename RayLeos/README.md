@@ -1,84 +1,38 @@
-# Ray Leo’s at Lamasco — GitHub Pages Static Test v2
+# Ray Leo’s at Lamasco — GitHub Pages Static v3
 
 Target URL: `https://broskii09.github.io/RayLeos/`
 
-## What changed in v2
+Copy this `RayLeos/` folder into the root of `Broskii09.github.io`, commit, and push.
 
-- Rebuilt the visual direction around a mostly black/charcoal venue aesthetic.
-- Reduced decorative atomic/diner elements.
-- Kept the logo as the main brand personality.
-- Reordered the page to prioritize food/menu first, then photos/vibe, visit info, socials, shows, and booking.
-- Added lighter grain, poster grit, subtle stickers, and restrained red/teal/yellow accents.
-- Preserved the static event JSON workflow and booking mailto fallback.
+## Pages
 
-## Deployment
+- `/RayLeos/` — Home
+- `/RayLeos/shows/` — Upcoming shows
+- `/RayLeos/food-bar/` — Food, bar, Toast link, embedded menu PDF
+- `/RayLeos/booking/` — Booking form and future availability structure
+- `/RayLeos/visit/` — Address, phone, policies, socials
+- `/RayLeos/about/` — Short venue positioning
 
-Copy the `RayLeos/` folder into the repository root and push to GitHub Pages.
+## Event editing
 
-The folder should resolve at:
+Edit `assets/data/events.json`. The Shows page and homepage preview read from this file.
 
-```txt
-https://broskii09.github.io/RayLeos/
-```
+## Menu PDF
 
-## Replacing placeholder photos
+The Food & Bar page embeds this Google Drive preview:
 
-Replace the SVG placeholders in:
+`https://drive.google.com/file/d/1n41yPAIqVjPfgOIHtGbTl2mWDkZQUNWE/preview`
 
-```txt
-assets/img/placeholders/
-```
-
-with final optimized `.webp`, `.jpg`, or `.png` photos, then update the matching `src` paths in `index.html`.
-
-Recommended image widths:
-
-- Hero/large food image: 1600–2200px wide
-- Card/grid images: 900–1400px wide
-- Event poster images: 900–1400px tall
-
-## Events
-
-Edit:
-
-```txt
-assets/data/events.json
-```
-
-Each event supports:
-
-```json
-{
-  "title": "Event name",
-  "date": "Month Day",
-  "time": "Doors / show time",
-  "summary": "Short event description",
-  "image": "assets/img/placeholders/event-01.svg",
-  "ticketUrl": "https://...",
-  "tag": "Live Music"
-}
-```
-
-For GitHub Pages, do not expose Eventbrite API tokens in browser JavaScript. Use manual JSON for testing, then move to GitHub Actions build-time fetch or a serverless proxy later.
+If the owner updates the menu, keep the same Drive file ID when possible by replacing the file contents rather than uploading a new file.
 
 ## Booking form
 
-The booking form opens a pre-filled email to `Booking@rayleos.com`. This is GitHub Pages-safe but not a production backend.
+The form currently creates a prefilled email to `Booking@rayleos.com`. GitHub Pages does not run server-side form code. Later options: Formspree, Netlify Forms, Cloudflare Pages Functions, or a custom backend.
 
-Production options:
+## Future calendar availability
 
-- Netlify Forms
-- Formspree
-- Cloudflare Pages Functions
-- Vercel/Netlify serverless function
-- Custom backend + spreadsheet/CRM routing
+`assets/data/availability-example.json` shows the intended parse pattern. Public display should only show the status before the hyphen. Example: `Hold (1) - Band Name` displays as `Hold`.
 
 ## Fonts
 
-Font hooks are included, but font files are not packaged. Place licensed `.woff2` files in:
-
-```txt
-assets/fonts/
-```
-
-Expected names are listed in `assets/fonts/README.txt`.
+Font files are intentionally not included. Place licensed `.woff2` files in `assets/fonts/` using the filenames in `assets/fonts/README.txt`.

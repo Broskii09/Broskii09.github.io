@@ -1,29 +1,56 @@
 [
   {
-    "title": "Upcoming Show",
-    "date": "TBA",
-    "time": "Doors and music times vary",
-    "summary": "Replace this card with a real Eventbrite show, outside-promoter event, or door-only listing.",
-    "image": "assets/img/placeholders/event-01.svg",
-    "ticketUrl": "https://www.eventbrite.com/o/ray-leos-at-lamasco-121162835137",
-    "tag": "Live Music"
+    "title": "Sample Show Night",
+    "date": "2026-05-08",
+    "doors": "7:30 PM",
+    "show": "8:00 PM",
+    "price": "$10",
+    "age": "All ages unless noted",
+    "image": "/RayLeos/assets/img/placeholders/poster-placeholder.svg",
+    "ticketUrl": "https://www.eventbrite.com/o/121162835137",
+    "ticketLabel": "Check ticket details",
+    "doorNote": "Some shows are ticketed online. Others are pay-at-the-door.",
+    "tags": [
+      "Live Music",
+      "Franklin Street"
+    ],
+    "description": "Placeholder event card. Replace this entry in assets/data/events.json with real show information.",
+    "featured": true
   },
   {
-    "title": "Touring Band Night",
-    "date": "TBA",
-    "time": "Check event details",
-    "summary": "Use this format for ticketed touring bills, support acts, and outside agency shows.",
-    "image": "assets/img/placeholders/event-02.svg",
-    "ticketUrl": "https://www.eventbrite.com/o/ray-leos-at-lamasco-121162835137",
-    "tag": "Ticketed Show"
-  },
-  {
-    "title": "Local Bill",
-    "date": "TBA",
-    "time": "Door details pending",
-    "summary": "Door-only shows can live here even when they are not available through Eventbrite.",
-    "image": "assets/img/placeholders/event-03.svg",
+    "title": "Touring Band Hold",
+    "date": "2026-05-16",
+    "doors": "TBA",
+    "show": "TBA",
+    "price": "TBA",
+    "age": "Check listing",
+    "image": "/RayLeos/assets/img/placeholders/poster-placeholder.svg",
     "ticketUrl": "https://www.facebook.com/rayleosatlamasco",
-    "tag": "Door / Updates"
+    "ticketLabel": "Watch for updates",
+    "doorNote": "Details to be announced.",
+    "tags": [
+      "Placeholder",
+      "Show"
+    ],
+    "description": "Use this as a formatting reference for upcoming shows before the calendar/Eventbrite workflow is automated.",
+    "featured": true
+  },
+  {
+    "title": "Door Show Placeholder",
+    "date": "2026-05-23",
+    "doors": "7:00 PM",
+    "show": "8:00 PM",
+    "price": "Pay at door",
+    "age": "All ages unless noted",
+    "image": "/RayLeos/assets/img/placeholders/poster-placeholder.svg",
+    "ticketUrl": "https://www.facebook.com/rayleosatlamasco",
+    "ticketLabel": "Facebook updates",
+    "doorNote": "Pay-at-the-door details can be listed here.",
+    "tags": [
+      "Door Show",
+      "Music"
+    ],
+    "description": "A simple example for shows that are not ticketed through Ray Leo’s Eventbrite.",
+    "featured": false
   }
 ]

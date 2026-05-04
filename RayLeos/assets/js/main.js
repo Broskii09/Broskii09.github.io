@@ -1,200 +1,154 @@
-const navToggle = document.querySelector("[data-nav-toggle]");
-const navMenu = document.querySelector("[data-nav-menu]");
 
-if (navToggle && navMenu) {
-  navToggle.addEventListener("click", () => {
-    const isOpen = navMenu.classList.toggle("is-open");
-    navToggle.setAttribute("aria-expanded", String(isOpen));
-  });
-
-  navMenu.addEventListener("click", (event) => {
-    const target = event.target;
-    if (target instanceof HTMLAnchorElement) {
-      navMenu.classList.remove("is-open");
-      navToggle.setAttribute("aria-expanded", "false");
-    }
-  });
-}
-
-const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-const makeRevealObserver = () => {
-  const revealItems = document.querySelectorAll("[data-reveal]:not(.is-visible)");
-
-  if (prefersReducedMotion || !("IntersectionObserver" in window)) {
-    revealItems.forEach((item) => item.classList.add("is-visible"));
-    return null;
+(function(){
+  const base = "/RayLeos";
+  const qs = (sel, root=document) => root.querySelector(sel);
+  const qsa = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  const toggle = qs('[data-menu-toggle]');
+  const nav = qs('[data-primary-nav]');
+  if (toggle && nav) {
+    toggle.addEventListener('click', () => {
+      const open = nav.classList.toggle('is-open');
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
   }
+  qsa('[data-year]').forEach(el => el.textContent = new Date().getFullYear());
 
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
+  const revealEls = qsa('.reveal');
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
         if (entry.isIntersecting) {
-          entry.target.classList.add("is-visible");
-          observer.unobserve(entry.target);
+          entry.target.classList.add('is-visible');
+          io.unobserve(entry.target);
         }
       });
-    },
-    { rootMargin: "0px 0px -12% 0px", threshold: 0.12 }
-  );
-
-  revealItems.forEach((item) => observer.observe(item));
-  return observer;
-};
-
-makeRevealObserver();
-
-if (!prefersReducedMotion) {
-  const parallaxItems = [...document.querySelectorAll("[data-parallax]")];
-  let ticking = false;
-
-  const updateParallax = () => {
-    const viewportHeight = window.innerHeight;
-
-    parallaxItems.forEach((item) => {
-      const speed = Number.parseFloat(item.getAttribute("data-parallax") || "0.06");
-      const rect = item.getBoundingClientRect();
-      const centerOffset = rect.top + rect.height / 2 - viewportHeight / 2;
-      const movement = Math.max(-56, Math.min(56, centerOffset * speed * -1));
-      item.style.setProperty("--parallax-y", `${movement.toFixed(2)}px`);
-    });
-
-    ticking = false;
-  };
-
-  const requestParallax = () => {
-    if (!ticking) {
-      window.requestAnimationFrame(updateParallax);
-      ticking = true;
-    }
-  };
-
-  window.addEventListener("scroll", requestParallax, { passive: true });
-  window.addEventListener("resize", requestParallax);
-  requestParallax();
-}
-
-const eventGrid = document.querySelector("[data-events-grid]");
-const fallbackEvents = [
-  {
-    title: "Upcoming Ray Leo’s Show",
-    date: "TBA",
-    time: "Times vary by event",
-    summary: "Check the Eventbrite organizer page for current ticketed shows and door details.",
-    image: "assets/img/placeholders/event-01.svg",
-    ticketUrl: "https://www.eventbrite.com/o/ray-leos-at-lamasco-121162835137",
-    tag: "Live Music"
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    revealEls.forEach(el => io.observe(el));
+  } else {
+    revealEls.forEach(el => el.classList.add('is-visible'));
   }
-];
 
-const escapeHtml = (value) =>
-  String(value ?? "").replace(/[&<>'"]/g, (character) => {
-    const entities = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      "'": "&#39;",
-      '"': "&quot;"
-    };
-    return entities[character];
-  });
+  const driftEls = qsa('[data-drift]');
+  let ticking = false;
+  function updateDrift(){
+    const vh = window.innerHeight || 1;
+    driftEls.forEach(el => {
+      const speed = Number(el.dataset.drift || 0.08);
+      const rect = el.getBoundingClientRect();
+      const progress = (rect.top + rect.height/2 - vh/2) / vh;
+      el.style.transform = `translate3d(0, ${progress * speed * -80}px, 0)`;
+    });
+    ticking = false;
+  }
+  function requestDrift(){
+    if (!ticking) { window.requestAnimationFrame(updateDrift); ticking = true; }
+  }
+  if (driftEls.length && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    window.addEventListener('scroll', requestDrift, { passive:true });
+    window.addEventListener('resize', requestDrift);
+    requestDrift();
+  }
 
-const renderEvents = (events) => {
-  if (!eventGrid) return;
+  function formatDate(dateString){
+    const d = new Date(`${dateString}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return dateString || 'Date TBA';
+    return d.toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' });
+  }
+  function eventCard(event){
+    const img = event.image || `${base}/assets/img/placeholders/poster-placeholder.svg`;
+    const tags = (event.tags || []).slice(0,3).map(t => `<span class="pill teal">${escapeHTML(t)}</span>`).join('');
+    const url = event.ticketUrl || 'https://www.facebook.com/rayleosatlamasco';
+    const label = event.ticketLabel || 'Details';
+    return `<article class="poster-card reveal">
+      <div class="poster-art"><img src="${escapeAttr(img)}" alt="${escapeAttr(event.title || 'Show poster placeholder')}" loading="lazy"></div>
+      <div class="poster-body">
+        <span class="eyebrow">${formatDate(event.date)}</span>
+        <h3>${escapeHTML(event.title || 'Show TBA')}</h3>
+        <div class="meta-line">
+          <span class="pill gold">Doors ${escapeHTML(event.doors || 'TBA')}</span>
+          <span class="pill red">Show ${escapeHTML(event.show || 'TBA')}</span>
+          <span class="pill">${escapeHTML(event.price || 'TBA')}</span>
+          <span class="pill">${escapeHTML(event.age || 'Check listing')}</span>
+          ${tags}
+        </div>
+        <p>${escapeHTML(event.description || '')}</p>
+        <p><small>${escapeHTML(event.doorNote || 'Some shows are ticketed online. Others are pay-at-the-door. Check each listing for details.')}</small></p>
+        <a class="btn btn-secondary" href="${escapeAttr(url)}">${escapeHTML(label)}</a>
+      </div>
+    </article>`;
+  }
+  function escapeHTML(value){
+    return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  }
+  function escapeAttr(value){ return escapeHTML(value); }
 
-  eventGrid.innerHTML = events
-    .map(
-      (event) => `
-        <article class="event-card" data-reveal>
-          <img src="${escapeHtml(event.image || "assets/img/placeholders/event-01.svg")}" alt="${escapeHtml(event.title)} event artwork" loading="lazy">
-          <div class="event-card-body">
-            <span class="event-tag">${escapeHtml(event.tag || "Event")}</span>
-            <h3>${escapeHtml(event.title)}</h3>
-            <div class="event-meta">
-              <span>${escapeHtml(event.date || "TBA")}</span>
-              <span>${escapeHtml(event.time || "Times vary")}</span>
-            </div>
-            <p>${escapeHtml(event.summary || "Event details coming soon.")}</p>
-            <a class="btn btn--quiet" href="${escapeHtml(event.ticketUrl || "https://www.eventbrite.com/o/ray-leos-at-lamasco-121162835137")}" target="_blank" rel="noopener">View details</a>
-          </div>
-        </article>
-      `
-    )
-    .join("");
+  const eventTargets = qsa('[data-events-list]');
+  const previewTargets = qsa('[data-events-preview]');
+  if (eventTargets.length || previewTargets.length) {
+    fetch(`${base}/assets/data/events.json`, { cache:'no-cache' })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('Events file not found')))
+      .then(events => {
+        const sorted = [...events].sort((a,b) => String(a.date).localeCompare(String(b.date)));
+        eventTargets.forEach(target => {
+          target.innerHTML = sorted.map(eventCard).join('') || '<p>No events listed yet. Check Facebook for the latest updates.</p>';
+        });
+        previewTargets.forEach(target => {
+          const featured = sorted.filter(e => e.featured).slice(0,3);
+          target.innerHTML = (featured.length ? featured : sorted.slice(0,3)).map(eventCard).join('') || '<p>No events listed yet. Check Facebook for the latest updates.</p>';
+        });
+        qsa('.reveal').forEach(el => el.classList.add('is-visible'));
+      })
+      .catch(() => {
+        const message = '<p>Upcoming shows are being updated. Check Facebook or Eventbrite for the latest details.</p>';
+        eventTargets.concat(previewTargets).forEach(t => t.innerHTML = message);
+      });
+  }
 
-  makeRevealObserver();
-};
+  function getPublicStatus(eventTitle = '') {
+    const rawPrefix = String(eventTitle).split(/\s[-–—]\s/)[0].trim();
+    const normalized = rawPrefix.toLowerCase();
+    if (normalized.startsWith('soft hold')) return 'Hold';
+    if (normalized.startsWith('hold')) return 'Hold';
+    if (normalized.startsWith('booked')) return 'Booked';
+    if (normalized.startsWith('confirmed')) return 'Booked';
+    if (normalized.startsWith('show')) return 'Booked';
+    if (normalized.startsWith('private')) return 'Unavailable';
+    if (normalized.startsWith('blackout')) return 'Unavailable';
+    if (normalized.startsWith('closed')) return 'Unavailable';
+    return rawPrefix || 'Unavailable';
+  }
+  window.RayLeosBooking = { getPublicStatus };
 
-if (eventGrid) {
-  fetch("assets/data/events.json", { cache: "no-store" })
-    .then((response) => {
-      if (!response.ok) throw new Error("Events JSON not found");
-      return response.json();
-    })
-    .then((events) => renderEvents(Array.isArray(events) && events.length ? events : fallbackEvents))
-    .catch(() => renderEvents(fallbackEvents));
-}
+  const availabilityTarget = qs('[data-availability-example]');
+  if (availabilityTarget) {
+    fetch(`${base}/assets/data/availability-example.json`, { cache:'no-cache' })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('Availability example not found')))
+      .then(items => {
+        availabilityTarget.innerHTML = items.map(item => `<div class="availability-item">
+          <div class="availability-status">${escapeHTML(getPublicStatus(item.title))}</div>
+          <strong>${formatDate(item.date)}</strong>
+        </div>`).join('');
+      })
+      .catch(() => { availabilityTarget.innerHTML = '<p>Availability preview unavailable.</p>'; });
+  }
 
-const bookingForm = document.querySelector("[data-booking-form]");
-const formResult = document.querySelector("[data-form-result]");
-
-if (bookingForm) {
-  bookingForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-
-    const formData = new FormData(bookingForm);
-    const values = Object.fromEntries(formData.entries());
-    const required = ["artistName", "contactName", "email", "epkUrl", "adMatsUrl"];
-    const missing = required.filter((name) => !String(values[name] || "").trim());
-
-    if (missing.length) {
-      if (formResult) {
-        formResult.textContent = "Please complete the required artist, contact, email, EPK, and ad mat fields.";
-      }
-      return;
-    }
-
-    const subject = encodeURIComponent(`Booking submission: ${values.artistName || "Artist"}`);
-    const labels = {
-      artistName: "Artist / Band Name",
-      contactName: "Contact Name",
-      email: "Email",
-      phone: "Phone",
-      hometown: "Hometown / Market",
-      genre: "Genre / Style",
-      website: "Website",
-      socials: "Social Links",
-      streaming: "Streaming / Music Links",
-      liveVideo: "Live Video Link",
-      epkUrl: "EPK Link",
-      adMatsUrl: "Ad Mats / Promo Assets Link",
-      stagePlot: "Stage Plot Link",
-      inputList: "Input List Link",
-      promoPhotos: "Promo Photos Link",
-      preferredDates: "Preferred Dates / Routing",
-      unavailableDates: "Unavailable Dates",
-      localSupport: "Local Support / Opener Needs",
-      expectedDraw: "Expected Draw",
-      dealExpectation: "Deal / Guarantee Expectation",
-      setLength: "Set Length",
-      members: "Number of Members",
-      lodging: "Lodging / Travel Needs",
-      merch: "Merch Needs",
-      previousVenues: "Previous Venues / Markets",
-      ageRestrictions: "Age Restrictions",
-      notes: "Additional Notes"
-    };
-
-    const body = encodeURIComponent(
-      Object.entries(labels)
-        .map(([key, label]) => `${label}: ${values[key] || ""}`)
-        .join("\n")
-    );
-
-    window.location.href = `mailto:Booking@rayleos.com?subject=${subject}&body=${body}`;
-
-    if (formResult) {
-      formResult.textContent = "Opening your email client with the booking submission. For production, connect this to a secure form service or backend.";
-    }
-  });
-}
+  const form = qs('[data-booking-form]');
+  if (form) {
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const data = new FormData(form);
+      const artist = data.get('artistName') || 'Band Booking Request';
+      const subject = `Ray Leo’s Booking Request - ${artist}`;
+      const order = ['artistName','contactName','email','phone','hometown','genre','members','website','instagram','facebook','musicLinks','liveVideo','epk','admat','promoPhotos','stagePlot','inputList','preferredDates','routing','supportNeeds','expectedDraw','previousShows','setLength','agePolicy','dealExpectations','loadIn','merch','lodging','techNotes','notes'];
+      const labels = {
+        artistName:'Artist/Band', contactName:'Contact', email:'Email', phone:'Phone', hometown:'Hometown', genre:'Genre', members:'Members', website:'Website', instagram:'Instagram', facebook:'Facebook', musicLinks:'Music Links', liveVideo:'Live Video', epk:'EPK Link', admat:'Ad Mat / Poster Assets', promoPhotos:'Promo Photos', stagePlot:'Stage Plot', inputList:'Input List', preferredDates:'Preferred Dates', routing:'Routing Context', supportNeeds:'Support / Bill Needs', expectedDraw:'Expected Draw', previousShows:'Previous Regional Shows', setLength:'Set Length', agePolicy:'All-Ages OK?', dealExpectations:'Door / Guarantee Expectations', loadIn:'Load-in Needs', merch:'Merch Needs', lodging:'Lodging Needs', techNotes:'Tech Notes', notes:'Additional Notes'
+      };
+      const lines = ['New booking request submitted from rayleos.com test site.',''];
+      order.forEach(key => {
+        const val = String(data.get(key) || '').trim();
+        if (val) lines.push(`${labels[key] || key}: ${val}`);
+      });
+      window.location.href = `mailto:Booking@rayleos.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
+    });
+  }
+})();
