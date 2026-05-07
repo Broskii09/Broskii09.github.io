@@ -494,6 +494,13 @@ setBgColor: document.getElementById("setBgColor"),
     }
     els.queueUndoNoticeText.textContent = message;
     els.queueUndoNotice.hidden = false;
+    if(typeof els.queueUndoNotice.scrollIntoView === "function"){
+      requestAnimationFrame(() => {
+        try{
+          els.queueUndoNotice.scrollIntoView({ block:"nearest", inline:"nearest" });
+        }catch(_){}
+      });
+    }
     queueUndoNoticeTimer = setTimeout(() => {
       queueUndoNoticeTimer = null;
       if(els.queueUndoNotice) els.queueUndoNotice.hidden = true;
@@ -3981,6 +3988,7 @@ function escapeHtml(s){
     const wrap = document.createElement("div");
     wrap.className = "qSpecialMenuWrap";
     wrap.dataset.specialMenuRoot = ownerKey;
+    const isMenuOpen = specialInsertMenuState?.ownerKey === ownerKey;
 
     const trigger = document.createElement("button");
     trigger.type = "button";
@@ -3990,6 +3998,8 @@ function escapeHtml(s){
       ? "Insert a special slot after this open slot"
       : "Insert a special slot before or after this row";
     trigger.setAttribute("aria-label", opts.compact ? "Insert special after this open slot" : "Insert Special");
+    trigger.setAttribute("aria-haspopup", "true");
+    trigger.setAttribute("aria-expanded", isMenuOpen ? "true" : "false");
     trigger.addEventListener("click", (e) => {
       e.stopPropagation();
       if(specialInsertMenuState?.ownerKey === ownerKey){
@@ -4001,7 +4011,7 @@ function escapeHtml(s){
     });
     wrap.appendChild(trigger);
 
-    if(specialInsertMenuState?.ownerKey !== ownerKey) return wrap;
+    if(!isMenuOpen) return wrap;
 
     const menu = document.createElement("div");
     menu.className = "qSpecialMenu";

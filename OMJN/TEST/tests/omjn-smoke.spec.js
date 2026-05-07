@@ -8,6 +8,16 @@ const {
   watchPageErrors,
 } = require("./omjn-test-helpers");
 
+async function expectNoPageHorizontalOverflow(page){
+  const metrics = await page.evaluate(() => ({
+    innerWidth: window.innerWidth,
+    docScrollWidth: document.documentElement.scrollWidth,
+    bodyScrollWidth: document.body.scrollWidth,
+  }));
+  expect(metrics.docScrollWidth).toBeLessThanOrEqual(metrics.innerWidth);
+  expect(metrics.bodyScrollWidth).toBeLessThanOrEqual(metrics.innerWidth);
+}
+
 test.describe("OMJN TEST smoke", () => {
   test("operator page loads", async ({ page }) => {
     const pageErrors = [];
@@ -49,27 +59,43 @@ test.describe("OMJN TEST smoke", () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test("queue rows stay readable across requested operator widths", async ({ page }) => {
+  test("queue rows stay readable across requested operator viewports without horizontal overflow", async ({ page }) => {
     const pageErrors = [];
     watchPageErrors(page, pageErrors);
 
     await page.goto("operator.html");
     await addPerformerFromFirstOpenSlot(page, "Viewport Queue Test", "Compact row sanity");
 
-    for(const width of [1440, 1280, 1024, 768, 430, 390]){
-      const height = width <= 430 ? 844 : 900;
-      await page.setViewportSize({ width, height });
+    const viewports = [
+      { width: 1920, height: 1080 },
+      { width: 1536, height: 322 },
+      { width: 1536, height: 500 },
+      { width: 1440, height: 600 },
+      { width: 1280, height: 720 },
+      { width: 1024, height: 768 },
+      { width: 768, height: 1024 },
+      { width: 430, height: 844 },
+      { width: 390, height: 844 },
+    ];
+
+    for(const viewport of viewports){
+      await page.setViewportSize(viewport);
       const performerRow = page.locator(".queueItem").filter({ hasText: "Viewport Queue Test" }).first();
       const blankRow = page.locator(".paperSlotEmpty").first();
 
+      await performerRow.scrollIntoViewIfNeeded();
       await expect(performerRow).toBeVisible();
+      await blankRow.scrollIntoViewIfNeeded();
       await expect(blankRow).toBeVisible();
+      await expectNoPageHorizontalOverflow(page);
       await expectActionButtonsFit(performerRow);
       await expectOpenSlotActionsFit(blankRow);
       await expect(performerRow.locator(".dragHandle")).toBeVisible();
       await expect(blankRow.locator(".dragHandle")).toBeVisible();
       await expect(performerRow.locator(".qMoveColumn")).toBeVisible();
       await expect(blankRow.locator(".qMoveColumn")).toBeVisible();
+      await page.locator("#btnStart").scrollIntoViewIfNeeded();
+      await expect(page.locator("#btnStart")).toBeVisible();
     }
     expect(pageErrors).toEqual([]);
   });

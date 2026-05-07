@@ -44,6 +44,15 @@ async function readMoveColumnMetrics(row){
   });
 }
 
+async function expectUndoNoticeNearTop(page){
+  const notice = page.locator("#queueUndoNotice");
+  await expect(notice).toBeVisible();
+  const box = await notice.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y).toBeLessThan(140);
+}
+
 test.describe("OMJN TEST queue state", () => {
   test("moving a performer into a blank slot swaps with that blank instead of shifting the whole queue", async ({ page }) => {
     const pageErrors = [];
@@ -82,6 +91,7 @@ test.describe("OMJN TEST queue state", () => {
     watchPageErrors(page, pageErrors);
 
     await page.goto("operator.html");
+    await page.setViewportSize({ width: 1536, height: 322 });
     const firstPerformer = await addPerformerFromFirstOpenSlot(page, "Delete Shift A");
     await addPerformerFromFirstOpenSlot(page, "Delete Shift B");
 
@@ -97,7 +107,7 @@ test.describe("OMJN TEST queue state", () => {
     await blankRow.locator(".qActionDeleteBlank").click();
 
     expect(confirmMessage).toContain("Delete this blank slot?");
-    await expect(page.locator("#queueUndoNotice")).toBeVisible();
+    await expectUndoNoticeNearTop(page);
     const activeRows = page.locator("#queue > .queueItem");
     await expect(activeRows.nth(0)).toContainText("#1");
     await expect(activeRows.nth(0)).toContainText("Open Slot");
@@ -264,6 +274,7 @@ test.describe("OMJN TEST queue state", () => {
     watchPageErrors(page, pageErrors);
 
     await page.goto("operator.html");
+    await page.setViewportSize({ width: 1536, height: 322 });
     const performerRow = await addPerformerFromFirstOpenSlot(page, "Delete Queue Target");
 
     let confirmMessage = "";
@@ -274,7 +285,7 @@ test.describe("OMJN TEST queue state", () => {
     await performerRow.locator(".qActionDelete").click();
 
     expect(confirmMessage).toContain('Delete "Delete Queue Target" from the active queue?');
-    await expect(page.locator("#queueUndoNotice")).toBeVisible();
+    await expectUndoNoticeNearTop(page);
     const completedSummary = page.locator("summary.queueDivider").filter({ hasText: "Completed / No Show / Deleted" });
     await expect(completedSummary).toBeVisible();
     await completedSummary.click();
@@ -327,18 +338,37 @@ test.describe("OMJN TEST queue state", () => {
     watchPageErrors(page, pageErrors);
 
     await page.goto("operator.html");
-    await addPerformerFromFirstOpenSlot(page, "Insert Base One");
+    const firstRow = await addPerformerFromFirstOpenSlot(page, "Insert Base One");
     const targetRow = await addPerformerFromFirstOpenSlot(page, "Insert Base Two");
+    const firstTrigger = firstRow.getByRole("button", { name: "Insert Special" });
+    const targetTrigger = targetRow.getByRole("button", { name: "Insert Special" });
 
-    await targetRow.getByRole("button", { name: "Insert Special" }).click();
+    await targetTrigger.click();
     const popover = targetRow.locator(".qSpecialMenu");
     await expect(popover).toBeVisible();
+    await expect(targetTrigger).toHaveAttribute("aria-expanded", "true");
     await expect(popover.getByRole("button", { name: "Before" })).toBeVisible();
     await expect(popover.getByRole("button", { name: "After" })).toBeVisible();
     await expect(popover.getByRole("button", { name: "Graphic Ad" })).toHaveCount(0);
     await expect(popover.getByRole("button", { name: "Video Ad" })).toHaveCount(0);
+
+    await targetTrigger.click();
+    await expect(targetRow.locator(".qSpecialMenu")).toHaveCount(0);
+    await expect(targetTrigger).toHaveAttribute("aria-expanded", "false");
+
+    await firstTrigger.click();
+    await expect(firstRow.locator(".qSpecialMenu")).toBeVisible();
+    await expect(firstTrigger).toHaveAttribute("aria-expanded", "true");
+
+    await targetTrigger.click();
+    await expect(firstRow.locator(".qSpecialMenu")).toHaveCount(0);
+    await expect(firstTrigger).toHaveAttribute("aria-expanded", "false");
+    await expect(targetRow.locator(".qSpecialMenu")).toBeVisible();
+    await expect(targetTrigger).toHaveAttribute("aria-expanded", "true");
+
     await page.locator("#showTitle").click();
-    await expect(popover).toBeHidden();
+    await expect(targetRow.locator(".qSpecialMenu")).toHaveCount(0);
+    await expect(targetTrigger).toHaveAttribute("aria-expanded", "false");
 
     await insertSpecialFromRow(targetRow, "before", "Intermission");
     await expect(page.locator("#intermissionModal")).toBeVisible();
@@ -364,14 +394,17 @@ test.describe("OMJN TEST queue state", () => {
     await expect(activeRows.nth(3)).toContainText("After Insert Jam");
 
     await enableSponsorAdSlots(page);
-    await refreshedTarget.getByRole("button", { name: "Insert Special" }).click();
+    const refreshedTrigger = refreshedTarget.getByRole("button", { name: "Insert Special" });
+    await refreshedTrigger.click();
     const adPopover = refreshedTarget.locator(".qSpecialMenu");
     await expect(adPopover).toBeVisible();
+    await expect(refreshedTrigger).toHaveAttribute("aria-expanded", "true");
     await adPopover.getByRole("button", { name: "After" }).click();
     await expect(adPopover.getByRole("button", { name: "Graphic Ad" })).toBeVisible();
     await expect(adPopover.getByRole("button", { name: "Video Ad" })).toBeVisible();
     await page.locator("#showTitle").click();
-    await expect(adPopover).toBeHidden();
+    await expect(refreshedTarget.locator(".qSpecialMenu")).toHaveCount(0);
+    await expect(refreshedTrigger).toHaveAttribute("aria-expanded", "false");
     expect(pageErrors).toEqual([]);
   });
 
@@ -424,6 +457,8 @@ test.describe("OMJN TEST queue state", () => {
     await expect(prompt).toContainText("Venue close set to 12:00 AM");
     await expect(prompt).toContainText("Prompt patrons to tip bartenders and servers");
     await expect(viewer.locator("#lastCallPrompt")).toHaveCount(0);
+    await page.locator("#btnCloseSettings").click();
+    await expect(page.locator("#settingsModal")).toBeHidden();
 
     await page.locator("#btnLastCallSnooze").click();
     await expect(prompt).toBeHidden();
