@@ -1,0 +1,19 @@
+{
+  "scripts": {
+    "serve:test": "node scripts/static-server.cjs --port 3000",
+    "dev": "node scripts/static-server.cjs --port 3000",
+    "test": "playwright test",
+    "test:smoke": "playwright test tests/rayleos-smoke.spec.js",
+    "test:smoke:headed": "playwright test tests/rayleos-smoke.spec.js --headed",
+    "test:nav": "playwright test tests/rayleos-nav.spec.js",
+    "test:booking": "playwright test tests/rayleos-booking.spec.js",
+    "test:shows": "playwright test tests/rayleos-shows.spec.js",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "check": "node --check scripts/static-server.cjs && node --check RayLeos/assets/js/site-config.js && node --check RayLeos/assets/js/main.js && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0"
+  }
+}
