@@ -1,0 +1,5 @@
+# Production robots file for rayleos.com. GitHub Pages /RayLeos/ remains staging.
+User-agent: *
+Allow: /
+
+Sitemap: https://rayleos.com/sitemap.xml

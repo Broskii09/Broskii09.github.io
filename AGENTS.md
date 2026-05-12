@@ -7,6 +7,8 @@ This guide applies to the `RayLeos/` static website in this GitHub Pages user-si
 ## Site Constraints
 
 - Preserve the `/RayLeos/` base path for local and GitHub Pages URLs.
+- Treat GitHub Pages at `/RayLeos/` as staging/test and `https://rayleos.com/` as the production canonical domain.
+- Before production launch, verify the site is hosted at the domain root and re-run metadata/social preview checks.
 - Keep the site static HTML, CSS, JavaScript, and JSON for now.
 - Do not convert the site to Astro yet.
 - Do not redesign the website unless the user specifically requests design work.
