@@ -45,7 +45,7 @@ test('booking page renders availability, autofills inquiry context, validates, a
   await expect(output).toBeVisible();
   await expect(summary).toHaveValue(/The Test Signals/);
   await expect(summary).toHaveValue(/Selected Date:/);
-  await expect(summary).toHaveValue(new RegExp(`Calendar Status: ${inquiryStatus}`));
+  await expect(summary).toHaveValue(new RegExp(`Availability Status: ${inquiryStatus}`));
   await expect(summary).toHaveValue(/Send to:/);
 
   const emailLink = page.locator('[data-open-email]');
