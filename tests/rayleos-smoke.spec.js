@@ -15,7 +15,22 @@ test('homepage loads with Ray Leo content and core calls to action', async ({ pa
   await expect(page.getByRole('link', { name: /See Upcoming Shows/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Book the Stage/i })).toBeVisible();
   await expect(page.locator('[data-shows-preview]')).toBeVisible();
+  await expect(page.locator('.photo-stack .stack-img')).toHaveCount(3);
+  await expect(page.locator('.photo-stack .stack-img').first()).toHaveAttribute('tabindex', '0');
   await expect(page.locator('body')).not.toContainText(/undefined|null|error loading/i);
   expect(consoleErrors).toEqual([]);
   expect(pageErrors).toEqual([]);
+});
+
+test('home photo cards render on mobile without hover-dependent behavior', async ({ page }) => {
+  const consoleErrors = installConsoleErrorGuard(page);
+  await page.setViewportSize({ width: 412, height: 915 });
+
+  await page.goto('/RayLeos/');
+
+  await expect(page.locator('.photo-stack')).toBeVisible();
+  await expect(page.locator('.photo-stack .stack-img')).toHaveCount(3);
+  await expect(page.locator('.photo-stack .stack-img img').first()).toBeVisible();
+  await expect(page.locator('main')).toBeVisible();
+  expect(consoleErrors).toEqual([]);
 });

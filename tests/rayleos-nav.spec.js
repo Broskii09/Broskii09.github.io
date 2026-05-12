@@ -93,10 +93,46 @@ test('external links open in new tabs while internal nav stays same-tab', async 
   }
 
   await page.goto('/RayLeos/');
+  const toastLink = page.getByRole('link', { name: /Order on Toast/i });
+  await expect(toastLink).toHaveAttribute('target', '_blank');
+  await expect(toastLink).toHaveAttribute('rel', /noopener/);
+  await expect(toastLink).toHaveAttribute('aria-label', /opens in a new tab/i);
+
+  const mapLink = page.getByRole('link', { name: /Open Map/i });
+  await expect(mapLink).toHaveAttribute('href', /google\.com\/maps\/search\/\?api=1/);
+  await expect(mapLink).toHaveAttribute('target', '_blank');
+
+  const telLink = page.locator('a[href^="tel:"]').first();
+  await expect(telLink).not.toHaveAttribute('target', '_blank');
+
+  const mailLink = page.locator('a[href^="mailto:"]').first();
+  await expect(mailLink).not.toHaveAttribute('target', '_blank');
+
   const latestDetails = page.locator('[data-shows-preview] a[href^="https://www.facebook.com"]').first();
   await expect(latestDetails).toHaveAttribute('target', '_blank');
   await expect(latestDetails).toHaveAttribute('rel', /noopener/);
   await expect(latestDetails).toHaveAttribute('aria-label', /opens in a new tab/i);
+
+  expect(consoleErrors).toEqual([]);
+});
+
+test('visit map links and about copy stay public-safe', async ({ page }) => {
+  const consoleErrors = installConsoleErrorGuard(page, {
+    ignorePatterns: [/Failed to load resource: the server responded with a status of 403/i]
+  });
+
+  await page.goto('/RayLeos/visit/');
+  const directions = page.getByRole('link', { name: /Get directions/i });
+  await expect(directions).toHaveAttribute('href', /google\.com\/maps\/search\/\?api=1/);
+  await expect(directions).toHaveAttribute('target', '_blank');
+  await expect(directions).toHaveAttribute('rel', /noopener noreferrer/);
+  await expect(page.locator('.map-card iframe')).toHaveAttribute('src', /google\.com\/maps/);
+
+  await page.goto('/RayLeos/about/');
+  await expect(page.locator('main')).not.toContainText(/Derek/i);
+  await expect(page.locator('main')).not.toContainText(/[“”"]/);
+  await expect(page.locator('main')).toContainText(/family roots/i);
+  await expect(page.locator('main')).toContainText(/All ages unless noted per event/i);
 
   expect(consoleErrors).toEqual([]);
 });
