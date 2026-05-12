@@ -5,11 +5,31 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+  function isExternalHref(href){
+    if (!href || href.startsWith('#') || /^(mailto|tel):/i.test(href)) return false;
+    try {
+      const url = new URL(href, window.location.href);
+      return url.origin !== window.location.origin;
+    } catch { return false; }
+  }
+  function enhanceExternalLinks(root = document){
+    $$('a[href]', root).forEach(el => {
+      if (!isExternalHref(el.getAttribute('href'))) return;
+      el.setAttribute('target', '_blank');
+      el.setAttribute('rel', 'noopener noreferrer');
+      if (!/\(opens in a new tab\)$/i.test(el.getAttribute('aria-label') || '')) {
+        const label = (el.getAttribute('aria-label') || el.textContent || 'External link').trim();
+        el.setAttribute('aria-label', `${label} (opens in a new tab)`);
+      }
+    });
+  }
+
   // Dynamic config links/text
   $$('[data-booking-email]').forEach(el => { el.textContent = BOOKING_EMAIL; el.href = `mailto:${BOOKING_EMAIL}`; });
   $$('[data-config-href]').forEach(el => { const key = el.getAttribute('data-config-href'); if (SITE[key]) el.href = SITE[key]; });
   $$('[data-config-text]').forEach(el => { const key = el.getAttribute('data-config-text'); if (SITE[key]) el.textContent = SITE[key]; });
   $$('[data-menu-embed]').forEach(el => { if (SITE.menuPdfEmbedUrl) el.src = SITE.menuPdfEmbedUrl; });
+  enhanceExternalLinks();
 
   // Mobile nav
   const toggle = $('[data-menu-toggle]');
@@ -174,6 +194,7 @@
         const shows = items.filter(isFutureish).filter(e => normalizeStatus(e.status, e.calendarTitle || e.title) === 'confirmed' || e.status === 'confirmed').sort(sortByDate);
         showTargets.forEach(t => { t.innerHTML = shows.length ? shows.map(e => showCard(e)).join('') : '<p>No public shows are listed yet. Check Facebook for the latest updates.</p>'; });
         previewTargets.forEach(t => { t.innerHTML = shows.length ? shows.slice(0,6).map(e => showCard(e,true)).join('') : '<p>No public shows are listed yet. Check Facebook for the latest updates.</p>'; });
+        showTargets.concat(previewTargets).forEach(enhanceExternalLinks);
         $$('.reveal').forEach(el => el.classList.add('is-visible'));
       })
       .catch(() => { showTargets.concat(previewTargets).forEach(t => t.innerHTML = '<p>Shows are being updated. Check Facebook or Eventbrite for the latest details.</p>'); });

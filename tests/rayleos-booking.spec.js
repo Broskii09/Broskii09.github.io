@@ -93,3 +93,23 @@ test('mobile inquiry click reveals booking form and leaves fields editable', asy
   await expect(requestType).toHaveValue('General booking inquiry');
   expect(consoleErrors).toEqual([]);
 });
+
+test('mobile manual scroll shows booking form fields without inquiry click', async ({ page }) => {
+  const consoleErrors = installConsoleErrorGuard(page);
+  await page.setViewportSize({ width: 412, height: 915 });
+
+  await page.goto('/RayLeos/booking/#booking-form');
+
+  const form = page.locator('[data-booking-form]');
+  const artistName = page.locator('#artistName');
+  const requestType = page.locator('#requestType');
+
+  await expect(form).toBeVisible();
+  await expect(requestType).toBeVisible();
+  await expect(artistName).toBeVisible();
+  await expect(artistName).toBeEditable();
+
+  await artistName.fill('Manual Scroll Test');
+  await expect(artistName).toHaveValue('Manual Scroll Test');
+  expect(consoleErrors).toEqual([]);
+});

@@ -52,3 +52,51 @@ test('mobile nav opens and closes', async ({ page }) => {
   await expect(nav).not.toHaveClass(/is-open/);
   expect(consoleErrors).toEqual([]);
 });
+
+test('external links open in new tabs while internal nav stays same-tab', async ({ page }) => {
+  const consoleErrors = installConsoleErrorGuard(page, {
+    ignorePatterns: [/Failed to load resource: the server responded with a status of 403/i]
+  });
+
+  await page.goto('/RayLeos/');
+  await expect(page.locator('[data-shows-preview]').locator('.show-card, p').first()).toBeVisible();
+
+  const navTargets = await page.locator('[data-primary-nav] a').evaluateAll(links => links.map(link => ({
+    href: link.getAttribute('href') || '',
+    target: link.getAttribute('target') || ''
+  })));
+  for (const link of navTargets) {
+    expect(link.href.startsWith('/RayLeos/')).toBeTruthy();
+    expect(link.target).toBe('');
+  }
+
+  for (const path of ['/RayLeos/', '/RayLeos/shows/', '/RayLeos/food-bar/', '/RayLeos/visit/', '/RayLeos/about/']) {
+    await page.goto(path);
+    if (path === '/RayLeos/' || path === '/RayLeos/shows/') {
+      await expect(page.locator('[data-shows-preview], [data-shows-list]').locator('.show-card, p').first()).toBeVisible();
+    }
+
+    const externalLinks = await page.locator('a[href^="http"]').evaluateAll(links => links.map(link => ({
+      text: link.textContent.trim(),
+      href: link.getAttribute('href') || '',
+      target: link.getAttribute('target') || '',
+      rel: link.getAttribute('rel') || '',
+      label: link.getAttribute('aria-label') || ''
+    })).filter(link => !link.href.includes('/RayLeos/')));
+
+    expect(externalLinks.length).toBeGreaterThan(0);
+    for (const link of externalLinks) {
+      expect(link.target).toBe('_blank');
+      expect(link.rel.split(/\s+/)).toEqual(expect.arrayContaining(['noopener', 'noreferrer']));
+      expect(link.label).toMatch(/opens in a new tab/i);
+    }
+  }
+
+  await page.goto('/RayLeos/');
+  const latestDetails = page.locator('[data-shows-preview] a[href^="https://www.facebook.com"]').first();
+  await expect(latestDetails).toHaveAttribute('target', '_blank');
+  await expect(latestDetails).toHaveAttribute('rel', /noopener/);
+  await expect(latestDetails).toHaveAttribute('aria-label', /opens in a new tab/i);
+
+  expect(consoleErrors).toEqual([]);
+});
