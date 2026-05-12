@@ -1,0 +1,22 @@
+[
+  { "date": "2026-05-16", "startTime": "8:00 PM", "endTime": "11:45 PM", "status": "Booked" },
+  { "date": "2026-05-21", "startTime": "7:00 PM", "endTime": "11:00 PM", "status": "Booked" },
+  { "date": "2026-05-22", "startTime": "5:30 PM", "endTime": "7:00 PM", "status": "Booked" },
+  { "date": "2026-05-22", "startTime": "8:00 PM", "endTime": "12:00 AM", "status": "Booked" },
+  { "date": "2026-05-23", "startTime": "7:00 PM", "endTime": "11:00 PM", "status": "Booked" },
+  { "date": "2026-06-06", "startTime": "8:00 PM", "endTime": "11:55 PM", "status": "Hold" },
+  { "date": "2026-06-13", "startTime": "8:00 PM", "endTime": "9:00 PM", "status": "Hold" },
+  { "date": "2026-06-14", "startTime": "7:00 PM", "endTime": "11:00 PM", "status": "Needs Support" },
+  { "date": "2026-06-19", "startTime": "8:00 PM", "endTime": "11:45 PM", "status": "Hold" },
+  { "date": "2026-07-12", "startTime": "8:00 PM", "endTime": "11:30 PM", "status": "Hold" },
+  { "date": "2026-07-25", "startTime": "8:00 PM", "endTime": "12:00 AM", "status": "Needs Support" },
+  { "date": "2026-08-14", "startTime": "8:00 PM", "endTime": "11:45 PM", "status": "Hold" },
+  { "date": "2026-08-22", "startTime": "8:00 PM", "endTime": "11:45 PM", "status": "Hold" },
+  { "date": "2026-09-13", "startTime": "7:00 PM", "endTime": "11:00 PM", "status": "Needs Support" },
+  { "date": "2026-09-25", "startTime": "All day", "endTime": "", "status": "Hold" },
+  { "date": "2026-09-26", "startTime": "All day", "endTime": "", "status": "Hold" },
+  { "date": "2026-10-02", "startTime": "8:00 PM", "endTime": "11:45 PM", "status": "Needs Support" },
+  { "date": "2026-10-30", "startTime": "8:00 PM", "endTime": "9:00 PM", "status": "Hold" },
+  { "date": "2026-11-05", "startTime": "8:00 PM", "endTime": "11:45 PM", "status": "Hold" },
+  { "date": "2026-12-05", "startTime": "8:00 PM", "endTime": "9:00 PM", "status": "Hold" }
+]

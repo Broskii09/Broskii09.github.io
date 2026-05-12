@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img" aria-label="STAGE / CROWD PHOTO">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img" aria-label="FRANKLIN STREET">
   <defs>
     <linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#0A0A0A"/><stop offset="0.55" stop-color="#171717"/><stop offset="1" stop-color="#001e22"/></linearGradient>
     <pattern id="grain" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="2" cy="4" r="1" fill="#fff" opacity=".08"/><circle cx="10" cy="12" r="1" fill="#fff" opacity=".045"/><circle cx="18" cy="6" r="1" fill="#fff" opacity=".05"/></pattern>
@@ -11,8 +11,8 @@
   <path d="M-100 860 C260 690 440 1030 790 800 C1020 650 1270 700 1700 540" fill="none" stroke="#F6B51D" stroke-width="6" opacity=".85"/>
   <g transform="translate(120 120)">
     <rect x="0" y="0" width="520" height="170" rx="10" fill="#000" opacity=".68" stroke="#F6B51D" stroke-width="3"/>
-    <text x="32" y="72" font-family="Arial Black, Impact, sans-serif" font-size="54" fill="#F5F0E1" letter-spacing="2">STAGE / CROWD PHOTO</text>
-    <text x="34" y="126" font-family="Arial, sans-serif" font-size="28" fill="#9DF6FF" letter-spacing="4">LIVE MUSIC FIRST</text>
+    <text x="32" y="72" font-family="Arial Black, Impact, sans-serif" font-size="54" fill="#F5F0E1" letter-spacing="2">FRANKLIN STREET</text>
+    <text x="34" y="126" font-family="Arial, sans-serif" font-size="28" fill="#9DF6FF" letter-spacing="4">MAP / EXTERIOR</text>
   </g>
   <g opacity=".5" stroke="#F5F0E1" stroke-width="2">
     <line x1="1180" y1="90" x2="1540" y2="450"/>

@@ -1,38 +1,113 @@
-# Ray Leo’s at Lamasco — GitHub Pages Static v3
+# Ray Leo’s at Lamasco — Static GitHub Pages v4
 
-Target URL: `https://broskii09.github.io/RayLeos/`
+Target URL:
 
-Copy this `RayLeos/` folder into the root of `Broskii09.github.io`, commit, and push.
+https://broskii09.github.io/RayLeos/
 
-## Pages
+Deploy folder:
 
-- `/RayLeos/` — Home
-- `/RayLeos/shows/` — Upcoming shows
-- `/RayLeos/food-bar/` — Food, bar, Toast link, embedded menu PDF
-- `/RayLeos/booking/` — Booking form and future availability structure
-- `/RayLeos/visit/` — Address, phone, policies, socials
-- `/RayLeos/about/` — Short venue positioning
+C:\Users\brosk\Desktop\OMJN\github\Broskii09.github.io\RayLeos
 
-## Event editing
+## v4 direction
 
-Edit `assets/data/events.json`. The Shows page and homepage preview read from this file.
+- Static HTML/CSS/JS for now
+- Astro later after layout/features are approved
+- Live-music-venue-first homepage
+- Home nav item added
+- Shows page displays up to 12 months from `assets/data/shows.json`
+- Homepage previews the next 4–6 public confirmed shows
+- Booking page includes public-safe availability from `assets/data/availability.json`
+- Booking form generates a copyable email request instead of submitting to a backend
+- Active test booking email is controlled by `assets/js/site-config.js`
+
+## Change booking email
+
+Edit one line:
+
+```js
+// assets/js/site-config.js
+bookingEmail: "inseitzmediaads@gmail.com",
+```
+
+Later change it to:
+
+```js
+bookingEmail: "Booking@rayleos.com",
+```
+
+## Calendar-ready data model
+
+For now, JSON is manually edited.
+Later, a GitHub Action can generate these files from Google Calendar:
+
+```txt
+RayLeos/assets/data/shows.json
+RayLeos/assets/data/availability.json
+```
+
+Suggested calendar title format:
+
+```txt
+Artist/Event Name - STATUS
+```
+
+Examples:
+
+```txt
+Bedford - CONFIRMED
+See This Through - HOLD 1
+The Saint Cecilia - HOLD 2
+Sydney Adams - NEEDS OPENER
+Rigometrics - NEEDS BANDS
+Birthday Party - PRIVATE
+Closed - BLACKOUT
+Band Name - CANCELLED
+Trivia - NO SHOW
+```
+
+The parser in `assets/js/main.js` is intentionally forgiving and also handles older formats like:
+
+```txt
+HOLD - Jeff Hardy
+Impera -confirmed
+HOLD1 - the saint cc
+NEED OPENER - Sydney Adams
+```
+
+## Public display rules
+
+Shows page:
+
+- Shows `CONFIRMED` events only.
+- Hides holds, blackouts, private events, cancelled events, and no-show notes.
+
+Booking availability page:
+
+- `CONFIRMED` → Booked
+- `HOLD`, `HOLD 1`, `HOLD 2`, `HOLD 3` → Hold
+- `NEEDS OPENER`, `NEEDS BANDS` → Needs Support
+- `PRIVATE`, `BLACKOUT` → Unavailable
+- `CANCELLED`, `NO SHOW` → Hidden
 
 ## Menu PDF
 
-The Food & Bar page embeds this Google Drive preview:
+The Food & Bar page embeds:
 
-`https://drive.google.com/file/d/1n41yPAIqVjPfgOIHtGbTl2mWDkZQUNWE/preview`
+https://drive.google.com/file/d/1n41yPAIqVjPfgOIHtGbTl2mWDkZQUNWE/preview
 
-If the owner updates the menu, keep the same Drive file ID when possible by replacing the file contents rather than uploading a new file.
+If the owner replaces the menu, try to replace the existing Google Drive file contents rather than creating a new file ID.
 
-## Booking form
+## Local test
 
-The form currently creates a prefilled email to `BOOKING_EMAIL`. GitHub Pages does not run server-side form code. Later options: Formspree, Netlify Forms, Cloudflare Pages Functions, or a custom backend.
+Run from repo root:
 
-## Future calendar availability
+```bash
+cd C:\Users\brosk\Desktop\OMJN\github\Broskii09.github.io
+python -m http.server 8000
+```
 
-`assets/data/availability-example.json` shows the intended parse pattern. Public display should only show the status before the hyphen. Example: `Hold (1) - Band Name` displays as `Hold`.
+Open:
 
-## Fonts
+http://localhost:8000/RayLeos/
 
-Font files are intentionally not included. Place licensed `.woff2` files in `assets/fonts/` using the filenames in `assets/fonts/README.txt`.
+Do not test by opening `index.html` directly with `file://`; absolute `/RayLeos/...` paths will not behave like GitHub Pages.

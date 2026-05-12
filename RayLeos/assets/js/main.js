@@ -1,155 +1,233 @@
-
-(function(){
+(() => {
   const SITE = window.RAYLEOS_CONFIG || {};
-  const BOOKING_EMAIL = SITE.bookingEmail || "BOOKING_EMAIL";const base = "/RayLeos";
-  const qs = (sel, root=document) => root.querySelector(sel);
-  const qsa = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-  const toggle = qs('[data-menu-toggle]');
-  const nav = qs('[data-primary-nav]');
-  if (toggle && nav) {
-    toggle.addEventListener('click', () => {
-      const open = nav.classList.toggle('is-open');
-      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    });
-  }
-  qsa('[data-year]').forEach(el => el.textContent = new Date().getFullYear());
+  const base = SITE.basePath || '/RayLeos';
+  const BOOKING_EMAIL = SITE.bookingEmail || 'Booking@rayleos.com';
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  const revealEls = qsa('.reveal');
+  // Dynamic config links/text
+  $$('[data-booking-email]').forEach(el => { el.textContent = BOOKING_EMAIL; el.href = `mailto:${BOOKING_EMAIL}`; });
+  $$('[data-config-href]').forEach(el => { const key = el.getAttribute('data-config-href'); if (SITE[key]) el.href = SITE[key]; });
+  $$('[data-config-text]').forEach(el => { const key = el.getAttribute('data-config-text'); if (SITE[key]) el.textContent = SITE[key]; });
+  $$('[data-menu-embed]').forEach(el => { if (SITE.menuPdfEmbedUrl) el.src = SITE.menuPdfEmbedUrl; });
+
+  // Mobile nav
+  const toggle = $('[data-menu-toggle]');
+  const nav = $('[data-primary-nav]');
+  toggle?.addEventListener('click', () => {
+    const open = nav?.classList.toggle('is-open');
+    toggle.setAttribute('aria-expanded', String(!!open));
+  });
+
+  // Reveal animation
+  const revealEls = $$('.reveal');
   if ('IntersectionObserver' in window) {
     const io = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
-          io.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+      entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add('is-visible'); io.unobserve(entry.target); } });
+    }, { threshold: 0.12, rootMargin: '0px 0px -7% 0px' });
     revealEls.forEach(el => io.observe(el));
   } else {
     revealEls.forEach(el => el.classList.add('is-visible'));
   }
 
-  const driftEls = qsa('[data-drift]');
+  // Light parallax/photo drift
+  const driftEls = $$('.parallax-drift');
   let ticking = false;
   function updateDrift(){
     const vh = window.innerHeight || 1;
     driftEls.forEach(el => {
-      const speed = Number(el.dataset.drift || 0.08);
       const rect = el.getBoundingClientRect();
-      const progress = (rect.top + rect.height/2 - vh/2) / vh;
-      el.style.transform = `translate3d(0, ${progress * speed * -80}px, 0)`;
+      const drift = Number(el.dataset.drift || 0.08);
+      const progress = ((rect.top + rect.height / 2) - vh / 2) / vh;
+      el.style.transform = `translate3d(0, ${progress * -70 * drift}px, 0)`;
     });
     ticking = false;
   }
-  function requestDrift(){
-    if (!ticking) { window.requestAnimationFrame(updateDrift); ticking = true; }
-  }
+  function requestDrift(){ if (!ticking) { window.requestAnimationFrame(updateDrift); ticking = true; } }
   if (driftEls.length && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     window.addEventListener('scroll', requestDrift, { passive:true });
     window.addEventListener('resize', requestDrift);
     requestDrift();
   }
 
-  function formatDate(dateString){
-    const d = new Date(`${dateString}T12:00:00`);
-    if (Number.isNaN(d.getTime())) return dateString || 'Date TBA';
-    return d.toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' });
+  function escapeHTML(value){ return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+  function escapeAttr(value){ return escapeHTML(value); }
+  function parseDate(dateString){ const d = new Date(`${dateString}T12:00:00`); return Number.isNaN(d.getTime()) ? null : d; }
+  function formatDate(dateString, part = 'full'){
+    const d = parseDate(dateString);
+    if (!d) return dateString || 'Date TBA';
+    if (part === 'month') return d.toLocaleDateString(undefined, { month:'short' });
+    if (part === 'day') return d.toLocaleDateString(undefined, { day:'2-digit' });
+    if (part === 'weekday') return d.toLocaleDateString(undefined, { weekday:'short' });
+    return d.toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric', year:'numeric' });
   }
-  function eventCard(event){
-    const img = event.image || `${base}/assets/img/placeholders/poster-placeholder.svg`;
+  function isFutureish(event){
+    const d = parseDate(event.date); if (!d) return true;
+    const today = new Date(); today.setHours(0,0,0,0);
+    return d >= today;
+  }
+  function sortByDate(a,b){ return String(a.date).localeCompare(String(b.date)) || String(a.startTime||'').localeCompare(String(b.startTime||'')); }
+  function normalizeClass(value){ return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
+
+  // Forgiving calendar title parser for future automation.
+  function parseCalendarTitle(summary = ''){
+    const clean = String(summary || '').trim();
+    const parts = clean.split(/\s[-–—]\s/);
+    if (parts.length > 1) {
+      const last = parts[parts.length - 1].trim();
+      const name = parts.slice(0, -1).join(' - ').trim();
+      const status = normalizeStatus(last, clean);
+      // If the final segment is not status-like, fall back to whole-title scan.
+      if (status !== 'review') return { eventName:name, rawStatus:last, status };
+    }
+    const status = normalizeStatus('', clean);
+    const prefixMatch = clean.match(/^(HOLD\s*\d*|NEEDS?\s+OPENERS?|NEEDS?\s+BANDS?|CONFIRMED|PRIVATE|BLACKOUT|CANCELLED|CANCELED|NO\s+SHOW)\s*[-–—]?\s*(.*)$/i);
+    if (prefixMatch) return { eventName:(prefixMatch[2] || clean).trim(), rawStatus:prefixMatch[1], status };
+    return { eventName:clean, rawStatus:'', status };
+  }
+  function normalizeStatus(rawStatus = '', fullTitle = ''){
+    const value = `${rawStatus} ${fullTitle}`.toUpperCase().replace(/\s+/g,' ').trim();
+    if (/\bNO\s+SHOW\b|\bNO\s+TRIVIA\b/.test(value)) return 'no-show';
+    if (/\bCANCELLED\b|\bCANCELED\b/.test(value)) return 'cancelled';
+    if (/\bPRIVATE\b/.test(value)) return 'private';
+    if (/\bBLACKOUT\b|\bCLOSED\b/.test(value)) return 'blackout';
+    if (/\bNEEDS?\s+OPENERS?\b|\bNEED\s+OPENERS?\b/.test(value)) return 'needs-opener';
+    if (/\bNEEDS?\s+BANDS?\b|\bNEED\s+BANDS?\b/.test(value)) return 'needs-bands';
+    if (/\bHOLD\s*1\b|\bHOLD1\b/.test(value)) return 'hold-1';
+    if (/\bHOLD\s*2\b|\bHOLD2\b/.test(value)) return 'hold-2';
+    if (/\bHOLD\s*3\b|\bHOLD3\b/.test(value)) return 'hold-3';
+    if (/\bHOLD\b/.test(value)) return 'hold';
+    if (/\bCONFIRMED\b|\bCONFIRM\b/.test(value)) return 'confirmed';
+    return 'review';
+  }
+  function publicAvailabilityStatus(status){
+    const value = normalizeClass(status);
+    if (value === 'confirmed' || value === 'booked') return 'Booked';
+    if (value.startsWith('hold')) return 'Hold';
+    if (value === 'needs-opener' || value === 'needs-bands' || value === 'needs-support') return 'Needs Support';
+    if (value === 'private' || value === 'blackout' || value === 'unavailable') return 'Unavailable';
+    if (value === 'cancelled' || value === 'no-show') return 'Hidden';
+    return status || 'Review';
+  }
+  window.RayLeosCalendar = { parseCalendarTitle, normalizeStatus, publicAvailabilityStatus };
+
+  function showCard(event, compact = false){
+    const title = event.title || parseCalendarTitle(event.calendarTitle || '').eventName || 'Show TBA';
+    const lineup = Array.isArray(event.lineup) && event.lineup.length ? `<div class="show-lineup">${event.lineup.map(escapeHTML).join(' • ')}</div>` : '';
     const tags = (event.tags || []).slice(0,3).map(t => `<span class="pill teal">${escapeHTML(t)}</span>`).join('');
-    const url = event.ticketUrl || 'https://www.facebook.com/rayleosatlamasco';
+    const url = event.ticketUrl || SITE.eventbriteUrl || SITE.facebookUrl || '#';
     const label = event.ticketLabel || 'Details';
-    return `<article class="poster-card reveal">
-      <div class="poster-art"><img src="${escapeAttr(img)}" alt="${escapeAttr(event.title || 'Show poster placeholder')}" loading="lazy"></div>
-      <div class="poster-body">
-        <span class="eyebrow">${formatDate(event.date)}</span>
-        <h3>${escapeHTML(event.title || 'Show TBA')}</h3>
+    return `<article class="show-card reveal">
+      <div class="date-block" aria-label="${escapeAttr(formatDate(event.date))}">
+        <span class="month">${escapeHTML(formatDate(event.date,'month'))}</span>
+        <span class="day">${escapeHTML(formatDate(event.date,'day'))}</span>
+        <span class="weekday">${escapeHTML(formatDate(event.date,'weekday'))}</span>
+      </div>
+      <div class="show-body">
+        <span class="eyebrow">${escapeHTML(event.status === 'confirmed' ? 'Confirmed show' : 'Live event')}</span>
+        <h3>${escapeHTML(title)}</h3>
         <div class="meta-line">
-          <span class="pill gold">Doors ${escapeHTML(event.doors || 'TBA')}</span>
-          <span class="pill red">Show ${escapeHTML(event.show || 'TBA')}</span>
-          <span class="pill">${escapeHTML(event.price || 'TBA')}</span>
-          <span class="pill">${escapeHTML(event.age || 'Check listing')}</span>
+          <span class="pill gold">${escapeHTML(event.doors ? `Doors ${event.doors}` : 'Doors TBA')}</span>
+          <span class="pill red">${escapeHTML(event.show ? `Show ${event.show}` : event.startTime || 'Time TBA')}</span>
+          <span class="pill">${escapeHTML(event.price || 'Check listing')}</span>
+          <span class="pill">${escapeHTML(event.age || 'All ages unless noted')}</span>
           ${tags}
         </div>
-        <p>${escapeHTML(event.description || '')}</p>
-        <p><small>${escapeHTML(event.doorNote || 'Some shows are ticketed online. Others are pay-at-the-door. Check each listing for details.')}</small></p>
-        <a class="btn btn-secondary" href="${escapeAttr(url)}">${escapeHTML(label)}</a>
+        ${lineup}
+        <p class="show-desc">${escapeHTML(event.publicDescription || 'Check the latest listing for details.')}</p>
+        <div class="button-row"><a class="btn btn-secondary" href="${escapeAttr(url)}">${escapeHTML(label)}</a></div>
       </div>
     </article>`;
   }
-  function escapeHTML(value){
-    return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-  }
-  function escapeAttr(value){ return escapeHTML(value); }
 
-  const eventTargets = qsa('[data-events-list]');
-  const previewTargets = qsa('[data-events-preview]');
-  if (eventTargets.length || previewTargets.length) {
-    fetch(`${base}/assets/data/events.json`, { cache:'no-cache' })
-      .then(r => r.ok ? r.json() : Promise.reject(new Error('Events file not found')))
-      .then(events => {
-        const sorted = [...events].sort((a,b) => String(a.date).localeCompare(String(b.date)));
-        eventTargets.forEach(target => {
-          target.innerHTML = sorted.map(eventCard).join('') || '<p>No events listed yet. Check Facebook for the latest updates.</p>';
-        });
-        previewTargets.forEach(target => {
-          const featured = sorted.filter(e => e.featured).slice(0,3);
-          target.innerHTML = (featured.length ? featured : sorted.slice(0,3)).map(eventCard).join('') || '<p>No events listed yet. Check Facebook for the latest updates.</p>';
-        });
-        qsa('.reveal').forEach(el => el.classList.add('is-visible'));
-      })
-      .catch(() => {
-        const message = '<p>Upcoming shows are being updated. Check Facebook or Eventbrite for the latest details.</p>';
-        eventTargets.concat(previewTargets).forEach(t => t.innerHTML = message);
-      });
-  }
-
-  function getPublicStatus(eventTitle = '') {
-    const rawPrefix = String(eventTitle).split(/\s[-–—]\s/)[0].trim();
-    const normalized = rawPrefix.toLowerCase();
-    if (normalized.startsWith('soft hold')) return 'Hold';
-    if (normalized.startsWith('hold')) return 'Hold';
-    if (normalized.startsWith('booked')) return 'Booked';
-    if (normalized.startsWith('confirmed')) return 'Booked';
-    if (normalized.startsWith('show')) return 'Booked';
-    if (normalized.startsWith('private')) return 'Unavailable';
-    if (normalized.startsWith('blackout')) return 'Unavailable';
-    if (normalized.startsWith('closed')) return 'Unavailable';
-    return rawPrefix || 'Unavailable';
-  }
-  window.RayLeosBooking = { getPublicStatus };
-
-  const availabilityTarget = qs('[data-availability-example]');
-  if (availabilityTarget) {
-    fetch(`${base}/assets/data/availability-example.json`, { cache:'no-cache' })
-      .then(r => r.ok ? r.json() : Promise.reject(new Error('Availability example not found')))
+  const showTargets = $$('[data-shows-list]');
+  const previewTargets = $$('[data-shows-preview]');
+  if (showTargets.length || previewTargets.length) {
+    fetch(`${base}/assets/data/shows.json`, { cache:'no-cache' })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('shows.json not found')))
       .then(items => {
-        availabilityTarget.innerHTML = items.map(item => `<div class="availability-item">
-          <div class="availability-status">${escapeHTML(getPublicStatus(item.title))}</div>
-          <strong>${formatDate(item.date)}</strong>
-        </div>`).join('');
+        const shows = items.filter(isFutureish).filter(e => normalizeStatus(e.status, e.calendarTitle || e.title) === 'confirmed' || e.status === 'confirmed').sort(sortByDate);
+        showTargets.forEach(t => { t.innerHTML = shows.length ? shows.map(e => showCard(e)).join('') : '<p>No public shows are listed yet. Check Facebook for the latest updates.</p>'; });
+        previewTargets.forEach(t => { t.innerHTML = shows.length ? shows.slice(0,6).map(e => showCard(e,true)).join('') : '<p>No public shows are listed yet. Check Facebook for the latest updates.</p>'; });
+        $$('.reveal').forEach(el => el.classList.add('is-visible'));
       })
-      .catch(() => { availabilityTarget.innerHTML = '<p>Availability preview unavailable.</p>'; });
+      .catch(() => { showTargets.concat(previewTargets).forEach(t => t.innerHTML = '<p>Shows are being updated. Check Facebook or Eventbrite for the latest details.</p>'); });
   }
 
-  const form = qs('[data-booking-form]');
+  const availabilityTargets = $$('[data-availability-list]');
+  if (availabilityTargets.length) {
+    fetch(`${base}/assets/data/availability.json`, { cache:'no-cache' })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('availability.json not found')))
+      .then(items => {
+        const visible = items.filter(isFutureish).filter(item => publicAvailabilityStatus(item.status) !== 'Hidden').sort(sortByDate);
+        availabilityTargets.forEach(t => {
+          t.innerHTML = visible.length ? visible.map(item => {
+            const status = publicAvailabilityStatus(item.status);
+            const cls = normalizeClass(status);
+            const time = item.startTime === 'All day' ? 'All day' : [item.startTime, item.endTime].filter(Boolean).join('–');
+            return `<div class="availability-item">
+              <div><span class="status ${cls}">${escapeHTML(status)}</span></div>
+              <div><strong>${escapeHTML(formatDate(item.date))}</strong><br><span class="notice">${escapeHTML(time || 'Time TBA')}</span></div>
+              <div><a class="btn btn-secondary" href="${base}/booking/#booking-form">Inquire</a></div>
+            </div>`;
+          }).join('') : '<p>No held/booked dates are listed yet. Submit a booking request to confirm availability.</p>';
+        });
+      })
+      .catch(() => { availabilityTargets.forEach(t => t.innerHTML = '<p>Availability preview is being updated. Submit a booking request to confirm dates.</p>'); });
+  }
+
+  // Booking form validation and copyable email request.
+  function clearCustomValidity(form){ $$('input, select, textarea', form).forEach(field => field.setCustomValidity('')); }
+  function validateUrlFields(form){
+    $$('input[type="url"]', form).forEach(field => {
+      const value = String(field.value || '').trim(); field.setCustomValidity('');
+      if (value && !/^https?:\/\/[^\s]+\.[^\s]+/i.test(value)) field.setCustomValidity('Please enter a full URL starting with https://');
+    });
+  }
+  function validateBookingForm(form){
+    clearCustomValidity(form); validateUrlFields(form); form.classList.add('was-validated');
+    if (!form.checkValidity()) { const firstInvalid = $(':invalid', form); if (firstInvalid) firstInvalid.focus({ preventScroll:false }); form.reportValidity(); return false; }
+    return true;
+  }
+  function buildBookingEmail(form){
+    const data = new FormData(form);
+    const artist = String(data.get('artistName') || 'Band Booking Request').trim();
+    const subject = `Ray Leo’s Booking Request - ${artist}`;
+    const order = ['artistName','contactName','email','phone','hometown','genre','members','setLength','website','instagram','facebook','musicLinks','liveVideo','epk','admat','promoPhotos','stagePlot','inputList','preferredDates','routing','supportNeeds','expectedDraw','agePolicy','previousShows','dealExpectations','loadIn','merch','lodging','techNotes','notes'];
+    const labels = { artistName:'Artist/Band', contactName:'Contact', email:'Email', phone:'Phone', hometown:'Hometown / Market', genre:'Genre / Style', members:'Members', setLength:'Set Length', website:'Website', instagram:'Instagram', facebook:'Facebook', musicLinks:'Music Links', liveVideo:'Live Video', epk:'EPK Link', admat:'Ad Mat / Poster Assets', promoPhotos:'Promo Photos', stagePlot:'Stage Plot', inputList:'Input List', preferredDates:'Preferred Dates', routing:'Routing Context', supportNeeds:'Support / Bill Needs', expectedDraw:'Expected Draw', agePolicy:'All-Ages OK?', previousShows:'Previous Regional Shows', dealExpectations:'Door / Guarantee Expectations', loadIn:'Load-in Needs', merch:'Merch Needs', lodging:'Lodging Needs', techNotes:'Tech Notes', notes:'Additional Notes' };
+    const lines = ['New booking request submitted from Ray Leo’s at Lamasco website test form.','',`Send to: ${BOOKING_EMAIL}`,'','NOTE: This static GitHub Pages form generates a copyable request. It is not submitted until emailed.',''];
+    order.forEach(key => { const val = String(data.get(key) || '').trim(); if (val) lines.push(`${labels[key] || key}: ${val}`); });
+    const body = lines.join('\n');
+    const mailto = `mailto:${BOOKING_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return { subject, body, mailto };
+  }
+  async function copyText(text, button, successText='Copied'){
+    const original = button ? button.textContent : '';
+    try {
+      if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
+      else { const temp = document.createElement('textarea'); temp.value = text; temp.setAttribute('readonly',''); temp.style.position='fixed'; temp.style.left='-9999px'; document.body.appendChild(temp); temp.select(); document.execCommand('copy'); temp.remove(); }
+      if (button) { button.textContent = successText; setTimeout(() => { button.textContent = original; }, 1800); }
+    } catch { if (button) button.textContent = 'Copy failed'; }
+  }
+  const form = $('[data-booking-form]');
   if (form) {
+    const output = $('[data-booking-output]', form);
+    const summary = $('[data-booking-summary]', form);
+    const copyBtn = $('[data-copy-booking]', form);
+    const openEmail = $('[data-open-email]', form);
+    const alert = $('[data-form-alert]', form);
+    let latest = null;
+    form.addEventListener('input', event => { if (event.target.matches('input, select, textarea')) event.target.setCustomValidity(''); if (alert) alert.hidden = true; });
     form.addEventListener('submit', event => {
       event.preventDefault();
-      const data = new FormData(form);
-      const artist = data.get('artistName') || 'Band Booking Request';
-      const subject = `Ray Leo’s Booking Request - ${artist}`;
-      const order = ['artistName','contactName','email','phone','hometown','genre','members','website','instagram','facebook','musicLinks','liveVideo','epk','admat','promoPhotos','stagePlot','inputList','preferredDates','routing','supportNeeds','expectedDraw','previousShows','setLength','agePolicy','dealExpectations','loadIn','merch','lodging','techNotes','notes'];
-      const labels = {
-        artistName:'Artist/Band', contactName:'Contact', email:'Email', phone:'Phone', hometown:'Hometown', genre:'Genre', members:'Members', website:'Website', instagram:'Instagram', facebook:'Facebook', musicLinks:'Music Links', liveVideo:'Live Video', epk:'EPK Link', admat:'Ad Mat / Poster Assets', promoPhotos:'Promo Photos', stagePlot:'Stage Plot', inputList:'Input List', preferredDates:'Preferred Dates', routing:'Routing Context', supportNeeds:'Support / Bill Needs', expectedDraw:'Expected Draw', previousShows:'Previous Regional Shows', setLength:'Set Length', agePolicy:'All-Ages OK?', dealExpectations:'Door / Guarantee Expectations', loadIn:'Load-in Needs', merch:'Merch Needs', lodging:'Lodging Needs', techNotes:'Tech Notes', notes:'Additional Notes'
-      };
-      const lines = ['New booking request submitted from rayleos.com test site.',''];
-      order.forEach(key => {
-        const val = String(data.get(key) || '').trim();
-        if (val) lines.push(`${labels[key] || key}: ${val}`);
-      });
-      window.location.href = `mailto:BOOKING_EMAIL?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
+      if (!validateBookingForm(form)) { if (alert) { alert.textContent = 'Please fix the highlighted fields. Required fields and URLs must be valid.'; alert.hidden = false; } return; }
+      latest = buildBookingEmail(form);
+      if (summary) summary.value = latest.body;
+      if (openEmail) openEmail.href = latest.mailto;
+      if (output) output.hidden = false;
+      if (alert) alert.hidden = true;
+      output?.scrollIntoView({ behavior:'smooth', block:'nearest' });
     });
+    copyBtn?.addEventListener('click', () => { const text = summary?.value || latest?.body || ''; if (text) copyText(text, copyBtn, 'Request copied'); });
   }
 })();

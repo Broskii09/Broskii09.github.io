@@ -1,18 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img" aria-label="event poster placeholder">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img" aria-label="SHOW POSTER">
   <defs>
-    <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 0.14"/></feComponentTransfer></filter>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#171717"/><stop offset="0.58" stop-color="#050505"/><stop offset="1" stop-color="#003E46"/></linearGradient>
-    <radialGradient id="r" cx="72%" cy="20%" r="52%"><stop offset="0" stop-color="#D72819" stop-opacity="0.42"/><stop offset="0.35" stop-color="#D72819" stop-opacity="0.12"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#0A0A0A"/><stop offset="0.55" stop-color="#171717"/><stop offset="1" stop-color="#001e22"/></linearGradient>
+    <pattern id="grain" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="2" cy="4" r="1" fill="#fff" opacity=".08"/><circle cx="10" cy="12" r="1" fill="#fff" opacity=".045"/><circle cx="18" cy="6" r="1" fill="#fff" opacity=".05"/></pattern>
+    <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r="2" fill="#009B9B" opacity=".16"/></pattern>
   </defs>
   <rect width="1600" height="1000" fill="url(#g)"/>
-  <rect width="1600" height="1000" fill="url(#r)"/>
-  <g opacity="0.22" stroke="#F6B51D" stroke-width="10" fill="none">
-    <path d="M180 760 C420 690 620 840 860 760 S1280 650 1450 735"/>
-    <path d="M120 210 H1480" stroke-dasharray="34 28"/>
+  <rect width="1600" height="1000" fill="url(#grain)"/>
+  <rect x="0" y="0" width="1600" height="1000" fill="url(#dots)" opacity=".45"/>
+  <path d="M-100 820 C260 650 440 990 790 760 C1020 610 1270 660 1700 500" fill="none" stroke="#D72819" stroke-width="20" opacity=".65"/>
+  <path d="M-100 860 C260 690 440 1030 790 800 C1020 650 1270 700 1700 540" fill="none" stroke="#F6B51D" stroke-width="6" opacity=".85"/>
+  <g transform="translate(120 120)">
+    <rect x="0" y="0" width="520" height="170" rx="10" fill="#000" opacity=".68" stroke="#F6B51D" stroke-width="3"/>
+    <text x="32" y="72" font-family="Arial Black, Impact, sans-serif" font-size="54" fill="#F5F0E1" letter-spacing="2">SHOW POSTER</text>
+    <text x="34" y="126" font-family="Arial, sans-serif" font-size="28" fill="#9DF6FF" letter-spacing="4">DROP ARTWORK HERE</text>
   </g>
-  <g fill="#F5F0E1">
-    <text x="110" y="520" font-family="Arial Black, Impact, sans-serif" font-size="98" letter-spacing="3">SHOW POSTER</text>
-    <text x="115" y="590" font-family="Arial, sans-serif" font-size="32" fill="#F6B51D" letter-spacing="6">RAY LEO’S AT LAMASCO</text>
+  <g opacity=".5" stroke="#F5F0E1" stroke-width="2">
+    <line x1="1180" y1="90" x2="1540" y2="450"/>
+    <line x1="1540" y1="90" x2="1180" y2="450"/>
+    <circle cx="1360" cy="270" r="95" fill="none"/>
   </g>
-  <rect width="1600" height="1000" filter="url(#grain)"/>
 </svg>
