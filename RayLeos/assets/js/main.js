@@ -254,7 +254,17 @@
       field.value = value || '';
       field.dispatchEvent(new Event('input', { bubbles:true }));
     }
+    function revealBookingFormArea(){
+      const section = form.closest('#booking-form');
+      [section, ...$$('.reveal', section || form), form].filter(Boolean).forEach(el => el.classList.add('is-visible'));
+    }
+    function scrollToBookingForm(){
+      requestAnimationFrame(() => {
+        form.scrollIntoView({ behavior:'smooth', block:'start' });
+      });
+    }
     function applySelectedDate(detail = {}, options = {}){
+      revealBookingFormArea();
       const date = detail.date || '';
       const time = detail.time || '';
       const status = detail.status || '';
@@ -281,7 +291,7 @@
       if (title) title.textContent = dateLabel ? `You’re inquiring about ${dateLabel}` : 'Date selected';
       if (meta) meta.textContent = [time, status, type].filter(Boolean).join(' · ');
       if (alert) alert.hidden = true;
-      if (options.scroll !== false) form.scrollIntoView({ behavior:'smooth', block:'start' });
+      if (options.scroll !== false) scrollToBookingForm();
     }
     function clearSelectedDate(){
       ['selectedDate','selectedTime','selectedStatus','requestType'].forEach(name => setFieldValue(name, ''));

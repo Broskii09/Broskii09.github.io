@@ -38,6 +38,10 @@ function resolveRequestPath(requestUrl) {
   const url = new URL(requestUrl, `http://${host}:${port}`);
   let pathname = decodeURIComponent(url.pathname);
 
+  if (pathname === '/favicon.ico' || pathname.endsWith('/favicon.ico')) {
+    pathname = '/RayLeos/assets/img/ray-leos-circle-logo.svg';
+  }
+
   if (pathname.endsWith('/')) {
     pathname += 'index.html';
   }

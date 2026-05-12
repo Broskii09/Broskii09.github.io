@@ -1,6 +1,6 @@
 @font-face{font-family:Peignot;src:url('/RayLeos/assets/fonts/peignot.woff2') format('woff2');font-weight:400;font-display:swap}
-@font-face{font-family:Peignot;src:url('/RayLeos/assets/fonts/peignot-bold.woff2') format('woff2');font-weight:700;font-display:swap}
-@font-face{font-family:'Honey Script';src:url('/RayLeos/assets/fonts/honey-script-semibold.woff2') format('woff2');font-weight:600;font-display:swap}
+@font-face{font-family:Peignot;src:url('/RayLeos/assets/fonts/peignotbold.woff2') format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'Honey Script';src:url('/RayLeos/assets/fonts/HoneyScript-SemiBold.woff2') format('woff2');font-weight:600;font-display:swap}
 :root{
   --black:#000;--ink:#070707;--charcoal:#141414;--charcoal-2:#1d1d1d;--cream:#F5F0E1;--warm:#FFF8EA;--muted:#c9c3ad;
   --red:#D72819;--teal:#009B9B;--teal-dark:#003E46;--gold:#F6B51D;--burgundy:#8A1E1B;--line:rgba(245,240,225,.14);
