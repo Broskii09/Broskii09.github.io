@@ -13,6 +13,17 @@ test('booking page renders availability, autofills inquiry context, validates, a
   const availabilityList = page.locator('[data-availability-list]');
   await expect(availabilityList).toBeVisible();
   await expect(availabilityList.locator('.availability-item').first()).toBeVisible();
+  await expect(page.locator('#already-booked')).toBeVisible();
+  await expect(page.locator('#already-booked')).toContainText(/Final show checklist/i);
+
+  const sectionOrder = await page.evaluate(() => {
+    const availability = document.querySelector('#availability')?.getBoundingClientRect().top || 0;
+    const alreadyBooked = document.querySelector('#already-booked')?.getBoundingClientRect().top || 0;
+    const bookingForm = document.querySelector('#booking-form')?.getBoundingClientRect().top || 0;
+    return { availability, alreadyBooked, bookingForm };
+  });
+  expect(sectionOrder.availability).toBeLessThan(sectionOrder.alreadyBooked);
+  expect(sectionOrder.alreadyBooked).toBeLessThan(sectionOrder.bookingForm);
 
   const inquiryButton = availabilityList.locator('[data-inquire-date]').first();
   const inquiryDate = await inquiryButton.getAttribute('data-inquire-date');
@@ -46,6 +57,8 @@ test('booking page renders availability, autofills inquiry context, validates, a
   await expect(summary).toHaveValue(/The Test Signals/);
   await expect(summary).toHaveValue(/Selected Date:/);
   await expect(summary).toHaveValue(new RegExp(`Availability Status: ${inquiryStatus}`));
+  await expect(summary).toHaveValue(/Music Links: https:\/\/example\.com\/music/);
+  await expect(summary).toHaveValue(/EPK Link: https:\/\/example\.com\/epk/);
   await expect(summary).toHaveValue(/Send to:/);
 
   const emailLink = page.locator('[data-open-email]');
