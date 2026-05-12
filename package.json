@@ -11,9 +11,19 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
-    "check": "node --check scripts/static-server.cjs && node --check RayLeos/assets/js/site-config.js && node --check RayLeos/assets/js/main.js && playwright test"
+    "test:browsers": "playwright test tests/rayleos-browsers.spec.js --config=playwright.browsers.config.js",
+    "test:a11y": "playwright test tests/rayleos-a11y.spec.js",
+    "test:data": "node scripts/validate-rayleos-data.cjs",
+    "lint:html": "html-validate \"RayLeos/**/*.html\"",
+    "lint:css": "stylelint \"RayLeos/assets/css/**/*.css\"",
+    "check": "node --check scripts/static-server.cjs && node --check scripts/validate-rayleos-data.cjs && node --check RayLeos/assets/js/site-config.js && node --check RayLeos/assets/js/main.js && npm run test:data && playwright test tests/rayleos-smoke.spec.js tests/rayleos-nav.spec.js tests/rayleos-booking.spec.js tests/rayleos-shows.spec.js",
+    "check:full": "npm run check && npm run lint:html && npm run lint:css && npm run test:a11y && npm run test:browsers"
   },
   "devDependencies": {
-    "@playwright/test": "^1.52.0"
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.52.0",
+    "html-validate": "^9.7.1",
+    "stylelint": "^16.20.0",
+    "stylelint-config-standard": "^36.0.1"
   }
 }

@@ -65,9 +65,15 @@ Keep parsing forgiving for older titles such as `HOLD - Artist`, `Artist -confir
 
 - Use the repo-root local server so `/RayLeos/` paths work locally.
 - Local preview URL: `http://127.0.0.1:3000/RayLeos/`.
-- Run `npm run check` before handoff when dependencies and browsers are available.
+- Run `npm run check` for everyday verification before handoff when dependencies and browsers are available.
+- Run `npm run check:full` before larger changes or QA handoffs that need cross-browser, accessibility, data, HTML, and CSS coverage.
 - Add or update Playwright coverage when changing navigation, shows rendering, availability, or booking behavior.
-- Do not commit generated Playwright reports, traces, screenshots, test results, logs, `node_modules/`, or ZIP files.
+- Preserve the `/RayLeos/` base path in tests and local tooling.
+- Do not expose internal booking details, private calendar details, payment terms, guarantees, door splits, staff notes, promoter notes, or internal booking notes.
+- Do not convert the site to Astro yet.
+- Do not commit font files.
+- Do not commit ZIP artifacts.
+- Do not commit generated Playwright reports, traces, screenshots, test results, logs, `node_modules/`, or temporary files.
 
 ## Reporting Preference
 
