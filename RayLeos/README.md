@@ -1,4 +1,4 @@
-# Ray Leo’s at Lamasco — Static GitHub Pages v4
+# Ray Leo’s at Lamasco — Static GitHub Pages v4.1
 
 Target URL:
 
@@ -8,7 +8,7 @@ Deploy folder:
 
 C:\Users\brosk\Desktop\OMJN\github\Broskii09.github.io\RayLeos
 
-## v4 direction
+## v4.1 direction
 
 - Static HTML/CSS/JS for now
 - Astro later after layout/features are approved
@@ -17,6 +17,8 @@ C:\Users\brosk\Desktop\OMJN\github\Broskii09.github.io\RayLeos
 - Shows page displays up to 12 months from `assets/data/shows.json`
 - Homepage previews the next 4–6 public confirmed shows
 - Booking page includes public-safe availability from `assets/data/availability.json`
+- Availability buttons can auto-fill selected date/time/status/request type into the booking form
+- URL parameters can prefill the booking form, e.g. `/RayLeos/booking/?date=2026-06-14&status=Needs+Support&type=Opening%2Fsupport+slot+inquiry#booking-form`
 - Booking form generates a copyable email request instead of submitting to a backend
 - Active test booking email is controlled by `assets/js/site-config.js`
 
@@ -103,7 +105,7 @@ Run from repo root:
 
 ```bash
 cd C:\Users\brosk\Desktop\OMJN\github\Broskii09.github.io
-python -m http.server 8000
+npx http-server -p 8000
 ```
 
 Open:

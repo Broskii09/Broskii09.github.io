@@ -109,7 +109,32 @@
     if (value === 'cancelled' || value === 'no-show') return 'Hidden';
     return status || 'Review';
   }
-  window.RayLeosCalendar = { parseCalendarTitle, normalizeStatus, publicAvailabilityStatus };
+  function inquiryTypeForStatus(status){
+    const value = normalizeClass(publicAvailabilityStatus(status));
+    if (value === 'needs-support') return 'Opening/support slot inquiry';
+    if (value === 'hold') return 'Question about a held date';
+    if (value === 'booked') return 'Backup/waitlist inquiry';
+    if (value === 'unavailable') return 'Other date question';
+    return 'General booking inquiry';
+  }
+  function inquiryButtonForStatus(status){
+    const publicStatus = publicAvailabilityStatus(status);
+    const value = normalizeClass(publicStatus);
+    if (value === 'needs-support') return 'Inquire About Opening';
+    if (value === 'hold') return 'Ask About This Hold';
+    if (value === 'booked') return 'Ask Anyway';
+    if (value === 'unavailable') return 'Unavailable';
+    return 'Inquire About This Date';
+  }
+  function buildBookingInquiryUrl(item, time, status){
+    const params = new URLSearchParams();
+    if (item.date) params.set('date', item.date);
+    if (time) params.set('time', time);
+    if (status) params.set('status', status);
+    params.set('type', inquiryTypeForStatus(status));
+    return `${base}/booking/?${params.toString()}#booking-form`;
+  }
+  window.RayLeosCalendar = { parseCalendarTitle, normalizeStatus, publicAvailabilityStatus, inquiryTypeForStatus };
 
   function showCard(event, compact = false){
     const title = event.title || parseCalendarTitle(event.calendarTitle || '').eventName || 'Show TBA';
@@ -165,10 +190,16 @@
             const status = publicAvailabilityStatus(item.status);
             const cls = normalizeClass(status);
             const time = item.startTime === 'All day' ? 'All day' : [item.startTime, item.endTime].filter(Boolean).join('–');
+            const label = inquiryButtonForStatus(status);
+            const disabled = normalizeClass(status) === 'unavailable';
+            const href = buildBookingInquiryUrl(item, time, status);
+            const action = disabled
+              ? `<span class="btn btn-disabled" aria-disabled="true">${escapeHTML(label)}</span>`
+              : `<a class="btn btn-secondary" href="${escapeAttr(href)}" data-inquire-date="${escapeAttr(item.date)}" data-inquire-time="${escapeAttr(time || '')}" data-inquire-status="${escapeAttr(status)}" data-inquire-type="${escapeAttr(inquiryTypeForStatus(status))}">${escapeHTML(label)}</a>`;
             return `<div class="availability-item">
               <div><span class="status ${cls}">${escapeHTML(status)}</span></div>
               <div><strong>${escapeHTML(formatDate(item.date))}</strong><br><span class="notice">${escapeHTML(time || 'Time TBA')}</span></div>
-              <div><a class="btn btn-secondary" href="${base}/booking/#booking-form">Inquire</a></div>
+              <div>${action}</div>
             </div>`;
           }).join('') : '<p>No held/booked dates are listed yet. Submit a booking request to confirm availability.</p>';
         });
@@ -193,8 +224,8 @@
     const data = new FormData(form);
     const artist = String(data.get('artistName') || 'Band Booking Request').trim();
     const subject = `Ray Leo’s Booking Request - ${artist}`;
-    const order = ['artistName','contactName','email','phone','hometown','genre','members','setLength','website','instagram','facebook','musicLinks','liveVideo','epk','admat','promoPhotos','stagePlot','inputList','preferredDates','routing','supportNeeds','expectedDraw','agePolicy','previousShows','dealExpectations','loadIn','merch','lodging','techNotes','notes'];
-    const labels = { artistName:'Artist/Band', contactName:'Contact', email:'Email', phone:'Phone', hometown:'Hometown / Market', genre:'Genre / Style', members:'Members', setLength:'Set Length', website:'Website', instagram:'Instagram', facebook:'Facebook', musicLinks:'Music Links', liveVideo:'Live Video', epk:'EPK Link', admat:'Ad Mat / Poster Assets', promoPhotos:'Promo Photos', stagePlot:'Stage Plot', inputList:'Input List', preferredDates:'Preferred Dates', routing:'Routing Context', supportNeeds:'Support / Bill Needs', expectedDraw:'Expected Draw', agePolicy:'All-Ages OK?', previousShows:'Previous Regional Shows', dealExpectations:'Door / Guarantee Expectations', loadIn:'Load-in Needs', merch:'Merch Needs', lodging:'Lodging Needs', techNotes:'Tech Notes', notes:'Additional Notes' };
+    const order = ['selectedDate','selectedTime','selectedStatus','requestType','artistName','contactName','email','phone','hometown','genre','members','setLength','website','instagram','facebook','musicLinks','liveVideo','epk','admat','promoPhotos','stagePlot','inputList','preferredDates','routing','supportNeeds','expectedDraw','agePolicy','previousShows','dealExpectations','loadIn','merch','lodging','techNotes','notes'];
+    const labels = { selectedDate:'Selected Date', selectedTime:'Selected Time Block', selectedStatus:'Calendar Status', requestType:'Request Type', artistName:'Artist/Band', contactName:'Contact', email:'Email', phone:'Phone', hometown:'Hometown / Market', genre:'Genre / Style', members:'Members', setLength:'Set Length', website:'Website', instagram:'Instagram', facebook:'Facebook', musicLinks:'Music Links', liveVideo:'Live Video', epk:'EPK Link', admat:'Ad Mat / Poster Assets', promoPhotos:'Promo Photos', stagePlot:'Stage Plot', inputList:'Input List', preferredDates:'Preferred Dates', routing:'Routing Context', supportNeeds:'Support / Bill Needs', expectedDraw:'Expected Draw', agePolicy:'All-Ages OK?', previousShows:'Previous Regional Shows', dealExpectations:'Door / Guarantee Expectations', loadIn:'Load-in Needs', merch:'Merch Needs', lodging:'Lodging Needs', techNotes:'Tech Notes', notes:'Additional Notes' };
     const lines = ['New booking request submitted from Ray Leo’s at Lamasco website test form.','',`Send to: ${BOOKING_EMAIL}`,'','NOTE: This static GitHub Pages form generates a copyable request. It is not submitted until emailed.',''];
     order.forEach(key => { const val = String(data.get(key) || '').trim(); if (val) lines.push(`${labels[key] || key}: ${val}`); });
     const body = lines.join('\n');
@@ -217,6 +248,65 @@
     const openEmail = $('[data-open-email]', form);
     const alert = $('[data-form-alert]', form);
     let latest = null;
+    function setFieldValue(name, value){
+      const field = form.elements[name];
+      if (!field) return;
+      field.value = value || '';
+      field.dispatchEvent(new Event('input', { bubbles:true }));
+    }
+    function applySelectedDate(detail = {}, options = {}){
+      const date = detail.date || '';
+      const time = detail.time || '';
+      const status = detail.status || '';
+      const type = detail.type || inquiryTypeForStatus(status);
+      const dateLabel = date ? formatDate(date) : '';
+      setFieldValue('selectedDate', dateLabel);
+      setFieldValue('selectedTime', time);
+      setFieldValue('selectedStatus', status);
+      setFieldValue('requestType', type);
+      const preferred = form.elements.preferredDates;
+      if (preferred) {
+        const generated = [dateLabel, time, status].filter(Boolean).join(' · ');
+        if (!preferred.value.trim() || preferred.dataset.autofilled === 'true') {
+          preferred.value = generated;
+          preferred.dataset.autofilled = 'true';
+        }
+      }
+      const support = form.elements.supportNeeds;
+      if (support && !support.value.trim() && normalizeClass(status) === 'needs-support') support.value = 'Interested in opening/support slot.';
+      const panel = $('[data-selected-date-panel]', form);
+      const title = $('[data-selected-date-title]', form);
+      const meta = $('[data-selected-date-meta]', form);
+      if (panel) panel.hidden = !dateLabel;
+      if (title) title.textContent = dateLabel ? `You’re inquiring about ${dateLabel}` : 'Date selected';
+      if (meta) meta.textContent = [time, status, type].filter(Boolean).join(' · ');
+      if (alert) alert.hidden = true;
+      if (options.scroll !== false) form.scrollIntoView({ behavior:'smooth', block:'start' });
+    }
+    function clearSelectedDate(){
+      ['selectedDate','selectedTime','selectedStatus','requestType'].forEach(name => setFieldValue(name, ''));
+      const preferred = form.elements.preferredDates;
+      if (preferred && preferred.dataset.autofilled === 'true') { preferred.value = ''; delete preferred.dataset.autofilled; }
+      const panel = $('[data-selected-date-panel]', form);
+      if (panel) panel.hidden = true;
+    }
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('date') || params.has('status')) {
+      applySelectedDate({ date: params.get('date') || '', time: params.get('time') || '', status: params.get('status') || '', type: params.get('type') || '' }, { scroll:false });
+    }
+    $('[data-clear-selected-date]', form)?.addEventListener('click', clearSelectedDate);
+    document.addEventListener('click', event => {
+      const trigger = event.target.closest('[data-inquire-date]');
+      if (!trigger) return;
+      event.preventDefault();
+      applySelectedDate({
+        date: trigger.getAttribute('data-inquire-date') || '',
+        time: trigger.getAttribute('data-inquire-time') || '',
+        status: trigger.getAttribute('data-inquire-status') || '',
+        type: trigger.getAttribute('data-inquire-type') || ''
+      });
+      history.replaceState(null, '', `${base}/booking/#booking-form`);
+    });
     form.addEventListener('input', event => { if (event.target.matches('input, select, textarea')) event.target.setCustomValidity(''); if (alert) alert.hidden = true; });
     form.addEventListener('submit', event => {
       event.preventDefault();
