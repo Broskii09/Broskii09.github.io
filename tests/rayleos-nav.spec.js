@@ -131,6 +131,10 @@ test('visit map links and about copy stay public-safe', async ({ page }) => {
   await page.goto('/RayLeos/about/');
   await expect(page.locator('main')).not.toContainText(/Derek/i);
   await expect(page.locator('main')).not.toContainText(/[“”"]/);
+  await expect(page.locator('main')).not.toContainText(/placeholder|site-builder|brochure voice|temporary about copy/i);
+  await expect(page.locator('main')).toContainText(/Big Ray|Raymond/i);
+  await expect(page.locator('main')).toContainText(/Leo/i);
+  await expect(page.locator('main')).toContainText(/original music/i);
   await expect(page.locator('main')).toContainText(/family roots/i);
   await expect(page.locator('main')).toContainText(/All ages unless noted per event/i);
 
