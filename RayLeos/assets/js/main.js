@@ -156,30 +156,63 @@
   }
   window.RayLeosCalendar = { parseCalendarTitle, normalizeStatus, publicAvailabilityStatus, inquiryTypeForStatus };
 
+  function showVisibility(event){
+    return normalizeClass(event.visibility || 'public');
+  }
+  function isPublicShow(event){
+    return normalizeStatus(event.status, event.calendarTitle || event.title) === 'confirmed' && showVisibility(event) === 'public';
+  }
+  function eventTime(event, key, legacyKey){
+    return event[key] || event[legacyKey] || '';
+  }
+  function eventAgePolicy(event){
+    return event.agePolicy || event.age || 'All ages unless noted';
+  }
+  function eventDetailUrl(event){
+    return event.ticketUrl || event.detailUrl || SITE.eventbriteUrl || SITE.facebookUrl || '#';
+  }
+  function eventDetailLabel(event){
+    if (event.ticketUrl) return event.ticketLabel || 'Tickets';
+    return event.detailLabel || event.ticketLabel || 'Event details';
+  }
+
   function showCard(event, compact = false){
     const title = event.title || parseCalendarTitle(event.calendarTitle || '').eventName || 'Show TBA';
-    const lineup = Array.isArray(event.lineup) && event.lineup.length ? `<div class="show-lineup">${event.lineup.map(escapeHTML).join(' • ')}</div>` : '';
-    const tags = (event.tags || []).slice(0,3).map(t => `<span class="pill teal">${escapeHTML(t)}</span>`).join('');
-    const url = event.ticketUrl || SITE.eventbriteUrl || SITE.facebookUrl || '#';
-    const label = event.ticketLabel || 'Details';
-    return `<article class="show-card reveal">
+    const lineupItems = Array.isArray(event.lineup) ? event.lineup.filter(Boolean) : [];
+    const supportItems = Array.isArray(event.support) ? event.support.filter(Boolean) : [];
+    const lineup = lineupItems.length ? `<div class="show-lineup">${lineupItems.map(escapeHTML).join(' &bull; ')}</div>` : '';
+    const support = compact && supportItems.length ? `<p class="show-support">With ${supportItems.slice(0, 3).map(escapeHTML).join(' &bull; ')}</p>` : '';
+    const tags = (event.tags || []).slice(0, 3).map(t => `<span class="pill teal">${escapeHTML(t)}</span>`).join('');
+    const doors = eventTime(event, 'doorsTime', 'doors');
+    const show = eventTime(event, 'showTime', 'show') || event.startTime;
+    const url = eventDetailUrl(event);
+    const label = eventDetailLabel(event);
+    const compactClass = compact ? ' show-card-compact' : '';
+    const statusEyebrow = compact ? '' : '<span class="eyebrow">Confirmed show</span>';
+    const description = compact ? '' : `<p class="show-desc">${escapeHTML(event.publicDescription || 'Check the latest listing for details.')}</p>`;
+    const tagLine = !compact && tags ? `<div class="show-tags" aria-label="Show tags">${tags}</div>` : '';
+    const meta = compact
+      ? `<div class="meta-line show-meta-compact"><span class="pill red">${escapeHTML(show ? `Show ${show}` : 'Time TBA')}</span></div>`
+      : `<div class="meta-line">
+          <span class="pill gold">${escapeHTML(doors ? `Doors ${doors}` : 'Doors TBA')}</span>
+          <span class="pill red">${escapeHTML(show ? `Show ${show}` : 'Time TBA')}</span>
+          <span class="pill">${escapeHTML(event.price || 'Check listing')}</span>
+          <span class="pill">${escapeHTML(eventAgePolicy(event))}</span>
+        </div>`;
+    return `<article class="show-card${compactClass} reveal">
       <div class="date-block" aria-label="${escapeAttr(formatDate(event.date))}">
-        <span class="month">${escapeHTML(formatDate(event.date,'month'))}</span>
-        <span class="day">${escapeHTML(formatDate(event.date,'day'))}</span>
-        <span class="weekday">${escapeHTML(formatDate(event.date,'weekday'))}</span>
+        <span class="month">${escapeHTML(formatDate(event.date, 'month'))}</span>
+        <span class="day">${escapeHTML(formatDate(event.date, 'day'))}</span>
+        <span class="weekday">${escapeHTML(formatDate(event.date, 'weekday'))}</span>
       </div>
       <div class="show-body">
-        <span class="eyebrow">${escapeHTML(event.status === 'confirmed' ? 'Confirmed show' : 'Live event')}</span>
+        ${statusEyebrow}
         <h3>${escapeHTML(title)}</h3>
-        <div class="meta-line">
-          <span class="pill gold">${escapeHTML(event.doors ? `Doors ${event.doors}` : 'Doors TBA')}</span>
-          <span class="pill red">${escapeHTML(event.show ? `Show ${event.show}` : event.startTime || 'Time TBA')}</span>
-          <span class="pill">${escapeHTML(event.price || 'Check listing')}</span>
-          <span class="pill">${escapeHTML(event.age || 'All ages unless noted')}</span>
-          ${tags}
-        </div>
         ${lineup}
-        <p class="show-desc">${escapeHTML(event.publicDescription || 'Check the latest listing for details.')}</p>
+        ${support}
+        ${meta}
+        ${description}
+        ${tagLine}
         <div class="button-row"><a class="btn btn-secondary" href="${escapeAttr(url)}">${escapeHTML(label)}</a></div>
       </div>
     </article>`;
@@ -191,9 +224,9 @@
     fetch(`${base}/assets/data/shows.json`, { cache:'no-cache' })
       .then(r => r.ok ? r.json() : Promise.reject(new Error('shows.json not found')))
       .then(items => {
-        const shows = items.filter(isFutureish).filter(e => normalizeStatus(e.status, e.calendarTitle || e.title) === 'confirmed' || e.status === 'confirmed').sort(sortByDate);
+        const shows = items.filter(isFutureish).filter(isPublicShow).sort(sortByDate);
         showTargets.forEach(t => { t.innerHTML = shows.length ? shows.map(e => showCard(e)).join('') : '<p>No public shows are listed yet. Check Facebook for the latest updates.</p>'; });
-        previewTargets.forEach(t => { t.innerHTML = shows.length ? shows.slice(0,6).map(e => showCard(e,true)).join('') : '<p>No public shows are listed yet. Check Facebook for the latest updates.</p>'; });
+        previewTargets.forEach(t => { t.innerHTML = shows.length ? shows.slice(0,4).map(e => showCard(e,true)).join('') : '<p>No public shows are listed yet. Check Facebook for the latest updates.</p>'; });
         showTargets.concat(previewTargets).forEach(enhanceExternalLinks);
         $$('.reveal').forEach(el => el.classList.add('is-visible'));
       })

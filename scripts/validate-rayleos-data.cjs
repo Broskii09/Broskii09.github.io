@@ -4,6 +4,7 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const allowedAvailabilityStatuses = new Set(['Available', 'Booked', 'Hold', 'Needs Support', 'Unavailable']);
 const publicShowStatuses = new Set(['confirmed']);
+const publicShowVisibilities = new Set(['public']);
 const privateTerms = [
   /guarantee/i,
   /door\s*split/i,
@@ -11,7 +12,8 @@ const privateTerms = [
   /staff(?:ing)?\s*notes?/i,
   /promoter\s*notes?/i,
   /internal\s*booking/i,
-  /private\s+calendar/i
+  /private\s+calendar/i,
+  /staff\s+only/i
 ];
 
 let failures = 0;
@@ -84,16 +86,20 @@ function validateShows(items) {
 
   items.forEach((item, index) => {
     const context = `shows[${index}]`;
-    ['title', 'status', 'date', 'startTime', 'endTime', 'lineup', 'publicDescription'].forEach(field => {
+    ['id', 'title', 'status', 'visibility', 'date', 'startTime', 'endTime', 'lineup', 'publicDescription'].forEach(field => {
       if (!(field in item)) fail(`${context}.${field} is required`);
     });
 
-    ['title', 'status', 'date', 'startTime', 'endTime', 'publicDescription'].forEach(field => {
+    ['id', 'title', 'status', 'visibility', 'date', 'startTime', 'endTime', 'publicDescription'].forEach(field => {
       if (!isNonEmptyString(item[field])) fail(`${context}.${field} must be a non-empty string`);
     });
 
     if (!publicShowStatuses.has(String(item.status || '').toLowerCase())) {
       fail(`${context}.status must be confirmed for public show data`);
+    }
+
+    if (!publicShowVisibilities.has(String(item.visibility || '').toLowerCase())) {
+      fail(`${context}.visibility must be public for public show data`);
     }
 
     if (!Array.isArray(item.lineup) || item.lineup.length === 0) {
@@ -105,7 +111,15 @@ function validateShows(items) {
     }
 
     if ('tags' in item && !Array.isArray(item.tags)) fail(`${context}.tags must be an array when present`);
-    if ('ticketUrl' in item && !/^https?:\/\//.test(String(item.ticketUrl))) fail(`${context}.ticketUrl must be an http(s) URL`);
+    if ('support' in item && !Array.isArray(item.support)) fail(`${context}.support must be an array when present`);
+    if ('source' in item && (!item.source || typeof item.source !== 'object' || Array.isArray(item.source))) fail(`${context}.source must be an object when present`);
+    if ('source' in item && item.source && !isNonEmptyString(item.source.type)) fail(`${context}.source.type must be a non-empty string when source is present`);
+    if ('ticketUrl' in item && item.ticketUrl && !/^https?:\/\//.test(String(item.ticketUrl))) fail(`${context}.ticketUrl must be an http(s) URL when present`);
+    if ('detailUrl' in item && item.detailUrl && !/^https?:\/\//.test(String(item.detailUrl))) fail(`${context}.detailUrl must be an http(s) URL when present`);
+    if ('posterImage' in item && typeof item.posterImage !== 'string') fail(`${context}.posterImage must be a string when present`);
+    if (!('doorsTime' in item) && !('doors' in item)) fail(`${context}.doorsTime is required`);
+    if (!('showTime' in item) && !('show' in item)) fail(`${context}.showTime is required`);
+    if (!('agePolicy' in item) && !('age' in item)) fail(`${context}.agePolicy is required`);
     validateDate(item.date, `${context}.date`);
     validateNoPrivateText(item, context);
   });

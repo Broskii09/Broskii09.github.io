@@ -15,6 +15,10 @@ test('homepage loads with Ray Leo content and core calls to action', async ({ pa
   await expect(page.getByRole('link', { name: /See Upcoming Shows/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Book the Stage/i })).toBeVisible();
   await expect(page.locator('[data-shows-preview]')).toBeVisible();
+  await expect(page.locator('[data-shows-preview] .show-card')).toHaveCount(4);
+  await expect(page.locator('[data-shows-preview] .show-card').first()).toHaveClass(/show-card-compact/);
+  await expect(page.locator('[data-shows-preview] .show-desc')).toHaveCount(0);
+  await expect(page.locator('[data-shows-preview] .show-tags')).toHaveCount(0);
   await expect(page.locator('.photo-stack .stack-img')).toHaveCount(3);
   await expect(page.locator('.photo-stack .stack-img').first()).toHaveAttribute('tabindex', '0');
   await expect(page.locator('body')).not.toContainText(/undefined|null|error loading/i);
