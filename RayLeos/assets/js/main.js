@@ -23,6 +23,59 @@
       }
     });
   }
+  function initPhotoPreview(){
+    const photos = $$('img[data-photo-preview]');
+    if (!photos.length) return;
+    let lastTrigger = null;
+    const modal = document.createElement('div');
+    modal.className = 'photo-lightbox';
+    modal.hidden = true;
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Photo preview');
+    modal.innerHTML = `<div class="photo-lightbox__panel" role="document">
+      <button class="photo-lightbox__close" type="button">Close</button>
+      <img class="photo-lightbox__image" alt="">
+      <p class="photo-lightbox__caption"></p>
+    </div>`;
+    document.body.appendChild(modal);
+    const closeBtn = $('.photo-lightbox__close', modal);
+    const previewImg = $('.photo-lightbox__image', modal);
+    const caption = $('.photo-lightbox__caption', modal);
+    function openPhoto(trigger){
+      lastTrigger = trigger;
+      const src = trigger.currentSrc || trigger.src;
+      const alt = trigger.getAttribute('alt') || 'Ray Leo’s photo';
+      previewImg.src = src;
+      previewImg.alt = alt;
+      caption.textContent = alt;
+      modal.hidden = false;
+      document.body.classList.add('photo-preview-open');
+      closeBtn.focus({ preventScroll:true });
+    }
+    function closePhoto(){
+      if (modal.hidden) return;
+      modal.hidden = true;
+      document.body.classList.remove('photo-preview-open');
+      previewImg.removeAttribute('src');
+      if (lastTrigger && document.contains(lastTrigger)) lastTrigger.focus({ preventScroll:true });
+    }
+    photos.forEach(photo => {
+      photo.classList.add('photo-preview-trigger');
+      photo.setAttribute('role', 'button');
+      photo.setAttribute('tabindex', '0');
+      photo.setAttribute('aria-label', `Preview photo: ${photo.getAttribute('alt') || 'Ray Leo’s photo'}`);
+      photo.addEventListener('click', () => openPhoto(photo));
+      photo.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        openPhoto(photo);
+      });
+    });
+    closeBtn.addEventListener('click', closePhoto);
+    modal.addEventListener('click', event => { if (event.target === modal) closePhoto(); });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') closePhoto(); });
+  }
 
   // Dynamic config links/text
   $$('[data-booking-email]').forEach(el => { el.textContent = BOOKING_EMAIL; el.href = `mailto:${BOOKING_EMAIL}`; });
@@ -30,6 +83,7 @@
   $$('[data-config-text]').forEach(el => { const key = el.getAttribute('data-config-text'); if (SITE[key]) el.textContent = SITE[key]; });
   $$('[data-menu-embed]').forEach(el => { if (SITE.menuPdfEmbedUrl) el.src = SITE.menuPdfEmbedUrl; });
   enhanceExternalLinks();
+  initPhotoPreview();
 
   // Mobile nav
   const toggle = $('[data-menu-toggle]');
