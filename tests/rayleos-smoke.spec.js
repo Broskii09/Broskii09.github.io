@@ -1,6 +1,15 @@
 const { test, expect } = require('@playwright/test');
 const { installConsoleErrorGuard } = require('./rayleos-test-utils.cjs');
 
+const heroPages = [
+  { path: '/RayLeos/', image: '/RayLeos/assets/img/hero-stage.jpg', focal: 'center 35%' },
+  { path: '/RayLeos/shows/', image: '/RayLeos/assets/img/venue-stage.jpg', focal: 'center 40%' },
+  { path: '/RayLeos/food-bar/', image: '/RayLeos/assets/img/venue-bar.jpg', focal: 'center 45%' },
+  { path: '/RayLeos/booking/', image: '/RayLeos/assets/img/venue-exterior.jpg', focal: 'center 45%' },
+  { path: '/RayLeos/visit/', image: '/RayLeos/assets/img/placeholders/map-placeholder.svg', focal: 'center center' },
+  { path: '/RayLeos/about/', image: '/RayLeos/assets/img/placeholders/about-room.svg', focal: 'center center' }
+];
+
 test('homepage loads with Ray Leo content and core calls to action', async ({ page }) => {
   const consoleErrors = installConsoleErrorGuard(page);
   const pageErrors = [];
@@ -19,9 +28,11 @@ test('homepage loads with Ray Leo content and core calls to action', async ({ pa
   await expect(page.locator('[data-shows-preview] .show-card').first()).toHaveClass(/show-card-compact/);
   await expect(page.locator('[data-shows-preview] .show-desc')).toHaveCount(0);
   await expect(page.locator('[data-shows-preview] .show-tags')).toHaveCount(0);
+  await expect(page.locator('.hero.hero--parallax[data-parallax-hero]')).toHaveCSS('background-color', /rgb/);
+  await expect(page.locator('.hero.hero--parallax')).toHaveAttribute('style', /\/RayLeos\/assets\/img\/hero-stage\.jpg/);
   await expect(page.locator('.photo-stack .stack-img')).toHaveCount(3);
   await expect(page.locator('.photo-stack .stack-img').first()).toHaveAttribute('tabindex', '0');
-  await expect(page.locator('img[src="/RayLeos/assets/img/hero-stage.jpg"]')).toBeVisible();
+  await expect(page.locator('.hero img[src="/RayLeos/assets/img/hero-stage.jpg"]')).toHaveCount(0);
   await expect(page.locator('.photo-stack img[src="/RayLeos/assets/img/venue-stage.jpg"]')).toBeVisible();
   await expect(page.locator('.photo-stack img[src="/RayLeos/assets/img/venue-bar.jpg"]')).toBeVisible();
   await expect(page.locator('.photo-stack img[src="/RayLeos/assets/img/venue-exterior.jpg"]')).toBeVisible();
@@ -30,6 +41,24 @@ test('homepage loads with Ray Leo content and core calls to action', async ({ pa
   await expect(page.locator('body')).not.toContainText(/undefined|null|error loading/i);
   expect(consoleErrors).toEqual([]);
   expect(pageErrors).toEqual([]);
+});
+
+test('public page heroes use CSS background parallax sources', async ({ page }) => {
+  const consoleErrors = installConsoleErrorGuard(page, {
+    ignorePatterns: [/Failed to load resource: the server responded with a status of 403/i]
+  });
+
+  for (const heroPage of heroPages) {
+    await page.goto(heroPage.path);
+    const hero = page.locator('[data-parallax-hero]').first();
+    await expect(hero).toBeVisible();
+    await expect(hero).toHaveClass(/hero--parallax/);
+    await expect(hero).toHaveAttribute('style', new RegExp(heroPage.image.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    await expect(hero).toHaveAttribute('style', new RegExp(heroPage.focal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    await expect(hero.locator('img')).toHaveCount(heroPage.path === '/RayLeos/' ? 1 : 0);
+  }
+
+  expect(consoleErrors).toEqual([]);
 });
 
 test('home photo cards render on mobile without hover-dependent behavior', async ({ page }) => {
@@ -52,15 +81,16 @@ test('real photos open in an accessible preview and logo images do not', async (
 
   await page.goto('/RayLeos/');
 
-  await expect(page.locator('img[data-photo-preview]')).toHaveCount(4);
+  await expect(page.locator('img[data-photo-preview]')).toHaveCount(3);
   await expect(page.locator('.hero-logo[data-photo-preview]')).toHaveCount(0);
   await expect(page.locator('.brand-mark img[data-photo-preview]')).toHaveCount(0);
+  await expect(page.locator('.hero img[data-photo-preview]')).toHaveCount(0);
 
   await page.locator('img[data-photo-preview]').first().click();
   const dialog = page.getByRole('dialog', { name: /photo preview/i });
   await expect(dialog).toBeVisible();
-  await expect(dialog.locator('.photo-lightbox__image')).toHaveAttribute('src', /\/RayLeos\/assets\/img\/hero-stage\.jpg$/);
-  await expect(dialog.locator('.photo-lightbox__caption')).toContainText(/Live music at Ray Leo/i);
+  await expect(dialog.locator('.photo-lightbox__image')).toHaveAttribute('src', /\/RayLeos\/assets\/img\/venue-stage\.jpg$/);
+  await expect(dialog.locator('.photo-lightbox__caption')).toContainText(/Ray Leo.*stage/i);
 
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();

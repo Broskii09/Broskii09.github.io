@@ -76,6 +76,47 @@
     modal.addEventListener('click', event => { if (event.target === modal) closePhoto(); });
     document.addEventListener('keydown', event => { if (event.key === 'Escape') closePhoto(); });
   }
+  function initHeroParallax(){
+    const heroes = $$('[data-parallax-hero]');
+    if (!heroes.length) return;
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const enabled = SITE.enableHeroParallax !== false && !reducedMotion;
+    let ticking = false;
+
+    function clamp(value, min, max){
+      return Math.min(Math.max(value, min), max);
+    }
+    function getSpeed(hero){
+      const inlineSpeed = Number(hero.dataset.parallaxSpeed);
+      if (Number.isFinite(inlineSpeed) && inlineSpeed > 0) return inlineSpeed;
+      const cssSpeed = Number(window.getComputedStyle(hero).getPropertyValue('--hero-parallax-speed'));
+      return Number.isFinite(cssSpeed) && cssSpeed > 0 ? cssSpeed : 0.75;
+    }
+    function update(){
+      const vh = window.innerHeight || 1;
+      heroes.forEach(hero => {
+        if (!enabled) {
+          hero.style.setProperty('--hero-parallax-y', '0px');
+          return;
+        }
+        const rect = hero.getBoundingClientRect();
+        const progress = ((rect.top + rect.height / 2) - vh / 2) / vh;
+        const y = clamp(progress * -120 * getSpeed(hero), -120, 120);
+        hero.style.setProperty('--hero-parallax-y', `${y.toFixed(1)}px`);
+      });
+      ticking = false;
+    }
+    function requestUpdate(){
+      if (!ticking) {
+        window.requestAnimationFrame(update);
+        ticking = true;
+      }
+    }
+    window.addEventListener('scroll', requestUpdate, { passive:true });
+    window.addEventListener('resize', requestUpdate);
+    requestUpdate();
+  }
 
   // Dynamic config links/text
   $$('[data-booking-email]').forEach(el => { el.textContent = BOOKING_EMAIL; el.href = `mailto:${BOOKING_EMAIL}`; });
@@ -84,6 +125,7 @@
   $$('[data-menu-embed]').forEach(el => { if (SITE.menuPdfEmbedUrl) el.src = SITE.menuPdfEmbedUrl; });
   enhanceExternalLinks();
   initPhotoPreview();
+  initHeroParallax();
 
   // Mobile nav
   const toggle = $('[data-menu-toggle]');
