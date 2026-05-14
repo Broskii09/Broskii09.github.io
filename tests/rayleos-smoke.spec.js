@@ -55,6 +55,22 @@ test('public page heroes use CSS background parallax sources', async ({ page }) 
     await expect(hero).toHaveClass(/hero--parallax/);
     await expect(hero).toHaveAttribute('style', new RegExp(heroPage.image.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     await expect(hero).toHaveAttribute('style', new RegExp(heroPage.focal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    const heroLayer = await hero.evaluate(el => {
+      const imageLayer = window.getComputedStyle(el, '::before');
+      const overlayLayer = window.getComputedStyle(el, '::after');
+      return {
+        image: imageLayer.backgroundImage,
+        imageContent: imageLayer.content,
+        imageZ: imageLayer.zIndex,
+        overlayZ: overlayLayer.zIndex,
+        contentZ: window.getComputedStyle(el.querySelector('.hero-grid, .page-hero-grid')).zIndex
+      };
+    });
+    expect(heroLayer.image).toContain(heroPage.image.split('/').pop());
+    expect(heroLayer.imageContent).not.toBe('none');
+    expect(heroLayer.imageZ).toBe('0');
+    expect(heroLayer.overlayZ).toBe('1');
+    expect(heroLayer.contentZ).toBe('2');
     await expect(hero.locator('img')).toHaveCount(heroPage.path === '/RayLeos/' ? 1 : 0);
   }
 
