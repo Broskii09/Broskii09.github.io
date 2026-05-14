@@ -44,10 +44,16 @@ test('booking page renders availability, autofills inquiry context, validates, a
   await page.locator('#contactName').fill('Jordan Test');
   await page.locator('#email').fill('booking@example.com');
   await page.locator('#hometown').fill('Evansville, IN');
-  await page.locator('#genre').fill('Indie rock');
+  await page.locator('#genre').selectOption({ label: 'Indie / Alternative' });
+  await page.locator('#styleNotes').fill('Melodic indie rock with garage pop hooks.');
+  await page.locator('#members').selectOption({ label: '4-piece' });
+  await page.locator('#setLength').selectOption({ label: '45 minutes' });
   await page.locator('#musicLinks').fill('https://example.com/music');
+  await page.locator('#epkStatus').selectOption({ label: 'I have an EPK / press kit link' });
   await page.locator('#epk').fill('https://example.com/epk');
   await page.locator('#preferredDates').fill(`Autofilled inquiry date: ${inquiryDate}`);
+  await page.locator('#expectedDraw').selectOption({ label: '50–75' });
+  await page.locator('#drawNotes').fill('Stronger draw with local support.');
 
   await page.getByRole('button', { name: /Generate Booking Request/i }).click();
 
@@ -57,8 +63,15 @@ test('booking page renders availability, autofills inquiry context, validates, a
   await expect(summary).toHaveValue(/The Test Signals/);
   await expect(summary).toHaveValue(/Selected Date:/);
   await expect(summary).toHaveValue(new RegExp(`Availability Status: ${inquiryStatus}`));
+  await expect(summary).toHaveValue(/Genre \/ Style: Indie \/ Alternative/);
+  await expect(summary).toHaveValue(/Style Notes: Melodic indie rock with garage pop hooks\./);
+  await expect(summary).toHaveValue(/Members: 4-piece/);
+  await expect(summary).toHaveValue(/Set Length: 45 minutes/);
   await expect(summary).toHaveValue(/Music Links: https:\/\/example\.com\/music/);
+  await expect(summary).toHaveValue(/EPK Status: I have an EPK \/ press kit link/);
   await expect(summary).toHaveValue(/EPK Link: https:\/\/example\.com\/epk/);
+  await expect(summary).toHaveValue(/Expected Draw: 50–75/);
+  await expect(summary).toHaveValue(/Draw Notes: Stronger draw with local support\./);
   await expect(summary).toHaveValue(/Send to:/);
 
   const emailLink = page.locator('[data-open-email]');
@@ -100,7 +113,6 @@ test('booking validation shows accessible field errors and clears them on edit',
 
   const email = page.locator('#email');
   const phone = page.locator('#phone');
-  const members = page.locator('#members');
   const website = page.locator('#website');
   const musicLinks = page.locator('#musicLinks');
   const epk = page.locator('#epk');
@@ -120,10 +132,11 @@ test('booking validation shows accessible field errors and clears them on edit',
   await expect(page.locator('#artistName-error')).toContainText(/Enter the artist or band name so we know who the request is for/i);
   await expect(page.locator('#contactName-error')).toContainText(/Enter a contact name so we know who to follow up with/i);
   await expect(page.locator('#hometown-error')).toContainText(/Enter the city, region, or market you’re based in/i);
-  await expect(page.locator('#genre-error')).toContainText(/Enter a short description of the sound, style, or genre/i);
+  await expect(page.locator('#genre-error')).toContainText(/Choose the main style that best fits the act/i);
   await expect(page.locator('#musicLinks-error')).toContainText(/Add at least one full link to music, video, or a social page, including https:\/\//i);
-  await expect(page.locator('#epk-error')).toContainText(/Add your EPK or best available artist link, including https:\/\//i);
+  await expect(page.locator('#epkStatus-error')).toContainText(/Choose the option that best describes your EPK or press kit/i);
   await expect(page.locator('#preferredDates-error')).toContainText(/Tell us what date, dates, or routing window you’re asking about/i);
+  await expect(page.locator('#expectedDraw-error')).toContainText(/Choose the closest expected draw range/i);
   await expect(page.locator('#hometown-error')).not.toContainText(/who to contact/i);
   await expect(page.locator('#genre-error')).not.toContainText(/who to contact/i);
   await expect(page.locator('#preferredDates-error')).not.toContainText(/who to contact/i);
@@ -134,32 +147,34 @@ test('booking validation shows accessible field errors and clears them on edit',
   await email.fill('not-an-email');
   await phone.fill('812-401');
   await page.locator('#hometown').fill('Evansville, IN');
-  await page.locator('#genre').fill('Garage rock');
-  await members.fill('0');
+  await page.locator('#genre').selectOption({ label: 'Punk / Hardcore' });
+  await page.locator('#styleNotes').fill('Fast punk with noisy garage rock edges.');
+  await page.locator('#members').selectOption({ label: '4-piece' });
+  await page.locator('#setLength').selectOption({ label: '30 minutes' });
   await website.fill('example.com');
   await musicLinks.fill('not a link');
+  await page.locator('#epkStatus').selectOption({ label: 'I have an EPK / press kit link' });
   await epk.fill('ftp://example.com/epk');
   await page.locator('#preferredDates').fill('Next available Friday');
+  await page.locator('#expectedDraw').selectOption({ label: 'Depends on bill/support' });
+  await page.locator('#drawNotes').fill('Newer act locally, but can help promote with the right bill.');
 
   await page.getByRole('button', { name: /Generate Booking Request/i }).click();
   await expect(email).toHaveAttribute('aria-invalid', 'true');
   await expect(page.locator('#email-error')).toContainText(/Enter a valid email address, like booking@example.com/i);
   await expect(phone).toHaveAttribute('aria-invalid', 'true');
   await expect(page.locator('#phone-error')).toContainText(/Enter a phone number with at least 10 digits/i);
-  await expect(members).toHaveAttribute('aria-invalid', 'true');
-  await expect(page.locator('#members-error')).toContainText(/Enter a whole number, like 4/i);
   await expect(website).toHaveAttribute('aria-invalid', 'true');
   await expect(page.locator('#website-error')).toContainText(/Enter a full website link, including https:\/\//i);
   await expect(musicLinks).toHaveAttribute('aria-invalid', 'true');
   await expect(page.locator('#musicLinks-error')).toContainText(/Add at least one full link to music, video, or a social page, including https:\/\//i);
   await expect(epk).toHaveAttribute('aria-invalid', 'true');
-  await expect(page.locator('#epk-error')).toContainText(/Add your EPK or best available artist link, including https:\/\//i);
+  await expect(page.locator('#epk-error')).toContainText(/Add your EPK link, including https:\/\//i);
 
   await email.fill('booking@example.com');
   await expect(email).not.toHaveAttribute('aria-invalid', 'true');
   await expect(page.locator('#email-error')).toBeHidden();
   await phone.fill('+1 812 401 1126');
-  await members.fill('4');
   await website.fill('https://example.com');
   await musicLinks.fill('https://example.com/music');
   await epk.fill('https://example.com/epk');
@@ -167,7 +182,37 @@ test('booking validation shows accessible field errors and clears them on edit',
   await page.getByRole('button', { name: /Generate Booking Request/i }).click();
   await expect(page.locator('[data-booking-output]')).toBeVisible();
   await expect(page.locator('[data-booking-summary]')).toHaveValue(/The Validation Tests/);
+  await expect(page.locator('[data-booking-summary]')).toHaveValue(/EPK Status: I have an EPK \/ press kit link/);
+  await expect(page.locator('[data-booking-summary]')).toHaveValue(/Expected Draw: Depends on bill\/support/);
   await expect(page.locator('[data-open-email]')).toHaveAttribute('href', /^mailto:/);
+  expect(consoleErrors).toEqual([]);
+});
+
+test('booking form allows honest local-band EPK status without an EPK link', async ({ page }) => {
+  const consoleErrors = installConsoleErrorGuard(page);
+  await page.goto('/RayLeos/booking/');
+
+  await page.locator('#artistName').fill('The No EPK Locals');
+  await page.locator('#contactName').fill('Taylor Local');
+  await page.locator('#email').fill('local@example.com');
+  await page.locator('#hometown').fill('Evansville, IN');
+  await page.locator('#genre').selectOption({ label: 'Other / describe below' });
+  await page.locator('#styleNotes').fill('Original local rock with punk and country edges.');
+  await page.locator('#musicLinks').fill('https://example.com/no-epk-locals/music');
+  await page.locator('#epkStatus').selectOption({ label: 'I don’t have a full EPK yet' });
+  await expect(page.locator('[data-epk-status-note]')).toBeVisible();
+  await page.locator('#preferredDates').fill('Any Friday in June.');
+  await page.locator('#expectedDraw').selectOption({ label: 'Not sure' });
+  await page.locator('#drawNotes').fill('First time playing this room; will promote locally.');
+
+  await page.getByRole('button', { name: /Generate Booking Request/i }).click();
+
+  const summary = page.locator('[data-booking-summary]');
+  await expect(page.locator('[data-booking-output]')).toBeVisible();
+  await expect(summary).toHaveValue(/The No EPK Locals/);
+  await expect(summary).toHaveValue(/EPK Status: I don’t have a full EPK yet/);
+  await expect(summary).not.toHaveValue(/EPK Link:/);
+  await expect(summary).toHaveValue(/Expected Draw: Not sure/);
   expect(consoleErrors).toEqual([]);
 });
 

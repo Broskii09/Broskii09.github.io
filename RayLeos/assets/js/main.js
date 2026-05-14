@@ -358,38 +358,36 @@
   }
 
   // Booking form validation and copyable email request.
-  const bookingValidationNames = ['artistName','contactName','email','phone','hometown','genre','members','website','instagram','facebook','musicLinks','liveVideo','epk','admat','promoPhotos','stagePlot','inputList','preferredDates'];
-const bookingErrorMessages = {
-  required: 'This field is required.',
-  email: 'Enter a valid email address, like booking@example.com.',
-  phone: 'Enter a phone number with at least 10 digits.',
-  url: 'Enter a full link, including https://.',
-  members: 'Enter a whole number, like 4.'
-};
-
-const bookingRequiredMessages = {
-  artistName: 'Enter the artist or band name so we know who the request is for.',
-  contactName: 'Enter a contact name so we know who to follow up with.',
-  email: 'Enter a valid email address, like booking@example.com.',
-  hometown: 'Enter the city, region, or market you’re based in.',
-  genre: 'Enter a short description of the sound, style, or genre.',
-  musicLinks: 'Add at least one full link to music, video, or a social page, including https://.',
-  epk: 'Add your EPK or best available artist link, including https://.',
-  preferredDates: 'Tell us what date, dates, or routing window you’re asking about.'
-};
-
-const bookingUrlMessages = {
-  website: 'Enter a full website link, including https://.',
-  instagram: 'Enter a full Instagram link, including https://.',
-  facebook: 'Enter a full Facebook link, including https://.',
-  musicLinks: 'Add at least one full link to music, video, or a social page, including https://.',
-  liveVideo: 'Enter a full video link, including https://.',
-  epk: 'Add your EPK or best available artist link, including https://.',
-  admat: 'Enter a full link to the ad mat, poster, or promo folder, including https://.',
-  promoPhotos: 'Enter a full link to promo photos or a media folder, including https://.',
-  stagePlot: 'Enter a full link to the stage plot, including https://.',
-  inputList: 'Enter a full link to the input list, including https://.'
-};
+  const bookingValidationNames = ['artistName','contactName','email','phone','hometown','genre','styleNotes','members','website','instagram','facebook','musicLinks','liveVideo','epkStatus','epk','admat','promoPhotos','stagePlot','inputList','preferredDates','expectedDraw','drawNotes'];
+  const bookingErrorMessages = {
+    required: 'This field is required.',
+    email: 'Enter a valid email address, like booking@example.com.',
+    phone: 'Enter a phone number with at least 10 digits.',
+    url: 'Enter a full link, including https://.'
+  };
+  const bookingRequiredMessages = {
+    artistName: 'Enter the artist or band name so we know who the request is for.',
+    contactName: 'Enter a contact name so we know who to follow up with.',
+    email: 'Enter a valid email address, like booking@example.com.',
+    hometown: 'Enter the city, region, or market you’re based in.',
+    genre: 'Choose the main style that best fits the act.',
+    musicLinks: 'Add at least one full link to music, video, or a social page, including https://.',
+    epkStatus: 'Choose the option that best describes your EPK or press kit.',
+    preferredDates: 'Tell us what date, dates, or routing window you’re asking about.',
+    expectedDraw: 'Choose the closest expected draw range, or select Not sure / New to the market / Depends on bill/support.'
+  };
+  const bookingUrlMessages = {
+    website: 'Enter a full website link, including https://.',
+    instagram: 'Enter a full Instagram link, including https://.',
+    facebook: 'Enter a full Facebook link, including https://.',
+    musicLinks: 'Add at least one full link to music, video, or a social page, including https://.',
+    liveVideo: 'Enter a full video link, including https://.',
+    epk: 'Add your EPK link, including https://.',
+    admat: 'Enter a full link to the ad mat, poster, or promo folder, including https://.',
+    promoPhotos: 'Enter a full link to promo photos or a media folder, including https://.',
+    stagePlot: 'Enter a full link to the stage plot, including https://.',
+    inputList: 'Enter a full link to the input list, including https://.'
+  };
   function fieldLabel(field){
     const label = field.id ? $(`label[for="${field.id}"]`) : null;
     return (label?.textContent || field.name || 'Field').replace(/\s*\*+\s*$/, '').trim();
@@ -422,34 +420,38 @@ const bookingUrlMessages = {
       field.setAttribute('aria-describedby', Array.from(describedBy).join(' '));
     });
   }
-function validationMessageFor(field){
-  const value = String(field.value || '').trim();
-  const name = field.name || field.id || '';
+  function validationMessageFor(field){
+    const value = String(field.value || '').trim();
+    const name = field.name || field.id || '';
+    const form = field.form;
 
-  if (field.required && !value) {
-    return bookingRequiredMessages[name] || bookingErrorMessages.required;
+    if (name === 'epk') {
+      const epkStatus = String(form?.elements.epkStatus?.value || '').trim();
+      if (epkStatus === 'I have an EPK / press kit link' && !value) {
+        return 'Add your EPK link, or change EPK status if you do not have one yet.';
+      }
+    }
+
+    if (field.required && !value) {
+      return bookingRequiredMessages[name] || bookingErrorMessages.required;
+    }
+
+    if (!value) return '';
+
+    if (field.type === 'email' && !field.validity.valid) {
+      return bookingErrorMessages.email;
+    }
+
+    if (field.type === 'url' && !isFullHttpUrl(value)) {
+      return bookingUrlMessages[name] || bookingErrorMessages.url;
+    }
+
+    if (name === 'phone' && value.replace(/\D/g, '').length < 10) {
+      return bookingErrorMessages.phone;
+    }
+
+    return '';
   }
-
-  if (!value) return '';
-
-  if (field.type === 'email' && !field.validity.valid) {
-    return bookingErrorMessages.email;
-  }
-
-  if (field.type === 'url' && !isFullHttpUrl(value)) {
-    return bookingUrlMessages[name] || bookingErrorMessages.url;
-  }
-
-  if (name === 'phone' && value.replace(/\D/g, '').length < 10) {
-    return bookingErrorMessages.phone;
-  }
-
-  if (name === 'members' && !/^[1-9]\d*$/.test(value)) {
-    return bookingErrorMessages.members;
-  }
-
-  return '';
-}
   function setFieldError(field, message){
     const error = field.id ? $(`#${field.id}-error`) : null;
     field.setCustomValidity(message || '');
@@ -496,8 +498,8 @@ function validationMessageFor(field){
     const data = new FormData(form);
     const artist = String(data.get('artistName') || 'Band Booking Request').trim();
     const subject = `Ray Leo’s Booking Request - ${artist}`;
-    const order = ['selectedDate','selectedTime','selectedStatus','requestType','artistName','contactName','email','phone','hometown','genre','members','setLength','website','instagram','facebook','musicLinks','liveVideo','epk','admat','promoPhotos','stagePlot','inputList','preferredDates','routing','supportNeeds','expectedDraw','agePolicy','previousShows','dealExpectations','loadIn','merch','lodging','techNotes','notes'];
-    const labels = { selectedDate:'Selected Date', selectedTime:'Selected Time Block', selectedStatus:'Availability Status', requestType:'Request Type', artistName:'Artist/Band', contactName:'Contact', email:'Email', phone:'Phone', hometown:'Hometown / Market', genre:'Genre / Style', members:'Members', setLength:'Set Length', website:'Website', instagram:'Instagram', facebook:'Facebook', musicLinks:'Music Links', liveVideo:'Live Video', epk:'EPK Link', admat:'Ad Mat / Poster Assets', promoPhotos:'Promo Photos', stagePlot:'Stage Plot', inputList:'Input List', preferredDates:'Preferred Dates', routing:'Routing Context', supportNeeds:'Support / Bill Needs', expectedDraw:'Expected Draw', agePolicy:'All-Ages OK?', previousShows:'Previous Regional Shows', dealExpectations:'Compensation Expectations', loadIn:'Load-in Needs', merch:'Merch Needs', lodging:'Lodging Needs', techNotes:'Tech Notes', notes:'Additional Notes' };
+    const order = ['selectedDate','selectedTime','selectedStatus','requestType','artistName','contactName','email','phone','hometown','genre','styleNotes','members','setLength','website','instagram','facebook','musicLinks','liveVideo','epkStatus','epk','admat','promoPhotos','stagePlot','inputList','preferredDates','routing','supportNeeds','expectedDraw','drawNotes','agePolicy','previousShows','dealExpectations','loadIn','merch','lodging','techNotes','notes'];
+    const labels = { selectedDate:'Selected Date', selectedTime:'Selected Time Block', selectedStatus:'Availability Status', requestType:'Request Type', artistName:'Artist/Band', contactName:'Contact', email:'Email', phone:'Phone', hometown:'Hometown / Market', genre:'Genre / Style', styleNotes:'Style Notes', members:'Members', setLength:'Set Length', website:'Website', instagram:'Instagram', facebook:'Facebook', musicLinks:'Music Links', liveVideo:'Live Video', epkStatus:'EPK Status', epk:'EPK Link', admat:'Ad Mat / Poster Assets', promoPhotos:'Promo Photos', stagePlot:'Stage Plot', inputList:'Input List', preferredDates:'Preferred Dates', routing:'Routing Context', supportNeeds:'Support / Bill Needs', expectedDraw:'Expected Draw', drawNotes:'Draw Notes', agePolicy:'All-Ages OK?', previousShows:'Previous Regional Shows', dealExpectations:'Compensation Expectations', loadIn:'Load-in Needs', merch:'Merch Needs', lodging:'Lodging Needs', techNotes:'Tech Notes', notes:'Additional Notes' };
     const lines = ['New booking request submitted from Ray Leo’s at Lamasco website test form.','',`Send to: ${BOOKING_EMAIL}`,'','NOTE: This static GitHub Pages form generates a copyable request. It is not submitted until emailed.',''];
     order.forEach(key => { const val = String(data.get(key) || '').trim(); if (val) lines.push(`${labels[key] || key}: ${val}`); });
     const body = lines.join('\n');
@@ -521,6 +523,20 @@ function validationMessageFor(field){
     const alert = $('[data-form-alert]', form);
     let latest = null;
     ensureFieldErrors(form);
+    const epkStatus = form.elements.epkStatus;
+    const epkField = form.elements.epk;
+    const epkStatusNote = $('[data-epk-status-note]', form);
+
+    function updateEpkRequirement(){
+      if (!epkStatus || !epkField) return;
+      const hasEpk = epkStatus.value === 'I have an EPK / press kit link';
+      epkField.required = hasEpk;
+      if (epkStatusNote) epkStatusNote.hidden = hasEpk || !epkStatus.value;
+      clearFieldError(epkField);
+    }
+
+    epkStatus?.addEventListener('change', updateEpkRequirement);
+    updateEpkRequirement();
     function setFieldValue(name, value){
       const field = form.elements[name];
       if (!field) return;
@@ -601,6 +617,11 @@ function validationMessageFor(field){
     });
     form.addEventListener('input', event => {
       if (event.target.matches('input, select, textarea')) clearFieldError(event.target);
+      hideFormAlert(alert);
+    });
+    form.addEventListener('change', event => {
+      if (event.target.matches('input, select, textarea')) clearFieldError(event.target);
+      if (event.target === epkStatus) updateEpkRequirement();
       hideFormAlert(alert);
     });
     form.addEventListener('submit', event => {
