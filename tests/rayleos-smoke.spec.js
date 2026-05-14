@@ -30,6 +30,7 @@ test('homepage loads with Ray Leo content and core calls to action', async ({ pa
   await expect(page.locator('[data-shows-preview] .show-tags')).toHaveCount(0);
   await expect(page.locator('.hero.hero--parallax[data-parallax-hero]')).toHaveCSS('background-color', /rgb/);
   await expect(page.locator('.hero.hero--parallax')).toHaveAttribute('style', /\/RayLeos\/assets\/img\/hero-home-exterior\.jpg/);
+  await expect(page.locator('.hero.hero--parallax > .hero__bg[aria-hidden="true"]')).toHaveCount(1);
   await expect(page.locator('.photo-stack .stack-img')).toHaveCount(3);
   await expect(page.locator('.photo-stack .stack-img').first()).toHaveAttribute('tabindex', '0');
   await expect(page.locator('.hero img[src="/RayLeos/assets/img/hero-home-exterior.jpg"]')).toHaveCount(0);
@@ -55,19 +56,23 @@ test('public page heroes use CSS background parallax sources', async ({ page }) 
     await expect(hero).toHaveClass(/hero--parallax/);
     await expect(hero).toHaveAttribute('style', new RegExp(heroPage.image.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     await expect(hero).toHaveAttribute('style', new RegExp(heroPage.focal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    const bg = hero.locator(':scope > .hero__bg[aria-hidden="true"]');
+    await expect(bg).toHaveCount(1);
     const heroLayer = await hero.evaluate(el => {
-      const imageLayer = window.getComputedStyle(el, '::before');
+      const imageLayer = window.getComputedStyle(el.querySelector('.hero__bg'));
       const overlayLayer = window.getComputedStyle(el, '::after');
       return {
         image: imageLayer.backgroundImage,
-        imageContent: imageLayer.content,
+        imageDisplay: imageLayer.display,
+        imageOpacity: imageLayer.opacity,
         imageZ: imageLayer.zIndex,
         overlayZ: overlayLayer.zIndex,
         contentZ: window.getComputedStyle(el.querySelector('.hero-grid, .page-hero-grid')).zIndex
       };
     });
     expect(heroLayer.image).toContain(heroPage.image.split('/').pop());
-    expect(heroLayer.imageContent).not.toBe('none');
+    expect(heroLayer.imageDisplay).not.toBe('none');
+    expect(heroLayer.imageOpacity).toBe('1');
     expect(heroLayer.imageZ).toBe('0');
     expect(heroLayer.overlayZ).toBe('1');
     expect(heroLayer.contentZ).toBe('2');

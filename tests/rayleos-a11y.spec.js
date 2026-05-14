@@ -15,7 +15,10 @@ for (const pageInfo of pages) {
   test(`${pageInfo.name} has no serious automated accessibility violations`, async ({ page }) => {
     const consoleErrors = installConsoleErrorGuard(page, {
       ignorePatterns: pageInfo.name === 'Food & Bar'
-        ? [/Failed to load resource: the server responded with a status of 403/i]
+        ? [
+          /Failed to load resource: the server responded with a status of 403/i,
+          /Framing 'https:\/\/drive\.google\.com\/' violates the following report-only Content Security Policy directive/i
+        ]
         : []
     });
     await page.goto(pageInfo.path);
