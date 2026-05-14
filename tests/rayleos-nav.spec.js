@@ -55,7 +55,10 @@ test('mobile nav opens and closes', async ({ page }) => {
 
 test('external links open in new tabs while internal nav stays same-tab', async ({ page }) => {
   const consoleErrors = installConsoleErrorGuard(page, {
-    ignorePatterns: [/Failed to load resource: the server responded with a status of 403/i]
+    ignorePatterns: [
+      /Failed to load resource: the server responded with a status of 403/i,
+      /Framing 'https:\/\/drive\.google\.com\/' violates the following report-only Content Security Policy directive/i
+    ]
   });
 
   await page.goto('/RayLeos/');

@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 const { installConsoleErrorGuard } = require('./rayleos-test-utils.cjs');
 
 const heroPages = [
-  { path: '/RayLeos/', image: '/RayLeos/assets/img/hero-homeExterior.jpg', focal: 'center 52%' },
+  { path: '/RayLeos/', image: '/RayLeos/assets/img/hero-home-exterior.jpg', focal: 'center 52%' },
   { path: '/RayLeos/shows/', image: '/RayLeos/assets/img/venue-stage.jpg', focal: '42% 45%' },
   { path: '/RayLeos/food-bar/', image: '/RayLeos/assets/img/venue-bar.jpg', focal: '62% 48%' },
   { path: '/RayLeos/booking/', image: '/RayLeos/assets/img/venue-exterior.jpg', focal: '58% 56%' },
@@ -29,10 +29,10 @@ test('homepage loads with Ray Leo content and core calls to action', async ({ pa
   await expect(page.locator('[data-shows-preview] .show-desc')).toHaveCount(0);
   await expect(page.locator('[data-shows-preview] .show-tags')).toHaveCount(0);
   await expect(page.locator('.hero.hero--parallax[data-parallax-hero]')).toHaveCSS('background-color', /rgb/);
-  await expect(page.locator('.hero.hero--parallax')).toHaveAttribute('style', /\/RayLeos\/assets\/img\/hero-homeExterior\.jpg/);
+  await expect(page.locator('.hero.hero--parallax')).toHaveAttribute('style', /\/RayLeos\/assets\/img\/hero-home-exterior\.jpg/);
   await expect(page.locator('.photo-stack .stack-img')).toHaveCount(3);
   await expect(page.locator('.photo-stack .stack-img').first()).toHaveAttribute('tabindex', '0');
-  await expect(page.locator('.hero img[src="/RayLeos/assets/img/hero-homeExterior.jpg"]')).toHaveCount(0);
+  await expect(page.locator('.hero img[src="/RayLeos/assets/img/hero-home-exterior.jpg"]')).toHaveCount(0);
   await expect(page.locator('.photo-stack img[src="/RayLeos/assets/img/venue-stage.jpg"]')).toBeVisible();
   await expect(page.locator('.photo-stack img[src="/RayLeos/assets/img/venue-bar.jpg"]')).toBeVisible();
   await expect(page.locator('.photo-stack img[src="/RayLeos/assets/img/venue-exterior.jpg"]')).toBeVisible();
