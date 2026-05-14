@@ -94,6 +94,74 @@ test('mobile inquiry click reveals booking form and leaves fields editable', asy
   expect(consoleErrors).toEqual([]);
 });
 
+test('booking validation shows accessible field errors and clears them on edit', async ({ page }) => {
+  const consoleErrors = installConsoleErrorGuard(page);
+  await page.goto('/RayLeos/booking/');
+
+  const email = page.locator('#email');
+  const phone = page.locator('#phone');
+  const members = page.locator('#members');
+  const website = page.locator('#website');
+  const musicLinks = page.locator('#musicLinks');
+  const epk = page.locator('#epk');
+  const alert = page.locator('[data-form-alert]');
+
+  await expect(page.locator('#artistName-error')).toHaveCount(1);
+  await expect(email).toHaveAttribute('aria-describedby', /email-hint/);
+  await expect(email).toHaveAttribute('aria-describedby', /email-error/);
+  await expect(page.locator('[data-open-email]')).toHaveAttribute('href', '#');
+
+  await page.getByRole('button', { name: /Generate Booking Request/i }).click();
+  await expect(alert).toBeVisible();
+  await expect(alert).toContainText(/Please fix these fields/i);
+  await expect(alert).toContainText(/Artist\/Band name/i);
+  await expect(page.locator('#artistName')).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#artistName-error')).toBeVisible();
+  await expect(page.locator('#artistName-error')).toContainText(/This field is required so we know who to contact/i);
+  await expect(page.locator('#artistName')).toBeFocused();
+
+  await page.locator('#artistName').fill('The Validation Tests');
+  await page.locator('#contactName').fill('Casey Check');
+  await email.fill('not-an-email');
+  await phone.fill('812-401');
+  await page.locator('#hometown').fill('Evansville, IN');
+  await page.locator('#genre').fill('Garage rock');
+  await members.fill('0');
+  await website.fill('example.com');
+  await musicLinks.fill('not a link');
+  await epk.fill('ftp://example.com/epk');
+  await page.locator('#preferredDates').fill('Next available Friday');
+
+  await page.getByRole('button', { name: /Generate Booking Request/i }).click();
+  await expect(email).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#email-error')).toContainText(/Enter a valid email address, like booking@example.com/i);
+  await expect(phone).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#phone-error')).toContainText(/Enter a phone number with at least 10 digits/i);
+  await expect(members).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#members-error')).toContainText(/Enter a whole number, like 4/i);
+  await expect(website).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#website-error')).toContainText(/Enter a full link, including https:\/\//i);
+  await expect(musicLinks).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#musicLinks-error')).toContainText(/Enter a full link, including https:\/\//i);
+  await expect(epk).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#epk-error')).toContainText(/Enter a full link, including https:\/\//i);
+
+  await email.fill('booking@example.com');
+  await expect(email).not.toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#email-error')).toBeHidden();
+  await phone.fill('+1 812 401 1126');
+  await members.fill('4');
+  await website.fill('https://example.com');
+  await musicLinks.fill('https://example.com/music');
+  await epk.fill('https://example.com/epk');
+
+  await page.getByRole('button', { name: /Generate Booking Request/i }).click();
+  await expect(page.locator('[data-booking-output]')).toBeVisible();
+  await expect(page.locator('[data-booking-summary]')).toHaveValue(/The Validation Tests/);
+  await expect(page.locator('[data-open-email]')).toHaveAttribute('href', /^mailto:/);
+  expect(consoleErrors).toEqual([]);
+});
+
 test('mobile manual scroll shows booking form fields without inquiry click', async ({ page }) => {
   const consoleErrors = installConsoleErrorGuard(page);
   await page.setViewportSize({ width: 412, height: 915 });

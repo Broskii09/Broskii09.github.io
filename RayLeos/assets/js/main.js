@@ -358,16 +358,96 @@
   }
 
   // Booking form validation and copyable email request.
-  function clearCustomValidity(form){ $$('input, select, textarea', form).forEach(field => field.setCustomValidity('')); }
-  function validateUrlFields(form){
-    $$('input[type="url"]', form).forEach(field => {
-      const value = String(field.value || '').trim(); field.setCustomValidity('');
-      if (value && !/^https?:\/\/[^\s]+\.[^\s]+/i.test(value)) field.setCustomValidity('Please enter a full URL starting with https://');
+  const bookingValidationNames = ['artistName','contactName','email','phone','hometown','genre','members','website','instagram','facebook','musicLinks','liveVideo','epk','admat','promoPhotos','stagePlot','inputList','preferredDates'];
+  const bookingErrorMessages = {
+    required: 'This field is required so we know who to contact.',
+    email: 'Enter a valid email address, like booking@example.com.',
+    phone: 'Enter a phone number with at least 10 digits.',
+    url: 'Enter a full link, including https://.',
+    members: 'Enter a whole number, like 4.'
+  };
+  function fieldLabel(field){
+    const label = field.id ? $(`label[for="${field.id}"]`) : null;
+    return (label?.textContent || field.name || 'Field').replace(/\s*\*+\s*$/, '').trim();
+  }
+  function isFullHttpUrl(value){
+    try {
+      const url = new URL(value);
+      return (url.protocol === 'http:' || url.protocol === 'https:') && Boolean(url.hostname) && url.hostname.includes('.');
+    } catch { return false; }
+  }
+  function ensureFieldErrors(form){
+    bookingValidationNames.forEach(name => {
+      const field = form.elements[name];
+      if (!field || !field.id) return;
+      const wrapper = field.closest('.field');
+      if (!wrapper) return;
+      const hint = $('.hint', wrapper);
+      if (hint && !hint.id) hint.id = `${field.id}-hint`;
+      let error = $(`#${field.id}-error`, wrapper);
+      if (!error) {
+        error = document.createElement('p');
+        error.className = 'field-error';
+        error.id = `${field.id}-error`;
+        error.hidden = true;
+        wrapper.appendChild(error);
+      }
+      const describedBy = new Set((field.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+      if (hint?.id) describedBy.add(hint.id);
+      describedBy.add(error.id);
+      field.setAttribute('aria-describedby', Array.from(describedBy).join(' '));
     });
   }
-  function validateBookingForm(form){
-    clearCustomValidity(form); validateUrlFields(form); form.classList.add('was-validated');
-    if (!form.checkValidity()) { const firstInvalid = $(':invalid', form); if (firstInvalid) firstInvalid.focus({ preventScroll:false }); form.reportValidity(); return false; }
+  function validationMessageFor(field){
+    const value = String(field.value || '').trim();
+    if (field.required && !value) return bookingErrorMessages.required;
+    if (!value) return '';
+    if (field.type === 'email' && !field.validity.valid) return bookingErrorMessages.email;
+    if (field.type === 'url' && !isFullHttpUrl(value)) return bookingErrorMessages.url;
+    if (field.name === 'phone' && value.replace(/\D/g, '').length < 10) return bookingErrorMessages.phone;
+    if (field.name === 'members' && !/^[1-9]\d*$/.test(value)) return bookingErrorMessages.members;
+    return '';
+  }
+  function setFieldError(field, message){
+    const error = field.id ? $(`#${field.id}-error`) : null;
+    field.setCustomValidity(message || '');
+    if (message) {
+      field.setAttribute('aria-invalid', 'true');
+      field.classList.add('is-invalid');
+      if (error) { error.textContent = message; error.hidden = false; }
+    } else {
+      field.removeAttribute('aria-invalid');
+      field.classList.remove('is-invalid');
+      if (error) { error.textContent = ''; error.hidden = true; }
+    }
+  }
+  function clearFieldError(field){ setFieldError(field, ''); }
+  function validateBookingField(field){
+    const message = validationMessageFor(field);
+    setFieldError(field, message);
+    return message;
+  }
+  function hideFormAlert(alert){
+    if (!alert) return;
+    alert.hidden = true;
+    alert.innerHTML = '';
+  }
+  function showFormAlert(alert, invalidFields){
+    if (!alert) return;
+    const items = invalidFields.map(field => `<li><a href="#${escapeAttr(field.id)}">${escapeHTML(fieldLabel(field))}: ${escapeHTML(field.validationMessage)}</a></li>`).join('');
+    alert.innerHTML = `<strong>Please fix ${invalidFields.length === 1 ? 'this field' : 'these fields'} before generating the request.</strong><ul>${items}</ul>`;
+    alert.hidden = false;
+  }
+  function validateBookingForm(form, alert){
+    ensureFieldErrors(form);
+    form.classList.add('was-validated');
+    const invalidFields = bookingValidationNames.map(name => form.elements[name]).filter(Boolean).filter(field => validateBookingField(field));
+    if (invalidFields.length) {
+      showFormAlert(alert, invalidFields);
+      invalidFields[0].focus({ preventScroll:false });
+      return false;
+    }
+    hideFormAlert(alert);
     return true;
   }
   function buildBookingEmail(form){
@@ -398,6 +478,7 @@
     const openEmail = $('[data-open-email]', form);
     const alert = $('[data-form-alert]', form);
     let latest = null;
+    ensureFieldErrors(form);
     function setFieldValue(name, value){
       const field = form.elements[name];
       if (!field) return;
@@ -440,7 +521,7 @@
       if (panel) panel.hidden = !dateLabel;
       if (title) title.textContent = dateLabel ? `You’re inquiring about ${dateLabel}` : 'Date selected';
       if (meta) meta.textContent = [time, status, type].filter(Boolean).join(' · ');
-      if (alert) alert.hidden = true;
+      hideFormAlert(alert);
       if (options.scroll !== false) scrollToBookingForm();
     }
     function clearSelectedDate(){
@@ -467,15 +548,27 @@
       });
       history.replaceState(null, '', `${base}/booking/#booking-form`);
     });
-    form.addEventListener('input', event => { if (event.target.matches('input, select, textarea')) event.target.setCustomValidity(''); if (alert) alert.hidden = true; });
+    alert?.addEventListener('click', event => {
+      const link = event.target.closest('a[href^="#"]');
+      if (!link) return;
+      const field = $(link.getAttribute('href'), form);
+      if (field) {
+        event.preventDefault();
+        field.focus({ preventScroll:false });
+      }
+    });
+    form.addEventListener('input', event => {
+      if (event.target.matches('input, select, textarea')) clearFieldError(event.target);
+      hideFormAlert(alert);
+    });
     form.addEventListener('submit', event => {
       event.preventDefault();
-      if (!validateBookingForm(form)) { if (alert) { alert.textContent = 'Please fix the highlighted fields. Required fields and URLs must be valid.'; alert.hidden = false; } return; }
+      if (!validateBookingForm(form, alert)) return;
       latest = buildBookingEmail(form);
       if (summary) summary.value = latest.body;
       if (openEmail) openEmail.href = latest.mailto;
       if (output) output.hidden = false;
-      if (alert) alert.hidden = true;
+      hideFormAlert(alert);
       output?.scrollIntoView({ behavior:'smooth', block:'nearest' });
     });
     copyBtn?.addEventListener('click', () => { const text = summary?.value || latest?.body || ''; if (text) copyText(text, copyBtn, 'Request copied'); });
