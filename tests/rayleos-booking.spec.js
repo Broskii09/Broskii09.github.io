@@ -117,7 +117,16 @@ test('booking validation shows accessible field errors and clears them on edit',
   await expect(alert).toContainText(/Artist\/Band name/i);
   await expect(page.locator('#artistName')).toHaveAttribute('aria-invalid', 'true');
   await expect(page.locator('#artistName-error')).toBeVisible();
-  await expect(page.locator('#artistName-error')).toContainText(/This field is required so we know who to contact/i);
+  await expect(page.locator('#artistName-error')).toContainText(/Enter the artist or band name so we know who the request is for/i);
+  await expect(page.locator('#contactName-error')).toContainText(/Enter a contact name so we know who to follow up with/i);
+  await expect(page.locator('#hometown-error')).toContainText(/Enter the city, region, or market you’re based in/i);
+  await expect(page.locator('#genre-error')).toContainText(/Enter a short description of the sound, style, or genre/i);
+  await expect(page.locator('#musicLinks-error')).toContainText(/Add at least one full link to music, video, or a social page, including https:\/\//i);
+  await expect(page.locator('#epk-error')).toContainText(/Add your EPK or best available artist link, including https:\/\//i);
+  await expect(page.locator('#preferredDates-error')).toContainText(/Tell us what date, dates, or routing window you’re asking about/i);
+  await expect(page.locator('#hometown-error')).not.toContainText(/who to contact/i);
+  await expect(page.locator('#genre-error')).not.toContainText(/who to contact/i);
+  await expect(page.locator('#preferredDates-error')).not.toContainText(/who to contact/i);
   await expect(page.locator('#artistName')).toBeFocused();
 
   await page.locator('#artistName').fill('The Validation Tests');
@@ -140,11 +149,11 @@ test('booking validation shows accessible field errors and clears them on edit',
   await expect(members).toHaveAttribute('aria-invalid', 'true');
   await expect(page.locator('#members-error')).toContainText(/Enter a whole number, like 4/i);
   await expect(website).toHaveAttribute('aria-invalid', 'true');
-  await expect(page.locator('#website-error')).toContainText(/Enter a full link, including https:\/\//i);
+  await expect(page.locator('#website-error')).toContainText(/Enter a full website link, including https:\/\//i);
   await expect(musicLinks).toHaveAttribute('aria-invalid', 'true');
-  await expect(page.locator('#musicLinks-error')).toContainText(/Enter a full link, including https:\/\//i);
+  await expect(page.locator('#musicLinks-error')).toContainText(/Add at least one full link to music, video, or a social page, including https:\/\//i);
   await expect(epk).toHaveAttribute('aria-invalid', 'true');
-  await expect(page.locator('#epk-error')).toContainText(/Enter a full link, including https:\/\//i);
+  await expect(page.locator('#epk-error')).toContainText(/Add your EPK or best available artist link, including https:\/\//i);
 
   await email.fill('booking@example.com');
   await expect(email).not.toHaveAttribute('aria-invalid', 'true');

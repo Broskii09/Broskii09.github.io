@@ -359,13 +359,37 @@
 
   // Booking form validation and copyable email request.
   const bookingValidationNames = ['artistName','contactName','email','phone','hometown','genre','members','website','instagram','facebook','musicLinks','liveVideo','epk','admat','promoPhotos','stagePlot','inputList','preferredDates'];
-  const bookingErrorMessages = {
-    required: 'This field is required so we know who to contact.',
-    email: 'Enter a valid email address, like booking@example.com.',
-    phone: 'Enter a phone number with at least 10 digits.',
-    url: 'Enter a full link, including https://.',
-    members: 'Enter a whole number, like 4.'
-  };
+const bookingErrorMessages = {
+  required: 'This field is required.',
+  email: 'Enter a valid email address, like booking@example.com.',
+  phone: 'Enter a phone number with at least 10 digits.',
+  url: 'Enter a full link, including https://.',
+  members: 'Enter a whole number, like 4.'
+};
+
+const bookingRequiredMessages = {
+  artistName: 'Enter the artist or band name so we know who the request is for.',
+  contactName: 'Enter a contact name so we know who to follow up with.',
+  email: 'Enter a valid email address, like booking@example.com.',
+  hometown: 'Enter the city, region, or market you’re based in.',
+  genre: 'Enter a short description of the sound, style, or genre.',
+  musicLinks: 'Add at least one full link to music, video, or a social page, including https://.',
+  epk: 'Add your EPK or best available artist link, including https://.',
+  preferredDates: 'Tell us what date, dates, or routing window you’re asking about.'
+};
+
+const bookingUrlMessages = {
+  website: 'Enter a full website link, including https://.',
+  instagram: 'Enter a full Instagram link, including https://.',
+  facebook: 'Enter a full Facebook link, including https://.',
+  musicLinks: 'Add at least one full link to music, video, or a social page, including https://.',
+  liveVideo: 'Enter a full video link, including https://.',
+  epk: 'Add your EPK or best available artist link, including https://.',
+  admat: 'Enter a full link to the ad mat, poster, or promo folder, including https://.',
+  promoPhotos: 'Enter a full link to promo photos or a media folder, including https://.',
+  stagePlot: 'Enter a full link to the stage plot, including https://.',
+  inputList: 'Enter a full link to the input list, including https://.'
+};
   function fieldLabel(field){
     const label = field.id ? $(`label[for="${field.id}"]`) : null;
     return (label?.textContent || field.name || 'Field').replace(/\s*\*+\s*$/, '').trim();
@@ -398,16 +422,34 @@
       field.setAttribute('aria-describedby', Array.from(describedBy).join(' '));
     });
   }
-  function validationMessageFor(field){
-    const value = String(field.value || '').trim();
-    if (field.required && !value) return bookingErrorMessages.required;
-    if (!value) return '';
-    if (field.type === 'email' && !field.validity.valid) return bookingErrorMessages.email;
-    if (field.type === 'url' && !isFullHttpUrl(value)) return bookingErrorMessages.url;
-    if (field.name === 'phone' && value.replace(/\D/g, '').length < 10) return bookingErrorMessages.phone;
-    if (field.name === 'members' && !/^[1-9]\d*$/.test(value)) return bookingErrorMessages.members;
-    return '';
+function validationMessageFor(field){
+  const value = String(field.value || '').trim();
+  const name = field.name || field.id || '';
+
+  if (field.required && !value) {
+    return bookingRequiredMessages[name] || bookingErrorMessages.required;
   }
+
+  if (!value) return '';
+
+  if (field.type === 'email' && !field.validity.valid) {
+    return bookingErrorMessages.email;
+  }
+
+  if (field.type === 'url' && !isFullHttpUrl(value)) {
+    return bookingUrlMessages[name] || bookingErrorMessages.url;
+  }
+
+  if (name === 'phone' && value.replace(/\D/g, '').length < 10) {
+    return bookingErrorMessages.phone;
+  }
+
+  if (name === 'members' && !/^[1-9]\d*$/.test(value)) {
+    return bookingErrorMessages.members;
+  }
+
+  return '';
+}
   function setFieldError(field, message){
     const error = field.id ? $(`#${field.id}-error`) : null;
     field.setCustomValidity(message || '');
