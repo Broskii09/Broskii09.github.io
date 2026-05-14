@@ -576,7 +576,8 @@
       const panel = $('[data-selected-date-panel]', form);
       const title = $('[data-selected-date-title]', form);
       const meta = $('[data-selected-date-meta]', form);
-      if (panel) panel.hidden = !dateLabel;
+      const hasSelectedInquiry = Boolean(dateLabel || time || status);
+      if (panel) panel.hidden = !hasSelectedInquiry;
       if (title) title.textContent = dateLabel ? `You’re inquiring about ${dateLabel}` : 'Date selected';
       if (meta) meta.textContent = [time, status, type].filter(Boolean).join(' · ');
       hideFormAlert(alert);
@@ -584,10 +585,23 @@
     }
     function clearSelectedDate(){
       ['selectedDate','selectedTime','selectedStatus','requestType'].forEach(name => setFieldValue(name, ''));
+
       const preferred = form.elements.preferredDates;
-      if (preferred && preferred.dataset.autofilled === 'true') { preferred.value = ''; delete preferred.dataset.autofilled; }
+      if (preferred && preferred.dataset.autofilled === 'true') {
+        preferred.value = '';
+        delete preferred.dataset.autofilled;
+        preferred.dispatchEvent(new Event('input', { bubbles:true }));
+      }
+
       const panel = $('[data-selected-date-panel]', form);
+      const title = $('[data-selected-date-title]', form);
+      const meta = $('[data-selected-date-meta]', form);
+
       if (panel) panel.hidden = true;
+      if (title) title.textContent = 'Date selected';
+      if (meta) meta.textContent = '';
+
+      hideFormAlert(alert);
     }
     const params = new URLSearchParams(window.location.search);
     if (params.has('date') || params.has('status')) {

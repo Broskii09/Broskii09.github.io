@@ -25,6 +25,9 @@ test('booking page renders availability, autofills inquiry context, validates, a
   expect(sectionOrder.availability).toBeLessThan(sectionOrder.alreadyBooked);
   expect(sectionOrder.alreadyBooked).toBeLessThan(sectionOrder.bookingForm);
 
+  const inquiryPanel = page.locator('[data-selected-date-panel]');
+  await expect(inquiryPanel).toBeHidden();
+
   const inquiryButton = availabilityList.locator('[data-inquire-date]').first();
   const inquiryDate = await inquiryButton.getAttribute('data-inquire-date');
   const inquiryStatus = await inquiryButton.getAttribute('data-inquire-status');
@@ -34,7 +37,18 @@ test('booking page renders availability, autofills inquiry context, validates, a
   const selectedStatus = page.locator('#selectedStatus');
   await expect(selectedDate).not.toHaveValue('');
   await expect(selectedStatus).toHaveValue(inquiryStatus || '');
+  await expect(inquiryPanel).toBeVisible();
   expect(['Available', 'Booked', 'Hold', 'Needs Support', 'Unavailable']).toContain(inquiryStatus);
+
+  await page.getByRole('button', { name: /Clear selected date/i }).click();
+  await expect(inquiryPanel).toBeHidden();
+  await expect(selectedDate).toHaveValue('');
+  await expect(selectedStatus).toHaveValue('');
+
+  await inquiryButton.click();
+  await expect(selectedDate).not.toHaveValue('');
+  await expect(selectedStatus).toHaveValue(inquiryStatus || '');
+  await expect(inquiryPanel).toBeVisible();
 
   await page.getByRole('button', { name: /Generate Booking Request/i }).click();
   await expect(page.locator('[data-form-alert]')).toBeVisible();
