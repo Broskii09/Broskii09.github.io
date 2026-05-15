@@ -6,12 +6,48 @@ const repoRoot = path.resolve(__dirname, '..');
 const productionOrigin = 'https://rayleos.com';
 const stagingOrigin = 'https://broskii09.github.io';
 const pages = [
-  { file: 'RayLeos/index.html', url: 'https://rayleos.com/' },
-  { file: 'RayLeos/shows/index.html', url: 'https://rayleos.com/shows/' },
-  { file: 'RayLeos/food-bar/index.html', url: 'https://rayleos.com/food-bar/' },
-  { file: 'RayLeos/booking/index.html', url: 'https://rayleos.com/booking/' },
-  { file: 'RayLeos/visit/index.html', url: 'https://rayleos.com/visit/' },
-  { file: 'RayLeos/about/index.html', url: 'https://rayleos.com/about/' }
+  {
+    file: 'RayLeos/index.html',
+    url: 'https://rayleos.com/',
+    image: 'https://rayleos.com/assets/img/hero-home-exterior.jpg',
+    width: '2400',
+    height: '1800'
+  },
+  {
+    file: 'RayLeos/shows/index.html',
+    url: 'https://rayleos.com/shows/',
+    image: 'https://rayleos.com/assets/img/venue-stage.jpg',
+    width: '1600',
+    height: '1000'
+  },
+  {
+    file: 'RayLeos/food-bar/index.html',
+    url: 'https://rayleos.com/food-bar/',
+    image: 'https://rayleos.com/assets/img/venue-bar.jpg',
+    width: '1600',
+    height: '1000'
+  },
+  {
+    file: 'RayLeos/booking/index.html',
+    url: 'https://rayleos.com/booking/',
+    image: 'https://rayleos.com/assets/img/venue-exterior.jpg',
+    width: '1600',
+    height: '1000'
+  },
+  {
+    file: 'RayLeos/visit/index.html',
+    url: 'https://rayleos.com/visit/',
+    image: 'https://rayleos.com/assets/img/og/rayleos-og-default.jpg',
+    width: '1200',
+    height: '630'
+  },
+  {
+    file: 'RayLeos/about/index.html',
+    url: 'https://rayleos.com/about/',
+    image: 'https://rayleos.com/assets/img/og/rayleos-og-default.jpg',
+    width: '1200',
+    height: '630'
+  }
 ];
 
 function read(relativePath) {
@@ -39,6 +75,7 @@ test('public pages use production metadata and local OG image assets', () => {
     const canonicalUrl = canonical(html);
     const ogUrl = attr(html, 'property="og:url"');
     const ogImage = attr(html, 'property="og:image"');
+    const twitterImage = attr(html, 'name="twitter:image"');
 
     expect(canonicalUrl, `${page.file} canonical`).toBe(page.url);
     expect(ogUrl, `${page.file} og:url`).toBe(page.url);
@@ -65,11 +102,15 @@ test('public pages use production metadata and local OG image assets', () => {
     }
 
     expect(attr(html, 'property="og:type"')).toBe('website');
-    expect(attr(html, 'property="og:image:width"')).toBe('1200');
-    expect(attr(html, 'property="og:image:height"')).toBe('630');
+    expect(attr(html, 'property="og:image:width"')).toBe(page.width);
+    expect(attr(html, 'property="og:image:height"')).toBe(page.height);
     expect(attr(html, 'name="twitter:card"')).toBe('summary_large_image');
-    expect(ogImage).toMatch(/^https:\/\/rayleos\.com\/assets\/img\/og\/.+\.jpg$/);
+    expect(ogImage, `${page.file} OG image`).toBe(page.image);
+    expect(twitterImage, `${page.file} Twitter image`).toBe(page.image);
+    expect(attr(html, 'property="og:image:alt"'), `${page.file} OG image alt`).not.toBe('');
+    expect(attr(html, 'name="twitter:image:alt"'), `${page.file} Twitter image alt`).not.toBe('');
     expect(fs.existsSync(localAssetPathFromProductionUrl(ogImage)), `${page.file} OG image asset exists`).toBe(true);
+    expect(fs.existsSync(localAssetPathFromProductionUrl(twitterImage)), `${page.file} Twitter image asset exists`).toBe(true);
     expect(html).not.toMatch(/property="og:[^"]+" content="https:\/\/broskii09\.github\.io/i);
   }
 });
