@@ -9,44 +9,32 @@ const pages = [
   {
     file: 'RayLeos/index.html',
     url: 'https://rayleos.com/',
-    image: 'https://rayleos.com/assets/img/hero-home-exterior.jpg',
-    width: '2400',
-    height: '1800'
+    image: 'https://rayleos.com/assets/img/og/rayleos-og-home.jpg'
   },
   {
     file: 'RayLeos/shows/index.html',
     url: 'https://rayleos.com/shows/',
-    image: 'https://rayleos.com/assets/img/venue-stage.jpg',
-    width: '1600',
-    height: '1000'
+    image: 'https://rayleos.com/assets/img/og/rayleos-og-shows.jpg'
   },
   {
     file: 'RayLeos/food-bar/index.html',
     url: 'https://rayleos.com/food-bar/',
-    image: 'https://rayleos.com/assets/img/venue-bar.jpg',
-    width: '1600',
-    height: '1000'
+    image: 'https://rayleos.com/assets/img/og/rayleos-og-food-bar.jpg'
   },
   {
     file: 'RayLeos/booking/index.html',
     url: 'https://rayleos.com/booking/',
-    image: 'https://rayleos.com/assets/img/venue-exterior.jpg',
-    width: '1600',
-    height: '1000'
+    image: 'https://rayleos.com/assets/img/og/rayleos-og-booking.jpg'
   },
   {
     file: 'RayLeos/visit/index.html',
     url: 'https://rayleos.com/visit/',
-    image: 'https://rayleos.com/assets/img/og/rayleos-og-default.jpg',
-    width: '1200',
-    height: '630'
+    image: 'https://rayleos.com/assets/img/og/rayleos-og-visit.jpg'
   },
   {
     file: 'RayLeos/about/index.html',
     url: 'https://rayleos.com/about/',
-    image: 'https://rayleos.com/assets/img/og/rayleos-og-default.jpg',
-    width: '1200',
-    height: '630'
+    image: 'https://rayleos.com/assets/img/og/rayleos-og-about.jpg'
   }
 ];
 
@@ -69,6 +57,24 @@ function localAssetPathFromProductionUrl(url) {
   return path.join(repoRoot, 'RayLeos', parsed.pathname.replace(/^\/+/, ''));
 }
 
+function jpegDimensions(filePath) {
+  const data = fs.readFileSync(filePath);
+  let offset = 2;
+  while (offset < data.length) {
+    if (data[offset] !== 0xff) break;
+    const marker = data[offset + 1];
+    const length = data.readUInt16BE(offset + 2);
+    if (marker >= 0xc0 && marker <= 0xc3) {
+      return {
+        height: String(data.readUInt16BE(offset + 5)),
+        width: String(data.readUInt16BE(offset + 7))
+      };
+    }
+    offset += 2 + length;
+  }
+  throw new Error(`Could not read JPEG dimensions for ${filePath}`);
+}
+
 test('public pages use production metadata and local OG image assets', () => {
   for (const page of pages) {
     const html = read(page.file);
@@ -76,6 +82,8 @@ test('public pages use production metadata and local OG image assets', () => {
     const ogUrl = attr(html, 'property="og:url"');
     const ogImage = attr(html, 'property="og:image"');
     const twitterImage = attr(html, 'name="twitter:image"');
+    const imagePath = localAssetPathFromProductionUrl(ogImage);
+    const dimensions = jpegDimensions(imagePath);
 
     expect(canonicalUrl, `${page.file} canonical`).toBe(page.url);
     expect(ogUrl, `${page.file} og:url`).toBe(page.url);
@@ -89,6 +97,7 @@ test('public pages use production metadata and local OG image assets', () => {
       'property="og:description"',
       'property="og:type"',
       'property="og:image"',
+      'property="og:image:type"',
       'property="og:image:alt"',
       'property="og:site_name"',
       'property="og:locale"',
@@ -102,14 +111,15 @@ test('public pages use production metadata and local OG image assets', () => {
     }
 
     expect(attr(html, 'property="og:type"')).toBe('website');
-    expect(attr(html, 'property="og:image:width"')).toBe(page.width);
-    expect(attr(html, 'property="og:image:height"')).toBe(page.height);
+    expect(attr(html, 'property="og:image:type"')).toBe('image/jpeg');
+    expect(attr(html, 'property="og:image:width"')).toBe(dimensions.width);
+    expect(attr(html, 'property="og:image:height"')).toBe(dimensions.height);
     expect(attr(html, 'name="twitter:card"')).toBe('summary_large_image');
     expect(ogImage, `${page.file} OG image`).toBe(page.image);
     expect(twitterImage, `${page.file} Twitter image`).toBe(page.image);
     expect(attr(html, 'property="og:image:alt"'), `${page.file} OG image alt`).not.toBe('');
     expect(attr(html, 'name="twitter:image:alt"'), `${page.file} Twitter image alt`).not.toBe('');
-    expect(fs.existsSync(localAssetPathFromProductionUrl(ogImage)), `${page.file} OG image asset exists`).toBe(true);
+    expect(fs.existsSync(imagePath), `${page.file} OG image asset exists`).toBe(true);
     expect(fs.existsSync(localAssetPathFromProductionUrl(twitterImage)), `${page.file} Twitter image asset exists`).toBe(true);
     expect(html).not.toMatch(/property="og:[^"]+" content="https:\/\/broskii09\.github\.io/i);
   }
