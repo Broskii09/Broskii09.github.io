@@ -5,36 +5,37 @@ const { test, expect } = require('@playwright/test');
 const repoRoot = path.resolve(__dirname, '..');
 const productionOrigin = 'https://rayleos.com';
 const stagingOrigin = 'https://broskii09.github.io';
+const stagingBase = `${stagingOrigin}/RayLeos`;
 const pages = [
   {
     file: 'RayLeos/index.html',
-    url: 'https://rayleos.com/',
-    image: 'https://rayleos.com/assets/img/og/rayleos-og-home.jpg'
+    url: `${stagingBase}/`,
+    image: `${stagingBase}/assets/img/og/rayleos-og-home.jpg`
   },
   {
     file: 'RayLeos/shows/index.html',
-    url: 'https://rayleos.com/shows/',
-    image: 'https://rayleos.com/assets/img/og/rayleos-og-shows.jpg'
+    url: `${stagingBase}/shows/`,
+    image: `${stagingBase}/assets/img/og/rayleos-og-shows.jpg`
   },
   {
     file: 'RayLeos/food-bar/index.html',
-    url: 'https://rayleos.com/food-bar/',
-    image: 'https://rayleos.com/assets/img/og/rayleos-og-food-bar.jpg'
+    url: `${stagingBase}/food-bar/`,
+    image: `${stagingBase}/assets/img/og/rayleos-og-food-bar.jpg`
   },
   {
     file: 'RayLeos/booking/index.html',
-    url: 'https://rayleos.com/booking/',
-    image: 'https://rayleos.com/assets/img/og/rayleos-og-booking.jpg'
+    url: `${stagingBase}/booking/`,
+    image: `${stagingBase}/assets/img/og/rayleos-og-booking.jpg`
   },
   {
     file: 'RayLeos/visit/index.html',
-    url: 'https://rayleos.com/visit/',
-    image: 'https://rayleos.com/assets/img/og/rayleos-og-visit.jpg'
+    url: `${stagingBase}/visit/`,
+    image: `${stagingBase}/assets/img/og/rayleos-og-visit.jpg`
   },
   {
     file: 'RayLeos/about/index.html',
-    url: 'https://rayleos.com/about/',
-    image: 'https://rayleos.com/assets/img/og/rayleos-og-about.jpg'
+    url: `${stagingBase}/about/`,
+    image: `${stagingBase}/assets/img/og/rayleos-og-about.jpg`
   }
 ];
 
@@ -52,9 +53,10 @@ function canonical(html) {
   return html.match(/<link[^>]+rel="canonical"[^>]+href="([^"]+)"/i)?.[1] || '';
 }
 
-function localAssetPathFromProductionUrl(url) {
+function localAssetPathFromMetadataUrl(url) {
   const parsed = new URL(url);
-  return path.join(repoRoot, 'RayLeos', parsed.pathname.replace(/^\/+/, ''));
+  const localPath = parsed.pathname.replace(/^\/RayLeos\//, '');
+  return path.join(repoRoot, 'RayLeos', localPath.replace(/^\/+/, ''));
 }
 
 function jpegDimensions(filePath) {
@@ -75,22 +77,24 @@ function jpegDimensions(filePath) {
   throw new Error(`Could not read JPEG dimensions for ${filePath}`);
 }
 
-test('public pages use production metadata and local OG image assets', () => {
+// Temporary for GitHub Pages social preview testing. Before production launch,
+// switch canonical, OG, and Twitter image metadata back to https://rayleos.com/.
+test('public pages use staging metadata and local OG image assets', () => {
   for (const page of pages) {
     const html = read(page.file);
     const canonicalUrl = canonical(html);
     const ogUrl = attr(html, 'property="og:url"');
     const ogImage = attr(html, 'property="og:image"');
     const twitterImage = attr(html, 'name="twitter:image"');
-    const imagePath = localAssetPathFromProductionUrl(ogImage);
+    const imagePath = localAssetPathFromMetadataUrl(ogImage);
     const dimensions = jpegDimensions(imagePath);
 
     expect(canonicalUrl, `${page.file} canonical`).toBe(page.url);
     expect(ogUrl, `${page.file} og:url`).toBe(page.url);
-    expect(canonicalUrl).toContain(productionOrigin);
-    expect(ogUrl).toContain(productionOrigin);
-    expect(canonicalUrl).not.toContain(stagingOrigin);
-    expect(ogUrl).not.toContain(stagingOrigin);
+    expect(canonicalUrl).toContain(stagingBase);
+    expect(ogUrl).toContain(stagingBase);
+    expect(canonicalUrl).not.toContain(productionOrigin);
+    expect(ogUrl).not.toContain(productionOrigin);
 
     for (const selector of [
       'property="og:title"',
@@ -120,8 +124,8 @@ test('public pages use production metadata and local OG image assets', () => {
     expect(attr(html, 'property="og:image:alt"'), `${page.file} OG image alt`).not.toBe('');
     expect(attr(html, 'name="twitter:image:alt"'), `${page.file} Twitter image alt`).not.toBe('');
     expect(fs.existsSync(imagePath), `${page.file} OG image asset exists`).toBe(true);
-    expect(fs.existsSync(localAssetPathFromProductionUrl(twitterImage)), `${page.file} Twitter image asset exists`).toBe(true);
-    expect(html).not.toMatch(/property="og:[^"]+" content="https:\/\/broskii09\.github\.io/i);
+    expect(fs.existsSync(localAssetPathFromMetadataUrl(twitterImage)), `${page.file} Twitter image asset exists`).toBe(true);
+    expect(html).not.toMatch(/property="og:(url|image)" content="https:\/\/rayleos\.com/i);
   }
 });
 
@@ -138,7 +142,8 @@ test('structured data, sitemap, and robots use the production domain', () => {
 
   const sitemap = read('RayLeos/sitemap.xml');
   for (const page of pages) {
-    expect(sitemap).toContain(`<loc>${page.url}</loc>`);
+    const productionUrl = page.url.replace(stagingBase, productionOrigin);
+    expect(sitemap).toContain(`<loc>${productionUrl}</loc>`);
   }
   expect(sitemap).not.toContain('/RayLeos/');
   expect(sitemap).not.toContain(stagingOrigin);

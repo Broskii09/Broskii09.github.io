@@ -16,6 +16,12 @@ This guide applies to the `RayLeos/` static website in this GitHub Pages user-si
 - Do not add or commit font files.
 - Do not add ZIP artifacts.
 
+## Social Preview URL Mode
+
+- Current mode: GitHub Pages staging at `https://broskii09.github.io/RayLeos/`.
+- Before production launch, switch the six public HTML pages and `tests/rayleos-metadata.spec.js` back to `https://rayleos.com/`.
+- Review `RayLeos/sitemap.xml` and `RayLeos/robots.txt` during production launch; they may remain production-oriented while staging metadata is being tested.
+
 ## Features To Preserve
 
 - Home, Shows, Food & Bar, Booking, Visit, and About pages.
