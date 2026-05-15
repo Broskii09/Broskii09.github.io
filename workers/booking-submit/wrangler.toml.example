@@ -7,7 +7,7 @@ compatibility_date = "2026-05-01"
 
 [vars]
 BOOKING_TO_EMAIL = "inseitzmediaads@gmail.com"
-BOOKING_CC_EMAILS = ""
+BOOKING_CC_EMAILS = "none"
 BOOKING_FROM_EMAIL = "booking@rayleos.com"
 BOOKING_CONFIRMATION_FROM_EMAIL = "booking@rayleos.com"
 BOOKING_SEND_CONFIRMATION = "false"

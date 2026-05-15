@@ -72,17 +72,18 @@ export default {
       const subject = buildSubject(payload.fields);
       const text = buildTextEmail(payload, submissionId);
       const html = buildHtmlEmail(payload, submissionId);
-      const cc = parseEmailList(env.BOOKING_CC_EMAILS);
-
-      await sendResendEmail(env, {
+      const cc = parseCcEmails(env.BOOKING_CC_EMAILS, [env.BOOKING_TO_EMAIL, payload.fields.email]);
+      const adminEmail = {
         from: env.BOOKING_FROM_EMAIL,
         to: [env.BOOKING_TO_EMAIL],
-        cc,
         reply_to: payload.fields.email,
         subject,
         text,
         html
-      });
+      };
+      if (cc.length) adminEmail.cc = cc;
+
+      await sendResendEmail(env, adminEmail);
 
       if (truthy(env.BOOKING_SEND_CONFIRMATION)) {
         await sendResendEmail(env, {
@@ -124,7 +125,7 @@ function validatePayload(payload) {
   REQUIRED_FIELDS.forEach(key => {
     if (!payload.fields[key]) errors[key] = `${FIELD_LABELS[key]} is required.`;
   });
-  if (payload.fields.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.fields.email)) {
+  if (payload.fields.email && !isEmail(payload.fields.email)) {
     errors.email = 'Enter a valid email address.';
   }
   URL_FIELDS.forEach(key => {
@@ -281,8 +282,31 @@ function assertEnv(env) {
   });
 }
 
-function parseEmailList(value) {
-  return parseList(value).filter(Boolean);
+function parseCcEmails(value, excludedEmails = []) {
+  if (isBlankListValue(value)) return [];
+
+  const excluded = new Set(excludedEmails.map(normalizeEmail).filter(Boolean));
+  const seen = new Set();
+  return parseList(value).reduce((emails, item) => {
+    const normalized = normalizeEmail(item);
+    if (!normalized || excluded.has(normalized) || seen.has(normalized) || !isEmail(normalized)) return emails;
+    seen.add(normalized);
+    emails.push(item.trim());
+    return emails;
+  }, []);
+}
+
+function isBlankListValue(value) {
+  const normalized = normalizeEmail(value);
+  return !normalized || ['none', 'null', 'false'].includes(normalized);
+}
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function isEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
 
 function parseList(value) {

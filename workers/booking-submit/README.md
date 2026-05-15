@@ -23,7 +23,7 @@ Set these in Cloudflare/Wrangler. Do not commit secrets.
 
 - `RESEND_API_KEY`: Resend API key, stored as a Worker secret.
 - `BOOKING_TO_EMAIL`: recipient for booking requests. Start with `inseitzmediaads@gmail.com` for testing.
-- `BOOKING_CC_EMAILS`: optional comma-separated server-side CC list.
+- `BOOKING_CC_EMAILS`: optional comma-separated server-side CC list. If no CC is needed, omit it or set it to `none`. Do not set it to the same value as `BOOKING_TO_EMAIL`; duplicate, matching, empty, and invalid entries are removed server-side.
 - `BOOKING_FROM_EMAIL`: verified sender address in Resend, such as `booking@rayleos.com`.
 - `BOOKING_CONFIRMATION_FROM_EMAIL`: optional sender for submitter confirmations.
 - `BOOKING_SEND_CONFIRMATION`: `true` only when confirmation emails should be sent.
@@ -79,6 +79,7 @@ After the Worker is deployed and tested, set `enabled: true` and set `endpoint` 
 
 - Never put `RESEND_API_KEY` or other secrets in browser JavaScript.
 - Do not allow the client to choose recipient emails.
+- CC recipients are controlled server-side only and cannot be supplied by the browser.
 - The Worker validates required fields, email, URLs, and EPK status.
 - User input is escaped before being inserted into HTML email.
 - Avoid file uploads for now; collect links instead.
