@@ -1,0 +1,3 @@
+name = "rayleos-booking-submit"
+main = "worker.js"
+compatibility_date = "2026-05-14"

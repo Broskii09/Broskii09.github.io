@@ -44,10 +44,20 @@ wrangler secret put RESEND_API_KEY
 
 ## Cloudflare Setup
 
-1. Copy `wrangler.toml.example` to `wrangler.toml`.
-2. Update Worker name and vars for the environment.
-3. Add the Resend API key as a secret.
-4. Deploy only after testing locally and confirming allowed origins.
+Cloudflare dashboard deploy settings:
+
+- Project name: `rayleos-booking-submit`
+- Build command: `npm install`
+- Deploy command: `npx wrangler deploy --config workers/booking-submit/wrangler.toml`
+
+The committed `wrangler.toml` contains only production-safe deploy metadata. It does not include secrets or live environment values.
+
+Before live email sending:
+
+1. Add the required Worker secrets and environment variables in Cloudflare.
+2. Confirm Resend sender/domain verification.
+3. Confirm allowed origins.
+4. Deploy only after testing locally and confirming configuration.
 
 Do not deploy from this scaffold pass.
 
