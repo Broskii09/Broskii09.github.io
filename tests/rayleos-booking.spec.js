@@ -3,6 +3,8 @@ const { installConsoleErrorGuard } = require('./rayleos-test-utils.cjs');
 
 test('booking page renders availability, autofills inquiry context, validates, and generates a copyable request', async ({ page }) => {
   const consoleErrors = installConsoleErrorGuard(page);
+  const postRequests = [];
+  page.on('request', request => { if (request.method() === 'POST') postRequests.push(request.url()); });
   const availabilityResponse = page.waitForResponse(response => response.url().endsWith('/RayLeos/assets/data/availability.json'));
 
   await page.goto('/RayLeos/booking/');
@@ -90,6 +92,12 @@ test('booking page renders availability, autofills inquiry context, validates, a
 
   const emailLink = page.locator('[data-open-email]');
   await expect(emailLink).toHaveAttribute('href', /^mailto:/);
+  await expect(page.locator('[data-submit-booking]')).toHaveCount(0);
+  const payload = await page.evaluate(() => window.RayLeosBooking.buildPayload());
+  expect(payload.fields.styleNotes).toBe('Melodic indie rock with garage pop hooks.');
+  expect(payload.fields.epkStatus).toBe('I have an EPK / press kit link');
+  expect(payload.fields.drawNotes).toBe('Stronger draw with local support.');
+  expect(postRequests).toEqual([]);
   expect(consoleErrors).toEqual([]);
 });
 

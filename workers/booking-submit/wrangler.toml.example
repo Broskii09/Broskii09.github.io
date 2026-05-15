@@ -1,0 +1,17 @@
+name = "rayleos-booking-submit"
+main = "worker.js"
+compatibility_date = "2026-05-01"
+
+# This is an example only. Copy to wrangler.toml for deployment and keep
+# environment-specific values out of source control.
+
+[vars]
+BOOKING_TO_EMAIL = "inseitzmediaads@gmail.com"
+BOOKING_CC_EMAILS = ""
+BOOKING_FROM_EMAIL = "booking@rayleos.com"
+BOOKING_CONFIRMATION_FROM_EMAIL = "booking@rayleos.com"
+BOOKING_SEND_CONFIRMATION = "false"
+ALLOWED_ORIGINS = "https://rayleos.com,https://broskii09.github.io"
+
+# Set secrets with Wrangler, never in this file:
+# wrangler secret put RESEND_API_KEY

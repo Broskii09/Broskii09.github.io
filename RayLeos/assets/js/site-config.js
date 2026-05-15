@@ -2,6 +2,11 @@ window.RAYLEOS_CONFIG = Object.freeze({
   basePath: "/RayLeos",
   enableHeroParallax: true,
   bookingEmail: "inseitzmediaads@gmail.com",
+  bookingSubmission: {
+    enabled: false,
+    endpoint: "",
+    timeoutMs: 12000
+  },
   businessName: "Ray Leo’s at Lamasco",
   phone: "(812) 401-1126",
   phoneHref: "tel:+18124011126",

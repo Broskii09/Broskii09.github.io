@@ -1,0 +1,75 @@
+# Ray Leo's Booking Submit Worker
+
+This is a future booking-submission backend scaffold. It is not deployed yet, and the public booking form is still configured with live submission disabled by default.
+
+The current Ray Leo's booking page continues to:
+
+- validate in the browser
+- generate a copyable booking request
+- provide the mailto fallback
+- avoid depending on this worker until it is deployed and enabled
+
+## Intended Stack
+
+- Cloudflare Worker endpoint
+- Resend for email delivery
+- Static Ray Leo's site on GitHub Pages staging, later `https://rayleos.com/`
+
+Turnstile, honeypot checks, and rate limiting are intentionally left for a later phase.
+
+## Required Environment Variables
+
+Set these in Cloudflare/Wrangler. Do not commit secrets.
+
+- `RESEND_API_KEY`: Resend API key, stored as a Worker secret.
+- `BOOKING_TO_EMAIL`: recipient for booking requests. Start with `inseitzmediaads@gmail.com` for testing.
+- `BOOKING_CC_EMAILS`: optional comma-separated server-side CC list.
+- `BOOKING_FROM_EMAIL`: verified sender address in Resend, such as `booking@rayleos.com`.
+- `BOOKING_CONFIRMATION_FROM_EMAIL`: optional sender for submitter confirmations.
+- `BOOKING_SEND_CONFIRMATION`: `true` only when confirmation emails should be sent.
+- `ALLOWED_ORIGINS`: comma-separated list, for example `https://rayleos.com,https://broskii09.github.io`.
+
+Later, switch `BOOKING_TO_EMAIL` from the test recipient to `Booking@rayleos.com` after the address and mail routing are ready.
+
+## Resend Setup
+
+1. Create or use a Resend account.
+2. Verify the sending domain or sender address.
+3. Create an API key.
+4. Store the key with:
+
+```powershell
+wrangler secret put RESEND_API_KEY
+```
+
+## Cloudflare Setup
+
+1. Copy `wrangler.toml.example` to `wrangler.toml`.
+2. Update Worker name and vars for the environment.
+3. Add the Resend API key as a secret.
+4. Deploy only after testing locally and confirming allowed origins.
+
+Do not deploy from this scaffold pass.
+
+## Frontend Enablement
+
+The site config currently keeps submission disabled:
+
+```js
+bookingSubmission: {
+  enabled: false,
+  endpoint: "",
+  timeoutMs: 12000
+}
+```
+
+After the Worker is deployed and tested, set `enabled: true` and set `endpoint` to the Worker URL. The copy and mailto fallback should remain visible even when real submission is enabled.
+
+## Security Notes
+
+- Never put `RESEND_API_KEY` or other secrets in browser JavaScript.
+- Do not allow the client to choose recipient emails.
+- The Worker validates required fields, email, URLs, and EPK status.
+- User input is escaped before being inserted into HTML email.
+- Avoid file uploads for now; collect links instead.
+- Add Turnstile, honeypot, and rate limiting before public launch of live submission.

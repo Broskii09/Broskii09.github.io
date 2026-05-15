@@ -2,6 +2,7 @@
   const SITE = window.RAYLEOS_CONFIG || {};
   const base = SITE.basePath || '/RayLeos';
   const BOOKING_EMAIL = SITE.bookingEmail || 'Booking@rayleos.com';
+  const BOOKING_SUBMISSION = SITE.bookingSubmission || {};
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
@@ -506,6 +507,65 @@
     const mailto = `mailto:${BOOKING_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     return { subject, body, mailto };
   }
+  const bookingPayloadOrder = ['selectedDate','selectedTime','selectedStatus','requestType','artistName','contactName','email','phone','hometown','genre','styleNotes','members','setLength','website','instagram','facebook','musicLinks','liveVideo','epkStatus','epk','admat','promoPhotos','stagePlot','inputList','preferredDates','routing','supportNeeds','expectedDraw','drawNotes','agePolicy','previousShows','dealExpectations','loadIn','merch','lodging','techNotes','notes'];
+  function buildBookingPayload(form){
+    const data = new FormData(form);
+    const fields = {};
+    bookingPayloadOrder.forEach(key => { fields[key] = String(data.get(key) || '').trim(); });
+    return {
+      source: 'RayLeos booking form',
+      sourcePath: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      submittedAt: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      fields
+    };
+  }
+  function bookingSubmissionEnabled(){
+    return Boolean(BOOKING_SUBMISSION.enabled && BOOKING_SUBMISSION.endpoint);
+  }
+  function ensureSubmitControls(output){
+    if (!output || !bookingSubmissionEnabled()) return {};
+    let sendBtn = $('[data-submit-booking]', output);
+    let status = $('[data-submit-booking-status]', output);
+    const row = $('.button-row', output) || output;
+    if (!sendBtn) {
+      sendBtn = document.createElement('button');
+      sendBtn.className = 'btn btn-red';
+      sendBtn.type = 'button';
+      sendBtn.setAttribute('data-submit-booking', '');
+      sendBtn.textContent = 'Send Booking Request';
+      row.appendChild(sendBtn);
+    }
+    if (!status) {
+      status = document.createElement('p');
+      status.className = 'notice';
+      status.setAttribute('data-submit-booking-status', '');
+      status.setAttribute('aria-live', 'polite');
+      output.appendChild(status);
+    }
+    return { sendBtn, status };
+  }
+  async function submitBookingPayload(payload, status){
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), Number(BOOKING_SUBMISSION.timeoutMs) || 12000);
+    try {
+      const response = await fetch(BOOKING_SUBMISSION.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) throw new Error(result.message || 'The booking request could not be sent.');
+      if (status) status.textContent = result.message || 'Booking request sent. Keep a copy for your records.';
+      return result;
+    } catch (error) {
+      if (status) status.textContent = `${error.message || 'Booking request could not be sent.'} You can still copy the request or use the email app fallback.`;
+      throw error;
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  }
   async function copyText(text, button, successText='Copied'){
     const original = button ? button.textContent : '';
     try {
@@ -523,6 +583,7 @@
     const alert = $('[data-form-alert]', form);
     let latest = null;
     ensureFieldErrors(form);
+    window.RayLeosBooking = { buildPayload: () => buildBookingPayload(form), submissionEnabled: bookingSubmissionEnabled };
     const epkStatus = form.elements.epkStatus;
     const epkField = form.elements.epk;
     const epkStatusNote = $('[data-epk-status-note]', form);
@@ -642,9 +703,20 @@
       event.preventDefault();
       if (!validateBookingForm(form, alert)) return;
       latest = buildBookingEmail(form);
+      latest.payload = buildBookingPayload(form);
       if (summary) summary.value = latest.body;
       if (openEmail) openEmail.href = latest.mailto;
       if (output) output.hidden = false;
+      const { sendBtn, status } = ensureSubmitControls(output);
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.onclick = async () => {
+          sendBtn.disabled = true;
+          if (status) status.textContent = 'Sending booking request...';
+          try { await submitBookingPayload(latest.payload, status); }
+          catch { sendBtn.disabled = false; }
+        };
+      }
       hideFormAlert(alert);
       output?.scrollIntoView({ behavior:'smooth', block:'nearest' });
     });
